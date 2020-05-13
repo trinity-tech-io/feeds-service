@@ -23,16 +23,28 @@
 #ifdef HAVE_TIME_H
 #include <time.h>
 #endif
-#include <stdio.h>
 #include <assert.h>
 
+#include <crystal.h>
 #include <sqlite3.h>
 
+#include "did.h"
 #include "db.h"
+
+typedef struct {
+    UserInfo info;
+    sqlite3_stmt *stmt;
+} OwnerInfo;
+
+typedef void *(*Row2Raw)(sqlite3_stmt *);
+struct DBObjIt {
+    sqlite3_stmt *stmt;
+    Row2Raw cb;
+};
 
 static sqlite3 *db;
 
-int db_initialize(const char *db_file)
+int db_init(const char *db_file)
 {
     sqlite3_stmt *stmt;
     const char *sql;
@@ -48,13 +60,13 @@ int db_initialize(const char *db_file)
 
     /* ================================= stmt-sep ================================= */
     sql = "CREATE TABLE IF NOT EXISTS channels ("
-          "    channel_id  INTEGER PRIMARY KEY AUTOINCREMENT,"
-          "    user_id     INTEGER NOT NULL REFERENCES users(user_id),"
-          "    created_at  REAL    NOT NULL,"
-          "    updated_at  REAL    NOT NULL,"
-          "    name        TEXT    NOT NULL UNIQUE,"
-          "    intro       TEXT    NOT NULL,"
-          "    subscribers INTEGER NOT NULL DEFAULT 0"
+          "  channel_id   INTEGER PRIMARY KEY AUTOINCREMENT,"
+          "  created_at   REAL    NOT NULL,"
+          "  updated_at   REAL    NOT NULL,"
+          "  name         TEXT    NOT NULL UNIQUE,"
+          "  intro        TEXT    NOT NULL,"
+          "  next_post_id INTEGER NOT NULL DEFAULT 1,"
+          "  subscribers  INTEGER NOT NULL DEFAULT 0"
           ")";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc)
@@ -67,14 +79,14 @@ int db_initialize(const char *db_file)
 
     /* ================================= stmt-sep ================================= */
     sql = "CREATE TABLE IF NOT EXISTS posts ("
-          "    channel_id      INTEGER NOT NULL REFERENCES channels(channel_id), "
-          "    post_id         INTEGER NOT NULL,"
-          "    created_at      REAL    NOT NULL,"
-          "    updated_at      REAL    NOT NULL,"
-          "    next_comment_id INTEGER NOT NULL DEFAULT 1,"
-          "    likes           INTEGER NOT NULL DEFAULT 0,"
-          "    content         BLOB    NOT NULL,"
-          "    PRIMARY KEY(channel_id, post_id)"
+          "  channel_id      INTEGER NOT NULL REFERENCES channels(channel_id),"
+          "  post_id         INTEGER NOT NULL,"
+          "  created_at      REAL    NOT NULL,"
+          "  updated_at      REAL    NOT NULL,"
+          "  next_comment_id INTEGER NOT NULL DEFAULT 1,"
+          "  likes           INTEGER NOT NULL DEFAULT 0, "
+          "  content         BLOB    NOT NULL,"
+          "  PRIMARY KEY(channel_id, post_id)"
           ")";
 
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
@@ -88,17 +100,17 @@ int db_initialize(const char *db_file)
 
     /* ================================= stmt-sep ================================= */
     sql = "CREATE TABLE IF NOT EXISTS comments ("
-          "    channel_id    INTEGER NOT NULL,"
-          "    post_id       INTEGER NOT NULL,"
-          "    comment_id    INTEGER NOT NULL,"
-          "    refcomment_id INTEGER NOT NULL,"
-          "    user_id       INTEGER NOT NULL REFERENCES users(user_id),"
-          "    created_at    REAL    NOT NULL,"
-          "    updated_at    REAL    NOT NULL,"
-          "    likes         INTEGER NOT NULL DEFAULT 0,"
-          "    content       BLOB    NOT NULL,"
-          "    PRIMARY KEY(channel_id, post_id, comment_id)"
-          "    FOREIGN KEY(channel_id, post_id) REFERENCES posts(channel_id, post_id)"
+          "  channel_id    INTEGER NOT NULL,"
+          "  post_id       INTEGER NOT NULL,"
+          "  comment_id    INTEGER NOT NULL,"
+          "  refcomment_id INTEGER NOT NULL,"
+          "  user_id       INTEGER NOT NULL REFERENCES users(user_id),"
+          "  created_at    REAL    NOT NULL,"
+          "  updated_at    REAL    NOT NULL,"
+          "  likes         INTEGER NOT NULL DEFAULT 0, "
+          "  content       BLOB    NOT NULL,"
+          "  PRIMARY KEY(channel_id, post_id, comment_id)"
+          "  FOREIGN KEY(channel_id, post_id) REFERENCES posts(channel_id, post_id)"
           ")";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc)
@@ -111,8 +123,10 @@ int db_initialize(const char *db_file)
 
     /* ================================= stmt-sep ================================= */
     sql = "CREATE TABLE IF NOT EXISTS users ("
-          "    user_id INTEGER PRIMARY KEY AUTOINCREMENT,"
-          "    jwt     TEXT NOT NULL UNIQUE"
+          "  user_id INTEGER PRIMARY KEY AUTOINCREMENT,"
+          "  did     TEXT NOT NULL UNIQUE,"
+          "  name    TEXT NOT NULL DEFAULT \"NA\","
+          "  email   TEXT NOT NULL DEFAULT \"NA\""
           ")";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc)
@@ -125,35 +139,9 @@ int db_initialize(const char *db_file)
 
     /* ================================= stmt-sep ================================= */
     sql = "CREATE TABLE IF NOT EXISTS subscriptions ("
-          "    user_id    INTEGER NOT NULL REFERENCES users(user_id),"
-          "    channel_id INTEGER NOT NULL REFERENCES channels(channel_id),"
-          "    PRIMARY KEY(user_id, channel_id)"
-          ")";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc)
-        goto failure;
-
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE)
-        goto failure;
-
-    /* ================================= stmt-sep ================================= */
-    sql = "CREATE TABLE IF NOT EXISTS publishers ("
-          "    user_id INTEGER PRIMARY KEY REFERENCES users(user_id)"
-          ")";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc)
-        goto failure;
-
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE)
-        goto failure;
-
-    /* ================================= stmt-sep ================================= */
-    sql = "CREATE TABLE IF NOT EXISTS owners ("
-          "    user_id INTEGER PRIMARY KEY REFERENCES users(user_id)"
+          "  user_id    INTEGER NOT NULL REFERENCES users(user_id),"
+          "  channel_id INTEGER NOT NULL REFERENCES channels(channel_id),"
+          "  PRIMARY KEY(user_id, channel_id)"
           ")";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc)
@@ -167,136 +155,26 @@ int db_initialize(const char *db_file)
     return 0;
 
 failure:
-    db_finalize();
+    db_deinit();
     return -1;
 }
 
-int db_iterate_channels(int (*it)(uint64_t id, const char *name, const char *desc,
-                                  uint64_t next_post_id, const char *owner))
+int db_create_chan(const ChanInfo *ci)
 {
     sqlite3_stmt *stmt;
     const char *sql;
     int rc;
 
     /* ================================= stmt-sep ================================= */
-    sql = "SELECT "
-          "  channel_id, name, intro, "
-          "    MAX(CASE WHEN post_id IS NULL THEN 0 ELSE post_id END) + 1 AS next_post_id, jwt"
-          "  FROM channels JOIN users USING(user_id) LEFT OUTER JOIN posts USING(channel_id)"
-          "  GROUP BY channel_id";
+    sql = "INSERT INTO channels(created_at, updated_at, name, intro) "
+          "  VALUES (:ts, :ts, :name, :intro)";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc)
         return -1;
-
-    while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-        if (it(sqlite3_column_int64(stmt, 0),
-               (const char *)sqlite3_column_text(stmt, 1),
-               (const char *)sqlite3_column_text(stmt, 2),
-               sqlite3_column_int64(stmt, 3),
-               (const char *)sqlite3_column_text(stmt, 4)))
-            break;
-    }
-
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE)
-        return -1;
-
-    return 0;
-}
-
-int db_iterate_publishers(int (*it)(const char *jwt))
-{
-    sqlite3_stmt *stmt;
-    const char *sql;
-    int rc;
-
-    /* ================================= stmt-sep ================================= */
-    sql = "SELECT jwt FROM publishers JOIN users USING(user_id)";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc)
-        return -1;
-
-    while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-        if (it((const char *)sqlite3_column_text(stmt, 0)))
-            break;
-    }
-
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE)
-        return -1;
-
-    return 0;
-}
-
-int db_iterate_node_owners(int (*it)(const char *jwt))
-{
-    sqlite3_stmt *stmt;
-    const char *sql;
-    int rc;
-
-    /* ================================= stmt-sep ================================= */
-    sql = "SELECT jwt FROM owners JOIN users USING(user_id);";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc)
-        return -1;
-
-    while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-        if (it((const char *)sqlite3_column_text(stmt, 0)))
-            break;
-    }
-
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE)
-        return -1;
-
-    return 0;
-}
-
-int db_create_channel(const char *name, const char *jwt, const char *intro)
-{
-    sqlite3_stmt *stmt;
-    const char *sql;
-    int rc;
-
-    /* ================================= stmt-sep ================================= */
-    sql = "INSERT OR IGNORE INTO users(jwt) VALUES (:jwt)";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc)
-        return -1;
-
-    rc = sqlite3_bind_text(stmt,
-                           sqlite3_bind_parameter_index(stmt, ":jwt"),
-                           jwt, -1, NULL);
-    if (rc) {
-        sqlite3_finalize(stmt);
-        return -1;
-    }
-
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE)
-        return -1;
-
-    /* ================================= stmt-sep ================================= */
-    sql = "INSERT INTO "
-          "  channels(user_id, created_at, updated_at, name, intro)"
-          "  VALUES ((SELECT user_id FROM users WHERE jwt = :jwt), "
-          "    :now, :now, :name, :intro)";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc)
-        return -1;
-
-    rc = sqlite3_bind_text(stmt,
-                           sqlite3_bind_parameter_index(stmt, ":jwt"),
-                           jwt, -1, NULL);
-    if (rc) {
-        sqlite3_finalize(stmt);
-        return -1;
-    }
 
     rc = sqlite3_bind_int64(stmt,
-                            sqlite3_bind_parameter_index(stmt, ":now"),
-                            time(NULL));
+                            sqlite3_bind_parameter_index(stmt, ":ts"),
+                            ci->created_at);
     if (rc) {
         sqlite3_finalize(stmt);
         return -1;
@@ -304,7 +182,7 @@ int db_create_channel(const char *name, const char *jwt, const char *intro)
 
     rc = sqlite3_bind_text(stmt,
                            sqlite3_bind_parameter_index(stmt, ":name"),
-                           name, -1, NULL);
+                           ci->name, -1, NULL);
     if (rc) {
         sqlite3_finalize(stmt);
         return -1;
@@ -312,7 +190,7 @@ int db_create_channel(const char *name, const char *jwt, const char *intro)
 
     rc = sqlite3_bind_text(stmt,
                            sqlite3_bind_parameter_index(stmt, ":intro"),
-                           intro, -1, NULL);
+                           ci->intro, -1, NULL);
     if (rc) {
         sqlite3_finalize(stmt);
         return -1;
@@ -326,12 +204,10 @@ int db_create_channel(const char *name, const char *jwt, const char *intro)
     return 0;
 }
 
-int db_add_post(uint64_t channel_id, uint64_t id, const void *content,
-                size_t len, uint64_t ts)
+int db_add_post(const PostInfo *pi)
 {
     sqlite3_stmt *stmt;
     const char *sql;
-    time_t now;
     int rc;
 
     /* ================================= stmt-sep ================================= */
@@ -346,16 +222,15 @@ int db_add_post(uint64_t channel_id, uint64_t id, const void *content,
         return -1;
 
     /* ================================= stmt-sep ================================= */
-    sql = "INSERT INTO "
-          "  posts(channel_id, post_id, created_at, updated_at, content)"
-          "  VALUES (:channel_id, :post_id, :now, :now, :content)";
+    sql = "INSERT INTO posts(channel_id, post_id, created_at, updated_at, content) "
+          "  VALUES (:channel_id, :post_id, :ts, :ts, :content)";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc)
         goto rollback;
 
     rc = sqlite3_bind_int64(stmt,
                             sqlite3_bind_parameter_index(stmt, ":channel_id"),
-                            channel_id);
+                            pi->chan_id);
     if (rc) {
         sqlite3_finalize(stmt);
         goto rollback;
@@ -363,15 +238,15 @@ int db_add_post(uint64_t channel_id, uint64_t id, const void *content,
 
     rc = sqlite3_bind_int64(stmt,
                             sqlite3_bind_parameter_index(stmt, ":post_id"),
-                            id);
+                            pi->post_id);
     if (rc) {
         sqlite3_finalize(stmt);
         goto rollback;
     }
 
     rc = sqlite3_bind_int64(stmt,
-                            sqlite3_bind_parameter_index(stmt, ":now"),
-                            now = time(NULL));
+                            sqlite3_bind_parameter_index(stmt, ":ts"),
+                            pi->created_at);
     if (rc) {
         sqlite3_finalize(stmt);
         goto rollback;
@@ -379,7 +254,7 @@ int db_add_post(uint64_t channel_id, uint64_t id, const void *content,
 
     rc = sqlite3_bind_blob(stmt,
                            sqlite3_bind_parameter_index(stmt, ":content"),
-                           content, len, NULL);
+                           pi->content, pi->len, NULL);
     if (rc) {
         sqlite3_finalize(stmt);
         goto rollback;
@@ -391,14 +266,16 @@ int db_add_post(uint64_t channel_id, uint64_t id, const void *content,
         goto rollback;
 
     /* ================================= stmt-sep ================================= */
-    sql = "UPDATE channels SET updated_at = :now WHERE channel_id = :channel_id";
+    sql = "UPDATE channels "
+          "  SET next_post_id = next_post_id + 1, updated_at = :ts "
+          "  WHERE channel_id = :channel_id";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc)
         goto rollback;
 
     rc = sqlite3_bind_int64(stmt,
-                            sqlite3_bind_parameter_index(stmt, ":now"),
-                            now = time(NULL));
+                            sqlite3_bind_parameter_index(stmt, ":ts"),
+                            pi->created_at);
     if (rc) {
         sqlite3_finalize(stmt);
         goto rollback;
@@ -406,7 +283,7 @@ int db_add_post(uint64_t channel_id, uint64_t id, const void *content,
 
     rc = sqlite3_bind_int64(stmt,
                             sqlite3_bind_parameter_index(stmt, ":channel_id"),
-                            channel_id);
+                            pi->chan_id);
     if (rc) {
         sqlite3_finalize(stmt);
         goto rollback;
@@ -441,16 +318,20 @@ rollback:
         return -1;
 }
 
-int db_comment_exists(uint64_t channel_id, uint64_t post_id, uint64_t comment_id)
+int db_cmt_exists(uint64_t channel_id, uint64_t post_id, uint64_t comment_id)
 {
     sqlite3_stmt *stmt;
     const char *sql;
     int rc;
 
     /* ================================= stmt-sep ================================= */
-    sql = "SELECT "
-          "  EXISTS(SELECT * FROM comments WHERE channel_id = :channel_id AND "
-          "    post_id = :post_id AND comment_id = :comment_id)";
+    sql = "SELECT EXISTS( "
+          "  SELECT * "
+          "    FROM comments "
+          "    WHERE channel_id = :channel_id AND "
+          "          post_id = :post_id AND "
+          "          comment_id = :comment_id"
+          ")";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc)
         return -1;
@@ -491,13 +372,10 @@ int db_comment_exists(uint64_t channel_id, uint64_t post_id, uint64_t comment_id
     return rc ? 1 : 0;
 }
 
-int db_add_comment(uint64_t channel_id, uint64_t post_id, uint64_t comment_id,
-                   const char *jwt, const void *content, size_t len,
-                   uint64_t created_at, uint64_t *id)
+int db_add_cmt(CmtInfo *ci, uint64_t *id)
 {
     sqlite3_stmt *stmt;
     const char *sql;
-    time_t now;
     int rc;
 
     /* ================================= stmt-sep ================================= */
@@ -512,41 +390,24 @@ int db_add_comment(uint64_t channel_id, uint64_t post_id, uint64_t comment_id,
         return -1;
 
     /* ================================= stmt-sep ================================= */
-    sql = "INSERT OR IGNORE INTO users(jwt) VALUES (:jwt)";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc)
-        goto rollback;
-
-    rc = sqlite3_bind_text(stmt,
-                           sqlite3_bind_parameter_index(stmt, ":jwt"),
-                           jwt, -1, NULL);
-    if (rc) {
-        sqlite3_finalize(stmt);
-        goto rollback;
-    }
-
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE)
-        goto rollback;
-
-    /* ================================= stmt-sep ================================= */
-    sql = "INSERT INTO "
-          "  comments(channel_id, post_id, comment_id, refcomment_id, user_id, "
-          "    created_at, updated_at, content)"
-          "  VALUES (:channel_id, :post_id, "
-          "    (SELECT next_comment_id FROM posts WHERE channel_id = :channel_id "
-          "      AND post_id = :post_id), "
-          "    :comment_id,"
-          "    (SELECT user_id FROM users WHERE jwt = :jwt), "
-          "    :now, :now, :content)";
+    sql = "INSERT INTO comments("
+          "  channel_id, post_id, comment_id, "
+          "  refcomment_id, user_id, created_at, updated_at, content"
+          ") VALUES ("
+          "  :channel_id, :post_id, "
+          "  (SELECT next_comment_id "
+          "     FROM posts "
+          "     WHERE channel_id = :channel_id AND "
+          "           post_id = :post_id), "
+          "  :comment_id, :uid, :ts, :ts, :content"
+          ")";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc)
         goto rollback;
 
     rc = sqlite3_bind_int64(stmt,
                             sqlite3_bind_parameter_index(stmt, ":channel_id"),
-                            channel_id);
+                            ci->chan_id);
     if (rc) {
         sqlite3_finalize(stmt);
         goto rollback;
@@ -554,7 +415,7 @@ int db_add_comment(uint64_t channel_id, uint64_t post_id, uint64_t comment_id,
 
     rc = sqlite3_bind_int64(stmt,
                             sqlite3_bind_parameter_index(stmt, ":post_id"),
-                            post_id);
+                            ci->post_id);
     if (rc) {
         sqlite3_finalize(stmt);
         goto rollback;
@@ -562,23 +423,23 @@ int db_add_comment(uint64_t channel_id, uint64_t post_id, uint64_t comment_id,
 
     rc = sqlite3_bind_int64(stmt,
                             sqlite3_bind_parameter_index(stmt, ":comment_id"),
-                            comment_id);
-    if (rc) {
-        sqlite3_finalize(stmt);
-        goto rollback;
-    }
-
-    rc = sqlite3_bind_text(stmt,
-                           sqlite3_bind_parameter_index(stmt, ":jwt"),
-                           jwt, -1, NULL);
+                            ci->reply_to_cmt);
     if (rc) {
         sqlite3_finalize(stmt);
         goto rollback;
     }
 
     rc = sqlite3_bind_int64(stmt,
-                            sqlite3_bind_parameter_index(stmt, ":now"),
-                            now = time(NULL));
+                            sqlite3_bind_parameter_index(stmt, ":uid"),
+                            ci->user.uid);
+    if (rc) {
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":ts"),
+                            ci->created_at);
     if (rc) {
         sqlite3_finalize(stmt);
         goto rollback;
@@ -586,7 +447,7 @@ int db_add_comment(uint64_t channel_id, uint64_t post_id, uint64_t comment_id,
 
     rc = sqlite3_bind_blob(stmt,
                            sqlite3_bind_parameter_index(stmt, ":content"),
-                           content, len, NULL);
+                           ci->content, ci->len, NULL);
     if (rc) {
         sqlite3_finalize(stmt);
         goto rollback;
@@ -599,15 +460,15 @@ int db_add_comment(uint64_t channel_id, uint64_t post_id, uint64_t comment_id,
 
     /* ================================= stmt-sep ================================= */
     sql = "UPDATE posts "
-          "  SET updated_at = :now, next_comment_id = next_comment_id + 1"
+          "  SET updated_at = :ts, next_comment_id = next_comment_id + 1 "
           "  WHERE channel_id = :channel_id AND post_id = :post_id";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc)
         goto rollback;
 
     rc = sqlite3_bind_int64(stmt,
-                            sqlite3_bind_parameter_index(stmt, ":now"),
-                            now);
+                            sqlite3_bind_parameter_index(stmt, ":ts"),
+                            ci->created_at);
     if (rc) {
         sqlite3_finalize(stmt);
         goto rollback;
@@ -615,7 +476,7 @@ int db_add_comment(uint64_t channel_id, uint64_t post_id, uint64_t comment_id,
 
     rc = sqlite3_bind_int64(stmt,
                             sqlite3_bind_parameter_index(stmt, ":channel_id"),
-                            channel_id);
+                            ci->chan_id);
     if (rc) {
         sqlite3_finalize(stmt);
         goto rollback;
@@ -623,7 +484,7 @@ int db_add_comment(uint64_t channel_id, uint64_t post_id, uint64_t comment_id,
 
     rc = sqlite3_bind_int64(stmt,
                             sqlite3_bind_parameter_index(stmt, ":post_id"),
-                            post_id);
+                            ci->post_id);
     if (rc) {
         sqlite3_finalize(stmt);
         goto rollback;
@@ -635,14 +496,16 @@ int db_add_comment(uint64_t channel_id, uint64_t post_id, uint64_t comment_id,
         goto rollback;
 
     /* ================================= stmt-sep ================================= */
-    sql = "UPDATE channels SET updated_at = :now WHERE channel_id = :channel_id";
+    sql = "UPDATE channels "
+          "  SET updated_at = :ts "
+          "  WHERE channel_id = :channel_id";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc)
         goto rollback;
 
     rc = sqlite3_bind_int64(stmt,
-                            sqlite3_bind_parameter_index(stmt, ":now"),
-                            now);
+                            sqlite3_bind_parameter_index(stmt, ":ts"),
+                            ci->created_at);
     if (rc) {
         sqlite3_finalize(stmt);
         goto rollback;
@@ -650,7 +513,7 @@ int db_add_comment(uint64_t channel_id, uint64_t post_id, uint64_t comment_id,
 
     rc = sqlite3_bind_int64(stmt,
                             sqlite3_bind_parameter_index(stmt, ":channel_id"),
-                            channel_id);
+                            ci->chan_id);
     if (rc) {
         sqlite3_finalize(stmt);
         goto rollback;
@@ -662,8 +525,8 @@ int db_add_comment(uint64_t channel_id, uint64_t post_id, uint64_t comment_id,
         goto rollback;
 
     /* ================================= stmt-sep ================================= */
-    sql = "SELECT next_comment_id - 1"
-          "  FROM posts"
+    sql = "SELECT next_comment_id - 1 "
+          "  FROM posts "
           "  WHERE channel_id = :channel_id AND post_id = :post_id";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc)
@@ -671,7 +534,7 @@ int db_add_comment(uint64_t channel_id, uint64_t post_id, uint64_t comment_id,
 
     rc = sqlite3_bind_int64(stmt,
                             sqlite3_bind_parameter_index(stmt, ":channel_id"),
-                            channel_id);
+                            ci->chan_id);
     if (rc) {
         sqlite3_finalize(stmt);
         goto rollback;
@@ -679,7 +542,7 @@ int db_add_comment(uint64_t channel_id, uint64_t post_id, uint64_t comment_id,
 
     rc = sqlite3_bind_int64(stmt,
                             sqlite3_bind_parameter_index(stmt, ":post_id"),
-                            post_id);
+                            ci->post_id);
     if (rc) {
         sqlite3_finalize(stmt);
         goto rollback;
@@ -722,7 +585,6 @@ int db_add_like(uint64_t channel_id, uint64_t post_id, uint64_t comment_id, uint
 {
     sqlite3_stmt *stmt;
     const char *sql;
-    time_t now;
     int rc;
 
     /* ================================= stmt-sep ================================= */
@@ -738,11 +600,15 @@ int db_add_like(uint64_t channel_id, uint64_t post_id, uint64_t comment_id, uint
 
     /* ================================= stmt-sep ================================= */
     sql = comment_id ?
-          "UPDATE comments SET likes = likes + 1 "
-          "  WHERE channel_id = :channel_id AND post_id = :post_id AND "
-          "    comment_id = :comment_id" :
-          "UPDATE posts SET likes = likes + 1 "
-          "  WHERE channel_id = :channel_id AND post_id = :post_id";
+          "UPDATE comments "
+          "  SET likes = likes + 1 "
+          "  WHERE channel_id = :channel_id AND "
+          "        post_id = :post_id AND "
+          "        comment_id = :comment_id" :
+          "UPDATE posts "
+          "  SET likes = likes + 1 "
+          "  WHERE channel_id = :channel_id AND "
+          "        post_id = :post_id";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc)
         goto rollback;
@@ -782,11 +648,13 @@ int db_add_like(uint64_t channel_id, uint64_t post_id, uint64_t comment_id, uint
     sql = comment_id ?
           "SELECT likes "
           "  FROM comments "
-          "  WHERE channel_id = :channel_id AND post_id = :post_id AND "
-          "    comment_id = :comment_id" :
+          "  WHERE channel_id = :channel_id AND "
+          "        post_id = :post_id AND "
+          "        comment_id = :comment_id" :
           "SELECT likes "
           "  FROM posts "
-          "  WHERE channel_id = :channel_id AND post_id = :post_id";
+          "  WHERE channel_id = :channel_id AND "
+          "        post_id = :post_id";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc)
         goto rollback;
@@ -850,11 +718,10 @@ rollback:
     return -1;
 }
 
-int db_add_subscriber(uint64_t channel_id, const char *jwt)
+int db_add_sub(uint64_t uid, uint64_t chan_id)
 {
     sqlite3_stmt *stmt;
     const char *sql;
-    time_t now;
     int rc;
 
     /* ================================= stmt-sep ================================= */
@@ -869,35 +736,15 @@ int db_add_subscriber(uint64_t channel_id, const char *jwt)
         return -1;
 
     /* ================================= stmt-sep ================================= */
-    sql = "INSERT OR IGNORE INTO users(jwt) VALUES (:jwt)";
+    sql = "INSERT INTO subscriptions(user_id, channel_id) "
+          "  VALUES (:uid, :channel_id)";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc)
         goto rollback;
 
-    rc = sqlite3_bind_text(stmt,
-                           sqlite3_bind_parameter_index(stmt, ":jwt"),
-                           jwt, -1, NULL);
-    if (rc) {
-        sqlite3_finalize(stmt);
-        goto rollback;
-    }
-
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE)
-        goto rollback;
-
-    /* ================================= stmt-sep ================================= */
-    sql = "INSERT INTO subscriptions"
-          "  (user_id, channel_id) "
-          "  VALUES ((SELECT user_id FROM users WHERE jwt = :jwt), :channel_id)";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc)
-        goto rollback;
-
-    rc = sqlite3_bind_text(stmt,
-                           sqlite3_bind_parameter_index(stmt, ":jwt"),
-                           jwt, -1, NULL);
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":uid"),
+                            uid);
     if (rc) {
         sqlite3_finalize(stmt);
         goto rollback;
@@ -905,7 +752,7 @@ int db_add_subscriber(uint64_t channel_id, const char *jwt)
 
     rc = sqlite3_bind_int64(stmt,
                             sqlite3_bind_parameter_index(stmt, ":channel_id"),
-                            channel_id);
+                            chan_id);
     if (rc) {
         sqlite3_finalize(stmt);
         goto rollback;
@@ -926,7 +773,7 @@ int db_add_subscriber(uint64_t channel_id, const char *jwt)
 
     rc = sqlite3_bind_int64(stmt,
                             sqlite3_bind_parameter_index(stmt, ":channel_id"),
-                            channel_id);
+                            chan_id);
     if (rc) {
         sqlite3_finalize(stmt);
         goto rollback;
@@ -961,11 +808,10 @@ rollback:
     return -1;
 }
 
-int db_unsubscribe(uint64_t channel_id, const char *jwt)
+int db_unsub(uint64_t uid, uint64_t chan_id)
 {
     sqlite3_stmt *stmt;
     const char *sql;
-    time_t now;
     int rc;
 
     /* ================================= stmt-sep ================================= */
@@ -981,15 +827,14 @@ int db_unsubscribe(uint64_t channel_id, const char *jwt)
 
     /* ================================= stmt-sep ================================= */
     sql = "DELETE FROM subscriptions "
-          "  WHERE user_id = (SELECT user_id FROM users WHERE jwt = :jwt) AND "
-          "    channel_id = :channel_id";
+          "  WHERE user_id = :uid AND channel_id = :channel_id";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc)
         goto rollback;
 
-    rc = sqlite3_bind_text(stmt,
-                           sqlite3_bind_parameter_index(stmt, ":jwt"),
-                           jwt, -1, NULL);
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":uid"),
+                            uid);
     if (rc) {
         sqlite3_finalize(stmt);
         goto rollback;
@@ -997,7 +842,7 @@ int db_unsubscribe(uint64_t channel_id, const char *jwt)
 
     rc = sqlite3_bind_int64(stmt,
                             sqlite3_bind_parameter_index(stmt, ":channel_id"),
-                            channel_id);
+                            chan_id);
     if (rc) {
         sqlite3_finalize(stmt);
         goto rollback;
@@ -1018,7 +863,7 @@ int db_unsubscribe(uint64_t channel_id, const char *jwt)
 
     rc = sqlite3_bind_int64(stmt,
                             sqlite3_bind_parameter_index(stmt, ":channel_id"),
-                            channel_id);
+                            chan_id);
     if (rc) {
         sqlite3_finalize(stmt);
         goto rollback;
@@ -1053,372 +898,60 @@ rollback:
     return -1;
 }
 
-typedef enum {
-    CHANNEL,
-    POST,
-    COMMENT
-} QueryObject;
-
-static
-const char *query_column(QueryObject qo, QueryField qf)
-{
-    switch (qf) {
-    case ID:
-        switch (qo) {
-        case CHANNEL:
-            return "channel_id";
-        case POST:
-            return "post_id";
-        case COMMENT:
-            return "comment_id";
-        default:
-            assert(0);
-        }
-    case LAST_UPDATE:
-        return "updated_at";
-    case CREATED_AT:
-        return "created_at";
-    default:
-        assert(0);
-    }
-}
-
-int db_get_owned_channels(const char *jwt, QueryField qf, uint64_t upper,
-                          uint64_t lower, uint64_t maxcnt, cJSON **result)
-{
-    sqlite3_stmt *stmt;
-    char sql[1024];
-    cJSON *channels;
-    const char *qc;
-    int rc;
-
-    /* ================================= stmt-sep ================================= */
-    qc = query_column(CHANNEL, qf);
-    rc = sprintf(sql,
-                  "SELECT channel_id, name, intro, subscribers"
-                  "  FROM channels"
-                  "  WHERE user_id = (SELECT user_id FROM users WHERE jwt = :jwt)");
-    if (lower)
-        rc += sprintf(sql + rc, " AND %s >= :lower", qc);
-    if (upper)
-        rc += sprintf(sql + rc, " AND %s <= :upper", qc);
-    rc += sprintf(sql + rc, " ORDER BY %s %s",
-                  qc, qf == ID ? "ASC" : "DESC");
-    if (maxcnt)
-        rc += sprintf(sql + rc, " LIMIT :maxcnt");
-
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc)
-        return -1;
-
-    rc = sqlite3_bind_text(stmt,
-                           sqlite3_bind_parameter_index(stmt, ":jwt"),
-                           jwt, -1, NULL);
-    if (rc) {
-        sqlite3_finalize(stmt);
-        return -1;
-    }
-
-    if (lower) {
-        rc = sqlite3_bind_int64(stmt,
-                                sqlite3_bind_parameter_index(stmt, ":lower"),
-                                lower);
-        if (rc) {
-            sqlite3_finalize(stmt);
-            return -1;
-        }
-    }
-
-    if (upper) {
-        rc = sqlite3_bind_int64(stmt,
-                                sqlite3_bind_parameter_index(stmt, ":upper"),
-                                upper);
-        if (rc) {
-            sqlite3_finalize(stmt);
-            return -1;
-        }
-    }
-
-    if (maxcnt) {
-        rc = sqlite3_bind_int64(stmt,
-                                sqlite3_bind_parameter_index(stmt, ":maxcnt"),
-                                maxcnt);
-        if (rc) {
-            sqlite3_finalize(stmt);
-            return -1;
-        }
-    }
-
-    channels = cJSON_CreateArray();
-    if (!channels) {
-        sqlite3_finalize(stmt);
-        return -1;
-    }
-
-    while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-        cJSON *channel = cJSON_CreateObject();
-        if (!channel)
-            break;
-
-        cJSON_AddItemToArray(channels, channel);
-
-        if (!cJSON_AddNumberToObject(channel, "id",
-                                     sqlite3_column_int64(stmt, 0)))
-            break;
-
-        if (!cJSON_AddStringToObject(channel, "name",
-                                     (const char *)sqlite3_column_text(stmt, 1)))
-            break;
-
-        if (!cJSON_AddStringToObject(channel, "introduction",
-                                     (const char *)sqlite3_column_text(stmt, 2)))
-            break;
-
-        if (!cJSON_AddNumberToObject(channel, "subscribers",
-                                     sqlite3_column_int64(stmt, 3)))
-            break;
-    }
-
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE) {
-        cJSON_Delete(channels);
-        return -1;
-    }
-
-    *result = channels;
-
-    return 0;
-}
-
-int db_get_owned_channels_metadata(const char *jwt, QueryField qf, uint64_t upper,
-                                   uint64_t lower, uint64_t maxcnt, cJSON **result)
-{
-    sqlite3_stmt *stmt;
-    char sql[1024];
-    cJSON *channels;
-    const char *qc;
-    int rc;
-
-    /* ================================= stmt-sep ================================= */
-    qc = query_column(CHANNEL, qf);
-    rc = sprintf(sql,
-                 "SELECT channel_id, subscribers FROM channels"
-                 "  WHERE user_id = (SELECT user_id FROM users WHERE jwt = :jwt)");
-    if (lower)
-        rc += sprintf(sql + rc, " AND %s >= :lower", qc);
-    if (upper)
-        rc += sprintf(sql + rc, " AND %s <= :upper", qc);
-    rc += sprintf(sql + rc, " ORDER BY %s %s",
-                  qc, qf == ID ? "ASC" : "DESC");
-    if (maxcnt)
-        rc += sprintf(sql + rc, " LIMIT :maxcnt");
-
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc)
-        return -1;
-
-    rc = sqlite3_bind_text(stmt,
-                           sqlite3_bind_parameter_index(stmt, ":jwt"),
-                           jwt, -1, NULL);
-    if (rc) {
-        sqlite3_finalize(stmt);
-        return -1;
-    }
-
-    if (lower) {
-        rc = sqlite3_bind_int64(stmt,
-                                sqlite3_bind_parameter_index(stmt, ":lower"),
-                                lower);
-        if (rc) {
-            sqlite3_finalize(stmt);
-            return -1;
-        }
-    }
-
-    if (upper) {
-        rc = sqlite3_bind_int64(stmt,
-                                sqlite3_bind_parameter_index(stmt, ":upper"),
-                                upper);
-        if (rc) {
-            sqlite3_finalize(stmt);
-            return -1;
-        }
-    }
-
-    if (maxcnt) {
-        rc = sqlite3_bind_int64(stmt,
-                                sqlite3_bind_parameter_index(stmt, ":maxcnt"),
-                                maxcnt);
-        if (rc) {
-            sqlite3_finalize(stmt);
-            return -1;
-        }
-    }
-
-    channels = cJSON_CreateArray();
-    if (!channels) {
-        sqlite3_finalize(stmt);
-        return -1;
-    }
-
-    while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-        cJSON *channel = cJSON_CreateObject();
-        if (!channel)
-            break;
-
-        cJSON_AddItemToArray(channels, channel);
-
-        if (!cJSON_AddNumberToObject(channel, "id",
-                                     sqlite3_column_int64(stmt, 0)))
-            break;
-
-        if (!cJSON_AddNumberToObject(channel, "subscribers",
-                                     sqlite3_column_int64(stmt, 1)))
-            break;
-    }
-
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE) {
-        cJSON_Delete(channels);
-        return -1;
-    }
-
-    *result = channels;
-
-    return 0;
-}
-
-int db_get_channels(QueryField qf, uint64_t upper,
-                    uint64_t lower, uint64_t maxcnt, cJSON **result)
-{
-    sqlite3_stmt *stmt;
-    char sql[1024];
-    cJSON *channels;
-    const char *qc;
-    int rc;
-
-    /* ================================= stmt-sep ================================= */
-    qc = query_column(CHANNEL, qf);
-    rc = sprintf(sql,
-                 "SELECT channel_id, name, intro, jwt, subscribers, updated_at"
-                 "  FROM channels JOIN users USING (user_id)");
-    if (lower || upper)
-        rc += sprintf(sql + rc, " WHERE");
-    if (lower)
-        rc += sprintf(sql + rc, " %s >= :lower", qc);
-    if (upper)
-        rc += sprintf(sql + rc, "%s %s <= :upper", lower ? " AND" : "", qc);
-    rc += sprintf(sql + rc, " ORDER BY %s %s",
-                  qc, qf == ID ? "ASC" : "DESC");
-    if (maxcnt)
-        rc += sprintf(sql + rc, " LIMIT :maxcnt");
-
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc)
-        return -1;
-
-    if (lower) {
-        rc = sqlite3_bind_int64(stmt,
-                                sqlite3_bind_parameter_index(stmt, ":lower"),
-                                lower);
-        if (rc) {
-            sqlite3_finalize(stmt);
-            return -1;
-        }
-    }
-
-    if (upper) {
-        rc = sqlite3_bind_int64(stmt,
-                                sqlite3_bind_parameter_index(stmt, ":upper"),
-                                upper);
-        if (rc) {
-            sqlite3_finalize(stmt);
-            return -1;
-        }
-    }
-
-    if (maxcnt) {
-        rc = sqlite3_bind_int64(stmt,
-                                sqlite3_bind_parameter_index(stmt, ":maxcnt"),
-                                maxcnt);
-        if (rc) {
-            sqlite3_finalize(stmt);
-            return -1;
-        }
-    }
-
-    channels = cJSON_CreateArray();
-    if (!channels) {
-        sqlite3_finalize(stmt);
-        return -1;
-    }
-
-    while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-        cJSON *channel = cJSON_CreateObject();
-        if (!channel)
-            break;
-
-        cJSON_AddItemToArray(channels, channel);
-
-        if (!cJSON_AddNumberToObject(channel, "id",
-                                     sqlite3_column_int64(stmt, 0)))
-            break;
-
-        if (!cJSON_AddStringToObject(channel, "name",
-                                     (const char *)sqlite3_column_text(stmt, 1)))
-            break;
-
-        if (!cJSON_AddStringToObject(channel, "introduction",
-                                     (const char *)sqlite3_column_text(stmt, 2)))
-            break;
-
-        if (!cJSON_AddStringToObject(channel, "owner_name",
-                                     (const char *)sqlite3_column_text(stmt, 3)))
-            break;
-
-        if (!cJSON_AddStringToObject(channel, "owner_did",
-                                     (const char *)sqlite3_column_text(stmt, 3)))
-            break;
-
-        if (!cJSON_AddNumberToObject(channel, "subscribers",
-                                     sqlite3_column_int64(stmt, 4)))
-            break;
-
-        if (!cJSON_AddNumberToObject(channel, "last_update",
-                                     sqlite3_column_int64(stmt, 5)))
-            break;
-    }
-
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE) {
-        cJSON_Delete(channels);
-        return -1;
-    }
-
-    *result = channels;
-
-    return 0;
-}
-
-int db_get_channel_detail(uint64_t id, cJSON **result)
+int db_upsert_user(const UserInfo *ui, uint64_t *uid)
 {
     sqlite3_stmt *stmt;
     const char *sql;
-    cJSON *channel;
     int rc;
 
     /* ================================= stmt-sep ================================= */
-    sql = "SELECT channel_id, name, intro, jwt, subscribers, updated_at"
-          "  FROM channels JOIN users USING (user_id)"
-          "  WHERE channel_id = :id";
-
+    sql = "INSERT INTO users(did, name, email) VALUES (:did, :name, :email) "
+          "  ON CONFLICT (did) "
+          "  DO UPDATE "
+          "       SET name = :name, email = :email "
+          "       WHERE excluded.name IS NOT name OR excluded.email IS NOT email";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc)
         return -1;
 
-    rc = sqlite3_bind_int64(stmt,
-                            sqlite3_bind_parameter_index(stmt, ":id"),
-                            id);
+    rc = sqlite3_bind_text(stmt,
+                           sqlite3_bind_parameter_index(stmt, ":did"),
+                           ui->did, -1, NULL);
+    if (rc) {
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_bind_text(stmt,
+                           sqlite3_bind_parameter_index(stmt, ":name"),
+                           ui->name, -1, NULL);
+    if (rc) {
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_bind_text(stmt,
+                           sqlite3_bind_parameter_index(stmt, ":email"),
+                           ui->email, -1, NULL);
+    if (rc) {
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE)
+        return -1;
+
+    /* ================================= stmt-sep ================================= */
+    sql = "SELECT user_id FROM users WHERE did = :did";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc)
+        return -1;
+
+    rc = sqlite3_bind_text(stmt,
+                           sqlite3_bind_parameter_index(stmt, ":did"),
+                           ui->did, -1, NULL);
     if (rc) {
         sqlite3_finalize(stmt);
         return -1;
@@ -1430,581 +963,491 @@ int db_get_channel_detail(uint64_t id, cJSON **result)
         return -1;
     }
 
-    channel = cJSON_CreateObject();
-    if (!channel) {
-        sqlite3_finalize(stmt);
-        return -1;
-    }
-
-    if (!cJSON_AddNumberToObject(channel, "id",
-                                 sqlite3_column_int64(stmt, 0))) {
-        cJSON_Delete(channel);
-        sqlite3_finalize(stmt);
-        return -1;
-    }
-
-    if (!cJSON_AddStringToObject(channel, "name",
-                                 (const char *)sqlite3_column_text(stmt, 1))) {
-        cJSON_Delete(channel);
-        sqlite3_finalize(stmt);
-        return -1;
-    }
-
-    if (!cJSON_AddStringToObject(channel, "introduction",
-                                 (const char *)sqlite3_column_text(stmt, 2))) {
-        cJSON_Delete(channel);
-        sqlite3_finalize(stmt);
-        return -1;
-    }
-
-    if (!cJSON_AddStringToObject(channel, "owner_name",
-                                 (const char *)sqlite3_column_text(stmt, 3))) {
-        cJSON_Delete(channel);
-        sqlite3_finalize(stmt);
-        return -1;
-    }
-
-    if (!cJSON_AddStringToObject(channel, "owner_did",
-                                 (const char *)sqlite3_column_text(stmt, 3))) {
-        cJSON_Delete(channel);
-        sqlite3_finalize(stmt);
-        return -1;
-    }
-
-    if (!cJSON_AddNumberToObject(channel, "subscribers",
-                                 sqlite3_column_int64(stmt, 4))) {
-        cJSON_Delete(channel);
-        sqlite3_finalize(stmt);
-        return -1;
-    }
-
-    if (!cJSON_AddNumberToObject(channel, "last_update",
-                                 sqlite3_column_int64(stmt, 5))) {
-        cJSON_Delete(channel);
-        sqlite3_finalize(stmt);
-        return -1;
-    }
-
+    *uid = sqlite3_column_int64(stmt, 0);
     sqlite3_finalize(stmt);
-
-    *result = channel;
 
     return 0;
 }
 
-int db_get_subscribed_channels(const char *jwt, QueryField qf, uint64_t upper,
-                               uint64_t lower, uint64_t maxcnt, cJSON **result)
+typedef enum {
+    CHANNEL,
+    POST,
+    COMMENT
+} QueryObject;
+
+static
+const char *query_column(QueryObject qo, QryFld qf)
+{
+    switch (qf) {
+        case ID:
+            switch (qo) {
+                case CHANNEL:
+                    return "channel_id";
+                case POST:
+                    return "post_id";
+                case COMMENT:
+                    return "comment_id";
+                default:
+                    assert(0);
+            }
+        case UPD_AT:
+            return "updated_at";
+        case CREATED_AT:
+            return "created_at";
+        default:
+            assert(0);
+    }
+}
+
+static
+void it_dtor(void *obj)
+{
+    DBObjIt *it = obj;
+
+    if (it->stmt)
+        sqlite3_finalize(it->stmt);
+}
+
+static
+DBObjIt *it_create(sqlite3_stmt *stmt, Row2Raw cb)
+{
+    DBObjIt *it = rc_zalloc(sizeof(DBObjIt), it_dtor);
+    if (!it)
+        return NULL;
+
+    it->stmt = stmt;
+    it->cb   = cb;
+
+    return it;
+}
+
+static
+void *row2chan(sqlite3_stmt *stmt)
+{
+    const char *name = (const char *)sqlite3_column_text(stmt, 1);
+    const char *intro = (const char *)sqlite3_column_text(stmt, 2);
+    ChanInfo *ci = rc_zalloc(sizeof(ChanInfo) + strlen(name) + strlen(intro) + 2, NULL);
+    void *buf;
+
+    if (!ci)
+        return NULL;
+
+    buf = ci + 1;
+
+    ci->chan_id      = sqlite3_column_int64(stmt, 0);
+    ci->name         = strcpy(buf, name);
+    buf += strlen(name) + 1;
+    ci->intro        = strcpy(buf, intro);
+    ci->subs         = sqlite3_column_int64(stmt, 3);
+    ci->next_post_id = sqlite3_column_int64(stmt, 4);
+    ci->upd_at       = sqlite3_column_int64(stmt, 5);
+    ci->created_at   = sqlite3_column_int64(stmt, 6);
+    ci->owner        = &feeds_owner_info;
+
+    return ci;
+}
+
+DBObjIt *db_iter_chans(const QryCriteria *qc)
 {
     sqlite3_stmt *stmt;
+    const char *qcol;
     char sql[1024];
-    cJSON *channels;
-    const char *qc;
+    DBObjIt *it;
     int rc;
 
     /* ================================= stmt-sep ================================= */
-    qc = query_column(CHANNEL, qf);
     rc = sprintf(sql,
-                 "SELECT channel_id, name, intro, jwt, subscribers, updated_at"
-                 "  FROM (SELECT channel_id FROM subscriptions "
-                 "          WHERE user_id = (SELECT user_id FROM users WHERE jwt = :jwt)) "
-                 "    JOIN channels USING (channel_id) JOIN users USING (user_id)");
-    if (lower || upper)
-        rc += sprintf(sql + rc, " WHERE");
-    if (lower)
-        rc += sprintf(sql + rc, " %s >= :lower", qc);
-    if (upper)
-        rc += sprintf(sql + rc, "%s %s <= :upper", lower ? " AND" : "", qc);
-    rc += sprintf(sql + rc, " ORDER BY %s %s",
-                  qc, qf == ID ? "ASC" : "DESC");
-    if (maxcnt)
+                 "SELECT channel_id, name, intro, subscribers, "
+                 "       next_post_id, updated_at, created_at "
+                 "  FROM channels");
+    if (qc->by) {
+        qcol = query_column(CHANNEL, qc->by);
+        if (qc->lower || qc->upper)
+            rc += sprintf(sql + rc, " WHERE ");
+        if (qc->lower)
+            rc += sprintf(sql + rc, "%s >= :lower", qcol);
+        if (qc->upper)
+            rc += sprintf(sql + rc, "%s %s <= :upper", qc->lower ? " AND" : "", qcol);
+        rc += sprintf(sql + rc, " ORDER BY %s %s", qcol, qc->by == ID ? "ASC" : "DESC");
+    }
+    if (qc->maxcnt)
+        rc += sprintf(sql + rc, " LIMIT :maxcnt");
+
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc)
+        return NULL;
+
+    if (qc->lower) {
+        rc = sqlite3_bind_int64(stmt,
+                                sqlite3_bind_parameter_index(stmt, ":lower"),
+                                qc->lower);
+        if (rc) {
+            sqlite3_finalize(stmt);
+            return NULL;
+        }
+    }
+
+    if (qc->upper) {
+        rc = sqlite3_bind_int64(stmt,
+                                sqlite3_bind_parameter_index(stmt, ":upper"),
+                                qc->upper);
+        if (rc) {
+            sqlite3_finalize(stmt);
+            return NULL;
+        }
+    }
+
+    if (qc->maxcnt) {
+        rc = sqlite3_bind_int64(stmt,
+                                sqlite3_bind_parameter_index(stmt, ":maxcnt"),
+                                qc->maxcnt);
+        if (rc) {
+            sqlite3_finalize(stmt);
+            return NULL;
+        }
+    }
+
+    it = it_create(stmt, row2chan);
+    if (!it) {
+        sqlite3_finalize(stmt);
+        return NULL;
+    }
+
+    return it;
+}
+
+static
+void *row2subchan(sqlite3_stmt *stmt)
+{
+    const char *name = (const char *)sqlite3_column_text(stmt, 1);
+    const char *intro = (const char *)sqlite3_column_text(stmt, 2);
+    ChanInfo *ci = rc_zalloc(sizeof(ChanInfo) + strlen(name) + strlen(intro) + 2, NULL);
+    void *buf;
+
+    if (!ci)
+        return NULL;
+
+    buf = ci + 1;
+
+    ci->chan_id      = sqlite3_column_int64(stmt, 0);
+    ci->name         = strcpy(buf, name);
+    buf += strlen(name) + 1;
+    ci->intro        = strcpy(buf, intro);
+    ci->subs         = sqlite3_column_int64(stmt, 3);
+    ci->upd_at       = sqlite3_column_int64(stmt, 4);
+    ci->owner        = &feeds_owner_info;
+
+    return ci;
+}
+
+DBObjIt *db_iter_sub_chans(uint64_t uid, const QryCriteria *qc)
+{
+    sqlite3_stmt *stmt;
+    const char *qcol;
+    char sql[1024];
+    DBObjIt *it;
+    int rc;
+
+    /* ================================= stmt-sep ================================= */
+    rc = sprintf(sql,
+                 "SELECT channel_id, name, intro, subscribers, updated_at "
+                 "  FROM (SELECT channel_id "
+                 "          FROM subscriptions "
+                 "          WHERE user_id = :uid) JOIN channels USING (channel_id)");
+    if (qc->by) {
+        qcol = query_column(CHANNEL, qc->by);
+        if (qc->lower || qc->upper)
+            rc += sprintf(sql + rc, " WHERE ");
+        if (qc->lower)
+            rc += sprintf(sql + rc, "%s >= :lower", qcol);
+        if (qc->upper)
+            rc += sprintf(sql + rc, "%s %s <= :upper", qc->lower ? " AND" : "", qcol);
+        rc += sprintf(sql + rc, " ORDER BY %s %s", qcol, qc->by == ID ? "ASC" : "DESC");
+    }
+    if (qc->maxcnt)
         rc += sprintf(sql +rc, " LIMIT :maxcnt");
 
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc)
-        return -1;
+        return NULL;
 
-    rc = sqlite3_bind_text(stmt,
-                           sqlite3_bind_parameter_index(stmt, ":jwt"),
-                           jwt, -1, NULL);
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":uid"),
+                            uid);
     if (rc) {
         sqlite3_finalize(stmt);
-        return -1;
+        return NULL;
     }
 
-    if (lower) {
+    if (qc->lower) {
         rc = sqlite3_bind_int64(stmt,
                                 sqlite3_bind_parameter_index(stmt, ":lower"),
-                                lower);
+                                qc->lower);
         if (rc) {
             sqlite3_finalize(stmt);
-            return -1;
+            return NULL;
         }
     }
 
-    if (upper) {
+    if (qc->upper) {
         rc = sqlite3_bind_int64(stmt,
                                 sqlite3_bind_parameter_index(stmt, ":upper"),
-                                upper);
+                                qc->upper);
         if (rc) {
             sqlite3_finalize(stmt);
-            return -1;
+            return NULL;
         }
     }
 
-    if (maxcnt) {
+    if (qc->maxcnt) {
         rc = sqlite3_bind_int64(stmt,
                                 sqlite3_bind_parameter_index(stmt, ":maxcnt"),
-                                maxcnt);
+                                qc->maxcnt);
         if (rc) {
             sqlite3_finalize(stmt);
-            return -1;
+            return NULL;
         }
     }
 
-    channels = cJSON_CreateArray();
-    if (!channels) {
+    it = it_create(stmt, row2subchan);
+    if (!it) {
         sqlite3_finalize(stmt);
-        return -1;
+        return NULL;
     }
 
-    while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-        cJSON *channel = cJSON_CreateObject();
-        if (!channel)
-            break;
-
-        cJSON_AddItemToArray(channels, channel);
-
-        if (!cJSON_AddNumberToObject(channel, "id",
-                                     sqlite3_column_int64(stmt, 0)))
-            break;
-
-        if (!cJSON_AddStringToObject(channel, "name",
-                                     (const char *)sqlite3_column_text(stmt, 1)))
-            break;
-
-        if (!cJSON_AddStringToObject(channel, "introduction",
-                                     (const char *)sqlite3_column_text(stmt, 2)))
-            break;
-
-        if (!cJSON_AddStringToObject(channel, "owner_name",
-                                     (const char *)sqlite3_column_text(stmt, 3)))
-            break;
-
-        if (!cJSON_AddStringToObject(channel, "owner_did",
-                                     (const char *)sqlite3_column_text(stmt, 3)))
-            break;
-
-        if (!cJSON_AddNumberToObject(channel, "subscribers",
-                                     sqlite3_column_int64(stmt, 4)))
-            break;
-
-        if (!cJSON_AddNumberToObject(channel, "last_update",
-                                     sqlite3_column_int64(stmt, 5)))
-            break;
-    }
-
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE) {
-        cJSON_Delete(channels);
-        return -1;
-    }
-
-    *result = channels;
-
-    return 0;
+    return it;
 }
 
-int db_get_posts(uint64_t channel_id, QueryField qf, uint64_t upper,
-                 uint64_t lower, uint64_t maxcnt, cJSON **result)
+
+static
+void *row2post(sqlite3_stmt *stmt)
+{
+    size_t len = sqlite3_column_int64(stmt, 3);
+    PostInfo *pi = rc_zalloc(sizeof(PostInfo) + len, NULL);
+    void *buf;
+
+    if (!pi)
+        return NULL;
+
+    pi->chan_id    = sqlite3_column_int64(stmt, 0);
+    pi->post_id    = sqlite3_column_int64(stmt, 1);
+    buf = pi + 1;
+    pi->content    = memcpy(buf, sqlite3_column_blob(stmt, 2), len);
+    pi->len        = len;
+    pi->cmts       = sqlite3_column_int64(stmt, 4);
+    pi->likes      = sqlite3_column_int64(stmt, 5);
+    pi->created_at = sqlite3_column_int64(stmt, 6);
+
+    return pi;
+}
+
+DBObjIt *db_iter_posts(uint64_t chan_id, const QryCriteria *qc)
 {
     sqlite3_stmt *stmt;
+    const char *qcol;
     char sql[1024];
-    cJSON *posts;
-    const char *qc;
+    DBObjIt *it;
     int rc;
 
     /* ================================= stmt-sep ================================= */
-    qc = query_column(POST, qf);
     rc = sprintf(sql,
-                 "SELECT channel_id, post_id, content, "
-                 "  next_comment_id - 1 AS comments, likes, created_at"
-                 "  FROM posts"
+                 "SELECT channel_id, post_id, content, length(content), "
+                 "       next_comment_id - 1 AS comments, likes, created_at "
+                 "  FROM posts "
                  "  WHERE channel_id = :channel_id");
-    if (lower)
-        rc += sprintf(sql + rc, " AND %s >= :lower", qc);
-    if (upper)
-        rc += sprintf(sql + rc, " AND %s <= :upper", qc);
-    rc += sprintf(sql + rc, " ORDER BY %s %s",
-                  qc, qf == ID ? "ASC" : "DESC");
-    if (maxcnt)
+    if (qc->by) {
+        qcol = query_column(POST, qc->by);
+        if (qc->lower)
+            rc += sprintf(sql + rc, " AND %s >= :lower", qcol);
+        if (qc->upper)
+            rc += sprintf(sql + rc, " AND %s <= :upper", qcol);
+        rc += sprintf(sql + rc, " ORDER BY %s %s", qcol, qc->by == ID ? "ASC" : "DESC");
+    }
+    if (qc->maxcnt)
         rc += sprintf(sql + rc, " LIMIT :maxcnt");
 
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc)
-        return -1;
+        return NULL;
 
-    rc = sqlite3_bind_int64(stmt,
-                            sqlite3_bind_parameter_index(stmt, ":channel_id"),
-                            channel_id);
+    rc = sqlite3_bind_int64(stmt, sqlite3_bind_parameter_index(stmt, ":channel_id"),
+                            chan_id);
     if (rc) {
         sqlite3_finalize(stmt);
-        return -1;
+        return NULL;
     }
 
-    if (lower) {
-        rc = sqlite3_bind_int64(stmt,
-                                sqlite3_bind_parameter_index(stmt, ":lower"),
-                                lower);
+    if (qc->lower) {
+        rc = sqlite3_bind_int64(stmt, sqlite3_bind_parameter_index(stmt, ":lower"),
+                                qc->lower);
         if (rc) {
             sqlite3_finalize(stmt);
-            return -1;
+            return NULL;
         }
     }
 
-    if (upper) {
-        rc = sqlite3_bind_int64(stmt,
-                                sqlite3_bind_parameter_index(stmt, ":upper"),
-                                upper);
+    if (qc->upper) {
+        rc = sqlite3_bind_int64(stmt, sqlite3_bind_parameter_index(stmt, ":upper"),
+                                qc->upper);
         if (rc) {
             sqlite3_finalize(stmt);
-            return -1;
+            return NULL;
         }
     }
 
-    if (maxcnt) {
-        rc = sqlite3_bind_int64(stmt,
-                                sqlite3_bind_parameter_index(stmt, ":maxcnt"),
-                                maxcnt);
+    if (qc->maxcnt) {
+        rc = sqlite3_bind_int64(stmt, sqlite3_bind_parameter_index(stmt, ":maxcnt"),
+                                qc->maxcnt);
         if (rc) {
             sqlite3_finalize(stmt);
-            return -1;
+            return NULL;
         }
     }
 
-    posts = cJSON_CreateArray();
-    if (!posts) {
+    it = it_create(stmt, row2post);
+    if (!it) {
         sqlite3_finalize(stmt);
-        return -1;
+        return NULL;
     }
 
-    while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-        cJSON *post = cJSON_CreateObject();
-        if (!post)
-            break;
-
-        cJSON_AddItemToArray(posts, post);
-
-        if (!cJSON_AddNumberToObject(post, "channel_id",
-                                     sqlite3_column_int64(stmt, 0)))
-            break;
-
-        if (!cJSON_AddNumberToObject(post, "id",
-                                     sqlite3_column_int64(stmt, 1)))
-            break;
-
-        if (!cJSON_AddStringToObject(post, "content",
-                                     sqlite3_column_blob(stmt, 2)))
-            break;
-
-        if (!cJSON_AddNumberToObject(post, "comments",
-                                     sqlite3_column_int64(stmt, 3)))
-            break;
-
-        if (!cJSON_AddNumberToObject(post, "likes",
-                                     sqlite3_column_int64(stmt, 4)))
-            break;
-
-        if (!cJSON_AddNumberToObject(post, "created_at",
-                                     sqlite3_column_int64(stmt, 5)))
-            break;
-    }
-
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE) {
-        cJSON_Delete(posts);
-        return -1;
-    }
-
-    *result = posts;
-
-    return 0;
+    return it;
 }
 
-int db_get_comments(uint64_t channel_id, uint64_t post_id, QueryField qf, uint64_t upper,
-                    uint64_t lower, uint64_t maxcnt, cJSON **result)
+static
+void *row2cmt(sqlite3_stmt *stmt)
+{
+    size_t content_len = sqlite3_column_int64(stmt, 6);
+    const char *name = (const char *)sqlite3_column_text(stmt, 4);
+    CmtInfo *ci = rc_zalloc(sizeof(CmtInfo) + content_len + strlen(name) + 1, NULL);
+    void *buf;
+
+    if (!ci)
+        return NULL;
+
+    buf = ci + 1;
+
+    ci->chan_id      = sqlite3_column_int64(stmt, 0);
+    ci->post_id      = sqlite3_column_int64(stmt, 1);
+    ci->cmt_id       = sqlite3_column_int64(stmt, 2);
+    ci->reply_to_cmt = sqlite3_column_int64(stmt, 3);
+    ci->user.name    = strcpy(buf, name);
+    buf += strlen(name) + 1;
+    ci->content      = memcpy(buf, sqlite3_column_blob(stmt, 5), content_len);;
+    ci->len          = content_len;
+    ci->likes        = sqlite3_column_int64(stmt, 7);
+    ci->created_at   = sqlite3_column_int64(stmt, 8);
+
+    return ci;
+}
+
+DBObjIt *db_iter_cmts(uint64_t chan_id, uint64_t post_id, const QryCriteria *qc)
 {
     sqlite3_stmt *stmt;
+    const char *qcol;
     char sql[1024];
-    cJSON *comments;
-    const char *qc;
+    DBObjIt *it;
     int rc;
 
     /* ================================= stmt-sep ================================= */
-    qc = query_column(COMMENT, qf);
     rc = sprintf(sql,
-                 "SELECT channel_id, post_id, comment_id, "
-                 "  refcomment_id, jwt, content, likes, created_at"
-                 "  FROM comments JOIN users USING (user_id)"
+                 "SELECT channel_id, post_id, comment_id, refcomment_id, "
+                 "       name, content, length(content), likes, created_at "
+                 "  FROM comments JOIN users USING (user_id) "
                  "  WHERE channel_id = :channel_id AND post_id = :post_id");
-    if (lower)
-        rc += sprintf(sql + rc, " AND %s >= :lower", qc);
-    if (upper)
-        rc += sprintf(sql + rc, " AND %s <= :upper", qc);
-    rc += sprintf(sql + rc, " ORDER BY %s %s",
-                  qc, qf == ID ? "ASC" : "DESC");
-    if (maxcnt)
+    if (qc->by) {
+        qcol = query_column(COMMENT, qc->by);
+        if (qc->lower)
+            rc += sprintf(sql + rc, " AND %s >= :lower", qcol);
+        if (qc->upper)
+            rc += sprintf(sql + rc, " AND %s <= :upper", qcol);
+        rc += sprintf(sql + rc, " ORDER BY %s %s", qcol, qc->by == ID ? "ASC" : "DESC");
+    }
+    if (qc->maxcnt)
         rc += sprintf(sql + rc, " LIMIT :maxcnt");
 
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc)
-        return -1;
+        return NULL;
 
-    rc = sqlite3_bind_int64(stmt,
-                            sqlite3_bind_parameter_index(stmt, ":channel_id"),
-                            channel_id);
+    rc = sqlite3_bind_int64(stmt, sqlite3_bind_parameter_index(stmt, ":channel_id"),
+                            chan_id);
     if (rc) {
         sqlite3_finalize(stmt);
-        return -1;
+        return NULL;
     }
 
-    rc = sqlite3_bind_int64(stmt,
-                            sqlite3_bind_parameter_index(stmt, ":post_id"),
+    rc = sqlite3_bind_int64(stmt, sqlite3_bind_parameter_index(stmt, ":post_id"),
                             post_id);
     if (rc) {
         sqlite3_finalize(stmt);
-        return -1;
+        return NULL;
     }
 
-    if (lower) {
-        rc = sqlite3_bind_int64(stmt,
-                                sqlite3_bind_parameter_index(stmt, ":lower"),
-                                lower);
+    if (qc->lower) {
+        rc = sqlite3_bind_int64(stmt, sqlite3_bind_parameter_index(stmt, ":lower"),
+                                qc->lower);
         if (rc) {
             sqlite3_finalize(stmt);
-            return -1;
+            return NULL;
         }
     }
 
-    if (upper) {
-        rc = sqlite3_bind_int64(stmt,
-                                sqlite3_bind_parameter_index(stmt, ":upper"),
-                                upper);
+    if (qc->upper) {
+        rc = sqlite3_bind_int64(stmt, sqlite3_bind_parameter_index(stmt, ":upper"),
+                                qc->upper);
         if (rc) {
             sqlite3_finalize(stmt);
-            return -1;
+            return NULL;
         }
     }
 
-    if (maxcnt) {
-        rc = sqlite3_bind_int64(stmt,
-                                sqlite3_bind_parameter_index(stmt, ":maxcnt"),
-                                maxcnt);
+    if (qc->maxcnt) {
+        rc = sqlite3_bind_int64(stmt, sqlite3_bind_parameter_index(stmt, ":maxcnt"),
+                                qc->maxcnt);
         if (rc) {
             sqlite3_finalize(stmt);
-            return -1;
+            return NULL;
         }
     }
 
-    comments = cJSON_CreateArray();
-    if (!comments) {
-        sqlite3_finalize(stmt);
-        return -1;
-    }
+    it = it_create(stmt, row2cmt);
 
-    while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-        cJSON *comment = cJSON_CreateObject();
-        if (!comment)
-            break;
-
-        cJSON_AddItemToArray(comments, comment);
-
-        if (!cJSON_AddNumberToObject(comment, "channel_id",
-                                     sqlite3_column_int64(stmt, 0)))
-            break;
-
-        if (!cJSON_AddNumberToObject(comment, "post_id",
-                                     sqlite3_column_int64(stmt, 1)))
-            break;
-
-        if (!cJSON_AddNumberToObject(comment, "id",
-                                     sqlite3_column_int64(stmt, 2)))
-            break;
-
-        if (!cJSON_AddNumberToObject(comment, "comment_id",
-                                     sqlite3_column_int64(stmt, 3)))
-            break;
-
-        if (!cJSON_AddStringToObject(comment, "user_name",
-                                     (const char *)sqlite3_column_text(stmt, 4)))
-            break;
-
-        if (!cJSON_AddStringToObject(comment, "content",
-                                     sqlite3_column_blob(stmt, 5)))
-            break;
-
-        if (!cJSON_AddNumberToObject(comment, "likes",
-                                     sqlite3_column_int64(stmt, 6)))
-            break;
-
-        if (!cJSON_AddNumberToObject(comment, "created_at",
-                                     sqlite3_column_int64(stmt, 7)))
-            break;
-    }
-
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE) {
-        cJSON_Delete(comments);
-        return -1;
-    }
-
-    *result = comments;
-
-    return 0;
+    return it;
 }
 
-int db_add_node_publisher(const char *jwt)
+int db_iter_nxt(DBObjIt *it, void **obj)
+{
+    int rc;
+
+    rc = sqlite3_step(it->stmt);
+    if (rc != SQLITE_ROW) {
+        *obj = NULL;
+        return rc == SQLITE_DONE ? 1 : -1;
+    }
+
+    *obj = it->cb(it->stmt);
+    return *obj ? 0 : -1;
+}
+
+int db_is_suber(uint64_t uid, uint64_t chan_id)
 {
     sqlite3_stmt *stmt;
     const char *sql;
     int rc;
 
     /* ================================= stmt-sep ================================= */
-    sql = "INSERT OR IGNORE INTO users(jwt) VALUES (:jwt)";
+    sql = "SELECT EXISTS("
+          "  SELECT * "
+          "  FROM subscriptions "
+          "  WHERE user_id = :uid AND channel_id = :channel_id"
+          ")";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc)
         return -1;
 
-    rc = sqlite3_bind_text(stmt,
-                           sqlite3_bind_parameter_index(stmt, ":jwt"),
-                           jwt, -1, NULL);
-    if (rc) {
-        sqlite3_finalize(stmt);
-        return -1;
-    }
-
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE)
-        return -1;
-
-    /* ================================= stmt-sep ================================= */
-    sql = "INSERT INTO publishers(user_id) "
-          "  VALUES ((SELECT user_id FROM users WHERE jwt = :jwt))";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc)
-        return -1;
-
-    rc = sqlite3_bind_text(stmt,
-                           sqlite3_bind_parameter_index(stmt, ":jwt"),
-                           jwt, -1, NULL);
-    if (rc) {
-        sqlite3_finalize(stmt);
-        return -1;
-    }
-
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE)
-        return -1;
-
-    return 0;
-}
-
-int db_remove_node_publisher(const char *jwt)
-{
-    sqlite3_stmt *stmt;
-    const char *sql;
-    int rc;
-
-    /* ================================= stmt-sep ================================= */
-    sql = "DELETE FROM publishers "
-          "  WHERE user_id = (SELECT user_id FROM users WHERE jwt = :jwt)";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc)
-        return -1;
-
-    rc = sqlite3_bind_text(stmt,
-                           sqlite3_bind_parameter_index(stmt, ":jwt"),
-                           jwt, -1, NULL);
-    if (rc) {
-        sqlite3_finalize(stmt);
-        return -1;
-    }
-
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE)
-        return -1;
-
-    return 0;
-}
-
-int db_add_node_owner(const char *jwt)
-{
-    sqlite3_stmt *stmt;
-    const char *sql;
-    int rc;
-
-    /* ================================= stmt-sep ================================= */
-    sql = "INSERT OR IGNORE INTO users(jwt) VALUES (:jwt)";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc)
-        return -1;
-
-    rc = sqlite3_bind_text(stmt,
-                           sqlite3_bind_parameter_index(stmt, ":jwt"),
-                           jwt, -1, NULL);
-    if (rc) {
-        sqlite3_finalize(stmt);
-        return -1;
-    }
-
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE)
-        return -1;
-
-    /* ================================= stmt-sep ================================= */
-    sql = "INSERT INTO owners(user_id) "
-          "  VALUES ((SELECT user_id FROM users WHERE jwt = :jwt))";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc)
-        return -1;
-
-    rc = sqlite3_bind_text(stmt,
-                           sqlite3_bind_parameter_index(stmt, ":jwt"),
-                           jwt, -1, NULL);
-    if (rc) {
-        sqlite3_finalize(stmt);
-        return -1;
-    }
-
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE)
-        return -1;
-
-    return 0;
-}
-
-int db_is_subscriber(uint64_t channel_id, const char *jwt)
-{
-    sqlite3_stmt *stmt;
-    const char *sql;
-    int rc;
-
-    /* ================================= stmt-sep ================================= */
-    sql = "SELECT "
-          "  EXISTS(SELECT * FROM subscriptions "
-          "           WHERE user_id = (SELECT user_id FROM users WHERE jwt = :jwt) AND "
-          "             channel_id = :channel_id)";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc)
-        return -1;
-
-    rc = sqlite3_bind_text(stmt,
-                           sqlite3_bind_parameter_index(stmt, ":jwt"),
-                           jwt, -1, NULL);
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":uid"),
+                            uid);
     if (rc) {
         sqlite3_finalize(stmt);
         return -1;
@@ -2012,7 +1455,7 @@ int db_is_subscriber(uint64_t channel_id, const char *jwt)
 
     rc = sqlite3_bind_int64(stmt,
                             sqlite3_bind_parameter_index(stmt, ":channel_id"),
-                            channel_id);
+                            chan_id);
     if (rc) {
         sqlite3_finalize(stmt);
         return -1;
@@ -2030,8 +1473,67 @@ int db_is_subscriber(uint64_t channel_id, const char *jwt)
     return rc;
 }
 
-void db_finalize()
+void db_deinit()
 {
     sqlite3_close(db);
     sqlite3_shutdown();
+}
+
+static
+void oinfo_dtor(void *obj)
+{
+    OwnerInfo *oi = obj;
+
+    if (oi->stmt)
+        sqlite3_finalize(oi->stmt);
+}
+
+int db_get_owner(UserInfo **ui)
+{
+    sqlite3_stmt *stmt;
+    const char *sql;
+    OwnerInfo *tmp;
+    int rc;
+
+    /* ================================= stmt-sep ================================= */
+    sql = "SELECT did, name, email FROM users WHERE user_id = :owner_user_id";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc)
+        return -1;
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":owner_user_id"),
+                            OWNER_USER_ID);
+    if (rc) {
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+    if (rc == SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        *ui = NULL;
+        return 0;
+    }
+
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(OwnerInfo), oinfo_dtor);
+    if (!tmp) {
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    tmp->info.uid   = OWNER_USER_ID;
+    tmp->info.did   = (char *)sqlite3_column_text(stmt, 0);
+    tmp->info.name  = (char *)sqlite3_column_text(stmt, 1);
+    tmp->info.email = (char *)sqlite3_column_text(stmt, 2);
+    tmp->stmt       = stmt;
+
+    *ui = &tmp->info;
+
+    return 0;
 }

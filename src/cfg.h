@@ -20,14 +20,27 @@
  * SOFTWARE.
  */
 
-#ifndef __ERROR_CODE_H__
-#define __ERROR_CODE_H__
+#ifndef __CFG_H__
+#define __CFG_H__
 
-#define FEEDS_EALREADY_EXISTS (-1)
-#define FEEDS_ENOT_EXISTS (-2)
-#define FEEDS_ENOT_AUTHORIZED (-3)
-#define FEEDS_EWRONG_STATE (-4)
+#include <ela_carrier.h>
+#include <ela_did.h>
 
-const char *error_code_strerror(int rc);
+typedef struct {
+    ElaOptions carrier_opts;
+    char *data_dir;
+    char *didcache_dir;
+    char *didstore_dir;
+    char *db_fpath;
+    char *didstore_passwd;
+    char *http_ip;
+    char *http_port;
+} FeedsConfig;
 
-#endif // __ERROR_CODE_H__
+const char *get_cfg_file(const char *config_file, const char *default_config_files[]);
+
+FeedsConfig *load_cfg(const char *config_file, FeedsConfig *config);
+
+void free_cfg(FeedsConfig *fc);
+
+#endif // __CFG_H__

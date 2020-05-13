@@ -23,22 +23,32 @@
 #include <string.h>
 #include <pthread.h>
 #include <crystal.h>
+#include <ela_did.h>
+#include <ela_jwt.h>
 
 #include "feeds_client.h"
-#include "../jsonrpc.h"
+#include "cfg.h"
+
+#ifdef DID_TESTNET
+static const char *resolver = "http://api.elastos.io:21606";
+#else
+static const char *resolver = "http://api.elastos.io:20606";
+#endif
+const char *mnemonic = "advance duty suspect finish space matter squeeze elephant twenty over stick shield";
 
 struct FeedsClient {
     pthread_mutex_t lock;
     pthread_cond_t cond;
     ElaCarrier *carrier;
-    cJSON *new_posts;
-    cJSON *new_comments;
-    cJSON *new_likes;
-    cJSON *response;
-    JsonRPCType response_type;
-    JsonRPCBatchInfo *bi;
     bool waiting_response;
     pthread_t carrier_routine_tid;
+    DIDStore *store;
+    char did[ELA_MAX_DID_LEN];
+    char *passwd;
+    char *access_token;
+    void *resp;
+    ErrResp *err;
+    void *unmarshal;
 };
 
 static
@@ -63,120 +73,65 @@ void friend_connection_callback(ElaCarrier *w, const char *friendid,
 }
 
 static
+void console(const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    vfprintf(stdout, fmt, ap);
+    fprintf(stdout, "\n");
+    va_end(ap);
+}
+
+static
 void on_receiving_message(ElaCarrier *carrier, const char *from,
-                          const void *msg, size_t len, bool offline, void *context)
+                          const void *msg, size_t len, int64_t timestamp,
+                          bool offline, void *context)
 {
     FeedsClient *fc = (FeedsClient *)context;
-    JsonRPCType type;
-    JsonRPCBatchInfo *bi;
-    cJSON *rpc;
+    int (*unmarshal)(void **, ErrResp **) = fc->unmarshal;
+    Notif *notif;
+    int rc;
 
-    type = jsonrpc_decode(msg, &rpc, &bi);
-    if (type != JSONRPC_TYPE_NOTIFICATION &&
-        type != JSONRPC_TYPE_SUCCESS_RESPONSE &&
-        type != JSONRPC_TYPE_ERROR_RESPONSE &&
-        type != JSONRPC_TYPE_BATCH)
-        goto finally;
-
-    if (type == JSONRPC_TYPE_NOTIFICATION) {
-        if (!strcmp(jsonrpc_get_method(rpc), "new_post")) {
-            cJSON *params;
-            cJSON *channel_id;
-            cJSON *id;
-            cJSON *content;
-            cJSON *created_at;
-
-            if (!(params = (cJSON *)jsonrpc_get_params(rpc)) ||
-                !(channel_id = cJSON_GetObjectItemCaseSensitive(params, "channel_id")) ||
-                !(id = cJSON_GetObjectItemCaseSensitive(params, "id")) ||
-                !(content = cJSON_GetObjectItemCaseSensitive(params, "content")) ||
-                !(created_at = cJSON_GetObjectItemCaseSensitive(params, "created_at")) ||
-                !cJSON_IsNumber(channel_id) || !cJSON_IsNumber(id) ||
-                !cJSON_IsString(content) || !content->valuestring[0] ||
-                !cJSON_IsNumber(created_at))
-                goto finally;
-
-            cJSON_DetachItemViaPointer(rpc, params);
-
-            pthread_mutex_lock(&fc->lock);
-            cJSON_AddItemToArray(fc->new_posts, params);
-            pthread_mutex_unlock(&fc->lock);
-        } else if (!strcmp(jsonrpc_get_method(rpc), "new_comment")) {
-            cJSON *params;
-            cJSON *channel_id;
-            cJSON *post_id;
-            cJSON *id;
-            cJSON *username;
-            cJSON *comment_id;
-            cJSON *content;
-            cJSON *created_at;
-
-            if (!(params = (cJSON *)jsonrpc_get_params(rpc)) ||
-                !(channel_id = cJSON_GetObjectItemCaseSensitive(params, "channel_id")) ||
-                !(post_id = cJSON_GetObjectItemCaseSensitive(params, "post_id")) ||
-                !(id = cJSON_GetObjectItemCaseSensitive(params, "id")) ||
-                !(comment_id = cJSON_GetObjectItemCaseSensitive(params, "comment_id")) ||
-                !(username = cJSON_GetObjectItemCaseSensitive(params, "user_name")) ||
-                !(content = cJSON_GetObjectItemCaseSensitive(params, "content")) ||
-                !(created_at = cJSON_GetObjectItemCaseSensitive(params, "created_at")) ||
-                !cJSON_IsNumber(channel_id) || !cJSON_IsNumber(post_id) ||
-                !cJSON_IsNumber(id) || !(cJSON_IsNumber(comment_id) || cJSON_IsNull(comment_id)) ||
-                !cJSON_IsString(username) || !username->valuestring[0] ||
-                !cJSON_IsString(content) || !content->valuestring[0] ||
-                !cJSON_IsNumber(created_at))
-                goto finally;
-
-            cJSON_DetachItemViaPointer(rpc, params);
-
-            pthread_mutex_lock(&fc->lock);
-            cJSON_AddItemToArray(fc->new_comments, params);
-            pthread_mutex_unlock(&fc->lock);
-        } else if (!strcmp(jsonrpc_get_method(rpc), "new_likes")) {
-            cJSON *params;
-            cJSON *channel_id;
-            cJSON *post_id;
-            cJSON *comment_id;
-            cJSON *count;
-
-            if (!(params = (cJSON *)jsonrpc_get_params(rpc)) ||
-                !(channel_id = cJSON_GetObjectItemCaseSensitive(params, "channel_id")) ||
-                !(post_id = cJSON_GetObjectItemCaseSensitive(params, "post_id")) ||
-                !(comment_id = cJSON_GetObjectItemCaseSensitive(params, "comment_id")) ||
-                !(count = cJSON_GetObjectItemCaseSensitive(params, "count")) ||
-                !cJSON_IsNumber(channel_id) || !cJSON_IsNumber(post_id) ||
-                !(cJSON_IsNumber(comment_id) || cJSON_IsNull(comment_id)) ||
-                !cJSON_IsNumber(count))
-                goto finally;
-
-            cJSON_DetachItemViaPointer(rpc, params);
-
-            pthread_mutex_lock(&fc->lock);
-            cJSON_AddItemToArray(fc->new_likes, params);
-            pthread_mutex_unlock(&fc->lock);
+    rc = rpc_unmarshal_notif(msg, len, &notif);
+    if (!rc) {
+        if (!strcmp(notif->method, "new_post")) {
+            NewPostNotif *n = (NewPostNotif *)notif;
+            console("New post:");
+            console("  channel_id: %llu, id: %llu, content: %s, created_at: %llu",
+                    n->params.pinfo->chan_id, n->params.pinfo->post_id,
+                    n->params.pinfo->content, n->params.pinfo->created_at);
+        } else if (!strcmp(notif->method, "new_comment")) {
+            NewCmtNotif *n = (NewCmtNotif *)notif;
+            console("New comment:");
+            console("  channel_id: %llu, post_id: %llu, id: %llu, comment_id: %llu, user_name: %s, content: %s, created_at: %llu",
+                    n->params.cinfo->chan_id,
+                    n->params.cinfo->post_id,
+                    n->params.cinfo->cmt_id,
+                    n->params.cinfo->reply_to_cmt,
+                    n->params.cinfo->user.name,
+                    n->params.cinfo->content,
+                    n->params.cinfo->created_at);
+        } else {
+            NewLikesNotif *n = (NewLikesNotif *)notif;
+            console("New like:");
+            console("  channel_id: %llu, post_id: %llu, comment_id: %llu, count: %llu",
+                    n->params.chan_id,
+                    n->params.post_id,
+                    n->params.cmt_id,
+                    n->params.cnt);
         }
-
-        goto finally;
+        deref(notif);
+        return;
     }
 
     pthread_mutex_lock(&fc->lock);
-
     if (fc->waiting_response) {
-        fc->response = rpc;
-        fc->response_type = type;
-        fc->bi = bi;
-        pthread_cond_signal(&fc->cond);
-        rpc = NULL;
-        bi = NULL;
+        uint64_t id;
+        if (!rpc_unmarshal_resp_id(msg, len, &id) && !unmarshal(&fc->resp, &fc->err))
+            pthread_cond_signal(&fc->cond);
     }
-
     pthread_mutex_unlock(&fc->lock);
-
-finally:
-    if (rpc)
-        cJSON_Delete(rpc);
-
-    if (bi)
-        free(bi);
 }
 
 static
@@ -197,27 +152,51 @@ void feeds_client_destructor(void *obj)
     if (fc->carrier)
         ela_kill(fc->carrier);
 
-    if (fc->new_posts)
-        cJSON_Delete(fc->new_posts);
+    if (fc->store)
+        DIDStore_Close(fc->store);
 
-    if (fc->new_comments)
-        cJSON_Delete(fc->new_comments);
+    if (fc->passwd)
+        free(fc->passwd);
 
-    if (fc->new_likes)
-        cJSON_Delete(fc->new_likes);
+    if (fc->access_token)
+        free(fc->access_token);
 
-    if (fc->response)
-        cJSON_Delete(fc->response);
-
-    if (fc->bi)
-        free(fc->bi);
+    deref(fc->resp);
+    deref(fc->err);
 }
 
-FeedsClient *feeds_client_create(ElaOptions *opts)
+static
+bool create_id_tsx(DIDAdapter *adapter, const char *payload, const char *memo)
 {
+    (void)adapter;
+    (void)memo;
+    (void)strdup(payload);
+
+    return true;
+}
+
+static
+DIDDocument* merge_to_localcopy(DIDDocument *chaincopy, DIDDocument *localcopy)
+{
+    if (!chaincopy && !localcopy)
+        return NULL;
+
+    if (!chaincopy)
+        return chaincopy;
+
+    return localcopy;
+}
+
+FeedsClient *feeds_client_create(FeedsCLIConfig *opts)
+{
+    DIDAdapter adapter = {
+        .createIdTransaction = create_id_tsx
+    };
     ElaCallbacks callbacks;
     FeedsClient *fc;
     int rc;
+
+    DIDBackend_InitializeDefault(resolver, opts->didcache_dir);
 
     memset(&callbacks, 0, sizeof(callbacks));
     callbacks.connection_status = connection_callback;
@@ -228,29 +207,41 @@ FeedsClient *feeds_client_create(ElaOptions *opts)
     if (!fc)
         return NULL;
 
+    fc->store = DIDStore_Open(opts->didstore_dir, &adapter);
+    if (!fc->store) {
+        deref(fc);
+        return NULL;
+    }
+
+    if (!DIDStore_ContainsPrivateIdentity(fc->store)) {
+        //DIDDocument *doc;
+        //DID *did;
+        DIDStore_InitPrivateIdentity(fc->store, opts->didstore_passwd, mnemonic, "secret", "english", true);
+        //for (int i = 0; i < 24; ++i) {
+        //    char did[ELA_MAX_DID_LEN];
+        //    DIDDocument *doc;
+        //    doc = DIDStore_NewDIDByIndex(fc->store, opts->didstore_passwd, i, NULL);
+        //    printf("%d. %s\n", i, DID_ToString(DIDDocument_GetSubject(doc), did, sizeof(did)));
+        //    DIDDocument_Destroy(doc);
+        //}
+        //doc = DIDStore_NewDIDByIndex(fc->store, opts->didstore_passwd, 0, NULL);
+
+        //did = DID_FromString("did:elastos:ijUnD4KeRpeBUFmcEDCbhxMTJRzUYCQCZM");
+        DIDStore_Synchronize(fc->store, opts->didstore_passwd, merge_to_localcopy);
+        //doc = DID_Resolve(did, true);
+        //DIDStore_StoreDID(fc->store, doc, NULL);
+        //DIDDocument_Destroy(doc);
+        //DID_Destroy(did);
+    }
+
+    strcpy(fc->did, "did:elastos:ieaA5VMWydQmVJtM5daW5hoTQpcuV38mHM");
+    fc->passwd = strdup(opts->didstore_passwd);
+
     pthread_mutex_init(&fc->lock, NULL);
     pthread_cond_init(&fc->cond, NULL);
 
-    fc->carrier = ela_new(opts, &callbacks, fc);
+    fc->carrier = ela_new(&opts->carrier_opts, &callbacks, fc);
     if (!fc->carrier) {
-        deref(fc);
-        return NULL;
-    }
-
-    fc->new_posts = cJSON_CreateArray();
-    if (!fc->new_posts) {
-        deref(fc);
-        return NULL;
-    }
-
-    fc->new_comments = cJSON_CreateArray();
-    if (!fc->new_comments) {
-        deref(fc);
-        return NULL;
-    }
-
-    fc->new_likes = cJSON_CreateArray();
-    if (!fc->new_likes) {
         deref(fc);
         return NULL;
     }
@@ -329,7 +320,7 @@ int feeds_client_friend_remove(FeedsClient *fc, const char *user_id)
 }
 
 int transaction_start(FeedsClient *fc, const char *svc_addr, const void *req, size_t len,
-                      cJSON **resp, JsonRPCType *type, JsonRPCBatchInfo **bi)
+                      void **resp, ErrResp **err)
 {
     int rc;
 
@@ -343,14 +334,14 @@ int transaction_start(FeedsClient *fc, const char *svc_addr, const void *req, si
         return -1;
     }
 
-    while (!fc->response)
+    while (!fc->resp && !fc->err)
         pthread_cond_wait(&fc->cond, &fc->lock);
 
-    *resp = fc->response;
-    *type = fc->response_type;
-    *bi = fc->bi;
-    fc->response = NULL;
-    fc->bi = NULL;
+    *resp = fc->resp;
+    *err = fc->err;
+
+    fc->resp = NULL;
+    fc->err = NULL;
     fc->waiting_response = false;
 
     pthread_mutex_unlock(&fc->lock);
@@ -358,1234 +349,582 @@ int transaction_start(FeedsClient *fc, const char *svc_addr, const void *req, si
     return 0;
 }
 
-int feeds_client_create_channel(FeedsClient *fc, const char *svc_node_id, const char *name,
-                                const char *intro, cJSON **resp)
+int feeds_client_decl_owner(FeedsClient *fc, const char *svc_node_id, DeclOwnerResp **resp, ErrResp **err)
 {
-    JsonRPCType type;
-    JsonRPCBatchInfo *bi;
-    cJSON *params;
-    cJSON *req;
-    char *req_str;
+    DeclOwnerReq req = {
+        .method = "declare_owner",
+        .tsx_id = 1,
+        .params = {
+            .nonce = "abc",
+            .owner_did = fc->did
+        }
+    };
+    Marshalled *marshal;
     int rc;
 
-    *resp = NULL;
-
-    params = cJSON_CreateObject();
-    if (!params)
+    marshal = rpc_marshal_decl_owner_req(&req);
+    if (!marshal)
         return -1;
 
-    if (!cJSON_AddStringToObject(params, "name", name)) {
-        cJSON_Delete(params);
-        return -1;
-    }
+    fc->unmarshal = rpc_unmarshal_decl_owner_resp;
+    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+    deref(marshal);
+    return rc;
+}
 
-    if (!cJSON_AddStringToObject(params, "introduction", intro)) {
-        cJSON_Delete(params);
-        return -1;
-    }
+int feeds_client_imp_did(FeedsClient *fc, const char *svc_node_id, ImpDIDResp **resp, ErrResp **err)
+{
+    ImpDIDReq req = {
+        .method = "import_did",
+        .tsx_id = 1,
+        .params = {
+            .mnemo = (char *)mnemonic,
+            .passphrase = "secret",
+            .idx = 0
+        }
+    };
+    Marshalled *marshal;
+    int rc;
 
-    if (!cJSON_AddStringToObject(params, "jwttoken", "abc")) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    req = jsonrpc_encode_request("create_channel", params, NULL);
-    if (!req)
-        return -1;
-
-    req_str = cJSON_PrintUnformatted(req);
-    cJSON_Delete(req);
-    if (!req_str)
-        return -1;
-
-    rc = transaction_start(fc, svc_node_id, req_str, strlen(req_str) + 1, resp, &type, &bi);
-    free(req_str);
-    if (rc < 0 || type == JSONRPC_TYPE_ERROR_RESPONSE)
+    marshal = rpc_marshal_imp_did_req(&req);
+    if (!marshal)
         return -1;
 
-    return 0;
+    fc->unmarshal = rpc_unmarshal_imp_did_resp;
+    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+    deref(marshal);
+    return rc;
+}
+
+static
+char *iss_vc(FeedsClient *fc, const char *sub)
+{
+    DID *did = DID_FromString(fc->did);
+    Issuer *iss = Issuer_Create(did, NULL, fc->store);
+    DID *owner = DID_FromString(sub);
+    DIDURL *url = DIDURL_NewByDid(owner, "credential");
+    const char *types[] = {"BasicProfileCredential"};
+    const char *propdata = "{\"name\":\"Jay Holtslander\"}";
+    Credential *vc = Issuer_CreateCredentialByString(iss, owner, url, types, 1, propdata,
+                                         time(NULL) + 3600 * 24 * 365 * 20, fc->passwd);
+    char *vc_str = (char *)Credential_ToJson(vc, true);
+    DID_Destroy(did);
+    Issuer_Destroy(iss);
+    DID_Destroy(owner);
+    DIDURL_Destroy(url);
+    Credential_Destroy(vc);
+
+    return vc_str;
+}
+
+int feeds_client_iss_vc(FeedsClient *fc, const char *svc_node_id, const char *sub,
+                        IssVCResp **resp, ErrResp **err)
+{
+    IssVCReq req = {
+        .method = "issue_credential",
+        .tsx_id = 1,
+        .params = {
+            .vc = iss_vc(fc, sub)
+        }
+    };
+    Marshalled *marshal;
+    int rc;
+
+    marshal = rpc_marshal_iss_vc_req(&req);
+    if (!marshal)
+        return -1;
+
+    fc->unmarshal = rpc_unmarshal_iss_vc_resp;
+    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+    deref(marshal);
+    return rc;
+}
+
+int feeds_client_signin1(FeedsClient *fc, const char *svc_node_id, SigninReqChalResp **resp, ErrResp **err)
+{
+    SigninReqChalReq req = {
+        .method = "signin_request_challenge",
+        .tsx_id = 1,
+        .params = {
+            .iss = fc->did,
+            .vc_req = true
+        }
+    };
+    Marshalled *marshal;
+    int rc;
+
+    marshal = rpc_marshal_signin_req_chal_req(&req);
+    if (!marshal)
+        return -1;
+
+    fc->unmarshal = rpc_unmarshal_signin_req_chal_resp;
+    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+    deref(marshal);
+    return rc;
+}
+
+static
+char *gen_jws(FeedsClient *fc, const char *realm, const char *nonce)
+{
+    DID *did = DID_FromString(fc->did);
+    Presentation *vp = Presentation_Create(did, NULL, fc->store, fc->passwd, nonce, realm, 0);
+    DIDDocument *doc = DIDStore_LoadDID(fc->store, did);
+    JWTBuilder *b = DIDDocument_GetJwtBuilder(doc);
+    JWTBuilder_SetClaimWithJson(b, "presentation", Presentation_ToJson(vp, true));
+    JWTBuilder_Sign(b, NULL, fc->passwd);
+    char *str = (char *)JWTBuilder_Compact(b);
+    JWTBuilder_Destroy(b);
+    Presentation_Destroy(vp);
+
+    return str;
+}
+
+static
+char *gen_vc(FeedsClient *fc)
+{
+    DID *did = DID_FromString(fc->did);
+    Issuer *iss = Issuer_Create(did, NULL, fc->store);
+    DIDURL *url = DIDURL_NewByDid(did, "credential");
+    const char *types[] = {"BasicProfileCredential"};
+    const char *propdata = "{\"name\":\"Jay Holtslander\",\"email\":\"djd@aaa.com\"}";
+    Credential *vc = Issuer_CreateCredentialByString(iss, did, url, types, 1, propdata,
+                                                     time(NULL) + 3600 * 24 * 365 * 20, fc->passwd);
+    char *vc_str = (char *)Credential_ToJson(vc, true);
+    DID_Destroy(did);
+    Issuer_Destroy(iss);
+    DIDURL_Destroy(url);
+    Credential_Destroy(vc);
+
+    return vc_str;
+}
+
+int feeds_client_signin2(FeedsClient *fc, const char *svc_node_id,
+                         const char *realm, const char *nonce, SigninConfChalResp **resp, ErrResp **err)
+{
+    SigninConfChalReq req = {
+        .method = "signin_confirm_challenge",
+        .tsx_id = 1,
+        .params = {
+            .jws = gen_jws(fc, realm, nonce),
+            .vc = gen_vc(fc)
+        }
+    };
+    Marshalled *marshal;
+    int rc;
+
+    marshal = rpc_marshal_signin_conf_chal_req(&req);
+    if (!marshal)
+        return -1;
+
+    fc->unmarshal = rpc_unmarshal_signin_conf_chal_resp;
+    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+    if (!rc)
+        fc->access_token = strdup((*resp)->result.tk);
+    deref(marshal);
+    return rc;
+}
+
+int feeds_client_create_channel(FeedsClient *fc, const char *svc_node_id, const char *name,
+                                const char *intro, CreateChanResp **resp, ErrResp **err)
+{
+    CreateChanReq req = {
+        .method = "create_channel",
+        .tsx_id = 1,
+        .params = {
+            .tk = fc->access_token,
+            .name = (char *)name,
+            .intro = (char *)intro
+        }
+    };
+    Marshalled *marshal;
+    int rc;
+
+    marshal = rpc_marshal_create_chan_req(&req);
+    if (!marshal)
+        return -1;
+
+    fc->unmarshal = rpc_unmarshal_create_chan_resp;
+    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+    deref(marshal);
+    return rc;
 }
 
 int feeds_client_publish_post(FeedsClient *fc, const char *svc_node_id, uint64_t channel_id,
-                              const char *content, cJSON **resp)
+                              const char *content, PubPostResp **resp, ErrResp **err)
 {
-    JsonRPCType type;
-    JsonRPCBatchInfo *bi;
-    cJSON *params;
-    cJSON *req;
-    char *req_str;
+    PubPostReq req = {
+        .method = "publish_post",
+        .tsx_id = 1,
+        .params = {
+            .tk = fc->access_token,
+            .chan_id = channel_id,
+            .content = (char *)content,
+            .sz = strlen(content) + 1
+        }
+    };
+    Marshalled *marshal;
     int rc;
 
-    *resp = NULL;
-
-    params = cJSON_CreateObject();
-    if (!params)
+    marshal = rpc_marshal_pub_post_req(&req);
+    if (!marshal)
         return -1;
 
-    if (!cJSON_AddNumberToObject(params, "channel_id", channel_id)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddStringToObject(params, "content", content)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddStringToObject(params, "jwttoken", "abc")) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    req = jsonrpc_encode_request("publish_post", params, NULL);
-    if (!req)
-        return -1;
-
-    req_str = cJSON_PrintUnformatted(req);
-    cJSON_Delete(req);
-    if (!req_str)
-        return -1;
-
-    rc = transaction_start(fc, svc_node_id, req_str, strlen(req_str) + 1, resp, &type, &bi);
-    free(req_str);
-    if (rc < 0 || type == JSONRPC_TYPE_ERROR_RESPONSE)
-        return -1;
-
-    return 0;
+    fc->unmarshal = rpc_unmarshal_pub_post_resp;
+    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+    deref(marshal);
+    return rc;
 }
 
 int feeds_client_post_comment(FeedsClient *fc, const char *svc_node_id, uint64_t channel_id,
-                              uint64_t post_id, uint64_t comment_id, const char *content, cJSON **resp)
+                              uint64_t post_id, uint64_t comment_id, const char *content,
+                              PostCmtResp **resp, ErrResp **err)
 {
-    JsonRPCType type;
-    JsonRPCBatchInfo *bi;
-    cJSON *params;
-    cJSON *req;
-    char *req_str;
+    PostCmtReq req = {
+        .method = "post_comment",
+        .tsx_id = 1,
+        .params = {
+            .tk = fc->access_token,
+            .chan_id = channel_id,
+            .post_id = post_id,
+            .cmt_id = comment_id,
+            .content = (char *)content,
+            .sz = strlen(content) + 1
+        }
+    };
+    Marshalled *marshal;
     int rc;
 
-    *resp = NULL;
-
-    params = cJSON_CreateObject();
-    if (!params)
+    marshal = rpc_marshal_post_cmt_req(&req);
+    if (!marshal)
         return -1;
 
-    if (!cJSON_AddNumberToObject(params, "channel_id", channel_id)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddNumberToObject(params, "post_id", post_id)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!(comment_id ? cJSON_AddNumberToObject(params, "comment_id", comment_id) :
-                       cJSON_AddNullToObject(params, "comment_id"))) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddStringToObject(params, "content", content)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddStringToObject(params, "jwttoken", "abc")) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    req = jsonrpc_encode_request("post_comment", params, NULL);
-    if (!req)
-        return -1;
-
-    req_str = cJSON_PrintUnformatted(req);
-    cJSON_Delete(req);
-    if (!req_str)
-        return -1;
-
-    rc = transaction_start(fc, svc_node_id, req_str, strlen(req_str) + 1, resp, &type, &bi);
-    free(req_str);
-    if (rc < 0 || type == JSONRPC_TYPE_ERROR_RESPONSE)
-        return -1;
-
-    return 0;
+    fc->unmarshal = rpc_unmarshal_post_cmt_resp;
+    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+    deref(marshal);
+    return rc;
 }
 
 int feeds_client_post_like(FeedsClient *fc, const char *svc_node_id, uint64_t channel_id,
-                           uint64_t post_id, uint64_t comment_id, cJSON **resp)
+                           uint64_t post_id, uint64_t comment_id, PostLikeResp **resp, ErrResp **err)
 {
-    JsonRPCType type;
-    JsonRPCBatchInfo *bi;
-    cJSON *params;
-    cJSON *req;
-    char *req_str;
-    int rc;
-
-    *resp = NULL;
-
-    params = cJSON_CreateObject();
-    if (!params)
-        return -1;
-
-    if (!cJSON_AddNumberToObject(params, "channel_id", channel_id)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddNumberToObject(params, "post_id", post_id)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!(comment_id ? cJSON_AddNumberToObject(params, "comment_id", comment_id) :
-          cJSON_AddNullToObject(params, "comment_id"))) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddStringToObject(params, "jwttoken", "abc")) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    req = jsonrpc_encode_request("post_like", params, NULL);
-    if (!req)
-        return -1;
-
-    req_str = cJSON_PrintUnformatted(req);
-    cJSON_Delete(req);
-    if (!req_str)
-        return -1;
-
-    rc = transaction_start(fc, svc_node_id, req_str, strlen(req_str) + 1, resp, &type, &bi);
-    free(req_str);
-    if (rc < 0 || type == JSONRPC_TYPE_ERROR_RESPONSE)
-        return -1;
-
-    return 0;
-}
-
-int feeds_client_get_my_channels(FeedsClient *fc, const char *svc_node_id, QueryField qf,
-                                 uint64_t upper, uint64_t lower, uint64_t maxcnt, cJSON **resp)
-{
-    JsonRPCBatchInfo *bi;
-    const cJSON *result;
-    const cJSON *channel;
-    const cJSON *id;
-    const cJSON *name;
-    const cJSON *intro;
-    const cJSON *subscribers;
-    cJSON *params;
-    JsonRPCType type;
-    char *req_str;
-    cJSON *req;
-    int rc;
-
-    *resp = NULL;
-
-    params = cJSON_CreateObject();
-    if (!params)
-        return -1;
-
-    if (!cJSON_AddNumberToObject(params, "by", qf)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddNumberToObject(params, "upper_bound", upper)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddNumberToObject(params, "lower_bound", lower)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddNumberToObject(params, "max_count", maxcnt)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddStringToObject(params, "jwttoken", "abc")) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    req = jsonrpc_encode_request("get_my_channels", params, NULL);
-    if (!req)
-        return -1;
-
-    req_str = cJSON_PrintUnformatted(req);
-    cJSON_Delete(req);
-    if (!req_str)
-        return -1;
-
-    rc = transaction_start(fc, svc_node_id, req_str, strlen(req_str) + 1, resp, &type, &bi);
-    free(req_str);
-    if (rc < 0 || type == JSONRPC_TYPE_ERROR_RESPONSE)
-        return -1;
-
-    result = jsonrpc_get_result(*resp);
-    if (!cJSON_IsArray(result)) {
-        cJSON_Delete(*resp);
-        *resp = NULL;
-        return -1;
-    }
-
-    cJSON_ArrayForEach(channel, result) {
-        if (!cJSON_IsObject(channel) ||
-            !(id = cJSON_GetObjectItemCaseSensitive(channel, "id")) ||
-            !(name = cJSON_GetObjectItemCaseSensitive(channel, "name")) ||
-            !(intro = cJSON_GetObjectItemCaseSensitive(channel, "introduction")) ||
-            !(subscribers = cJSON_GetObjectItemCaseSensitive(channel, "subscribers")) ||
-            !cJSON_IsNumber(id) ||
-            !cJSON_IsString(name) || !name->valuestring[0] ||
-            !cJSON_IsString(intro) || !intro->valuestring[0] ||
-            !cJSON_IsNumber(subscribers)) {
-            cJSON_Delete(*resp);
-            *resp = NULL;
-            return -1;
+    PostLikeReq req = {
+        .method = "post_like",
+        .tsx_id = 1,
+        .params = {
+            .tk = fc->access_token,
+            .chan_id = channel_id,
+            .post_id = post_id,
+            .cmt_id = comment_id
         }
-    }
-
-    return 0;
-}
-
-int feeds_client_get_my_channels_metadata(FeedsClient *fc, const char *svc_node_id, QueryField qf,
-                                 uint64_t upper, uint64_t lower, uint64_t maxcnt, cJSON **resp)
-{
-    JsonRPCBatchInfo *bi;
-    const cJSON *result;
-    const cJSON *channel;
-    const cJSON *id;
-    const cJSON *subscribers;
-    cJSON *params;
-    JsonRPCType type;
-    char *req_str;
-    cJSON *req;
+    };
+    Marshalled *marshal;
     int rc;
 
-    *resp = NULL;
-
-    params = cJSON_CreateObject();
-    if (!params)
+    marshal = rpc_marshal_post_like_req(&req);
+    if (!marshal)
         return -1;
 
-    if (!cJSON_AddNumberToObject(params, "by", qf)) {
-        cJSON_Delete(params);
-        return -1;
-    }
+    fc->unmarshal = rpc_unmarshal_post_like_resp;
+    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+    deref(marshal);
+    return rc;
+}
 
-    if (!cJSON_AddNumberToObject(params, "upper_bound", upper)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddNumberToObject(params, "lower_bound", lower)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddNumberToObject(params, "max_count", maxcnt)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddStringToObject(params, "jwttoken", "abc")) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    req = jsonrpc_encode_request("get_my_channels_metadata", params, NULL);
-    if (!req)
-        return -1;
-
-    req_str = cJSON_PrintUnformatted(req);
-    cJSON_Delete(req);
-    if (!req_str)
-        return -1;
-
-    rc = transaction_start(fc, svc_node_id, req_str, strlen(req_str) + 1, resp, &type, &bi);
-    free(req_str);
-    if (rc < 0 || type == JSONRPC_TYPE_ERROR_RESPONSE)
-        return -1;
-
-    result = jsonrpc_get_result(*resp);
-    if (!cJSON_IsArray(result)) {
-        cJSON_Delete(*resp);
-        *resp = NULL;
-        return -1;
-    }
-
-    cJSON_ArrayForEach(channel, result) {
-        if (!cJSON_IsObject(channel) ||
-            !(id = cJSON_GetObjectItemCaseSensitive(channel, "id")) ||
-            !(subscribers = cJSON_GetObjectItemCaseSensitive(channel, "subscribers")) ||
-            !cJSON_IsNumber(id) || !cJSON_IsNumber(subscribers)) {
-            cJSON_Delete(*resp);
-            *resp = NULL;
-            return -1;
+int feeds_client_get_my_channels(FeedsClient *fc, const char *svc_node_id, QryFld qf,
+                                 uint64_t upper, uint64_t lower, uint64_t maxcnt,
+                                 GetMyChansResp **resp, ErrResp **err)
+{
+    GetMyChansReq req = {
+        .method = "get_my_channels",
+        .tsx_id = 1,
+        .params = {
+            .tk = fc->access_token,
+            .qc = {
+                .by = qf,
+                .upper = upper,
+                .lower = lower,
+                .maxcnt = maxcnt
+            }
         }
-    }
-
-    return 0;
-}
-
-int feeds_client_get_channels(FeedsClient *fc, const char *svc_node_id, QueryField qf,
-                              uint64_t upper, uint64_t lower, uint64_t maxcnt, cJSON **resp)
-{
-    JsonRPCBatchInfo *bi;
-    const cJSON *result;
-    const cJSON *channel;
-    const cJSON *id;
-    const cJSON *name;
-    const cJSON *intro;
-    const cJSON *owner_name;
-    const cJSON *owner_did;
-    const cJSON *subscribers;
-    const cJSON *last_update;
-    cJSON *params;
-    JsonRPCType type;
-    char *req_str;
-    cJSON *req;
+    };
+    Marshalled *marshal;
     int rc;
 
-    *resp = NULL;
-
-    params = cJSON_CreateObject();
-    if (!params)
+    marshal = rpc_marshal_get_my_chans_req(&req);
+    if (!marshal)
         return -1;
 
-    if (!cJSON_AddNumberToObject(params, "by", qf)) {
-        cJSON_Delete(params);
-        return -1;
-    }
+    fc->unmarshal = rpc_unmarshal_get_my_chans_resp;
+    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+    deref(marshal);
+    return rc;
+}
 
-    if (!cJSON_AddNumberToObject(params, "upper_bound", upper)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddNumberToObject(params, "lower_bound", lower)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddNumberToObject(params, "max_count", maxcnt)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddStringToObject(params, "jwttoken", "abc")) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    req = jsonrpc_encode_request("get_channels", params, NULL);
-    if (!req)
-        return -1;
-
-    req_str = cJSON_PrintUnformatted(req);
-    cJSON_Delete(req);
-    if (!req_str)
-        return -1;
-
-    rc = transaction_start(fc, svc_node_id, req_str, strlen(req_str) + 1, resp, &type, &bi);
-    free(req_str);
-    if (rc < 0 || type == JSONRPC_TYPE_ERROR_RESPONSE)
-        return -1;
-
-    result = jsonrpc_get_result(*resp);
-    if (!cJSON_IsArray(result)) {
-        cJSON_Delete(*resp);
-        *resp = NULL;
-        return -1;
-    }
-
-    cJSON_ArrayForEach(channel, result) {
-        if (!cJSON_IsObject(channel) ||
-            !(id = cJSON_GetObjectItemCaseSensitive(channel, "id")) ||
-            !(name = cJSON_GetObjectItemCaseSensitive(channel, "name")) ||
-            !(intro = cJSON_GetObjectItemCaseSensitive(channel, "introduction")) ||
-            !(owner_name = cJSON_GetObjectItemCaseSensitive(channel, "owner_name")) ||
-            !(owner_did = cJSON_GetObjectItemCaseSensitive(channel, "owner_did")) ||
-            !(subscribers = cJSON_GetObjectItemCaseSensitive(channel, "subscribers")) ||
-            !(last_update = cJSON_GetObjectItemCaseSensitive(channel, "last_update")) ||
-            !cJSON_IsNumber(id) ||
-            !cJSON_IsString(name) || !name->valuestring[0] ||
-            !cJSON_IsString(intro) || !intro->valuestring[0] ||
-            !cJSON_IsString(owner_name) || !owner_name->valuestring[0] ||
-            !cJSON_IsString(owner_did) || !owner_did->valuestring[0] ||
-            !cJSON_IsNumber(subscribers) || !cJSON_IsNumber(last_update)) {
-            cJSON_Delete(*resp);
-            *resp = NULL;
-            return -1;
+int feeds_client_get_my_channels_metadata(FeedsClient *fc, const char *svc_node_id, QryFld qf,
+                                          uint64_t upper, uint64_t lower, uint64_t maxcnt,
+                                          GetMyChansMetaResp **resp, ErrResp **err)
+{
+    GetMyChansMetaReq req = {
+        .method = "get_my_channels_metadata",
+        .tsx_id = 1,
+        .params = {
+            .tk = fc->access_token,
+            .qc = {
+                .by = qf,
+                .upper = upper,
+                .lower = lower,
+                .maxcnt = maxcnt
+            }
         }
-    }
-
-    return 0;
-}
-
-int feeds_client_get_channel_detail(FeedsClient *fc, const char *svc_node_id, uint64_t id, cJSON **resp)
-{
-    JsonRPCBatchInfo *bi;
-    const cJSON *result;
-    const cJSON *cid;
-    const cJSON *name;
-    const cJSON *intro;
-    const cJSON *owner_name;
-    const cJSON *owner_did;
-    const cJSON *subscribers;
-    const cJSON *last_update;
-    cJSON *params;
-    JsonRPCType type;
-    char *req_str;
-    cJSON *req;
+    };
+    Marshalled *marshal;
     int rc;
 
-    *resp = NULL;
-
-    params = cJSON_CreateObject();
-    if (!params)
+    marshal = rpc_marshal_get_my_chans_meta_req(&req);
+    if (!marshal)
         return -1;
 
-    if (!cJSON_AddNumberToObject(params, "id", id)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddStringToObject(params, "jwttoken", "abc")) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    req = jsonrpc_encode_request("get_channel_detail", params, NULL);
-    if (!req)
-        return -1;
-
-    req_str = cJSON_PrintUnformatted(req);
-    cJSON_Delete(req);
-    if (!req_str)
-        return -1;
-
-    rc = transaction_start(fc, svc_node_id, req_str, strlen(req_str) + 1, resp, &type, &bi);
-    free(req_str);
-    if (rc < 0 || type == JSONRPC_TYPE_ERROR_RESPONSE)
-        return -1;
-
-    result = jsonrpc_get_result(*resp);
-    if (!cJSON_IsObject(result)) {
-        cJSON_Delete(*resp);
-        *resp = NULL;
-        return -1;
-    }
-
-    if (!cJSON_IsObject(result) ||
-        !(cid = cJSON_GetObjectItemCaseSensitive(result, "id")) ||
-        !(name = cJSON_GetObjectItemCaseSensitive(result, "name")) ||
-        !(intro = cJSON_GetObjectItemCaseSensitive(result, "introduction")) ||
-        !(owner_name = cJSON_GetObjectItemCaseSensitive(result, "owner_name")) ||
-        !(owner_did = cJSON_GetObjectItemCaseSensitive(result, "owner_did")) ||
-        !(subscribers = cJSON_GetObjectItemCaseSensitive(result, "subscribers")) ||
-        !(last_update = cJSON_GetObjectItemCaseSensitive(result, "last_update")) ||
-        !cJSON_IsNumber(cid) ||
-        !cJSON_IsString(name) || !name->valuestring[0] ||
-        !cJSON_IsString(intro) || !intro->valuestring[0] ||
-        !cJSON_IsString(owner_name) || !owner_name->valuestring[0] ||
-        !cJSON_IsString(owner_did) || !owner_did->valuestring[0] ||
-        !cJSON_IsNumber(subscribers) || !cJSON_IsNumber(last_update)) {
-        cJSON_Delete(*resp);
-        *resp = NULL;
-        return -1;
-    }
-
-    return 0;
+    fc->unmarshal = rpc_unmarshal_get_my_chans_meta_resp;
+    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+    deref(marshal);
+    return rc;
 }
 
-int feeds_client_get_subscribed_channels(FeedsClient *fc, const char *svc_node_id, QueryField qf,
-        uint64_t upper, uint64_t lower, uint64_t maxcnt, cJSON **resp)
+int feeds_client_get_channels(FeedsClient *fc, const char *svc_node_id, QryFld qf,
+                              uint64_t upper, uint64_t lower, uint64_t maxcnt,
+                              GetChansResp **resp, ErrResp **err)
 {
-    JsonRPCBatchInfo *bi;
-    const cJSON *result;
-    const cJSON *channel;
-    const cJSON *id;
-    const cJSON *name;
-    const cJSON *intro;
-    const cJSON *owner_name;
-    const cJSON *owner_did;
-    const cJSON *subscribers;
-    const cJSON *last_update;
-    cJSON *params;
-    JsonRPCType type;
-    char *req_str;
-    cJSON *req;
-    int rc;
-
-    *resp = NULL;
-
-    params = cJSON_CreateObject();
-    if (!params)
-        return -1;
-
-    if (!cJSON_AddNumberToObject(params, "by", qf)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddNumberToObject(params, "upper_bound", upper)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddNumberToObject(params, "lower_bound", lower)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddNumberToObject(params, "max_count", maxcnt)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddStringToObject(params, "jwttoken", "abc")) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    req = jsonrpc_encode_request("get_subscribed_channels", params, NULL);
-    if (!req)
-        return -1;
-
-    req_str = cJSON_PrintUnformatted(req);
-    cJSON_Delete(req);
-    if (!req_str)
-        return -1;
-
-    rc = transaction_start(fc, svc_node_id, req_str, strlen(req_str) + 1, resp, &type, &bi);
-    free(req_str);
-    if (rc < 0 || type == JSONRPC_TYPE_ERROR_RESPONSE)
-        return -1;
-
-    result = jsonrpc_get_result(*resp);
-    if (!cJSON_IsArray(result)) {
-        cJSON_Delete(*resp);
-        *resp = NULL;
-        return -1;
-    }
-
-    cJSON_ArrayForEach(channel, result) {
-        if (!cJSON_IsObject(channel) ||
-            !(id = cJSON_GetObjectItemCaseSensitive(channel, "id")) ||
-            !(name = cJSON_GetObjectItemCaseSensitive(channel, "name")) ||
-            !(intro = cJSON_GetObjectItemCaseSensitive(channel, "introduction")) ||
-            !(owner_name = cJSON_GetObjectItemCaseSensitive(channel, "owner_name")) ||
-            !(owner_did = cJSON_GetObjectItemCaseSensitive(channel, "owner_did")) ||
-            !(subscribers = cJSON_GetObjectItemCaseSensitive(channel, "subscribers")) ||
-            !(last_update = cJSON_GetObjectItemCaseSensitive(channel, "last_update")) ||
-            !cJSON_IsNumber(id) ||
-            !cJSON_IsString(name) || !name->valuestring[0] ||
-            !cJSON_IsString(intro) || !intro->valuestring[0] ||
-            !cJSON_IsString(owner_name) || !owner_name->valuestring[0] ||
-            !cJSON_IsString(owner_did) || !owner_did->valuestring[0] ||
-            !cJSON_IsNumber(subscribers) || !cJSON_IsNumber(last_update)) {
-            cJSON_Delete(*resp);
-            *resp = NULL;
-            return -1;
+    GetChansReq req = {
+        .method = "get_channels",
+        .tsx_id = 1,
+        .params = {
+            .tk = fc->access_token,
+            .qc = {
+                .by = qf,
+                .upper = upper,
+                .lower = lower,
+                .maxcnt = maxcnt
+            }
         }
-    }
-
-    return 0;
-}
-
-int feeds_client_get_posts(FeedsClient *fc, const char *svc_node_id, uint64_t cid, QueryField qf,
-        uint64_t upper, uint64_t lower, uint64_t maxcnt, cJSON **resp)
-{
-    JsonRPCBatchInfo *bi;
-    const cJSON *result;
-    const cJSON *post;
-    const cJSON *channel_id;
-    const cJSON *id;
-    const cJSON *content;
-    const cJSON *comments;
-    const cJSON *likes;
-    const cJSON *created_at;
-    cJSON *params;
-    JsonRPCType type;
-    char *req_str;
-    cJSON *req;
+    };
+    Marshalled *marshal;
     int rc;
 
-    *resp = NULL;
-
-    params = cJSON_CreateObject();
-    if (!params)
+    marshal = rpc_marshal_get_chans_req(&req);
+    if (!marshal)
         return -1;
 
-    if (!cJSON_AddNumberToObject(params, "channel_id", cid)) {
-        cJSON_Delete(params);
-        return -1;
-    }
+    fc->unmarshal = rpc_unmarshal_get_chans_resp;
+    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+    deref(marshal);
+    return rc;
+}
 
-    if (!cJSON_AddNumberToObject(params, "by", qf)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddNumberToObject(params, "upper_bound", upper)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddNumberToObject(params, "lower_bound", lower)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddNumberToObject(params, "max_count", maxcnt)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddStringToObject(params, "jwttoken", "abc")) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    req = jsonrpc_encode_request("get_posts", params, NULL);
-    if (!req)
-        return -1;
-
-    req_str = cJSON_PrintUnformatted(req);
-    cJSON_Delete(req);
-    if (!req_str)
-        return -1;
-
-    rc = transaction_start(fc, svc_node_id, req_str, strlen(req_str) + 1, resp, &type, &bi);
-    free(req_str);
-    if (rc < 0 || type == JSONRPC_TYPE_ERROR_RESPONSE)
-        return -1;
-
-    result = jsonrpc_get_result(*resp);
-    if (!cJSON_IsArray(result)) {
-        cJSON_Delete(*resp);
-        *resp = NULL;
-        return -1;
-    }
-
-    cJSON_ArrayForEach(post, result) {
-        if (!cJSON_IsObject(post) ||
-            !(channel_id = cJSON_GetObjectItemCaseSensitive(post, "channel_id")) ||
-            !(id = cJSON_GetObjectItemCaseSensitive(post, "id")) ||
-            !(content = cJSON_GetObjectItemCaseSensitive(post, "content")) ||
-            !(comments = cJSON_GetObjectItemCaseSensitive(post, "comments")) ||
-            !(likes = cJSON_GetObjectItemCaseSensitive(post, "likes")) ||
-            !(created_at = cJSON_GetObjectItemCaseSensitive(post, "created_at")) ||
-            !cJSON_IsNumber(channel_id) || !cJSON_IsNumber(id) ||
-            !cJSON_IsString(content) || !content->valuestring[0] ||
-            !cJSON_IsNumber(comments) || !cJSON_IsNumber(likes) || !cJSON_IsNumber(created_at)) {
-            cJSON_Delete(*resp);
-            *resp = NULL;
-            return -1;
+int feeds_client_get_channel_detail(FeedsClient *fc, const char *svc_node_id, uint64_t id,
+                                    GetChanDtlResp **resp, ErrResp **err)
+{
+    GetChanDtlReq req = {
+        .method = "get_channel_detail",
+        .tsx_id = 1,
+        .params = {
+            .tk = fc->access_token,
+            .id = id
         }
-    }
+    };
+    Marshalled *marshal;
+    int rc;
 
-    return 0;
+    marshal = rpc_marshal_get_chan_dtl_req(&req);
+    if (!marshal)
+        return -1;
+
+    fc->unmarshal = rpc_unmarshal_get_chan_dtl_resp;
+    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+    deref(marshal);
+    return rc;
+}
+
+int feeds_client_get_subscribed_channels(FeedsClient *fc, const char *svc_node_id, QryFld qf,
+                                         uint64_t upper, uint64_t lower, uint64_t maxcnt,
+                                         GetSubChansResp **resp, ErrResp **err)
+{
+    GetSubChansReq req = {
+        .method = "get_subscribed_channels",
+        .tsx_id = 1,
+        .params = {
+            .tk = fc->access_token,
+            .qc = {
+                .by = qf,
+                .upper = upper,
+                .lower = lower,
+                .maxcnt = maxcnt
+            }
+        }
+    };
+    Marshalled *marshal;
+    int rc;
+
+    marshal = rpc_marshal_get_sub_chans_req(&req);
+    if (!marshal)
+        return -1;
+
+    fc->unmarshal = rpc_unmarshal_get_sub_chans_resp;
+    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+    deref(marshal);
+    return rc;
+}
+
+int feeds_client_get_posts(FeedsClient *fc, const char *svc_node_id, uint64_t cid, QryFld qf,
+                           uint64_t upper, uint64_t lower, uint64_t maxcnt, GetPostsResp **resp, ErrResp **err)
+{
+    GetPostsReq req = {
+        .method = "get_posts",
+        .tsx_id = 1,
+        .params = {
+            .tk = fc->access_token,
+            .chan_id = cid,
+            .qc = {
+                .by = qf,
+                .upper = upper,
+                .lower = lower,
+                .maxcnt = maxcnt
+            }
+        }
+    };
+    Marshalled *marshal;
+    int rc;
+
+    marshal = rpc_marshal_get_posts_req(&req);
+    if (!marshal)
+        return -1;
+
+    fc->unmarshal = rpc_unmarshal_get_posts_resp;
+    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+    deref(marshal);
+    return rc;
 }
 
 int feeds_client_get_comments(FeedsClient *fc, const char *svc_node_id, uint64_t cid, uint64_t pid,
-        QueryField qf, uint64_t upper, uint64_t lower, uint64_t maxcnt, cJSON **resp)
+                              QryFld qf, uint64_t upper, uint64_t lower, uint64_t maxcnt,
+                              GetCmtsResp **resp, ErrResp **err)
 {
-    JsonRPCBatchInfo *bi;
-    const cJSON *result;
-    const cJSON *comment;
-    const cJSON *channel_id;
-    const cJSON *post_id;
-    const cJSON *comment_id;
-    const cJSON *id;
-    const cJSON *username;
-    const cJSON *content;
-    const cJSON *likes;
-    const cJSON *created_at;
-    cJSON *params;
-    JsonRPCType type;
-    char *req_str;
-    cJSON *req;
-    int rc;
-
-    *resp = NULL;
-
-    params = cJSON_CreateObject();
-    if (!params)
-        return -1;
-
-    if (!cJSON_AddNumberToObject(params, "channel_id", cid)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddNumberToObject(params, "post_id", pid)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddNumberToObject(params, "by", qf)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddNumberToObject(params, "upper_bound", upper)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddNumberToObject(params, "lower_bound", lower)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddNumberToObject(params, "max_count", maxcnt)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddStringToObject(params, "jwttoken", "abc")) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    req = jsonrpc_encode_request("get_comments", params, NULL);
-    if (!req)
-        return -1;
-
-    req_str = cJSON_PrintUnformatted(req);
-    cJSON_Delete(req);
-    if (!req_str)
-        return -1;
-
-    rc = transaction_start(fc, svc_node_id, req_str, strlen(req_str) + 1, resp, &type, &bi);
-    free(req_str);
-    if (rc < 0 || type == JSONRPC_TYPE_ERROR_RESPONSE)
-        return -1;
-
-    result = jsonrpc_get_result(*resp);
-    if (!cJSON_IsArray(result)) {
-        cJSON_Delete(*resp);
-        *resp = NULL;
-        return -1;
-    }
-
-    cJSON_ArrayForEach(comment, result) {
-        if (!cJSON_IsObject(comment) ||
-            !(channel_id = cJSON_GetObjectItemCaseSensitive(comment, "channel_id")) ||
-            !(post_id = cJSON_GetObjectItemCaseSensitive(comment, "post_id")) ||
-            !(id = cJSON_GetObjectItemCaseSensitive(comment, "id")) ||
-            !(comment_id = cJSON_GetObjectItemCaseSensitive(comment, "comment_id")) ||
-            !(username = cJSON_GetObjectItemCaseSensitive(comment, "user_name")) ||
-            !(content = cJSON_GetObjectItemCaseSensitive(comment, "content")) ||
-            !(likes = cJSON_GetObjectItemCaseSensitive(comment, "likes")) ||
-            !(created_at = cJSON_GetObjectItemCaseSensitive(comment, "created_at")) ||
-            !cJSON_IsNumber(channel_id) || !cJSON_IsNumber(post_id) ||
-            !cJSON_IsNumber(id) || !(cJSON_IsNumber(comment_id) || cJSON_IsNull(comment_id)) ||
-            !cJSON_IsString(username) || !username->valuestring[0] ||
-            !cJSON_IsString(content) || !content->valuestring[0] ||
-            !cJSON_IsNumber(likes) || !cJSON_IsNumber(created_at)) {
-            cJSON_Delete(*resp);
-            *resp = NULL;
-            return -1;
+    GetCmtsReq req = {
+        .method = "get_comments",
+        .tsx_id = 1,
+        .params = {
+            .tk = fc->access_token,
+            .chan_id = cid,
+            .post_id = pid,
+            .qc = {
+                .by = qf,
+                .upper = upper,
+                .lower = lower,
+                .maxcnt = maxcnt
+            }
         }
-    }
-
-    return 0;
-}
-
-int feeds_client_get_statistics(FeedsClient *fc, const char *svc_node_id, cJSON **resp)
-{
-    JsonRPCBatchInfo *bi;
-    const cJSON *result;
-    const cJSON *did;
-    const cJSON *connecting_clients;
-    cJSON *params;
-    JsonRPCType type;
-    char *req_str;
-    cJSON *req;
+    };
+    Marshalled *marshal;
     int rc;
 
-    *resp = NULL;
-
-    params = cJSON_CreateObject();
-    if (!params)
+    marshal = rpc_marshal_get_cmts_req(&req);
+    if (!marshal)
         return -1;
 
-    if (!cJSON_AddStringToObject(params, "jwttoken", "abc")) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    req = jsonrpc_encode_request("get_statistics", params, NULL);
-    if (!req)
-        return -1;
-
-    req_str = cJSON_PrintUnformatted(req);
-    cJSON_Delete(req);
-    if (!req_str)
-        return -1;
-
-    rc = transaction_start(fc, svc_node_id, req_str, strlen(req_str) + 1, resp, &type, &bi);
-    free(req_str);
-    if (rc < 0 || type == JSONRPC_TYPE_ERROR_RESPONSE)
-        return -1;
-
-    result = jsonrpc_get_result(*resp);
-    if (!cJSON_IsObject(result)) {
-        cJSON_Delete(*resp);
-        *resp = NULL;
-        return -1;
-    }
-
-    if (!cJSON_IsObject(result) ||
-        !(did = cJSON_GetObjectItemCaseSensitive(result, "did")) ||
-        !(connecting_clients = cJSON_GetObjectItemCaseSensitive(result, "connecting_clients")) ||
-        !cJSON_IsString(did) || !did->valuestring[0] || !cJSON_IsNumber(connecting_clients)) {
-        cJSON_Delete(*resp);
-        *resp = NULL;
-        return -1;
-    }
-
-    return 0;
+    fc->unmarshal = rpc_unmarshal_get_cmts_resp;
+    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+    deref(marshal);
+    return rc;
 }
 
-int feeds_client_subscribe_channel(FeedsClient *fc, const char *svc_node_id, uint64_t id, cJSON **resp)
+int feeds_client_get_statistics(FeedsClient *fc, const char *svc_node_id, GetStatsResp **resp, ErrResp **err)
 {
-    JsonRPCBatchInfo *bi;
-    JsonRPCType type;
-    cJSON *params;
-    char *req_str;
-    cJSON *req;
-    int rc;
-
-    *resp = NULL;
-
-    params = cJSON_CreateObject();
-    if (!params)
-        return -1;
-
-    if (!cJSON_AddNumberToObject(params, "id", id)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddStringToObject(params, "jwttoken", "abc")) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    req = jsonrpc_encode_request("subscribe_channel", params, NULL);
-    if (!req)
-        return -1;
-
-    req_str = cJSON_PrintUnformatted(req);
-    cJSON_Delete(req);
-    if (!req_str)
-        return -1;
-
-    rc = transaction_start(fc, svc_node_id, req_str, strlen(req_str) + 1, resp, &type, &bi);
-    free(req_str);
-    if (rc < 0 || type == JSONRPC_TYPE_ERROR_RESPONSE)
-        return -1;
-
-    return 0;
-}
-
-int feeds_client_unsubscribe_channel(FeedsClient *fc, const char *svc_node_id, uint64_t id, cJSON **resp)
-{
-    JsonRPCBatchInfo *bi;
-    JsonRPCType type;
-    cJSON *params;
-    char *req_str;
-    cJSON *req;
-    int rc;
-
-    *resp = NULL;
-
-    params = cJSON_CreateObject();
-    if (!params)
-        return -1;
-
-    if (!cJSON_AddNumberToObject(params, "id", id)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddStringToObject(params, "jwttoken", "abc")) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    req = jsonrpc_encode_request("unsubscribe_channel", params, NULL);
-    if (!req)
-        return -1;
-
-    req_str = cJSON_PrintUnformatted(req);
-    cJSON_Delete(req);
-    if (!req_str)
-        return -1;
-
-    rc = transaction_start(fc, svc_node_id, req_str, strlen(req_str) + 1, resp, &type, &bi);
-    free(req_str);
-    if (rc < 0 || type == JSONRPC_TYPE_ERROR_RESPONSE)
-        return -1;
-
-    return 0;
-}
-
-int feeds_client_add_node_publisher(FeedsClient *fc, const char *svc_node_id, const char *did, cJSON **resp)
-{
-    JsonRPCBatchInfo *bi;
-    JsonRPCType type;
-    cJSON *params;
-    char *req_str;
-    cJSON *req;
-    int rc;
-
-    *resp = NULL;
-
-    params = cJSON_CreateObject();
-    if (!params)
-        return -1;
-
-    if (!cJSON_AddStringToObject(params, "did", did)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddStringToObject(params, "jwttoken", "abc")) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    req = jsonrpc_encode_request("add_node_publisher", params, NULL);
-    if (!req)
-        return -1;
-
-    req_str = cJSON_PrintUnformatted(req);
-    cJSON_Delete(req);
-    if (!req_str)
-        return -1;
-
-    rc = transaction_start(fc, svc_node_id, req_str, strlen(req_str) + 1, resp, &type, &bi);
-    free(req_str);
-    if (rc < 0 || type == JSONRPC_TYPE_ERROR_RESPONSE)
-        return -1;
-
-    return 0;
-}
-
-int feeds_client_remove_node_publisher(FeedsClient *fc, const char *svc_node_id, const char *did, cJSON **resp)
-{
-    JsonRPCBatchInfo *bi;
-    JsonRPCType type;
-    cJSON *params;
-    char *req_str;
-    cJSON *req;
-    int rc;
-
-    *resp = NULL;
-
-    params = cJSON_CreateObject();
-    if (!params)
-        return -1;
-
-    if (!cJSON_AddStringToObject(params, "did", did)) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    if (!cJSON_AddStringToObject(params, "jwttoken", "abc")) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    req = jsonrpc_encode_request("remove_node_publisher", params, NULL);
-    if (!req)
-        return -1;
-
-    req_str = cJSON_PrintUnformatted(req);
-    cJSON_Delete(req);
-    if (!req_str)
-        return -1;
-
-    rc = transaction_start(fc, svc_node_id, req_str, strlen(req_str) + 1, resp, &type, &bi);
-    free(req_str);
-    if (rc < 0 || type == JSONRPC_TYPE_ERROR_RESPONSE)
-        return -1;
-
-    return 0;
-}
-
-int feeds_client_query_channel_creation_permission(FeedsClient *fc, const char *svc_node_id, cJSON **resp)
-{
-    JsonRPCBatchInfo *bi;
-    JsonRPCType type;
-    cJSON *params;
-    const cJSON *result;
-    const cJSON *authorized;
-    char *req_str;
-    cJSON *req;
-    int rc;
-
-    *resp = NULL;
-
-    params = cJSON_CreateObject();
-    if (!params)
-        return -1;
-
-    if (!cJSON_AddStringToObject(params, "jwttoken", "abc")) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    req = jsonrpc_encode_request("query_channel_creation_permission", params, NULL);
-    if (!req)
-        return -1;
-
-    req_str = cJSON_PrintUnformatted(req);
-    cJSON_Delete(req);
-    if (!req_str)
-        return -1;
-
-    rc = transaction_start(fc, svc_node_id, req_str, strlen(req_str) + 1, resp, &type, &bi);
-    free(req_str);
-    if (rc < 0 || type == JSONRPC_TYPE_ERROR_RESPONSE)
-        return -1;
-
-    result = jsonrpc_get_result(*resp);
-    if (!cJSON_IsObject(result)) {
-        cJSON_Delete(*resp);
-        *resp = NULL;
-        return -1;
-    }
-
-    if (!cJSON_IsObject(result) ||
-        !(authorized = cJSON_GetObjectItemCaseSensitive(result, "authorized")) ||
-        !cJSON_IsBool(authorized)) {
-        cJSON_Delete(*resp);
-        *resp = NULL;
-        return -1;
-    }
-
-    return 0;
-}
-
-int feeds_client_enable_notification(FeedsClient *fc, const char *svc_node_id, cJSON **resp)
-{
-    JsonRPCBatchInfo *bi;
-    JsonRPCType type;
-    cJSON *params;
-    const cJSON *result;
-    const cJSON *authorized;
-    char *req_str;
-    cJSON *req;
-    int rc;
-
-    *resp = NULL;
-
-    params = cJSON_CreateObject();
-    if (!params)
-        return -1;
-
-    if (!cJSON_AddStringToObject(params, "jwttoken", "abc")) {
-        cJSON_Delete(params);
-        return -1;
-    }
-
-    req = jsonrpc_encode_request("enable_notification", params, NULL);
-    if (!req)
-        return -1;
-
-    req_str = cJSON_PrintUnformatted(req);
-    cJSON_Delete(req);
-    if (!req_str)
-        return -1;
-
-    rc = transaction_start(fc, svc_node_id, req_str, strlen(req_str) + 1, resp, &type, &bi);
-    free(req_str);
-    if (rc < 0 || type == JSONRPC_TYPE_ERROR_RESPONSE)
-        return -1;
-
-    return 0;
-}
-
-cJSON *feeds_client_get_new_posts(FeedsClient *fc)
-{
-    cJSON *evs = NULL;
-    int size;
-    int i;
-
-    pthread_mutex_lock(&fc->lock);
-
-    size = cJSON_GetArraySize(fc->new_posts);
-    if (size) {
-        evs = cJSON_CreateArray();
-        if (evs) {
-            for (i = 0; i < size; ++i)
-                cJSON_AddItemToArray(evs,
-                                     cJSON_DetachItemFromArray(fc->new_posts,
-                                                                     0));
+    GetStatsReq req = {
+        .method = "get_statistics",
+        .tsx_id = 1,
+        .params = {
+            .tk = fc->access_token,
         }
-    }
+    };
+    Marshalled *marshal;
+    int rc;
 
-    pthread_mutex_unlock(&fc->lock);
+    marshal = rpc_marshal_get_stats_req(&req);
+    if (!marshal)
+        return -1;
 
-    return evs;
+    fc->unmarshal = rpc_unmarshal_get_stats_resp;
+    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+    deref(marshal);
+    return rc;
 }
 
-cJSON *feeds_client_get_new_comments(FeedsClient *fc)
+int feeds_client_subscribe_channel(FeedsClient *fc, const char *svc_node_id, uint64_t id,
+                                   SubChanResp **resp, ErrResp **err)
 {
-    cJSON *evs = NULL;
-    int size;
-    int i;
-
-    pthread_mutex_lock(&fc->lock);
-
-    size = cJSON_GetArraySize(fc->new_comments);
-    if (size) {
-        evs = cJSON_CreateArray();
-        if (evs) {
-            for (i = 0; i < size; ++i)
-                cJSON_AddItemToArray(evs,
-                                     cJSON_DetachItemFromArray(fc->new_comments,
-                                                               0));
+    SubChanReq req = {
+        .method = "subscribe_channel",
+        .tsx_id = 1,
+        .params = {
+            .tk = fc->access_token,
+            .id = id
         }
-    }
+    };
+    Marshalled *marshal;
+    int rc;
 
-    pthread_mutex_unlock(&fc->lock);
+    marshal = rpc_marshal_sub_chan_req(&req);
+    if (!marshal)
+        return -1;
 
-    return evs;
+    fc->unmarshal = rpc_unmarshal_sub_chan_resp;
+    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+    deref(marshal);
+    return rc;
 }
 
-cJSON *feeds_client_get_new_likes(FeedsClient *fc)
+int feeds_client_unsubscribe_channel(FeedsClient *fc, const char *svc_node_id, uint64_t id,
+                                     UnsubChanResp **resp, ErrResp **err)
 {
-    cJSON *evs = NULL;
-    int size;
-    int i;
-
-    pthread_mutex_lock(&fc->lock);
-
-    size = cJSON_GetArraySize(fc->new_likes);
-    if (size) {
-        evs = cJSON_CreateArray();
-        if (evs) {
-            for (i = 0; i < size; ++i)
-                cJSON_AddItemToArray(evs,
-                                     cJSON_DetachItemFromArray(fc->new_likes,
-                                                               0));
+    UnsubChanReq req = {
+        .method = "unsubscribe_channel",
+        .tsx_id = 1,
+        .params = {
+            .tk = fc->access_token,
+            .id = id
         }
-    }
+    };
+    Marshalled *marshal;
+    int rc;
 
-    pthread_mutex_unlock(&fc->lock);
+    marshal = rpc_marshal_unsub_chan_req(&req);
+    if (!marshal)
+        return -1;
 
-    return evs;
+    fc->unmarshal = rpc_unmarshal_unsub_chan_resp;
+    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+    deref(marshal);
+    return rc;
+}
+
+int feeds_client_enable_notification(FeedsClient *fc, const char *svc_node_id,
+                                     EnblNotifResp **resp, ErrResp **err)
+{
+    EnblNotifReq req = {
+        .method = "enable_notification",
+        .tsx_id = 1,
+        .params = {
+            .tk = fc->access_token,
+        }
+    };
+    Marshalled *marshal;
+    int rc;
+
+    marshal = rpc_marshal_enbl_notif_req(&req);
+    if (!marshal)
+        return -1;
+
+    fc->unmarshal = rpc_unmarshal_enbl_notif_resp;
+    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+    deref(marshal);
+    return rc;
 }

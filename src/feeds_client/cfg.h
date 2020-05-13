@@ -20,19 +20,24 @@
  * SOFTWARE.
  */
 
-#include "error_code.h"
+#ifndef __CFG_H__
+#define __CFG_H__
 
-static struct {
-    int err_code;
-    const char *str;
-} errstr[] = {
-    {FEEDS_EALREADY_EXISTS, "Entity Already Exists"},
-    {FEEDS_ENOT_EXISTS,     "Entity Not Exists"},
-    {FEEDS_ENOT_AUTHORIZED, "Operation Not Authorized"},
-    {FEEDS_EWRONG_STATE,    "Operation In Wrong State"}
-};
+#include <ela_carrier.h>
+#include <ela_did.h>
 
-const char *error_code_strerror(int rc)
-{
-    return errstr[-rc - 1].str;
-}
+typedef struct {
+    ElaOptions carrier_opts;
+    char *data_dir;
+    char *didcache_dir;
+    char *didstore_dir;
+    char *didstore_passwd;
+} FeedsCLIConfig;
+
+const char *get_cfg_file(const char *config_file, const char *default_config_files[]);
+
+FeedsCLIConfig *load_cfg(const char *config_file, FeedsCLIConfig *config);
+
+void free_cfg(FeedsCLIConfig *fc);
+
+#endif // __CFG_H__

@@ -26,11 +26,11 @@
 #include <CUnit/Basic.h>
 #include <ela_carrier.h>
 #include <crystal.h>
-#include <config.h>
+#include <cfg.h>
 
 #include "../case.h"
 #include "../../../src/jsonrpc.h"
-#include "../../../src/carrier_config.h"
+#include "../../../src/carrier_cfg.h"
 #include "../../../src/feeds_client/feeds_client.h"
 
 static FeedsClient *publisher;

@@ -20,22 +20,17 @@
  * SOFTWARE.
  */
 
-#ifndef __CARRIER_CONFIG_H__
-#define __CARRIER_CONFIG_H__
+#ifndef __ERR_H__
+#define __ERR_H__
 
-#include <ela_carrier.h>
+#define ERR_ALREADY_EXISTS (-1)
+#define ERR_NOT_EXIST (-2)
+#define ERR_NOT_AUTHORIZED (-3)
+#define ERR_WRONG_STATE (-4)
+#define ERR_ACCESS_TOKEN_EXP (-5)
+#define ERR_INTERNAL_ERROR (-6)
+#define ERR_INVALID_PARAMS (-7)
 
-ElaOptions *carrier_config_load(const char *config_file,
-            int (*extra_config_handle)(void *cfg, ElaOptions *options),
-            ElaOptions *options);
+const char *err_strerror(int rc);
 
-ElaOptions *carrier_config_copy(ElaOptions *dest, ElaOptions *src);
-
-void carrier_config_update(ElaOptions *options, int argc, char *argv[]);
-
-void carrier_config_free(ElaOptions *options);
-
-const char *get_config_file(const char *config_file,
-            const char *default_config_files[]);
-
-#endif /* __CARRIER_CONFIG_H__ */
+#endif // __ERR_H__

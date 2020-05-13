@@ -25,7 +25,7 @@
 #include <crystal.h>
 #include <libconfig.h>
 
-#include "../src/carrier_config.h"
+#include "../src/carrier_cfg.h"
 #include "config.h"
 
 TestConfig test_config;

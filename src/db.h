@@ -1,6 +1,3 @@
-#ifndef __DB_H__
-#define __DB_H__
-
 /*
  * Copyright (c) 2020 Elastos Foundation
  *
@@ -23,71 +20,34 @@
  * SOFTWARE.
  */
 
+#ifndef __DB_H__
+#define __DB_H__
+
 #include <stdbool.h>
 #include <stdint.h>
 
-#include <cjson/cJSON.h>
+#include <sqlite3.h>
 
-typedef enum {
-    ID,
-    LAST_UPDATE,
-    CREATED_AT
-} QueryField;
+#include "obj.h"
 
-int db_initialize(const char *db_file);
+typedef struct DBObjIt DBObjIt;
 
-int db_iterate_channels(int (*it)(uint64_t id, const char *name, const char *intro,
-                                  uint64_t next_post_id, const char *owner));
-
-int db_iterate_publishers(int (*it)(const char *jwt));
-
-int db_iterate_node_owners(int (*it)(const char *jwt));
-
-int db_create_channel(const char *name, const char *jwt, const char *intro);
-
-int db_add_post(uint64_t channel_id, uint64_t id, const void *content,
-                size_t len, uint64_t ts);
-
-int db_comment_exists(uint64_t channel_id, uint64_t post_id, uint64_t comment_id);
-
-int db_add_comment(uint64_t channel_id, uint64_t post_id, uint64_t comment_id,
-                   const char *jwt, const void *content, size_t len,
-                   uint64_t created_at, uint64_t *id);
-
+int db_init(const char *db_file);
+void db_deinit();
+int db_create_chan(const ChanInfo *ci);
+int db_add_post(const PostInfo *pi);
+int db_cmt_exists(uint64_t channel_id, uint64_t post_id, uint64_t comment_id);
+int db_add_cmt(CmtInfo *ci, uint64_t *id);
 int db_add_like(uint64_t channel_id, uint64_t post_id, uint64_t comment_id, uint64_t *likes);
-
-int db_add_subscriber(uint64_t channel_id, const char *jwt);
-
-int db_unsubscribe(uint64_t channel_id, const char *jwt);
-
-int db_get_owned_channels(const char *jwt, QueryField qf, uint64_t upper,
-                          uint64_t lower, uint64_t maxcnt, cJSON **result);
-
-int db_get_owned_channels_metadata(const char *jwt, QueryField qf, uint64_t upper,
-                                   uint64_t lower, uint64_t maxcnt, cJSON **result);
-
-int db_get_channels(QueryField qf, uint64_t upper,
-                    uint64_t lower, uint64_t maxcnt, cJSON **result);
-
-int db_get_channel_detail(uint64_t id, cJSON **result);
-
-int db_get_subscribed_channels(const char *jwt, QueryField qf, uint64_t upper,
-                               uint64_t lower, uint64_t maxcnt, cJSON **result);
-
-int db_get_posts(uint64_t channel_id, QueryField qf, uint64_t upper,
-                 uint64_t lower, uint64_t maxcnt, cJSON **result);
-
-int db_get_comments(uint64_t channel_id, uint64_t post_id, QueryField qf, uint64_t upper,
-                    uint64_t lower, uint64_t maxcnt, cJSON **result);
-
-int db_add_node_publisher(const char *jwt);
-
-int db_remove_node_publisher(const char *jwt);
-
-int db_add_node_owner(const char *jwt);
-
-int db_is_subscriber(uint64_t channel_id, const char *jwt);
-
-void db_finalize();
+int db_add_sub(uint64_t uid, uint64_t chan_id);
+int db_unsub(uint64_t uid, uint64_t chan_id);
+int db_upsert_user(const UserInfo *ui, uint64_t *uid);
+int db_iter_nxt(DBObjIt *it, void **obj);
+DBObjIt *db_iter_chans(const QryCriteria *qc);
+DBObjIt *db_iter_sub_chans(uint64_t uid, const QryCriteria *qc);
+DBObjIt *db_iter_posts(uint64_t chan_id, const QryCriteria *qc);
+DBObjIt *db_iter_cmts(uint64_t chan_id, uint64_t post_id, const QryCriteria *qc);
+int db_is_suber(uint64_t uid, uint64_t chan_id);
+int db_get_owner(UserInfo **ui);
 
 #endif // __DB_H__

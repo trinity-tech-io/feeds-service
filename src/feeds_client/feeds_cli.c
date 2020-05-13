@@ -28,6 +28,7 @@
 #include <stdarg.h>
 #include <fcntl.h>
 #include <termios.h>
+#include <inttypes.h>
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -46,11 +47,13 @@
 #endif
 
 #include <ela_carrier.h>
-#include <cjson/cJSON.h>
+#include <crystal.h>
+#include <ela_did.h>
+#include <ela_jwt.h>
 
-#include "../carrier_config.h"
-#include "../jsonrpc.h"
-#include "../error_code.h"
+#include "cfg.h"
+#include "rpc.h"
+#include "../err.h"
 #include "feeds_client.h"
 
 #ifdef HAVE_SYS_RESOURCE_H
@@ -308,9 +311,192 @@ void kill_carrier(int argc, char *argv[])
 }
 
 static
+void decl_owner(int argc, char **argv)
+{
+    DeclOwnerResp *resp = NULL;
+    ErrResp *err = NULL;
+    int rc;
+
+    if (argc != 2) {
+        console("Invalid command syntax.");
+        return;
+    }
+
+    rc = feeds_client_wait_until_friend_connected(fc, argv[1]);
+    if (rc < 0) {
+        console("%s is not friend now.", argv[1]);
+        return;
+    }
+
+    rc = feeds_client_decl_owner(fc, argv[1], &resp, &err);
+    if (rc < 0) {
+        console("Failed to declare owner.");
+        goto finally;
+    }
+
+    if (err) {
+        console("Failed to declare owner. code: %lld", err->ec);
+        goto finally;
+    }
+
+    console("phase: %s", resp->result.phase);
+    if (resp->result.did) {
+        console("did: %s", resp->result.did);
+        console("tsx: %s", resp->result.tsx_payload);
+    }
+
+finally:
+    deref(resp);
+    deref(err);
+}
+
+static
+void imp_did(int argc, char **argv)
+{
+    ImpDIDResp *resp = NULL;
+    ErrResp *err = NULL;
+    int rc;
+
+    if (argc != 2) {
+        console("Invalid command syntax.");
+        return;
+    }
+
+    rc = feeds_client_wait_until_friend_connected(fc, argv[1]);
+    if (rc < 0) {
+        console("%s is not friend now.", argv[1]);
+        return;
+    }
+
+    rc = feeds_client_imp_did(fc, argv[1], &resp, &err);
+    if (rc < 0) {
+        console("Failed to import did.");
+        goto finally;
+    }
+
+    if (err) {
+        console("Failed to import DID. code: %lld", err->ec);
+        goto finally;
+    }
+
+    console("did: %s", resp->result.did);
+    console("tsx: %s", resp->result.tsx_payload);
+
+finally:
+    deref(resp);
+    deref(err);
+}
+
+static
+void iss_vc(int argc, char **argv)
+{
+    IssVCResp *resp = NULL;
+    ErrResp *err = NULL;
+    int rc;
+
+    if (argc != 3) {
+        console("Invalid command syntax.");
+        return;
+    }
+
+    rc = feeds_client_wait_until_friend_connected(fc, argv[1]);
+    if (rc < 0) {
+        console("%s is not friend now.", argv[1]);
+        return;
+    }
+
+    rc = feeds_client_iss_vc(fc, argv[1], argv[2], &resp, &err);
+    if (rc < 0) {
+        console("Failed to issue VC.");
+        goto finally;
+    }
+
+    if (err) {
+        console("Failed to iss VC. code: %lld", err->ec);
+        goto finally;
+    }
+
+finally:
+    deref(resp);
+    deref(err);
+}
+
+static
+void signin(int argc, char **argv)
+{
+    SigninReqChalResp *resp1 = NULL;
+    SigninConfChalResp *resp2 = NULL;
+    ErrResp *err = NULL;
+    int rc;
+
+    if (argc != 2) {
+        console("Invalid command syntax.");
+        return;
+    }
+
+    rc = feeds_client_wait_until_friend_connected(fc, argv[1]);
+    if (rc < 0) {
+        console("%s is not friend now.", argv[1]);
+        return;
+    }
+
+    rc = feeds_client_signin1(fc, argv[1], &resp1, &err);
+    if (rc < 0) {
+        console("Failed to signin1.");
+        goto finally;
+    }
+
+    if (err) {
+        console("Failed to signin1. code: %lld", err->ec);
+        goto finally;
+    }
+
+    JWS *jws = JWTParser_Parse(resp1->result.jws);
+
+    console("iss: %s", JWS_GetIssuer(jws));
+    console("realm: %s", JWS_GetClaim(jws, "realm"));
+    console("nonce: %s", JWS_GetClaim(jws, "nonce"));
+
+    if (resp1->result.vc) {
+        Credential *vc = Credential_FromJson(resp1->result.vc, NULL);
+        console("vc(%s): %s", Credential_IsValid(vc) ? "valid" : "invalid", resp1->result.vc);
+        Credential_Destroy(vc);
+    }
+
+    rc = feeds_client_signin2(fc, argv[1],
+                              JWS_GetClaim(jws, "realm"),
+                              JWS_GetClaim(jws, "nonce"), &resp2, &err);
+    JWS_Destroy(jws);
+    if (rc < 0) {
+        console("Failed to signin2.");
+        goto finally;
+    }
+
+    if (err) {
+        console("Failed to signin2. code: %lld", err->ec);
+        goto finally;
+    }
+
+    jws = JWTParser_Parse(resp2->result.tk);
+
+    console("iss: %s", JWS_GetIssuer(jws));
+    console("sub: %s", JWS_GetSubject(jws));
+    console("name: %s", JWS_GetClaim(jws, "name"));
+    console("email: %s", JWS_GetClaim(jws, "email"));
+    console("exp: %d", JWS_GetExpiration(jws));
+    JWS_Destroy(jws);
+
+finally:
+    deref(resp1);
+    deref(resp2);
+    deref(err);
+}
+
+static
 void create_channel(int argc, char *argv[])
 {
-    cJSON *resp;
+    CreateChanResp *resp = NULL;
+    ErrResp *err = NULL;
     int rc;
 
     if (argc != 4) {
@@ -324,25 +510,25 @@ void create_channel(int argc, char *argv[])
         return;
     }
 
-    rc = feeds_client_create_channel(fc, argv[1], argv[2], argv[3], &resp);
-    if (rc < 0) {
-        console("failed to create channel. Reason: %s",
-                resp ? jsonrpc_get_error_message(resp) : "Local Error");
+    rc = feeds_client_create_channel(fc, argv[1], argv[2], argv[3], &resp, &err);
+    if (rc < 0 || err) {
+        console("Failed to create channel. code: %lld",
+                err ? err->ec : -111);
         goto finally;
     }
 
-    console("channel [%d] created.", (int)cJSON_GetObjectItemCaseSensitive(
-            jsonrpc_get_result(resp), "id")->valuedouble);
+    console("channel [%d] created.", resp->result.id);
 
 finally:
-    if (resp)
-        cJSON_Delete(resp);
+    deref(resp);
+    deref(err);
 }
 
 static
 void publish_post(int argc, char **argv)
 {
-    cJSON *resp;
+    PubPostResp *resp = NULL;
+    ErrResp *err = NULL;
     int rc;
 
     if (argc != 4) {
@@ -356,25 +542,24 @@ void publish_post(int argc, char **argv)
         return;
     }
 
-    rc = feeds_client_publish_post(fc, argv[1], atoi(argv[2]), argv[3], &resp);
-    if (rc < 0) {
-        console("Failed to publish post. Reason: %s",
-                resp ? jsonrpc_get_error_message(resp) : "Local Error");
+    rc = feeds_client_publish_post(fc, argv[1], atoi(argv[2]), argv[3], &resp, &err);
+    if (rc < 0 || err) {
+        console("Failed to publish post. Code: %lld", err ? err->ec : -111);
         goto finally;
     }
 
-    console("post [%llu] created.", (uint64_t)cJSON_GetObjectItemCaseSensitive(
-            jsonrpc_get_result(resp), "id")->valuedouble);
+    console("post [%llu] created.", resp->result.id);
 
 finally:
-    if (resp)
-        cJSON_Delete(resp);
+    deref(resp);
+    deref(err);
 }
 
 static
 void post_comment(int argc, char **argv)
 {
-    cJSON *resp;
+    PostCmtResp *resp = NULL;
+    ErrResp *err = NULL;
     int rc;
 
     if (argc != 6) {
@@ -388,26 +573,25 @@ void post_comment(int argc, char **argv)
         return;
     }
 
-    rc = feeds_client_post_comment(fc, argv[1], atoi(argv[2]),
-            atoi(argv[3]), atoi(argv[4]), argv[5], &resp);
-    if (rc < 0) {
-        console("Failed to post comment. Reason: %s",
-                resp ? jsonrpc_get_error_message(resp) : "Local Error");
+    rc = feeds_client_post_comment(fc, argv[1], atoi(argv[2]), atoi(argv[3]),
+                                   atoi(argv[4]), argv[5], &resp, &err);
+    if (rc < 0 || err) {
+        console("Failed to post comment. Code: %lld", err ? err->ec : -111);
         goto finally;
     }
 
-    console("comment [%llu] created.", (int)cJSON_GetObjectItemCaseSensitive(
-            jsonrpc_get_result(resp), "id")->valuedouble);
+    console("comment [%llu] created.", resp->result.id);
 
 finally:
-    if (resp)
-        cJSON_Delete(resp);
+    deref(resp);
+    deref(err);
 }
 
 static
 void post_like(int argc, char **argv)
 {
-    cJSON *resp;
+    PostLikeResp *resp = NULL;
+    ErrResp *err = NULL;
     int rc;
 
     if (argc != 5) {
@@ -421,23 +605,23 @@ void post_like(int argc, char **argv)
         return;
     }
 
-    rc = feeds_client_post_like(fc, argv[1], atoi(argv[2]), atoi(argv[3]), atoi(argv[4]), &resp);
-    if (rc < 0) {
-        console("Failed to post like. Reason: %s",
-                resp ? jsonrpc_get_error_message(resp) : "Local Error");
+    rc = feeds_client_post_like(fc, argv[1], atoi(argv[2]), atoi(argv[3]), atoi(argv[4]),
+                                &resp, &err);
+    if (rc < 0 || err) {
+        console("Failed to post like. Code: %lld", err ? err->ec : -111);
         goto finally;
     }
 
 finally:
-    if (resp)
-        cJSON_Delete(resp);
+    deref(resp);
+    deref(err);
 }
 
 static
 void get_my_channels(int argc, char **argv)
 {
-    const cJSON *channel;
-    cJSON *resp;
+    GetMyChansResp *resp = NULL;
+    ErrResp *err = NULL;
     int rc;
 
     if (argc != 6) {
@@ -452,30 +636,27 @@ void get_my_channels(int argc, char **argv)
     }
 
     rc = feeds_client_get_my_channels(fc, argv[1], atoi(argv[2]), atoi(argv[3]),
-            atoi(argv[4]), atoi(argv[5]), &resp);
-    if (rc < 0) {
-        console("Failed to get my channels. Reason: %s",
-                resp ? jsonrpc_get_error_message(resp) : "Local Error");
+                                      atoi(argv[4]), atoi(argv[5]), &resp, &err);
+    if (rc < 0 || err) {
+        console("Failed to get my channels. Code: %lld", err ? err->ec : -111);
         goto finally;
     }
 
-    cJSON_ArrayForEach(channel, jsonrpc_get_result(resp))
+    ChanInfo **i;
+    cvector_foreach(resp->result.cinfos, i)
         console("id: %llu, name: %s, introduction: %s, subscribers: %llu",
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(channel, "id")->valuedouble,
-                cJSON_GetObjectItemCaseSensitive(channel, "name")->valuestring,
-                cJSON_GetObjectItemCaseSensitive(channel, "introduction")->valuestring,
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(channel, "subscribers")->valuedouble);
+                (*i)->chan_id, (*i)->name, (*i)->intro, (*i)->subs);
 
 finally:
-    if (resp)
-        cJSON_Delete(resp);
+    deref(resp);
+    deref(err);
 }
 
 static
 void get_my_channels_metadata(int argc, char **argv)
 {
-    const cJSON *channel;
-    cJSON *resp;
+    GetMyChansMetaResp *resp = NULL;
+    ErrResp *err = NULL;
     int rc;
 
     if (argc != 6) {
@@ -490,28 +671,26 @@ void get_my_channels_metadata(int argc, char **argv)
     }
 
     rc = feeds_client_get_my_channels_metadata(fc, argv[1], atoi(argv[2]), atoi(argv[3]),
-            atoi(argv[4]), atoi(argv[5]), &resp);
-    if (rc < 0) {
-        console("Failed to get my channels metadata. Reason: %s",
-                resp ? jsonrpc_get_error_message(resp) : "Local Error");
+                                               atoi(argv[4]), atoi(argv[5]), &resp, &err);
+    if (rc < 0 || err) {
+        console("Failed to get my channels metadata. Code: %lld", err ? err->ec : -111);
         goto finally;
     }
 
-    cJSON_ArrayForEach(channel, jsonrpc_get_result(resp))
-        console("id: %llu, subscribers: %llu",
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(channel, "id")->valuedouble,
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(channel, "subscribers")->valuedouble);
+    ChanInfo **i;
+    cvector_foreach(resp->result.cinfos, i)
+        console("id: %llu, subscribers: %llu", (*i)->chan_id, (*i)->subs);
 
-    finally:
-    if (resp)
-        cJSON_Delete(resp);
+finally:
+    deref(resp);
+    deref(err);
 }
 
 static
 void get_channels(int argc, char **argv)
 {
-    const cJSON *channel;
-    cJSON *resp;
+    GetChansResp *resp = NULL;
+    ErrResp *err = NULL;
     int rc;
 
     if (argc != 6) {
@@ -526,33 +705,28 @@ void get_channels(int argc, char **argv)
     }
 
     rc = feeds_client_get_channels(fc, argv[1], atoi(argv[2]), atoi(argv[3]),
-            atoi(argv[4]), atoi(argv[5]), &resp);
-    if (rc < 0) {
-        console("Failed to get channels. Reason: %s",
-                resp ? jsonrpc_get_error_message(resp) : "Local Error");
+                                   atoi(argv[4]), atoi(argv[5]), &resp, &err);
+    if (rc < 0 || err) {
+        console("Failed to get channels. Code: %lld", err ? err->ec : -111);
         goto finally;
     }
 
-    cJSON_ArrayForEach(channel, jsonrpc_get_result(resp))
+    ChanInfo **i;
+    cvector_foreach(resp->result.cinfos, i)
         console("id: %llu, name: %s, introduction: %s, owner_name: %s, owner_did: %s, subscribers: %llu, last_update: %llu",
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(channel, "id")->valuedouble,
-                cJSON_GetObjectItemCaseSensitive(channel, "name")->valuestring,
-                cJSON_GetObjectItemCaseSensitive(channel, "introduction")->valuestring,
-                cJSON_GetObjectItemCaseSensitive(channel, "owner_name")->valuestring,
-                cJSON_GetObjectItemCaseSensitive(channel, "owner_did")->valuestring,
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(channel, "subscribers")->valuedouble,
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(channel, "last_update")->valuedouble);
+                (*i)->chan_id, (*i)->name, (*i)->intro, (*i)->owner->name,
+                (*i)->owner->did, (*i)->subs, (*i)->upd_at);
 
-    finally:
-    if (resp)
-        cJSON_Delete(resp);
+finally:
+    deref(resp);
+    deref(err);
 }
 
 static
 void get_channel_detail(int argc, char **argv)
 {
-    const cJSON *channel;
-    cJSON *resp;
+    GetChanDtlResp *resp = NULL;
+    ErrResp *err = NULL;
     int rc;
 
     if (argc != 3) {
@@ -566,33 +740,28 @@ void get_channel_detail(int argc, char **argv)
         return;
     }
 
-    rc = feeds_client_get_channel_detail(fc, argv[1], atoi(argv[2]), &resp);
-    if (rc < 0) {
-        console("Failed to get my channels. Reason: %s",
-                resp ? jsonrpc_get_error_message(resp) : "Local Error");
+    rc = feeds_client_get_channel_detail(fc, argv[1], atoi(argv[2]), &resp, &err);
+    if (rc < 0 || err) {
+        console("Failed to get my channels. Code: %lld", err ? err->ec : -111);
         goto finally;
     }
 
-    channel = jsonrpc_get_result(resp);
     console("id: %llu, name: %s, introduction: %s, owner_name: %s, owner_did: %s, subscribers: %llu, last_update: %llu",
-            (uint64_t)cJSON_GetObjectItemCaseSensitive(channel, "id")->valuedouble,
-            cJSON_GetObjectItemCaseSensitive(channel, "name")->valuestring,
-            cJSON_GetObjectItemCaseSensitive(channel, "introduction")->valuestring,
-            cJSON_GetObjectItemCaseSensitive(channel, "owner_name")->valuestring,
-            cJSON_GetObjectItemCaseSensitive(channel, "owner_did")->valuestring,
-            (uint64_t)cJSON_GetObjectItemCaseSensitive(channel, "subscribers")->valuedouble,
-            (uint64_t)cJSON_GetObjectItemCaseSensitive(channel, "last_update")->valuedouble);
+            resp->result.cinfo->chan_id, resp->result.cinfo->name,
+            resp->result.cinfo->intro, resp->result.cinfo->owner->name,
+            resp->result.cinfo->owner->did, resp->result.cinfo->subs,
+            resp->result.cinfo->upd_at);
 
 finally:
-    if (resp)
-        cJSON_Delete(resp);
+    deref(resp);
+    deref(err);
 }
 
 static
 void get_subscribed_channels(int argc, char **argv)
 {
-    const cJSON *channel;
-    cJSON *resp;
+    GetSubChansResp *resp = NULL;
+    ErrResp *err = NULL;
     int rc;
 
     if (argc != 6) {
@@ -607,33 +776,28 @@ void get_subscribed_channels(int argc, char **argv)
     }
 
     rc = feeds_client_get_subscribed_channels(fc, argv[1], atoi(argv[2]), atoi(argv[3]),
-            atoi(argv[4]), atoi(argv[5]), &resp);
-    if (rc < 0) {
-        console("Failed to get subscribed channels. Reason: %s",
-                resp ? jsonrpc_get_error_message(resp) : "Local Error");
+                                              atoi(argv[4]), atoi(argv[5]), &resp, &err);
+    if (rc < 0 || err) {
+        console("Failed to get subscribed channels. Code: %lld", err ? err->ec : -111);
         goto finally;
     }
 
-    cJSON_ArrayForEach(channel, jsonrpc_get_result(resp))
+    ChanInfo **i;
+    cvector_foreach(resp->result.cinfos, i)
         console("id: %llu, name: %s, introduction: %s, owner_name: %s, owner_did: %s, subscribers: %llu, last_update: %llu",
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(channel, "id")->valuedouble,
-                cJSON_GetObjectItemCaseSensitive(channel, "name")->valuestring,
-                cJSON_GetObjectItemCaseSensitive(channel, "introduction")->valuestring,
-                cJSON_GetObjectItemCaseSensitive(channel, "owner_name")->valuestring,
-                cJSON_GetObjectItemCaseSensitive(channel, "owner_did")->valuestring,
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(channel, "subscribers")->valuedouble,
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(channel, "last_update")->valuedouble);
+                (*i)->chan_id, (*i)->name, (*i)->intro, (*i)->owner->name, (*i)->owner->did,
+                (*i)->subs, (*i)->upd_at);
 
 finally:
-    if (resp)
-        cJSON_Delete(resp);
+    deref(resp);
+    deref(err);
 }
 
 static
 void get_posts(int argc, char **argv)
 {
-    const cJSON *post;
-    cJSON *resp;
+    GetPostsResp *resp = NULL;
+    ErrResp *err = NULL;
     int rc;
 
     if (argc != 7) {
@@ -648,32 +812,27 @@ void get_posts(int argc, char **argv)
     }
 
     rc = feeds_client_get_posts(fc, argv[1], atoi(argv[2]), atoi(argv[3]),
-            atoi(argv[4]), atoi(argv[5]), atoi(argv[6]), &resp);
-    if (rc < 0) {
-        console("Failed to get posts. Reason: %s",
-                resp ? jsonrpc_get_error_message(resp) : "Local Error");
+                                atoi(argv[4]), atoi(argv[5]), atoi(argv[6]), &resp, &err);
+    if (rc < 0 || err) {
+        console("Failed to get posts. Code: %lld", err ? err->ec : -111);
         goto finally;
     }
 
-    cJSON_ArrayForEach(post, jsonrpc_get_result(resp))
+    PostInfo **i;
+    cvector_foreach(resp->result.pinfos, i)
         console("channel_id: %llu, id: %llu, content: %s, comments: %llu, likes: %llu, created_at: %llu",
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(post, "channel_id")->valuedouble,
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(post, "id")->valuedouble,
-                cJSON_GetObjectItemCaseSensitive(post, "content")->valuestring,
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(post, "comments")->valuedouble,
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(post, "likes")->valuedouble,
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(post, "created_at")->valuedouble);
+                (*i)->chan_id, (*i)->post_id, (*i)->content, (*i)->cmts, (*i)->likes, (*i)->created_at);
 
 finally:
-    if (resp)
-        cJSON_Delete(resp);
+    deref(resp);
+    deref(err);
 }
 
 static
 void get_comments(int argc, char **argv)
 {
-    const cJSON *comment;
-    cJSON *resp;
+    GetCmtsResp *resp = NULL;
+    ErrResp *err = NULL;
     int rc;
 
     if (argc != 8) {
@@ -688,35 +847,29 @@ void get_comments(int argc, char **argv)
     }
 
     rc = feeds_client_get_comments(fc, argv[1], atoi(argv[2]), atoi(argv[3]),
-            atoi(argv[4]), atoi(argv[5]), atoi(argv[6]), atoi(argv[7]), &resp);
-    if (rc < 0) {
-        console("Failed to get comments. Reason: %s",
-                resp ? jsonrpc_get_error_message(resp) : "Local Error");
+                                   atoi(argv[4]), atoi(argv[5]), atoi(argv[6]),
+                                   atoi(argv[7]), &resp, &err);
+    if (rc < 0 || err) {
+        console("Failed to get comments. Code: %lld", err ? err->ec : -111);
         goto finally;
     }
 
-    cJSON_ArrayForEach(comment, jsonrpc_get_result(resp))
+    CmtInfo **i;
+    cvector_foreach(resp->result.cinfos, i)
         console("channel_id: %llu, post_id: %llu, id: %llu, comment_id:%llu, user_name: %s, content: %s, likes: %llu, created_at: %llu",
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(comment, "channel_id")->valuedouble,
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(comment, "post_id")->valuedouble,
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(comment, "id")->valuedouble,
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(comment, "comment_id")->valuedouble,
-                cJSON_GetObjectItemCaseSensitive(comment, "user_name")->valuestring,
-                cJSON_GetObjectItemCaseSensitive(comment, "content")->valuestring,
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(comment, "likes")->valuedouble,
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(comment, "created_at")->valuedouble);
+                (*i)->chan_id, (*i)->post_id, (*i)->cmt_id, (*i)->reply_to_cmt,
+                (*i)->user.name, (*i)->content, (*i)->likes, (*i)->created_at);
 
 finally:
-    if (resp)
-        cJSON_Delete(resp);
+    deref(resp);
+    deref(err);
 }
 
 static
 void get_statistics(int argc, char **argv)
 {
-    const cJSON *comment;
-    cJSON *resp;
-    cJSON *result;
+    GetStatsResp *resp = NULL;
+    ErrResp *err = NULL;
     int rc;
 
     if (argc != 2) {
@@ -730,27 +883,24 @@ void get_statistics(int argc, char **argv)
         return;
     }
 
-    rc = feeds_client_get_statistics(fc, argv[1], &resp);
-    if (rc < 0) {
-        console("Failed to get statistics. Reason: %s",
-                resp ? jsonrpc_get_error_message(resp) : "Local Error");
+    rc = feeds_client_get_statistics(fc, argv[1], &resp, &err);
+    if (rc < 0 || err) {
+        console("Failed to get statistics. Code: %lld", err ? err->ec : -111);
         goto finally;
     }
 
-    result = jsonrpc_get_result(resp);
-    console("did: %s, conntecting clients: %llu",
-            cJSON_GetObjectItemCaseSensitive(result, "did")->valuestring,
-            (uint64_t)cJSON_GetObjectItemCaseSensitive(result, "connecting_clients")->valuedouble);
+    console("did: %s, conntecting clients: %llu", resp->result.did, resp->result.conn_cs);
 
 finally:
-    if (resp)
-        cJSON_Delete(resp);
+    deref(resp);
+    deref(err);
 }
 
 static
 void subscribe_channel(int argc, char **argv)
 {
-    cJSON *resp;
+    SubChanResp *resp = NULL;
+    ErrResp *err = NULL;
     int rc;
 
     if (argc != 3) {
@@ -764,19 +914,20 @@ void subscribe_channel(int argc, char **argv)
         return;
     }
 
-    rc = feeds_client_subscribe_channel(fc, argv[1], atoi(argv[2]), &resp);
-    if (rc < 0)
-        console("Failed to subscribe channel. Reason: %s",
-                resp ? jsonrpc_get_error_message(resp) : "Local Error");
+    rc = feeds_client_subscribe_channel(fc, argv[1], atoi(argv[2]), &resp, &err);
+    if (rc < 0 || err)
+        console("Failed to subscribe channel. Code: %lld",
+                err ? err->ec : -111);
 
-    if (resp)
-        cJSON_Delete(resp);
+    deref(resp);
+    deref(err);
 }
 
 static
 void unsubscribe_channel(int argc, char **argv)
 {
-    cJSON *resp;
+    UnsubChanResp *resp = NULL;
+    ErrResp *err = NULL;
     int rc;
 
     if (argc != 3) {
@@ -790,101 +941,20 @@ void unsubscribe_channel(int argc, char **argv)
         return;
     }
 
-    rc = feeds_client_unsubscribe_channel(fc, argv[1], atoi(argv[2]), &resp);
-    if (rc < 0)
-        console("Failed to unsubscribe channel. Reason: %s",
-                resp ? jsonrpc_get_error_message(resp) : "Local Error");
+    rc = feeds_client_unsubscribe_channel(fc, argv[1], atoi(argv[2]), &resp, &err);
+    if (rc < 0 || err)
+        console("Failed to unsubscribe channel. Code: %lld",
+                err ? err->ec : -111);
 
-    if (resp)
-        cJSON_Delete(resp);
-}
-
-static
-void add_node_publisher(int argc, char **argv)
-{
-    cJSON *resp;
-    int rc;
-
-    if (argc != 3) {
-        console("Invalid command syntax.");
-        return;
-    }
-
-    rc = feeds_client_wait_until_friend_connected(fc, argv[1]);
-    if (rc < 0) {
-        console("%s is not friend now.", argv[1]);
-        return;
-    }
-
-    rc = feeds_client_add_node_publisher(fc, argv[1], argv[2], &resp);
-    if (rc < 0)
-        console("Failed to add node publisher. Reason: %s",
-                resp ? jsonrpc_get_error_message(resp) : "Local Error");
-
-    if (resp)
-        cJSON_Delete(resp);
-}
-
-static
-void remove_node_publisher(int argc, char **argv)
-{
-    cJSON *resp;
-    int rc;
-
-    if (argc != 3) {
-        console("Invalid command syntax.");
-        return;
-    }
-
-    rc = feeds_client_wait_until_friend_connected(fc, argv[1]);
-    if (rc < 0) {
-        console("%s is not friend now.", argv[1]);
-        return;
-    }
-
-    rc = feeds_client_remove_node_publisher(fc, argv[1], argv[2], &resp);
-    if (rc < 0)
-        console("Failed to remove node publisher. Reason: %s",
-                resp ? jsonrpc_get_error_message(resp) : "Local Error");
-
-    if (resp)
-        cJSON_Delete(resp);
-}
-
-static
-void query_channel_creation_permission(int argc, char **argv)
-{
-    cJSON *resp;
-    int rc;
-
-    if (argc != 2) {
-        console("Invalid command syntax.");
-        return;
-    }
-
-    rc = feeds_client_wait_until_friend_connected(fc, argv[1]);
-    if (rc < 0) {
-        console("%s is not friend now.", argv[1]);
-        return;
-    }
-
-    rc = feeds_client_query_channel_creation_permission(fc, argv[1], &resp);
-    if (rc < 0)
-        console("Failed to query channel creation permission. Reason: %s",
-                resp ? jsonrpc_get_error_message(resp) : "Local Error");
-
-
-    console("%s",
-            cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(jsonrpc_get_result(resp), "authorized")) ? "true" : "false");
-
-    if (resp)
-        cJSON_Delete(resp);
+    deref(resp);
+    deref(err);
 }
 
 static
 void enable_notification(int argc, char **argv)
 {
-    cJSON *resp;
+    EnblNotifResp *resp = NULL;
+    ErrResp *err = NULL;
     int rc;
 
     if (argc != 2) {
@@ -898,13 +968,13 @@ void enable_notification(int argc, char **argv)
         return;
     }
 
-    rc = feeds_client_enable_notification(fc, argv[1], &resp);
-    if (rc < 0)
-        console("Failed to enable notification. Reason: %s",
-                resp ? jsonrpc_get_error_message(resp) : "Local Error");
+    rc = feeds_client_enable_notification(fc, argv[1], &resp, &err);
+    if (rc < 0 || err)
+        console("Failed to enable notification. Code: %lld",
+                err ? err->ec : -111);
 
-    if (resp)
-        cJSON_Delete(resp);
+    deref(resp);
+    deref(err);
 }
 
 static void help(int argc, char *argv[]);
@@ -915,15 +985,19 @@ struct command {
 } commands[] = {
     { "help",              help,              "help - Display available command list. *OR* help [Command] - Display usage description for specific command." },
 
-    { "address",           get_address,       "address - Display own address." },
-    { "nodeid",            get_nodeid,        "nodeid - Display own node ID." },
-    { "userid",            get_userid,        "userid - Display own user ID." },
+    { "address",                  get_address,              "address - Display own address." },
+    { "nodeid",                   get_nodeid,               "nodeid - Display own node ID." },
+    { "userid",                   get_userid,               "userid - Display own user ID." },
 
-    { "fadd",             friend_add,       "fadd [Address] [Message] - Add new friend." },
+    { "fadd",                     friend_add,               "fadd [Address] [Message] - Add new friend." },
     { "fremove",                  friend_remove,            "fremove [User ID] - Remove friend." },
     { "friends",                  list_friends,             "friends - List all friends." },
     { "kill",                     kill_carrier,             "kill - Stop carrier." },
 
+    { "decl_owner",               decl_owner,               "decl_owner [nodeid] - Bind owner." },
+    { "imp_did",                  imp_did,                  "imp_did [nodeid] - Bind owner." },
+    { "iss_vc",                   iss_vc,                   "iss_vc [nodeid] [did]- Bind owner." },
+    { "signin",                   signin,                   "signin [nodeid] - Bind owner." },
     { "create_channel",           create_channel,           "create_channel [nodeid] [channel] [intro] - Create channel." },
     { "publish_post",             publish_post,             "publish_post [nodeid] [channel_id] [content] - Publish post." },
     { "post_comment",             post_comment,             "post_comment [nodeid] [channel_id] [post_id] [comment_id] [content] - Post comment." },
@@ -938,9 +1012,6 @@ struct command {
     { "get_statistics",           get_statistics,           "get_statistics [nodeid] - Get statistics." },
     { "subscribe_channel",        subscribe_channel,        "subscribe_channel [nodeid] [channel_id] - Subscribe channel." },
     { "unsubscribe_channel",      unsubscribe_channel,      "unsubscribe_channel [nodeid] [channel_id] - Unsubscribe channel." },
-    { "add_node_publisher",       add_node_publisher,       "add_node_publisher [nodeid] [jwt] - Add node publisher." },
-    { "remove_node_publisher",    remove_node_publisher,    "remove_node_publisher [nodeid] [jwt] - Remove node publisher." },
-    { "query_channel_creation_permission",    query_channel_creation_permission,    "query_channel_creation_permission [nodeid] - Query channel creation permission." },
     { "enable_notification",      enable_notification,      "enable_notification [nodeid] - Enable notification." },
 
     { NULL }
@@ -1012,91 +1083,12 @@ void reset_tcattr()
     tcsetattr(STDIN_FILENO, TCSANOW, &term);
 }
 
-static
-void check_new_posts()
-{
-    const cJSON *post;
-    cJSON *posts;
-    int i = 1;
-
-    posts = feeds_client_get_new_posts(fc);
-    if (!posts)
-        return;
-
-    console("");
-    console("New post(s):");
-    cJSON_ArrayForEach(post, posts)
-        console("  %d. channel_id: %llu, id: %llu, content: %s, created_at: %llu", i++,
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(post, "channel_id")->valuedouble,
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(post, "id")->valuedouble,
-                cJSON_GetObjectItemCaseSensitive(post, "content")->valuestring,
-                (size_t)cJSON_GetObjectItemCaseSensitive(post, "created_at")->valuedouble);
-    console_prompt();
-
-    cJSON_Delete(posts);
-}
-
-static
-void check_new_comments()
-{
-    const cJSON *comment;
-    cJSON *comments;
-    int i = 1;
-
-    comments = feeds_client_get_new_comments(fc);
-    if (!comments)
-        return;
-
-    console("");
-    console("New comment(s):");
-    cJSON_ArrayForEach(comment, comments) {
-        cJSON *comment_id = cJSON_GetObjectItemCaseSensitive(comment, "comment_id");
-        console("  %d. channel_id: %llu, post_id: %llu, id: %llu, comment_id: %llu, user_name: %s, content: %s, created_at: %llu", i++,
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(comment, "channel_id")->valuedouble,
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(comment, "post_id")->valuedouble,
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(comment, "id")->valuedouble,
-                cJSON_IsNumber(comment_id) ? (uint64_t)comment_id->valuedouble : (uint64_t)0,
-                cJSON_GetObjectItemCaseSensitive(comment, "user_name")->valuestring,
-                cJSON_GetObjectItemCaseSensitive(comment, "content")->valuestring,
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(comment, "created_at")->valuedouble);
-    }
-    console_prompt();
-
-    cJSON_Delete(comments);
-}
-
-static
-void check_new_likes()
-{
-    const cJSON *like;
-    cJSON *likes;
-    int i = 1;
-
-    likes = feeds_client_get_new_likes(fc);
-    if (!likes)
-        return;
-
-    console("");
-    console("New like(s):");
-    cJSON_ArrayForEach(like, likes) {
-        cJSON *comment_id = cJSON_GetObjectItemCaseSensitive(like, "comment_id");
-        console("  %d. channel_id: %llu, post_id: %llu, comment_id: %llu, count: %llu", i++,
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(like, "channel_id")->valuedouble,
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(like, "post_id")->valuedouble,
-                cJSON_IsNumber(comment_id) ? (uint64_t)comment_id->valuedouble : (uint64_t)0,
-                (uint64_t)cJSON_GetObjectItemCaseSensitive(like, "count")->valuedouble);
-    }
-    console_prompt();
-
-    cJSON_Delete(likes);
-}
-
 int main(int argc, char *argv[])
 {
     const char *config_file = NULL;
     int wait_for_attach = 0;
     struct termios term_tmp;
-    ElaOptions opts;
+    FeedsCLIConfig opts;
     char *cmd;
     int rc;
 
@@ -1167,24 +1159,23 @@ int main(int argc, char *argv[])
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &term_tmp);
     atexit(reset_tcattr);
 
-    config_file = get_config_file(config_file, default_config_files);
+    config_file = get_cfg_file(config_file, default_config_files);
     if (!config_file) {
         console("missing config file.");
         usage();
         return -1;
     }
 
-    if (!carrier_config_load(config_file, NULL, &opts)) {
+    if (!load_cfg(config_file, &opts)) {
         console("loading configure failed!");
         return -1;
     }
 
-    carrier_config_update(&opts, argc, argv);
-    opts.log_printer = carrier_log_printer;
+    opts.carrier_opts.log_printer = carrier_log_printer;
 
     console("connecting to carrier network");
     fc = feeds_client_create(&opts);
-    carrier_config_free(&opts);
+    free_cfg(&opts);
     if (!fc) {
         console("Error initializing feeds client");
         return -1;
@@ -1197,9 +1188,9 @@ int main(int argc, char *argv[])
 read_cmd:
         cmd = read_cmd();
         if (state == STANDBY) {
-            check_new_posts();
-            check_new_comments();
-            check_new_likes();
+            //check_new_posts();
+            //check_new_comments();
+            //check_new_likes();
             goto read_cmd;
         } else if (state == TYPING)
             goto read_cmd;

@@ -52,14 +52,21 @@ if(HAVE_SIGACTION)
     add_definitions(-DHAVE_SIGACTION=1)
 endif()
 
+if(DID_TESTNET)
+    add_definitions(-DDID_TESTNET=1)
+endif()
+
 set(SRC
     db.c
-    jsonrpc.c
-    carrier_config.c
-    config.c
-    error_code.c
-    service_feeds.c
-    mkdirs.c)
+    cfg.c
+    rpc.c
+    err.c
+    auth.c
+    main.c
+    mkdirs.c
+    sandbird/sandbird.c
+    did.c
+    feeds.c)
 
 include_directories(
     .
@@ -69,47 +76,59 @@ link_directories(
     ${FEEDS_INT_DIST_DIR}/lib)
 
 set(LIBS
-    cjson
+    msgpackc
     sqlite3
     config
     libcrystal-shared
     libelacarrier-shared
+    libeladid-shared
+    libqrencode-static
     pthread
     dl
     m)
 
 set(ELAFEEDS_DEPENDS
-    cJSON
     Elastos.NET.Carrier.Native.SDK
+    Elastos.DID.Native.SDK
+    msgpack-c
+    libcrystal
     libconfig
+    libqrencode
     sqlite)
 
-add_executable(service_feeds ${SRC})
-add_dependencies(service_feeds ${ELAFEEDS_DEPENDS})
-set_target_properties(service_feeds PROPERTIES OUTPUT_NAME svc_feeds)
-target_link_libraries(service_feeds ${LIBS})
-install(TARGETS service_feeds
+add_executable(feeds_daemon ${SRC})
+add_dependencies(feeds_daemon ${ELAFEEDS_DEPENDS})
+set_target_properties(feeds_daemon PROPERTIES OUTPUT_NAME feedsd)
+target_link_libraries(feeds_daemon ${LIBS})
+install(TARGETS feeds_daemon
     RUNTIME DESTINATION "bin"
     ARCHIVE DESTINATION "lib"
     LIBRARY DESTINATION "lib")
 
+install(FILES feeds.conf
+    DESTINATION "etc/feeds")
+
 set(SRC
-    jsonrpc.c
-    carrier_config.c
-    error_code.c
+    mkdirs.c
+    rpc.c
+    err.c
+    feeds_client/cfg.c
     feeds_client/feeds_cli.c
     feeds_client/feeds_client.c)
 
 set(FEEDSCLI_DEPENDS
-    cJSON
     Elastos.NET.Carrier.Native.SDK
+    Elastos.DID.Native.SDK
+    libcrystal
+    msgpack-c
     libconfig)
 
 set(LIBS
-    cjson
     config
+    msgpackc
     libcrystal-shared
     libelacarrier-shared
+    libeladid-shared
     pthread)
 
 add_executable(feeds_cli ${SRC})
@@ -121,8 +140,5 @@ install(TARGETS feeds_cli
     ARCHIVE DESTINATION "lib"
     LIBRARY DESTINATION "lib")
 
-install(FILES carrier.conf
-        DESTINATION "etc/feeds")
-
-install(FILES feeds.conf
-        DESTINATION "etc/feeds")
+install(FILES feeds_client/feeds_cli.conf
+    DESTINATION "etc/feeds")

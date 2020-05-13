@@ -89,7 +89,7 @@ add_executable(feedstests
     suites/feeds_suite/feeds_suite.c
     ../src/feeds_client/feeds_client.c
     ../src/jsonrpc.c
-    ../src/carrier_config.c
+        ../src/carrier_cfg.c
     ../src/mkdirs.c)
 
 add_dependencies(feedstests ${DEPS})

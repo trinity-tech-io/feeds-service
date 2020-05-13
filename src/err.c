@@ -20,43 +20,22 @@
  * SOFTWARE.
  */
 
-#include <string.h>
+#include "err.h"
 
-#include <crystal.h>
-#include <libconfig.h>
+static struct {
+    int err_code;
+    const char *str;
+} errstr[] = {
+    {ERR_ALREADY_EXISTS  , "Entity Already Exists"   },
+    {ERR_NOT_EXIST       , "Entity Not Exists"       },
+    {ERR_NOT_AUTHORIZED  , "Operation Not Authorized"},
+    {ERR_WRONG_STATE     , "Operation In Wrong State"},
+    {ERR_ACCESS_TOKEN_EXP, "Access Token Expired"    },
+    {ERR_INTERNAL_ERROR  , "Internal Error"          },
+    {ERR_INVALID_PARAMS  , "Invalid Parameters"      }
+};
 
-#include "carrier_config.h"
-#include "config.h"
-
-static
-int extra_config_parser(void *p, ElaOptions *options)
+const char *err_strerror(int rc)
 {
-    FeedsConfig *fc = (FeedsConfig *)options;
-    config_t *cfg = (config_t *)p;
-    const char *stropt;
-    int rc;
-
-    rc = config_lookup_string(cfg, "node_owner", &stropt);
-    if (rc && *stropt)
-        strcpy(fc->node_owner, stropt);
-
-    return 0;
-}
-
-FeedsConfig *load_config(const char *config_file, FeedsConfig *config)
-{
-    memset(config, 0, sizeof(FeedsConfig));
-
-    return (FeedsConfig *)carrier_config_load(config_file, extra_config_parser,
-                                              (ElaOptions *)config);
-}
-
-void free_config(FeedsConfig *config)
-{
-    if (!config)
-        return;
-
-    carrier_config_free(&(config->ela_options));
-
-    memset(config, 0, sizeof(FeedsConfig));
+    return errstr[-rc - 1].str;
 }
