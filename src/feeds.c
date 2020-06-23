@@ -708,8 +708,8 @@ void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base)
 {
     PostLikeReq *req = (PostLikeReq *)base;
     Marshalled *resp_marshal = NULL;
-    ChanActiveSuber *cas;
     UserInfo *uinfo = NULL;
+    ChanActiveSuber *cas;
     list_iterator_t it;
     Chan *chan = NULL;
     uint64_t likes;
@@ -748,30 +748,19 @@ void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    if (req->params.post_id >= chan->info.next_post_id) {
-        vlogE("Posting like on non-existent post");
+    if ((rc = db_like_exists(uinfo->uid, req->params.chan_id,
+                             req->params.post_id, req->params.cmt_id)) < 0 ||
+        rc > 0) {
+        vlogE("Posting like on liked subject");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
-            .ec     = ERR_NOT_EXIST
+            .ec     = ERR_WRONG_STATE
         };
         resp_marshal = rpc_marshal_err_resp(&resp);
         goto finally;
     }
 
-    if (req->params.cmt_id &&
-        ((rc = db_cmt_exists(req->params.chan_id,
-                             req->params.post_id,
-                             req->params.cmt_id)) < 0 || !rc)) {
-        vlogE("Posting like on non-existent comment");
-        ErrResp resp = {
-            .tsx_id = req->tsx_id,
-            .ec     = ERR_NOT_EXIST
-        };
-        resp_marshal = rpc_marshal_err_resp(&resp);
-        goto finally;
-    }
-
-    rc = db_add_like(req->params.chan_id, req->params.post_id, req->params.cmt_id, &likes);
+    rc = db_add_like(uinfo->uid, req->params.chan_id, req->params.post_id, req->params.cmt_id, &likes);
     if (rc < 0) {
         vlogE("Adding like to database failed");
         ErrResp resp = {
@@ -782,8 +771,8 @@ void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    vlogI("Like on channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] created.",
-          req->params.chan_id, req->params.post_id, req->params.cmt_id);
+    vlogI("Like on channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] by [%s].",
+          req->params.chan_id, req->params.post_id, req->params.cmt_id, uinfo->did);
 
     {
         PostLikeResp resp = {
@@ -797,6 +786,91 @@ void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base)
         list_foreach(chan->cass, cas)
             notify_of_new_likes(cas->as, req->params.chan_id,
                                 req->params.post_id, req->params.cmt_id, likes);
+
+finally:
+    if (resp_marshal) {
+        ela_send_friend_message(c, from, resp_marshal->data, resp_marshal->sz, NULL);
+        deref(resp_marshal);
+    }
+    deref(uinfo);
+    deref(chan);
+}
+
+void hdl_post_unlike_req(ElaCarrier *c, const char *from, Req *base)
+{
+    PostUnlikeReq *req = (PostUnlikeReq *)base;
+    Marshalled *resp_marshal = NULL;
+    UserInfo *uinfo = NULL;
+    list_iterator_t it;
+    Chan *chan = NULL;
+    int rc;
+
+    vlogI("Received post_unlike request from [%s].", from);
+    vlogD("  access_token: %s", req->params.tk);
+    vlogD("  channel_id: %" PRIu64, req->params.chan_id);
+    vlogD("  post_id: %" PRIu64, req->params.post_id);
+    vlogD("  comment_id: %" PRIu64, req->params.cmt_id);
+
+    if (did_is_binding()) {
+        vlogE("Feeds is in setup mode.");
+        return;
+    }
+
+    uinfo = create_uinfo_from_access_token(req->params.tk);
+    if (!uinfo) {
+        vlogE("Invalid access token.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_ACCESS_TOKEN_EXP
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    chan = chan_get_by_id(req->params.chan_id);
+    if (!chan) {
+        vlogE("Posting unlike on non-existent channel");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if ((rc = db_like_exists(uinfo->uid, req->params.chan_id,
+                             req->params.post_id, req->params.cmt_id)) < 0 ||
+        !rc) {
+        vlogE("Posting unlike on unliked subject");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_WRONG_STATE
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    rc = db_rm_like(uinfo->uid, req->params.chan_id, req->params.post_id, req->params.cmt_id);
+    if (rc < 0) {
+        vlogE("Removing like to database failed");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    vlogI("Unlike on channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] by [%s].",
+          req->params.chan_id, req->params.post_id, req->params.cmt_id, uinfo->did);
+
+    {
+        PostUnlikeResp resp = {
+            .tsx_id = req->tsx_id
+        };
+        resp_marshal = rpc_marshal_post_unlike_resp(&resp);
+        vlogI("Sending post_unlike response.");
+    }
 
 finally:
     if (resp_marshal) {
@@ -1326,6 +1400,94 @@ void hdl_get_posts_req(ElaCarrier *c, const char *from, Req *base)
         };
         resp_marshal = rpc_marshal_get_posts_resp(&resp);
         vlogI("Sending get_posts response.");
+    }
+
+finally:
+    if (resp_marshal) {
+        ela_send_friend_message(c, from, resp_marshal->data, resp_marshal->sz, NULL);
+        deref(resp_marshal);
+    }
+    if (pinfos) {
+        PostInfo **i;
+        cvector_foreach(pinfos, i)
+            deref(*i);
+        cvector_free(pinfos);
+    }
+    deref(uinfo);
+    deref(it);
+}
+
+void hdl_get_liked_posts_req(ElaCarrier *c, const char *from, Req *base)
+{
+    GetLikedPostsReq *req = (GetLikedPostsReq *)base;
+    cvector_vector_type(PostInfo *) pinfos = NULL;
+    Marshalled *resp_marshal = NULL;
+    UserInfo *uinfo = NULL;
+    DBObjIt *it = NULL;
+    PostInfo *pinfo;
+    int rc;
+
+    vlogI("Received get_liked_posts request from [%s].", from);
+    vlogD("  access_token: %s", req->params.tk);
+    vlogD("  by: %" PRIu64, req->params.qc.by);
+    vlogD("  upper_bound: %" PRIu64, req->params.qc.upper);
+    vlogD("  lower_bound: %" PRIu64, req->params.qc.lower);
+    vlogD("  max_count: %" PRIu64, req->params.qc.maxcnt);
+
+    if (did_is_binding()) {
+        vlogE("Feeds is in setup mode.");
+        return;
+    }
+
+    uinfo = create_uinfo_from_access_token(req->params.tk);
+    if (!uinfo) {
+        vlogE("Invalid access token.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_ACCESS_TOKEN_EXP
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    it = db_iter_liked_posts(uinfo->uid, &req->params.qc);
+    if (!it) {
+        vlogE("Getting liked posts from database failed.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    foreach_db_obj(pinfo) {
+        cvector_push_back(pinfos, ref(pinfo));
+        vlogD("channel_id: %" PRIu64, pinfo->chan_id);
+        vlogD("post_id: %" PRIu64, pinfo->post_id);
+        vlogD("comments: %" PRIu64, pinfo->cmts);
+        vlogD("likes: %" PRIu64, pinfo->likes);
+        vlogD("created_at: %" PRIu64, pinfo->created_at);
+    }
+    if (rc < 0) {
+        vlogE("Iterating posts failed.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    {
+        GetLikedPostsResp resp = {
+            .tsx_id = req->tsx_id,
+            .result = {
+                .pinfos = pinfos
+            }
+        };
+        resp_marshal = rpc_marshal_get_liked_posts_resp(&resp);
+        vlogI("Sending get_liked_posts response.");
     }
 
 finally:

@@ -152,6 +152,25 @@ int db_init(const char *db_file)
     if (rc != SQLITE_DONE)
         goto failure;
 
+    /* ================================= stmt-sep ================================= */
+    sql = "CREATE TABLE IF NOT EXISTS likes ("
+          "    channel_id INTEGER NOT NULL,"
+          "    post_id    INTEGER NOT NULL,"
+          "    comment_id INTEGER NOT NULL,"
+          "    user_id    INTEGER NOT NULL REFERENCES users(user_id),"
+          "    created_at REAL    NOT NULL,"
+          "    FOREIGN KEY(channel_id, post_id) REFERENCES posts(channel_id, post_id)"
+          "    PRIMARY KEY(user_id, channel_id, post_id, comment_id)"
+          ")";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc)
+        goto failure;
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE)
+        goto failure;
+
     return 0;
 
 failure:
@@ -581,7 +600,69 @@ rollback:
     return -1;
 }
 
-int db_add_like(uint64_t channel_id, uint64_t post_id, uint64_t comment_id, uint64_t *likes)
+int db_like_exists(uint64_t uid, uint64_t channel_id, uint64_t post_id, uint64_t comment_id)
+{
+    sqlite3_stmt *stmt;
+    const char *sql;
+    int rc;
+
+    /* ================================= stmt-sep ================================= */
+    sql = "SELECT EXISTS(SELECT * "
+          "                FROM likes "
+          "                WHERE user_id = :uid AND "
+          "                      channel_id = :channel_id AND "
+          "                      post_id = :post_id AND "
+          "                      comment_id = :comment_id)";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc)
+        return -1;
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":uid"),
+                            uid);
+    if (rc) {
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":channel_id"),
+                            channel_id);
+    if (rc) {
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":post_id"),
+                            post_id);
+    if (rc) {
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":comment_id"),
+                            comment_id);
+    if (rc) {
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
+
+    return rc ? 1 : 0;
+}
+
+int db_add_like(uint64_t uid, uint64_t channel_id, uint64_t post_id,
+                uint64_t comment_id, uint64_t *likes)
 {
     sqlite3_stmt *stmt;
     const char *sql;
@@ -645,6 +726,58 @@ int db_add_like(uint64_t channel_id, uint64_t post_id, uint64_t comment_id, uint
         goto rollback;
 
     /* ================================= stmt-sep ================================= */
+    sql = "INSERT INTO likes(user_id, channel_id, post_id, comment_id, created_at) "
+          "  VALUES (:uid, :channel_id, :post_id, :comment_id, :ts)";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc)
+        goto rollback;
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":uid"),
+                            uid);
+    if (rc) {
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":channel_id"),
+                            channel_id);
+    if (rc) {
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":post_id"),
+                            post_id);
+    if (rc) {
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":comment_id"),
+                            comment_id);
+    if (rc) {
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":ts"),
+                            time(NULL));
+    if (rc) {
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE)
+        goto rollback;
+
+    /* ================================= stmt-sep ================================= */
     sql = comment_id ?
           "SELECT likes "
           "  FROM comments "
@@ -693,6 +826,138 @@ int db_add_like(uint64_t channel_id, uint64_t post_id, uint64_t comment_id, uint
 
     *likes = sqlite3_column_int64(stmt, 0);
     sqlite3_finalize(stmt);
+
+    /* ================================= stmt-sep ================================= */
+    sql = "END";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc)
+        goto rollback;
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE)
+        goto rollback;
+
+    return 0;
+
+rollback:
+    sql = "ROLLBACK";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc)
+        return -1;
+
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    return -1;
+}
+
+int db_rm_like(uint64_t uid, uint64_t channel_id, uint64_t post_id, uint64_t comment_id)
+{
+    sqlite3_stmt *stmt;
+    const char *sql;
+    int rc;
+
+    /* ================================= stmt-sep ================================= */
+    sql = "BEGIN";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc)
+        return -1;
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE)
+        return -1;
+
+    /* ================================= stmt-sep ================================= */
+    sql = comment_id ?
+          "UPDATE comments "
+          "  SET likes = likes - 1 "
+          "  WHERE channel_id = :channel_id AND "
+          "        post_id = :post_id AND "
+          "        comment_id = :comment_id" :
+          "UPDATE posts "
+          "  SET likes = likes - 1 "
+          "  WHERE channel_id = :channel_id AND "
+          "        post_id = :post_id";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc)
+        goto rollback;
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":channel_id"),
+                            channel_id);
+    if (rc) {
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":post_id"),
+                            post_id);
+    if (rc) {
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    if (comment_id) {
+        rc = sqlite3_bind_int64(stmt,
+                                sqlite3_bind_parameter_index(stmt, ":comment_id"),
+                                comment_id);
+        if (rc) {
+            sqlite3_finalize(stmt);
+            goto rollback;
+        }
+    }
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE)
+        goto rollback;
+
+    /* ================================= stmt-sep ================================= */
+    sql = "DELETE FROM likes "
+          "  WHERE user_id = :uid AND channel_id = :channel_id AND "
+          "        post_id = :post_id AND comment_id = :comment_id";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc)
+        goto rollback;
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":uid"),
+                            uid);
+    if (rc) {
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":channel_id"),
+                            channel_id);
+    if (rc) {
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":post_id"),
+                            post_id);
+    if (rc) {
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":comment_id"),
+                            comment_id);
+    if (rc) {
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE)
+        goto rollback;
 
     /* ================================= stmt-sep ================================= */
     sql = "END";
@@ -1272,6 +1537,82 @@ DBObjIt *db_iter_posts(uint64_t chan_id, const QryCriteria *qc)
 
     rc = sqlite3_bind_int64(stmt, sqlite3_bind_parameter_index(stmt, ":channel_id"),
                             chan_id);
+    if (rc) {
+        sqlite3_finalize(stmt);
+        return NULL;
+    }
+
+    if (qc->lower) {
+        rc = sqlite3_bind_int64(stmt, sqlite3_bind_parameter_index(stmt, ":lower"),
+                                qc->lower);
+        if (rc) {
+            sqlite3_finalize(stmt);
+            return NULL;
+        }
+    }
+
+    if (qc->upper) {
+        rc = sqlite3_bind_int64(stmt, sqlite3_bind_parameter_index(stmt, ":upper"),
+                                qc->upper);
+        if (rc) {
+            sqlite3_finalize(stmt);
+            return NULL;
+        }
+    }
+
+    if (qc->maxcnt) {
+        rc = sqlite3_bind_int64(stmt, sqlite3_bind_parameter_index(stmt, ":maxcnt"),
+                                qc->maxcnt);
+        if (rc) {
+            sqlite3_finalize(stmt);
+            return NULL;
+        }
+    }
+
+    it = it_create(stmt, row2post);
+    if (!it) {
+        sqlite3_finalize(stmt);
+        return NULL;
+    }
+
+    return it;
+}
+
+DBObjIt *db_iter_liked_posts(uint64_t uid, const QryCriteria *qc)
+{
+    sqlite3_stmt *stmt;
+    const char *qcol;
+    char sql[1024];
+    DBObjIt *it;
+    int rc;
+
+    /* ================================= stmt-sep ================================= */
+    rc = sprintf(sql,
+                 "SELECT channel_id, post_id, content, length(content), "
+                 "       next_comment_id - 1 AS comments, likes, created_at "
+                 "  FROM (SELECT channel_id, post_id "
+                 "          FROM likes "
+                 "          WHERE user_id = :uid AND comment_id = 0) JOIN "
+                 "       posts USING (channel_id, post_id)");
+    if (qc->by) {
+        qcol = query_column(POST, qc->by);
+        if (qc->lower || qc->upper)
+            rc += sprintf(sql + rc, " WHERE ");
+        if (qc->lower)
+            rc += sprintf(sql + rc, "%s >= :lower", qcol);
+        if (qc->upper)
+            rc += sprintf(sql + rc, "%s %s <= :upper", qc->lower ? " AND" : "", qcol);
+        rc += sprintf(sql + rc, " ORDER BY %s %s", qcol, qc->by == ID ? "ASC" : "DESC");
+    }
+    if (qc->maxcnt)
+        rc += sprintf(sql + rc, " LIMIT :maxcnt");
+
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc)
+        return NULL;
+
+    rc = sqlite3_bind_int64(stmt, sqlite3_bind_parameter_index(stmt, ":uid"),
+                            uid);
     if (rc) {
         sqlite3_finalize(stmt);
         return NULL;

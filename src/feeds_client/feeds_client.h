@@ -61,6 +61,8 @@ int feeds_client_post_comment(FeedsClient *fc, const char *svc_node_id, uint64_t
                               PostCmtResp **resp, ErrResp **err);
 int feeds_client_post_like(FeedsClient *fc, const char *svc_node_id, uint64_t channel_id,
                            uint64_t post_id, uint64_t comment_id, PostLikeResp **resp, ErrResp **err);
+int feeds_client_post_unlike(FeedsClient *fc, const char *svc_node_id, uint64_t channel_id,
+                             uint64_t post_id, uint64_t comment_id, PostUnlikeResp **resp, ErrResp **err);
 int feeds_client_get_my_channels(FeedsClient *fc, const char *svc_node_id, QryFld qf,
                                  uint64_t upper, uint64_t lower, uint64_t maxcnt,
                                  GetMyChansResp **resp, ErrResp **err);
@@ -77,7 +79,8 @@ int feeds_client_get_subscribed_channels(FeedsClient *fc, const char *svc_node_i
                                          GetSubChansResp **resp, ErrResp **err);
 int feeds_client_get_posts(FeedsClient *fc, const char *svc_node_id, uint64_t cid, QryFld qf,
                            uint64_t upper, uint64_t lower, uint64_t maxcnt, GetPostsResp **resp, ErrResp **err);
-
+int feeds_client_get_liked_posts(FeedsClient *fc, const char *svc_node_id, QryFld qf, uint64_t upper,
+                                 uint64_t lower, uint64_t maxcnt, GetLikedPostsResp **resp, ErrResp **err);
 int feeds_client_get_comments(FeedsClient *fc, const char *svc_node_id, uint64_t cid, uint64_t pid,
                               QryFld qf, uint64_t upper, uint64_t lower, uint64_t maxcnt,
                               GetCmtsResp **resp, ErrResp **err);

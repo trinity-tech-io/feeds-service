@@ -633,6 +633,32 @@ int feeds_client_post_like(FeedsClient *fc, const char *svc_node_id, uint64_t ch
     return rc;
 }
 
+int feeds_client_post_unlike(FeedsClient *fc, const char *svc_node_id, uint64_t channel_id,
+                             uint64_t post_id, uint64_t comment_id, PostUnlikeResp **resp, ErrResp **err)
+{
+    PostUnlikeReq req = {
+        .method = "post_unlike",
+        .tsx_id = 1,
+        .params = {
+            .tk = fc->access_token,
+            .chan_id = channel_id,
+            .post_id = post_id,
+            .cmt_id = comment_id
+        }
+    };
+    Marshalled *marshal;
+    int rc;
+
+    marshal = rpc_marshal_post_unlike_req(&req);
+    if (!marshal)
+        return -1;
+
+    fc->unmarshal = rpc_unmarshal_post_unlike_resp;
+    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+    deref(marshal);
+    return rc;
+}
+
 int feeds_client_get_my_channels(FeedsClient *fc, const char *svc_node_id, QryFld qf,
                                  uint64_t upper, uint64_t lower, uint64_t maxcnt,
                                  GetMyChansResp **resp, ErrResp **err)
@@ -802,6 +828,35 @@ int feeds_client_get_posts(FeedsClient *fc, const char *svc_node_id, uint64_t ci
         return -1;
 
     fc->unmarshal = rpc_unmarshal_get_posts_resp;
+    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+    deref(marshal);
+    return rc;
+}
+
+int feeds_client_get_liked_posts(FeedsClient *fc, const char *svc_node_id, QryFld qf, uint64_t upper,
+                                 uint64_t lower, uint64_t maxcnt, GetLikedPostsResp **resp, ErrResp **err)
+{
+    GetLikedPostsReq req = {
+        .method = "get_liked_posts",
+        .tsx_id = 1,
+        .params = {
+            .tk = fc->access_token,
+            .qc = {
+                .by = qf,
+                .upper = upper,
+                .lower = lower,
+                .maxcnt = maxcnt
+            }
+        }
+    };
+    Marshalled *marshal;
+    int rc;
+
+    marshal = rpc_marshal_get_liked_posts_req(&req);
+    if (!marshal)
+        return -1;
+
+    fc->unmarshal = rpc_unmarshal_get_liked_posts_resp;
     rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
     deref(marshal);
     return rc;

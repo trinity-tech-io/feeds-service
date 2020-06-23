@@ -178,6 +178,21 @@ typedef struct {
     uint64_t tsx_id;
     struct {
         AccessToken tk;
+        uint64_t    chan_id;
+        uint64_t    post_id;
+        uint64_t    cmt_id;
+    } params;
+} PostUnlikeReq;
+
+typedef struct {
+    uint64_t tsx_id;
+} PostUnlikeResp;
+
+typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        AccessToken tk;
         QryCriteria qc;
     } params;
 } GetMyChansReq;
@@ -269,6 +284,22 @@ typedef struct {
         cvector_vector_type(PostInfo *) pinfos;
     } result;
 } GetPostsResp;
+
+typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        AccessToken tk;
+        QryCriteria qc;
+    } params;
+} GetLikedPostsReq;
+
+typedef struct {
+    uint64_t tsx_id;
+    struct {
+        cvector_vector_type(PostInfo *) pinfos;
+    } result;
+} GetLikedPostsResp;
 
 typedef struct {
     char    *method;
@@ -387,12 +418,14 @@ int rpc_unmarshal_create_chan_resp(CreateChanResp **resp, ErrResp **err);
 int rpc_unmarshal_pub_post_resp(PubPostResp **resp, ErrResp **err);
 int rpc_unmarshal_post_cmt_resp(PostCmtResp **resp, ErrResp **err);
 int rpc_unmarshal_post_like_resp(PostLikeResp **resp, ErrResp **err);
+int rpc_unmarshal_post_unlike_resp(PostUnlikeResp **resp, ErrResp **err);
 int rpc_unmarshal_get_my_chans_resp(GetMyChansResp **resp, ErrResp **err);
 int rpc_unmarshal_get_my_chans_meta_resp(GetMyChansMetaResp **resp, ErrResp **err);
 int rpc_unmarshal_get_chans_resp(GetChansResp **resp, ErrResp **err);
 int rpc_unmarshal_get_chan_dtl_resp(GetChanDtlResp **resp, ErrResp **err);
 int rpc_unmarshal_get_sub_chans_resp(GetSubChansResp **resp, ErrResp **err);
 int rpc_unmarshal_get_posts_resp(GetPostsResp **resp, ErrResp **err);
+int rpc_unmarshal_get_liked_posts_resp(GetLikedPostsResp **resp, ErrResp **err);
 int rpc_unmarshal_get_cmts_resp(GetCmtsResp **resp, ErrResp **err);
 int rpc_unmarshal_get_stats_resp(GetStatsResp **resp, ErrResp **err);
 int rpc_unmarshal_sub_chan_resp(SubChanResp **resp, ErrResp **err);
@@ -420,6 +453,8 @@ Marshalled *rpc_marshal_post_cmt_req(const PostCmtReq *req);
 Marshalled *rpc_marshal_post_cmt_resp(const PostCmtResp *resp);
 Marshalled *rpc_marshal_post_like_req(const PostLikeReq *req);
 Marshalled *rpc_marshal_post_like_resp(const PostLikeResp *resp);
+Marshalled *rpc_marshal_post_unlike_req(const PostUnlikeReq *req);
+Marshalled *rpc_marshal_post_unlike_resp(const PostUnlikeResp *resp);
 Marshalled *rpc_marshal_get_my_chans_req(const GetMyChansReq *req);
 Marshalled *rpc_marshal_get_my_chans_resp(const GetMyChansResp *resp);
 Marshalled *rpc_marshal_get_my_chans_meta_req(const GetMyChansMetaReq *req);
@@ -432,6 +467,8 @@ Marshalled *rpc_marshal_get_sub_chans_req(const GetSubChansReq *req);
 Marshalled *rpc_marshal_get_sub_chans_resp(const GetSubChansResp *resp);
 Marshalled *rpc_marshal_get_posts_req(const GetPostsReq *req);
 Marshalled *rpc_marshal_get_posts_resp(const GetPostsResp *resp);
+Marshalled *rpc_marshal_get_liked_posts_req(const GetLikedPostsReq *req);
+Marshalled *rpc_marshal_get_liked_posts_resp(const GetLikedPostsResp *resp);
 Marshalled *rpc_marshal_get_cmts_req(const GetCmtsReq *req);
 Marshalled *rpc_marshal_get_cmts_resp(const GetCmtsResp *resp);
 Marshalled *rpc_marshal_get_stats_req(const GetStatsReq *req);

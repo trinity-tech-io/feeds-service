@@ -618,6 +618,36 @@ finally:
 }
 
 static
+void post_unlike(int argc, char **argv)
+{
+    PostUnlikeResp *resp = NULL;
+    ErrResp *err = NULL;
+    int rc;
+
+    if (argc != 5) {
+        console("Invalid command syntax.");
+        return;
+    }
+
+    rc = feeds_client_wait_until_friend_connected(fc, argv[1]);
+    if (rc < 0) {
+        console("%s is not friend now.", argv[1]);
+        return;
+    }
+
+    rc = feeds_client_post_unlike(fc, argv[1], atoi(argv[2]), atoi(argv[3]), atoi(argv[4]),
+                                &resp, &err);
+    if (rc < 0 || err) {
+        console("Failed to post unlike. Code: %lld", err ? err->ec : -111);
+        goto finally;
+    }
+
+finally:
+    deref(resp);
+    deref(err);
+}
+
+static
 void get_my_channels(int argc, char **argv)
 {
     GetMyChansResp *resp = NULL;
@@ -829,6 +859,41 @@ finally:
 }
 
 static
+void get_liked_posts(int argc, char **argv)
+{
+    GetLikedPostsResp *resp = NULL;
+    ErrResp *err = NULL;
+    int rc;
+
+    if (argc != 6) {
+        console("Invalid command syntax.");
+        return;
+    }
+
+    rc = feeds_client_wait_until_friend_connected(fc, argv[1]);
+    if (rc < 0) {
+        console("%s is not friend now.", argv[1]);
+        return;
+    }
+
+    rc = feeds_client_get_liked_posts(fc, argv[1], atoi(argv[2]), atoi(argv[3]),
+                                      atoi(argv[4]), atoi(argv[5]), &resp, &err);
+    if (rc < 0 || err) {
+        console("Failed to get liked posts. Code: %lld", err ? err->ec : -111);
+        goto finally;
+    }
+
+    PostInfo **i;
+    cvector_foreach(resp->result.pinfos, i)
+        console("channel_id: %llu, id: %llu, content: %s, comments: %llu, likes: %llu, created_at: %llu",
+                (*i)->chan_id, (*i)->post_id, (*i)->content, (*i)->cmts, (*i)->likes, (*i)->created_at);
+
+finally:
+    deref(resp);
+    deref(err);
+}
+
+static
 void get_comments(int argc, char **argv)
 {
     GetCmtsResp *resp = NULL;
@@ -1002,12 +1067,14 @@ struct command {
     { "publish_post",             publish_post,             "publish_post [nodeid] [channel_id] [content] - Publish post." },
     { "post_comment",             post_comment,             "post_comment [nodeid] [channel_id] [post_id] [comment_id] [content] - Post comment." },
     { "post_like",                post_like,                "post_like [nodeid] [channel_id] [post_id] [comment_id] - Post like." },
+    { "post_unlike",                post_unlike,                "post_unlike [nodeid] [channel_id] [post_id] [comment_id] - Post like." },
     { "get_my_channels",          get_my_channels,          "get_my_channels [nodeid] [by] [upper] [lower] [maxcnt] - Get owned channels." },
     { "get_my_channels_metadata", get_my_channels_metadata, "get_my_channels_metadata [nodeid] [by] [upper] [lower] [maxcnt] - Get owned channels metadata." },
     { "get_channels",             get_channels,             "get_channels [nodeid] [by] [upper] [lower] [maxcnt] - Get channels." },
     { "get_channel_detail",       get_channel_detail,       "get_channel_detail [nodeid] [channel_id] - Get channel detail." },
     { "get_subscribed_channels",  get_subscribed_channels,  "get_subscribed_channels [nodeid] [by] [upper] [lower] [maxcnt] - Get subscribed channels." },
     { "get_posts",                get_posts,                "get_posts [nodeid] [channel_id] [by] [upper] [lower] [maxcnt] - Get posts." },
+    { "get_liked_posts",          get_liked_posts,          "get_liked_posts [nodeid] [by] [upper] [lower] [maxcnt] - Get liked posts." },
     { "get_comments",             get_comments,             "get_comments [nodeid] [channel_id] [post_id] [by] [upper] [lower] [maxcnt] - Get comments." },
     { "get_statistics",           get_statistics,           "get_statistics [nodeid] - Get statistics." },
     { "subscribe_channel",        subscribe_channel,        "subscribe_channel [nodeid] [channel_id] - Subscribe channel." },

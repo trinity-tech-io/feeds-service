@@ -557,6 +557,56 @@ int unmarshal_post_like_req(const msgpack_object *req, Req **req_unmarshal)
 }
 
 static
+int unmarshal_post_unlike_req(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *jsonrpc;
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *tk;
+    const msgpack_object *chan_id;
+    const msgpack_object *post_id;
+    const msgpack_object *cmt_id;
+    PostLikeReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        jsonrpc = map_val_str("jsonrpc");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            tk      = map_val_str("access_token");
+            chan_id = map_val_u64("channel_id");
+            post_id = map_val_u64("post_id");
+            cmt_id  = map_val_u64("comment_id");
+        });
+    });
+
+    if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
+        !post_id || !post_id_is_valid(post_id->u64_val) || !cmt_id) {
+        vlogE("Invalid post_like request.");
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(PostUnlikeReq) + str_reserve_spc(method) + str_reserve_spc(tk), NULL);
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method         = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->tsx_id         = tsx_id->u64_val;
+    tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
+    tmp->params.chan_id = chan_id->u64_val;
+    tmp->params.post_id = post_id->u64_val;
+    tmp->params.cmt_id  = cmt_id->u64_val;
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
+
+static
 int unmarshal_get_my_chans_req(const msgpack_object *req, Req **req_unmarshal)
 {
     const msgpack_object *jsonrpc;
@@ -864,6 +914,59 @@ int unmarshal_get_posts_req(const msgpack_object *req, Req **req_unmarshal)
 }
 
 static
+int unmarshal_get_liked_posts_req(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *jsonrpc;
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *tk;
+    const msgpack_object *by;
+    const msgpack_object *upper;
+    const msgpack_object *lower;
+    const msgpack_object *maxcnt;
+    GetLikedPostsReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        jsonrpc = map_val_str("jsonrpc");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            tk      = map_val_str("access_token");
+            by      = map_val_u64("by");
+            upper   = map_val_u64("upper_bound");
+            lower   = map_val_u64("lower_bound");
+            maxcnt  = map_val_u64("max_count");
+        });
+    });
+
+    if (!tk || !tk->str_sz || !by || !qry_fld_is_valid(by->u64_val) ||
+        !upper || !lower || !maxcnt) {
+        vlogE("Invalid get_liked_posts request.");
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(GetLikedPostsReq) + str_reserve_spc(method) + str_reserve_spc(tk), NULL);
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method           = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->tsx_id           = tsx_id->u64_val;
+    tmp->params.tk        = strncpy(buf, tk->str_val, tk->str_sz);
+    tmp->params.qc.by     = by->u64_val;
+    tmp->params.qc.upper  = upper->u64_val;
+    tmp->params.qc.lower  = lower->u64_val;
+    tmp->params.qc.maxcnt = maxcnt->u64_val;
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
+
+static
 int unmarshal_get_cmts_req(const msgpack_object *req, Req **req_unmarshal)
 {
     const msgpack_object *jsonrpc;
@@ -1103,12 +1206,14 @@ static struct {
     {"publish_post"            , unmarshal_pub_post_req         },
     {"post_comment"            , unmarshal_post_cmt_req         },
     {"post_like"               , unmarshal_post_like_req        },
+    {"post_unlike"             , unmarshal_post_unlike_req      },
     {"get_my_channels"         , unmarshal_get_my_chans_req     },
     {"get_my_channels_metadata", unmarshal_get_my_chans_meta_req},
     {"get_channels"            , unmarshal_get_chans_req        },
     {"get_channel_detail"      , unmarshal_get_chan_dtl_req     },
     {"get_subscribed_channels" , unmarshal_get_sub_chans_req    },
     {"get_posts"               , unmarshal_get_posts_req        },
+    {"get_liked_posts"         , unmarshal_get_liked_posts_req  },
     {"get_comments"            , unmarshal_get_cmts_req         },
     {"get_statistics"          , unmarshal_get_stats_req        },
     {"subscribe_channel"       , unmarshal_sub_chan_req         },
@@ -1831,6 +1936,44 @@ int rpc_unmarshal_post_like_resp(PostLikeResp **resp, ErrResp **err)
     return 0;
 }
 
+int rpc_unmarshal_post_unlike_resp(PostUnlikeResp **resp, ErrResp **err)
+{
+    const msgpack_object *jsonrpc;
+    const msgpack_object *tsx_id;
+    const msgpack_object *result;
+    PostUnlikeResp *tmp;
+
+    if (!rpc_unmarshal_err_resp(err)) {
+        msgpack_unpacked_destroy(&msgpack);
+        return 0;
+    }
+
+    map_iter_kvs(&msgpack.data, {
+        jsonrpc = map_val_str("jsonrpc");
+        tsx_id  = map_val_u64("id");
+        result  = map_val_nil("result");
+    });
+
+    if (!result) {
+        vlogE("Invalid post_unlike response.");
+        msgpack_unpacked_destroy(&msgpack);
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(PostUnlikeResp), NULL);
+    if (!tmp) {
+        msgpack_unpacked_destroy(&msgpack);
+        return -1;
+    }
+
+    tmp->tsx_id = tsx_id->u64_val;
+
+    *resp = tmp;
+
+    msgpack_unpacked_destroy(&msgpack);
+    return 0;
+}
+
 static
 void get_my_chans_resp_dtor(void *obj)
 {
@@ -2361,6 +2504,103 @@ int rpc_unmarshal_get_posts_resp(GetPostsResp **resp, ErrResp **err)
             !post_id || !post_id_is_valid(post_id->u64_val) ||
             !content || !content->bin_sz || !cmts || !likes || !created_at) {
             vlogE("Invalid get_posts response: invalid result element.");
+            msgpack_unpacked_destroy(&msgpack);
+            deref(tmp);
+            return -1;
+        }
+
+        pi = rc_zalloc(sizeof(PostInfo) + content->bin_sz, NULL);
+        if (!pi) {
+            msgpack_unpacked_destroy(&msgpack);
+            deref(tmp);
+            return -1;
+        }
+
+        buf = pi + 1;
+        pi->chan_id    = chan_id->u64_val;
+        pi->post_id    = post_id->u64_val;
+        pi->content    = memcpy(buf, content->bin_val, content->bin_sz);
+        pi->len        = content->bin_sz;
+        pi->cmts       = cmts->u64_val;
+        pi->likes      = likes->u64_val;
+        pi->created_at = created_at->u64_val;
+
+        cvector_push_back(tmp->result.pinfos, pi);
+    }
+
+    *resp = tmp;
+
+    msgpack_unpacked_destroy(&msgpack);
+    return 0;
+}
+
+static
+void get_liked_posts_resp_dtor(void *obj)
+{
+    GetLikedPostsResp *resp = obj;
+    PostInfo **pi;
+
+    cvector_foreach(resp->result.pinfos, pi)
+        deref(*pi);
+    cvector_free(resp->result.pinfos);
+}
+
+int rpc_unmarshal_get_liked_posts_resp(GetLikedPostsResp **resp, ErrResp **err)
+{
+    const msgpack_object *jsonrpc;
+    const msgpack_object *tsx_id;
+    const msgpack_object *result;
+    GetLikedPostsResp *tmp;
+    int i;
+
+    if (!rpc_unmarshal_err_resp(err)) {
+        msgpack_unpacked_destroy(&msgpack);
+        return 0;
+    }
+
+    map_iter_kvs(&msgpack.data, {
+        jsonrpc = map_val_str("jsonrpc");
+        tsx_id  = map_val_u64("id");
+        result  = map_val_arr("result");
+    });
+
+    if (!result) {
+        vlogE("Invalid get_liked_posts response: invalid result.");
+        msgpack_unpacked_destroy(&msgpack);
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(GetLikedPostsResp), get_liked_posts_resp_dtor);
+    if (!tmp) {
+        msgpack_unpacked_destroy(&msgpack);
+        return -1;
+    }
+
+    tmp->tsx_id = tsx_id->u64_val;
+
+    for (i = 0; i < result->arr_sz; ++i) {
+        const msgpack_object *chan_id;
+        const msgpack_object *post_id;
+        const msgpack_object *content;
+        const msgpack_object *cmts;
+        const msgpack_object *likes;
+        const msgpack_object *created_at;
+        PostInfo *pi;
+        void *buf;
+
+        map_iter_kvs(arr_val_map(result, i), {
+            chan_id    = map_val_u64("channel_id");
+            post_id    = map_val_u64("id");
+            content    = map_val_bin("content");
+            cmts       = map_val_u64("comments");
+            likes      = map_val_u64("likes");
+            created_at = map_val_u64("created_at");
+        });
+
+        if (!chan_id || !chan_id_is_valid(chan_id->u64_val) ||
+            !post_id || !post_id_is_valid(post_id->u64_val) ||
+            !content || !content->bin_sz || !cmts || !likes || !created_at) {
+            vlogE("Invalid get_liked_posts response: invalid result element.");
             msgpack_unpacked_destroy(&msgpack);
             deref(tmp);
             return -1;
@@ -3322,6 +3562,54 @@ Marshalled *rpc_marshal_post_like_resp(const PostLikeResp *resp)
     return &m->m;
 }
 
+Marshalled *rpc_marshal_post_unlike_req(const PostUnlikeReq *req)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 4, {
+        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "method", "post_unlike");
+        pack_kv_u64(pk, "id", req->tsx_id);
+        pack_kv_map(pk, "params", 4, {
+            pack_kv_str(pk, "access_token", req->params.tk);
+            pack_kv_u64(pk, "channel_id", req->params.chan_id);
+            pack_kv_u64(pk, "post_id", req->params.post_id);
+            pack_kv_u64(pk, "comment_id", req->params.cmt_id);
+        });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_post_unlike_resp(const PostUnlikeResp *resp)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_u64(pk, "id", resp->tsx_id);
+        pack_kv_nil(pk, "result");
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
 Marshalled *rpc_marshal_get_my_chans_req(const GetMyChansReq *req)
 {
     msgpack_sbuffer *buf = msgpack_sbuffer_new();
@@ -3646,6 +3934,67 @@ Marshalled *rpc_marshal_get_posts_req(const GetPostsReq *req)
 }
 
 Marshalled *rpc_marshal_get_posts_resp(const GetPostsResp *resp)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+    PostInfo **pinfo;
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_u64(pk, "id", resp->tsx_id);
+        pack_kv_arr(pk, "result", cvector_size(resp->result.pinfos), {
+            cvector_foreach(resp->result.pinfos, pinfo) {
+                pack_map(pk, 6, {
+                    pack_kv_u64(pk, "channel_id", (*pinfo)->chan_id);
+                    pack_kv_u64(pk, "id", (*pinfo)->post_id);
+                    pack_kv_bin(pk, "content", (*pinfo)->content, (*pinfo)->len);
+                    pack_kv_u64(pk, "comments", (*pinfo)->cmts);
+                    pack_kv_u64(pk, "likes", (*pinfo)->likes);
+                    pack_kv_u64(pk, "created_at", (*pinfo)->created_at);
+                });
+            }
+        });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_get_liked_posts_req(const GetLikedPostsReq *req)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 4, {
+        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "method", "get_liked_posts");
+        pack_kv_u64(pk, "id", req->tsx_id);
+        pack_kv_map(pk, "params", 5, {
+            pack_kv_str(pk, "access_token", req->params.tk);
+            pack_kv_u64(pk, "by", req->params.qc.by);
+            pack_kv_u64(pk, "upper_bound", req->params.qc.upper);
+            pack_kv_u64(pk, "lower_bound", req->params.qc.lower);
+            pack_kv_u64(pk, "max_count", req->params.qc.maxcnt);
+        });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_get_liked_posts_resp(const GetLikedPostsResp *resp)
 {
     msgpack_sbuffer *buf = msgpack_sbuffer_new();
     msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
