@@ -91,10 +91,14 @@ void on_receiving_message(ElaCarrier *carrier, const char *from,
     FeedsClient *fc = (FeedsClient *)context;
     int (*unmarshal)(void **, ErrResp **) = fc->unmarshal;
     Notif *notif;
+    uint64_t id;
     int rc;
 
-    rc = rpc_unmarshal_notif(msg, len, &notif);
-    if (!rc) {
+    rc = rpc_unmarshal_notif_or_resp_id(msg, len, &notif, &id);
+    if (rc < 0)
+        return;
+
+    if (notif) {
         if (!strcmp(notif->method, "new_post")) {
             NewPostNotif *n = (NewPostNotif *)notif;
             console("New post:");
@@ -127,8 +131,7 @@ void on_receiving_message(ElaCarrier *carrier, const char *from,
 
     pthread_mutex_lock(&fc->lock);
     if (fc->waiting_response) {
-        uint64_t id;
-        if (!rpc_unmarshal_resp_id(msg, len, &id) && !unmarshal(&fc->resp, &fc->err))
+        if (!unmarshal(&fc->resp, &fc->err))
             pthread_cond_signal(&fc->cond);
     }
     pthread_mutex_unlock(&fc->lock);

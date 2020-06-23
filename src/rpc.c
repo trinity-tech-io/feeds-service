@@ -1348,9 +1348,10 @@ static struct {
     {"new_likes"  , unmarshal_new_likes_notif},
 };
 
-int rpc_unmarshal_notif(const void *rpc, size_t len, Notif **notif)
+int rpc_unmarshal_notif_or_resp_id(const void *rpc, size_t len, Notif **notif, uint64_t *resp_id)
 {
     const msgpack_object *jsonrpc;
+    const msgpack_object *tsx_id;
     const msgpack_object *method;
     char method_str[1024];
     msgpack_object obj;
@@ -1371,15 +1372,21 @@ int rpc_unmarshal_notif(const void *rpc, size_t len, Notif **notif)
 
     map_iter_kvs(&obj, {
         jsonrpc = map_val_str("jsonrpc");
+        tsx_id  = map_val_u64("id");
         method  = map_val_str("method");
     });
 
     if (!jsonrpc || jsonrpc->str_sz != strlen("2.0") ||
         memcmp(jsonrpc->str_val, "2.0", jsonrpc->str_sz) ||
-        !method || !method->str_sz) {
-        vlogE("No jsonrpc/method field.");
+        !!tsx_id + !!method != 1) {
         msgpack_unpacked_destroy(&msgpack);
         return -1;
+    }
+
+    if (tsx_id) {
+        *notif = NULL;
+        *resp_id = tsx_id->u64_val;
+        return 0;
     }
 
     memset(method_str, 0, sizeof(method_str));
@@ -1396,40 +1403,6 @@ int rpc_unmarshal_notif(const void *rpc, size_t len, Notif **notif)
     vlogE("Not a valid method.");
     msgpack_unpacked_destroy(&msgpack);
     return -1;
-}
-
-int rpc_unmarshal_resp_id(const void *rpc, size_t len, uint64_t *id)
-{
-    const msgpack_object *jsonrpc;
-    const msgpack_object *tsx_id;
-    msgpack_object obj;
-
-    msgpack_unpacked_init(&msgpack);
-    if (msgpack_unpack_next(&msgpack, rpc, len, NULL) != MSGPACK_UNPACK_SUCCESS) {
-        vlogE("Decoding msgpack failed.");
-        return -1;
-    }
-
-    obj = msgpack.data;
-    if (obj.type != MSGPACK_OBJECT_MAP) {
-        vlogE("Not a msgpack map.");
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    map_iter_kvs(&obj, {
-        jsonrpc = map_val_str("jsonrpc");
-        tsx_id = map_val_u64("id");
-    });
-
-    if (!jsonrpc || jsonrpc->str_sz != strlen("2.0") ||
-        memcmp(jsonrpc->str_val, "2.0", jsonrpc->str_sz) || !tsx_id ) {
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    *id = tsx_id->u64_val;
-    return 0;
 }
 
 static

@@ -377,8 +377,7 @@ typedef struct {
 } Marshalled;
 
 int rpc_unmarshal_req(const void *rpc, size_t len, Req **req);
-int rpc_unmarshal_notif(const void *rpc, size_t len, Notif **notif);
-int rpc_unmarshal_resp_id(const void *rpc, size_t len, uint64_t *id);
+int rpc_unmarshal_notif_or_resp_id(const void *rpc, size_t len, Notif **notif, uint64_t *id);
 int rpc_unmarshal_decl_owner_resp(DeclOwnerResp **resp, ErrResp **err);
 int rpc_unmarshal_imp_did_resp(ImpDIDResp **resp, ErrResp **err);
 int rpc_unmarshal_iss_vc_resp(IssVCResp **resp, ErrResp **err);
