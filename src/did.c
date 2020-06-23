@@ -277,8 +277,10 @@ int start_binding_svc(FeedsConfig *fc)
     int rc;
 
     http = sb_new_server(&opts);
-    if (!http)
+    if (!http) {
+        vlogE("Creating http server instance failed.");
         return -1;
+    }
 
     http_is_running = true;
     rc = pthread_create(&tid, NULL, http_server_routine, http);
@@ -424,7 +426,7 @@ int did_init(FeedsConfig *cfg)
     }
 
     state_set(OWNER_DECLED);
-    vlogI("Owner already declared.");
+    vlogI("Owner declared: [%s]", feeds_owner_info.did);
 
     if (!DIDStore_ContainsPrivateIdentity(feeds_didstore)) {
         rc = start_binding_svc(cfg);
@@ -442,7 +444,7 @@ int did_init(FeedsConfig *cfg)
     feeeds_auth_key_url = DIDDocument_GetDefaultPublicKey(feeds_doc);
 
     state_set(DID_IMPED);
-    vlogI("DID already imported.");
+    vlogI("DID imported: [%s]", feeds_did_str);
 
     vc_url = DIDURL_NewByDid(feeds_did, VC_FRAG);
     if (!vc_url) {
@@ -457,7 +459,7 @@ int did_init(FeedsConfig *cfg)
     }
 
     state_set(VC_ISSED);
-    vlogI("Credential already issued.");
+    vlogI("Credential issued.");
 
     rc = start_binding_svc(cfg);
     goto finally;
@@ -508,6 +510,10 @@ void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base)
         .email = "NA"
     };
 
+    vlogI("Received declare_owner request from [%s].", from);
+    vlogD("  nonce: %s", req->params.nonce);
+    vlogD("  owner_did: %s", req->params.owner_did);
+
     if (!state_is_set(OWNER_DECLED)) {
         if (oinfo_init(&ui) < 0) {
             ErrResp resp = {
@@ -540,6 +546,8 @@ void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base)
                 }
             };
             resp_marshal = rpc_marshal_decl_owner_resp(&resp);
+            vlogI("Sending declare_owner response.");
+            vlogD("  phase: %s", resp.result.phase);
         }
     } else if (strcmp(req->params.owner_did, feeds_owner_info.did)) {
         vlogE("Owner mismatch.");
@@ -558,6 +566,7 @@ void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_decl_owner_resp(&resp);
+        vlogD("  phase: %s", resp.result.phase);
     } else if (!state_is_set(VC_ISSED)) {
         DeclOwnerResp resp = {
             .tsx_id = req->tsx_id,
@@ -568,6 +577,10 @@ void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_decl_owner_resp(&resp);
+        vlogI("Sending declare_owner response.");
+        vlogD("  phase: %s", resp.result.phase);
+        vlogD("  did: %s", resp.result.did);
+        vlogD("  transaction_payload: %s", resp.result.tsx_payload);
         clear_tsx_payload();
     } else {
         DeclOwnerResp resp = {
@@ -579,6 +592,8 @@ void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_decl_owner_resp(&resp);
+        vlogI("Sending declare_owner response.");
+        vlogD("  phase: %s", resp.result.phase);
     }
 
 finally:
@@ -592,9 +607,13 @@ void hdl_imp_did_req(ElaCarrier *c, const char *from, Req *base)
 {
     ImpDIDReq *req = (ImpDIDReq *)base;
     Marshalled *resp_marshal = NULL;
-    char did[ELA_MAX_DID_LEN];
     char *mnemo_gen = NULL;
     int rc;
+
+    vlogI("Received import_did request from [%s].", from);
+    vlogD("  mnemonic: %s", req->params.mnemo ? req->params.mnemo : "nil");
+    vlogD("  passphrase: %s", req->params.passphrase ? req->params.passphrase : "nil");
+    vlogD("  index: %" PRIu64, req->params.idx);
 
     if (!state_is_equal(OWNER_DECLED)) {
         vlogE("Importing DID in a wrong state.");
@@ -643,7 +662,7 @@ void hdl_imp_did_req(ElaCarrier *c, const char *from, Req *base)
     DID_ToString(feeds_did, feeds_did_str, sizeof(feeds_did_str));
     feeeds_auth_key_url = DIDDocument_GetDefaultPublicKey(feeds_doc);
 
-    vlogI("DID imported: [%s].", DID_ToString(feeds_did, did, sizeof(did)));
+    vlogI("DID imported: [%s].", feeds_did_str);
     state_set(DID_IMPED);
 
     {
@@ -655,6 +674,9 @@ void hdl_imp_did_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_imp_did_resp(&resp);
+        vlogI("Sending import_did response.");
+        vlogD("  did: %s", resp.result.did);
+        vlogD("  transaction_payload: %s", resp.result.tsx_payload);
         clear_tsx_payload();
     }
 
@@ -674,6 +696,9 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
     char did[ELA_MAX_DID_LEN];
     DIDURL *vc_url = NULL;
     Credential *vc = NULL;
+
+    vlogI("Received issue_credential request from [%s].", from);
+    vlogD("  credential: %s", req->params.vc);
 
     if (!state_is_equal(OWNER_DECLED | DID_IMPED)) {
         vlogE("Issuing credential in a wrong state.");
@@ -763,6 +788,7 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
             .tsx_id = req->tsx_id,
         };
         resp_marshal = rpc_marshal_iss_vc_resp(&resp);
+        vlogI("Sending issue_credential response.");
     }
 
 finally:

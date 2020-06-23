@@ -199,7 +199,9 @@ void notify_of_new_post(const ActiveSuber *as, const PostInfo *pi)
     if (!notif_marshal)
         return;
 
-    vlogI("Sending new post notification.");
+    vlogI("Sending new post notification to [%s].", as->node_id);
+    vlogD("  channel_id: %" PRIu64, pi->chan_id);
+    vlogD("  post_id: %" PRIu64, pi->post_id);
     ela_send_friend_message(carrier, as->node_id, notif_marshal->data, notif_marshal->sz + 1, NULL);
     deref(notif_marshal);
 }
@@ -219,7 +221,11 @@ void notify_of_new_cmt(const ActiveSuber *as, const CmtInfo *ci)
     if (!notif_marshal)
         return;
 
-    vlogI("Sending new comment notification.");
+    vlogI("Sending new comment notification to [%s].", as->node_id);
+    vlogD("  channel_id: %" PRIu64, ci->chan_id);
+    vlogD("  post_id: %" PRIu64, ci->post_id);
+    vlogD("  comment_id: %" PRIu64, ci->cmt_id);
+    vlogD("  refcomment_id: %" PRIu64, ci->reply_to_cmt);
     ela_send_friend_message(carrier, as->node_id, notif_marshal->data, notif_marshal->sz + 1, NULL);
     deref(notif_marshal);
 }
@@ -243,7 +249,10 @@ void notify_of_new_likes(const ActiveSuber *as, uint64_t cid,
     if (!notif_marshal)
         return;
 
-    vlogI("Sending new likes notification.");
+    vlogI("Sending new likes notification to [%s].", as->node_id);
+    vlogD("  channel_id: %" PRIu64, cid);
+    vlogD("  post_id: %" PRIu64, pid);
+    vlogD("  comment_id: %" PRIu64, cmtid);
     ela_send_friend_message(carrier, as->node_id, notif_marshal->data, notif_marshal->sz + 1, NULL);
     deref(notif_marshal);
 }
@@ -390,6 +399,11 @@ void hdl_create_chan_req(ElaCarrier *c, const char *from, Req *base)
     Chan *chan = NULL;
     int rc;
 
+    vlogI("Received create_channel request from [%s].", from);
+    vlogD("  access_token: %s", req->params.tk);
+    vlogD("  name: %s", req->params.name);
+    vlogD("  introduction: %s", req->params.intro);
+
     if (did_is_binding()) {
         vlogE("Feeds is in setup mode.");
         return;
@@ -450,6 +464,7 @@ void hdl_create_chan_req(ElaCarrier *c, const char *from, Req *base)
 
     chan_put(chan);
     ++nxt_chan_id;
+    vlogI("Channel [%" PRIu64 "] created.", ci.chan_id);
 
     {
         CreateChanResp resp = {
@@ -459,6 +474,8 @@ void hdl_create_chan_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_create_chan_resp(&resp);
+        vlogI("Sending create_channel response.");
+        vlogD("  id: %" PRIu64, ci.chan_id);
     }
 
 finally:
@@ -481,6 +498,10 @@ void hdl_pub_post_req(ElaCarrier *c, const char *from, Req *base)
     PostInfo new_post;
     time_t now;
     int rc;
+
+    vlogI("Received publish_post request from [%s].", from);
+    vlogD("  access_token: %s", req->params.tk);
+    vlogD("  channel_id: %" PRIu64, req->params.chan_id);
 
     if (did_is_binding()) {
         vlogE("Feeds is in setup mode.");
@@ -540,6 +561,7 @@ void hdl_pub_post_req(ElaCarrier *c, const char *from, Req *base)
 
     ++chan->info.next_post_id;
     chan->info.upd_at = now;
+    vlogI("Post [%" PRIu64 "] on channel [%" PRIu64 "] created.", new_post.post_id, new_post.chan_id);
 
     {
         PubPostResp resp = {
@@ -549,6 +571,8 @@ void hdl_pub_post_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_pub_post_resp(&resp);
+        vlogI("Sending publish_post response.");
+        vlogD("  id: %" PRIu64, new_post.post_id);
     }
 
     list_foreach(chan->cass, cas)
@@ -574,6 +598,12 @@ void hdl_post_cmt_req(ElaCarrier *c, const char *from, Req *base)
     CmtInfo new_cmt;
     time_t now;
     int rc;
+
+    vlogI("Received create_channel request from [%s].", from);
+    vlogD("  access_token: %s", req->params.tk);
+    vlogD("  channel_id: %" PRIu64, req->params.chan_id);
+    vlogD("  post_id: %" PRIu64, req->params.post_id);
+    vlogD("  comment_id: %" PRIu64, req->params.cmt_id);
 
     if (did_is_binding()) {
         vlogE("Feeds is in setup mode.");
@@ -647,6 +677,8 @@ void hdl_post_cmt_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     chan->info.upd_at = now;
+    vlogI("Comment [%" PRIu64 "] on channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] created.",
+          new_cmt.cmt_id, new_cmt.chan_id, new_cmt.post_id, new_cmt.reply_to_cmt);
 
     {
         PostCmtResp resp = {
@@ -656,6 +688,8 @@ void hdl_post_cmt_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_post_cmt_resp(&resp);
+        vlogI("Sending post_comment response.");
+        vlogD("  id: %" PRIu64, new_cmt.cmt_id);
     }
 
     list_foreach(chan->cass, cas)
@@ -680,6 +714,12 @@ void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base)
     Chan *chan = NULL;
     uint64_t likes;
     int rc;
+
+    vlogI("Received post_like request from [%s].", from);
+    vlogD("  access_token: %s", req->params.tk);
+    vlogD("  channel_id: %" PRIu64, req->params.chan_id);
+    vlogD("  post_id: %" PRIu64, req->params.post_id);
+    vlogD("  comment_id: %" PRIu64, req->params.cmt_id);
 
     if (did_is_binding()) {
         vlogE("Feeds is in setup mode.");
@@ -742,11 +782,15 @@ void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
+    vlogI("Like on channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] created.",
+          req->params.chan_id, req->params.post_id, req->params.cmt_id);
+
     {
         PostLikeResp resp = {
             .tsx_id = req->tsx_id
         };
         resp_marshal = rpc_marshal_post_like_resp(&resp);
+        vlogI("Sending post_like response.");
     }
 
     if (!(likes % 10))
@@ -772,6 +816,13 @@ void hdl_get_my_chans_req(ElaCarrier *c, const char *from, Req *base)
     DBObjIt *it = NULL;
     ChanInfo *cinfo;
     int rc;
+
+    vlogI("Received get_my_channels request from [%s].", from);
+    vlogD("  access_token: %s", req->params.tk);
+    vlogD("  by: %" PRIu64, req->params.qc.by);
+    vlogD("  upper_bound: %" PRIu64, req->params.qc.upper);
+    vlogD("  lower_bound: %" PRIu64, req->params.qc.lower);
+    vlogD("  max_count: %" PRIu64, req->params.qc.maxcnt);
 
     if (did_is_binding()) {
         vlogE("Feeds is in setup mode.");
@@ -810,8 +861,13 @@ void hdl_get_my_chans_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    foreach_db_obj(cinfo)
+    foreach_db_obj(cinfo) {
         cvector_push_back(cinfos, ref(cinfo));
+        vlogD("channel_id: %" PRIu64, cinfo->chan_id);
+        vlogD("name: %s", cinfo->name);
+        vlogD("introduction: %s", cinfo->intro);
+        vlogD("subscribers: %" PRIu64, cinfo->subs);
+    }
     if (rc < 0) {
         vlogE("Iterating owned channels failed");
         ErrResp resp = {
@@ -830,6 +886,7 @@ void hdl_get_my_chans_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_get_my_chans_resp(&resp);
+        vlogI("Sending get_my_channels response.");
     }
 
 finally:
@@ -856,6 +913,13 @@ void hdl_get_my_chans_meta_req(ElaCarrier *c, const char *from, Req *base)
     DBObjIt *it = NULL;
     ChanInfo *cinfo;
     int rc;
+
+    vlogI("Received get_my_channels_metadata request from [%s].", from);
+    vlogD("  access_token: %s", req->params.tk);
+    vlogD("  by: %" PRIu64, req->params.qc.by);
+    vlogD("  upper_bound: %" PRIu64, req->params.qc.upper);
+    vlogD("  lower_bound: %" PRIu64, req->params.qc.lower);
+    vlogD("  max_count: %" PRIu64, req->params.qc.maxcnt);
 
     if (did_is_binding()) {
         vlogE("Feeds is in setup mode.");
@@ -894,8 +958,11 @@ void hdl_get_my_chans_meta_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    foreach_db_obj(cinfo)
+    foreach_db_obj(cinfo) {
         cvector_push_back(cinfos, ref(cinfo));
+        vlogD("channel_id: %" PRIu64, cinfo->chan_id);
+        vlogD("subscribers: %" PRIu64, cinfo->subs);
+    }
     if (rc < 0) {
         vlogE("Iterating owned channels metadata failed");
         ErrResp resp = {
@@ -914,6 +981,7 @@ void hdl_get_my_chans_meta_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_get_my_chans_meta_resp(&resp);
+        vlogI("Sending get_my_channels_metadata response.");
     }
 
 finally:
@@ -940,6 +1008,13 @@ void hdl_get_chans_req(ElaCarrier *c, const char *from, Req *base)
     DBObjIt *it = NULL;
     ChanInfo *cinfo;
     int rc;
+
+    vlogI("Received get_channels request from [%s].", from);
+    vlogD("  access_token: %s", req->params.tk);
+    vlogD("  by: %" PRIu64, req->params.qc.by);
+    vlogD("  upper_bound: %" PRIu64, req->params.qc.upper);
+    vlogD("  lower_bound: %" PRIu64, req->params.qc.lower);
+    vlogD("  max_count: %" PRIu64, req->params.qc.maxcnt);
 
     if (did_is_binding()) {
         vlogE("Feeds is in setup mode.");
@@ -968,8 +1043,16 @@ void hdl_get_chans_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    foreach_db_obj(cinfo)
+    foreach_db_obj(cinfo) {
         cvector_push_back(cinfos, ref(cinfo));
+        vlogD("channel_id: %" PRIu64, cinfo->chan_id);
+        vlogD("name: %s", cinfo->name);
+        vlogD("introduction: %s", cinfo->intro);
+        vlogD("owner_name: %s", cinfo->owner->name);
+        vlogD("owner_did: %s", cinfo->owner->did);
+        vlogD("subscribers: %" PRIu64, cinfo->subs);
+        vlogD("last_update: %" PRIu64, cinfo->upd_at);
+    }
     if (rc < 0) {
         vlogE("Iterating channels failed.");
         ErrResp resp = {
@@ -988,6 +1071,7 @@ void hdl_get_chans_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_get_chans_resp(&resp);
+        vlogI("Sending get_channels response.");
     }
 
 finally:
@@ -1012,6 +1096,10 @@ void hdl_get_chan_dtl_req(ElaCarrier *c, const char *from, Req *base)
     UserInfo *uinfo = NULL;
     Chan *chan = NULL;
     int rc;
+
+    vlogI("Received get_channel_detail request from [%s].", from);
+    vlogD("  access_token: %s", req->params.tk);
+    vlogD("  id: %" PRIu64, req->params.id);
 
     if (did_is_binding()) {
         vlogE("Feeds is in setup mode.");
@@ -1047,6 +1135,14 @@ void hdl_get_chan_dtl_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_get_chan_dtl_resp(&resp);
+        vlogI("Sending get_channel_detail response.");
+        vlogD("  channel_id: %" PRIu64, chan->info.chan_id);
+        vlogD("  name: %s", chan->info.name);
+        vlogD("  introduction: %s", chan->info.intro);
+        vlogD("  owner_name: %s", chan->info.owner->name);
+        vlogD("  owner_did: %s", chan->info.owner->did);
+        vlogD("  subscribers: %" PRIu64, chan->info.subs);
+        vlogD("  last_update: %" PRIu64, chan->info.upd_at);
     }
 
 finally:
@@ -1067,6 +1163,13 @@ void hdl_get_sub_chans_req(ElaCarrier *c, const char *from, Req *base)
     DBObjIt *it = NULL;
     ChanInfo *cinfo;
     int rc;
+
+    vlogI("Received get_subscribed_channels request from [%s].", from);
+    vlogD("  access_token: %s", req->params.tk);
+    vlogD("  by: %" PRIu64, req->params.qc.by);
+    vlogD("  upper_bound: %" PRIu64, req->params.qc.upper);
+    vlogD("  lower_bound: %" PRIu64, req->params.qc.lower);
+    vlogD("  max_count: %" PRIu64, req->params.qc.maxcnt);
 
     if (did_is_binding()) {
         vlogE("Feeds is in setup mode.");
@@ -1095,8 +1198,16 @@ void hdl_get_sub_chans_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    foreach_db_obj(cinfo)
+    foreach_db_obj(cinfo) {
         cvector_push_back(cinfos, ref(cinfo));
+        vlogD("  channel_id: %" PRIu64, cinfo->chan_id);
+        vlogD("  name: %s", cinfo->name);
+        vlogD("  introduction: %s", cinfo->intro);
+        vlogD("  owner_name: %s", cinfo->owner->name);
+        vlogD("  owner_did: %s", cinfo->owner->did);
+        vlogD("  subscribers: %" PRIu64, cinfo->subs);
+        vlogD("  last_update: %" PRIu64, cinfo->upd_at);
+    }
     if (rc < 0) {
         vlogE("Iterating subscribed channels failed.");
         ErrResp resp = {
@@ -1115,6 +1226,7 @@ void hdl_get_sub_chans_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_get_sub_chans_resp(&resp);
+        vlogI("Sending get_subscribed_channels response.");
     }
 
 finally:
@@ -1141,6 +1253,14 @@ void hdl_get_posts_req(ElaCarrier *c, const char *from, Req *base)
     DBObjIt *it = NULL;
     PostInfo *pinfo;
     int rc;
+
+    vlogI("Received get_posts request from [%s].", from);
+    vlogD("  access_token: %s", req->params.tk);
+    vlogD("  channel_id: %" PRIu64, req->params.chan_id);
+    vlogD("  by: %" PRIu64, req->params.qc.by);
+    vlogD("  upper_bound: %" PRIu64, req->params.qc.upper);
+    vlogD("  lower_bound: %" PRIu64, req->params.qc.lower);
+    vlogD("  max_count: %" PRIu64, req->params.qc.maxcnt);
 
     if (did_is_binding()) {
         vlogE("Feeds is in setup mode.");
@@ -1179,8 +1299,14 @@ void hdl_get_posts_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    foreach_db_obj(pinfo)
+    foreach_db_obj(pinfo) {
         cvector_push_back(pinfos, ref(pinfo));
+        vlogD("channel_id: %" PRIu64, pinfo->chan_id);
+        vlogD("post_id: %" PRIu64, pinfo->post_id);
+        vlogD("comments: %" PRIu64, pinfo->cmts);
+        vlogD("likes: %" PRIu64, pinfo->likes);
+        vlogD("created_at: %" PRIu64, pinfo->created_at);
+    }
     if (rc < 0) {
         vlogE("Iterating posts failed.");
         ErrResp resp = {
@@ -1199,6 +1325,7 @@ void hdl_get_posts_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_get_posts_resp(&resp);
+        vlogI("Sending get_posts response.");
     }
 
 finally:
@@ -1226,6 +1353,15 @@ void hdl_get_cmts_req(ElaCarrier *c, const char *from, Req *base)
     Chan *chan = NULL;
     CmtInfo *cinfo;
     int rc;
+
+    vlogI("Received get_comments request from [%s].", from);
+    vlogD("  access_token: %s", req->params.tk);
+    vlogD("  channel_id: %" PRIu64, req->params.chan_id);
+    vlogD("  post_id: %" PRIu64, req->params.post_id);
+    vlogD("  by: %" PRIu64, req->params.qc.by);
+    vlogD("  upper_bound: %" PRIu64, req->params.qc.upper);
+    vlogD("  lower_bound: %" PRIu64, req->params.qc.lower);
+    vlogD("  max_count: %" PRIu64, req->params.qc.maxcnt);
 
     if (did_is_binding()) {
         vlogE("Feeds is in setup mode.");
@@ -1274,8 +1410,16 @@ void hdl_get_cmts_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    foreach_db_obj(cinfo)
+    foreach_db_obj(cinfo) {
         cvector_push_back(cinfos, ref(cinfo));
+        vlogD("channel_id: %" PRIu64, cinfo->chan_id);
+        vlogD("post_id: %" PRIu64, cinfo->post_id);
+        vlogD("comment_id: %" PRIu64, cinfo->cmt_id);
+        vlogD("refcomment_id: %" PRIu64, cinfo->reply_to_cmt);
+        vlogD("user_name: %" PRIu64, cinfo->user.name);
+        vlogD("likes: %" PRIu64, cinfo->likes);
+        vlogD("created_at: %" PRIu64, cinfo->created_at);
+    }
     if (rc < 0) {
         vlogE("Iterating comments failed.");
         ErrResp resp = {
@@ -1294,6 +1438,7 @@ void hdl_get_cmts_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_get_cmts_resp(&resp);
+        vlogI("Sending get_comments response.");
     }
 
 finally:
@@ -1318,6 +1463,9 @@ void hdl_get_stats_req(ElaCarrier *c, const char *from, Req *base)
     Marshalled *resp_marshal = NULL;
     UserInfo *uinfo = NULL;
     int rc;
+
+    vlogI("Received get_statistics request from [%s].", from);
+    vlogD("  access_token: %s", req->params.tk);
 
     if (did_is_binding()) {
         vlogE("Feeds is in setup mode.");
@@ -1344,8 +1492,10 @@ void hdl_get_stats_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_get_stats_resp(&resp);
+        vlogI("Sending get_statistics response.");
+        vlogD("  did: %s", feeds_owner_info.did);
+        vlogD("  connecting_clients: %zu", connecting_clients);
     }
-
 
 finally:
     if (resp_marshal) {
@@ -1364,6 +1514,10 @@ void hdl_sub_chan_req(ElaCarrier *c, const char *from, Req *base)
     UserInfo *uinfo = NULL;
     Chan *chan = NULL;
     int rc;
+
+    vlogI("Received subscribe_channel request from [%s].", from);
+    vlogD("  access_token: %s", req->params.tk);
+    vlogD("  channel_id: %" PRIu64, req->params.id);
 
     if (did_is_binding()) {
         vlogE("Feeds is in setup mode.");
@@ -1431,12 +1585,14 @@ void hdl_sub_chan_req(ElaCarrier *c, const char *from, Req *base)
         cas_put(cas);
 
     ++chan->info.subs;
+    vlogI("[%s] subscribed to channel [%" PRIu64 "]", uinfo->did, req->params.id);
 
     {
         SubChanResp resp = {
             .tsx_id = req->tsx_id,
         };
         resp_marshal = rpc_marshal_sub_chan_resp(&resp);
+        vlogD("Sending subscribe_channel response.");
     }
 
 finally:
@@ -1457,6 +1613,10 @@ void hdl_unsub_chan_req(ElaCarrier *c, const char *from, Req *base)
     UserInfo *uinfo = NULL;
     Chan *chan = NULL;
     int rc;
+
+    vlogI("Received unsubscribe_channel request from [%s].", from);
+    vlogD("  access_token: %s", req->params.tk);
+    vlogD("  channel_id%" PRIu64, req->params.id);
 
     if (did_is_binding()) {
         vlogE("Feeds is in setup mode.");
@@ -1508,12 +1668,14 @@ void hdl_unsub_chan_req(ElaCarrier *c, const char *from, Req *base)
 
     deref(cas_remove(from, chan));
     --chan->info.subs;
+    vlogI("[%s] unsubscribed channel [%" PRIu64 "]", uinfo->did, req->params.id);
 
     {
         UnsubChanResp resp = {
             .tsx_id = req->tsx_id,
         };
         resp_marshal = rpc_marshal_unsub_chan_resp(&resp);
+        vlogI("Sending unsubscribe_channel response.");
     }
 
 finally:
@@ -1542,6 +1704,9 @@ void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base)
         .maxcnt = 0
     };
     int rc;
+
+    vlogI("Received enable_notification request from [%s].", from);
+    vlogD("  access_token: %s", req->params.tk);
 
     if (did_is_binding()) {
         vlogE("Feeds is in setup mode.");
@@ -1595,6 +1760,7 @@ void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base)
     foreach_db_obj(cinfo) {
         Chan *chan = chan_get_by_id(cinfo->chan_id);
         ChanActiveSuber *cas = cas_create(as, chan);
+        vlogD("Enabling notification of channel [%" PRIu64 "] for [%s]", chan->info.chan_id, uinfo->did);
         deref(chan);
         if (!cas) {
             vlogE("Creating channel active subscriber failed.");
@@ -1627,6 +1793,7 @@ void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base)
             .tsx_id = req->tsx_id,
         };
         resp_marshal = rpc_marshal_enbl_notif_resp(&resp);
+        vlogI("Sending enable_notification response.");
     }
 
 finally:

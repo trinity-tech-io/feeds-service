@@ -62,7 +62,6 @@ function(export_shared_library MODULE_NAME)
         "${MODULE_NAME}*"
         "${CMAKE_SHARED_LIBRARY_SUFFIX}*")
 
-
     install(CODE
         "file(GLOB SHARED_LIBRARY_FILES \"${SHARED_LIBRARY_PATTERN}\")
          file(INSTALL \${SHARED_LIBRARY_FILES}

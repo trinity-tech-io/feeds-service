@@ -124,6 +124,10 @@ void hdl_signin_req_chal_req(ElaCarrier *c, const char *from, Req *base)
     char *chal = NULL;
     char *vc = NULL;
 
+    vlogI("Received signin_request_challenge request from [%s].", from);
+    vlogD("  iss: %s", req->params.iss);
+    vlogD("  credential_required: %s", req->params.vc_req ? "true" : "false");
+
     if (did_is_binding()) {
         vlogE("Feeds is in setup mode.");
         return;
@@ -172,6 +176,7 @@ void hdl_signin_req_chal_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     pending_login_put(login);
+    vlogI("User[%s] requests to login[%s]", req->params.iss, login->nonce);
 
     {
         SigninReqChalResp resp = {
@@ -183,7 +188,10 @@ void hdl_signin_req_chal_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_signin_req_chal_resp(&resp);
-        vlogI("User[%s] requests to login[%s]", req->params.iss, login->nonce);
+        vlogI("Sending signin_request_challenge response.");
+        vlogD("  credential_required: %s", resp.result.vc_req ? "true" : "false");
+        vlogD("  jws: %s", resp.result.jws);
+        vlogD("  credential: %s", resp.result.vc ? resp.result.vc : "nil");
     }
 
 finally:
@@ -358,6 +366,10 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
     Credential *vc = NULL;
     int rc;
 
+    vlogI("Received signin_request_challenge request from [%s].", from);
+    vlogD("  jws: %s", req->params.jws);
+    vlogD("  credential: %s", req->params.vc ? req->params.vc : "nil");
+
     if (did_is_binding()) {
         vlogE("Feeds is in setup mode.");
         return;
@@ -438,6 +450,8 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
+    vlogI("User[%s] has logged in", uinfo->did);
+
     {
         SigninConfChalResp resp = {
             .tsx_id = req->tsx_id,
@@ -447,7 +461,9 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_signin_conf_chal_resp(&resp);
-        vlogI("User[%s] has logged in", uinfo->did);
+        vlogI("Sending signin_confirm_challenge response.");
+        vlogD("  access_token: %s", resp.result.tk);
+        vlogD("  exp: %" PRIu64, resp.result.exp);
     }
 
 finally:
