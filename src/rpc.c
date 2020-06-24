@@ -130,7 +130,7 @@ size_t str_reserve_spc(const msgpack_object *str)
 static
 int unmarshal_decl_owner_req(const msgpack_object *req, Req **req_unmarshal)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *tsx_id;
     const msgpack_object *nonce;
@@ -141,7 +141,7 @@ int unmarshal_decl_owner_req(const msgpack_object *req, Req **req_unmarshal)
     assert(req->type == MSGPACK_OBJECT_MAP);
 
     map_iter_kvs(req, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("params"), {
@@ -175,7 +175,7 @@ int unmarshal_decl_owner_req(const msgpack_object *req, Req **req_unmarshal)
 static
 int unmarshal_imp_did_req(const msgpack_object *req, Req **req_unmarshal)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *tsx_id;
     const msgpack_object *mnemo;
@@ -187,7 +187,7 @@ int unmarshal_imp_did_req(const msgpack_object *req, Req **req_unmarshal)
     assert(req->type == MSGPACK_OBJECT_MAP);
 
     map_iter_kvs(req, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("params"), {
@@ -225,7 +225,7 @@ int unmarshal_imp_did_req(const msgpack_object *req, Req **req_unmarshal)
 static
 int unmarshal_iss_vc_req(const msgpack_object *req, Req **req_unmarshal)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *tsx_id;
     const msgpack_object *vc;
@@ -235,7 +235,7 @@ int unmarshal_iss_vc_req(const msgpack_object *req, Req **req_unmarshal)
     assert(req->type == MSGPACK_OBJECT_MAP);
 
     map_iter_kvs(req, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("params"), {
@@ -266,7 +266,7 @@ int unmarshal_iss_vc_req(const msgpack_object *req, Req **req_unmarshal)
 static
 int unmarshal_signin_req_chal_req(const msgpack_object *req, Req **req_unmarshal)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *tsx_id;
     const msgpack_object *iss;
@@ -277,7 +277,7 @@ int unmarshal_signin_req_chal_req(const msgpack_object *req, Req **req_unmarshal
     assert(req->type == MSGPACK_OBJECT_MAP);
 
     map_iter_kvs(req, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("params"), {
@@ -310,7 +310,7 @@ int unmarshal_signin_req_chal_req(const msgpack_object *req, Req **req_unmarshal
 static
 int unmarshal_signin_conf_chal_req(const msgpack_object *req, Req **req_unmarshal)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *tsx_id;
     const msgpack_object *jws;
@@ -321,7 +321,7 @@ int unmarshal_signin_conf_chal_req(const msgpack_object *req, Req **req_unmarsha
     assert(req->type == MSGPACK_OBJECT_MAP);
 
     map_iter_kvs(req, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("params"), {
@@ -356,7 +356,7 @@ int unmarshal_signin_conf_chal_req(const msgpack_object *req, Req **req_unmarsha
 static
 int unmarshal_create_chan_req(const msgpack_object *req, Req **req_unmarshal)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *tsx_id;
     const msgpack_object *tk;
@@ -368,7 +368,7 @@ int unmarshal_create_chan_req(const msgpack_object *req, Req **req_unmarshal)
     assert(req->type == MSGPACK_OBJECT_MAP);
 
     map_iter_kvs(req, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("params"), {
@@ -406,7 +406,7 @@ int unmarshal_create_chan_req(const msgpack_object *req, Req **req_unmarshal)
 static
 int unmarshal_pub_post_req(const msgpack_object *req, Req **req_unmarshal)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *tsx_id;
     const msgpack_object *tk;
@@ -418,7 +418,7 @@ int unmarshal_pub_post_req(const msgpack_object *req, Req **req_unmarshal)
     assert(req->type == MSGPACK_OBJECT_MAP);
 
     map_iter_kvs(req, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("params"), {
@@ -454,7 +454,7 @@ int unmarshal_pub_post_req(const msgpack_object *req, Req **req_unmarshal)
 static
 int unmarshal_post_cmt_req(const msgpack_object *req, Req **req_unmarshal)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *tsx_id;
     const msgpack_object *tk;
@@ -468,7 +468,7 @@ int unmarshal_post_cmt_req(const msgpack_object *req, Req **req_unmarshal)
     assert(req->type == MSGPACK_OBJECT_MAP);
 
     map_iter_kvs(req, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("params"), {
@@ -509,7 +509,7 @@ int unmarshal_post_cmt_req(const msgpack_object *req, Req **req_unmarshal)
 static
 int unmarshal_post_like_req(const msgpack_object *req, Req **req_unmarshal)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *tsx_id;
     const msgpack_object *tk;
@@ -522,7 +522,7 @@ int unmarshal_post_like_req(const msgpack_object *req, Req **req_unmarshal)
     assert(req->type == MSGPACK_OBJECT_MAP);
 
     map_iter_kvs(req, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("params"), {
@@ -559,7 +559,7 @@ int unmarshal_post_like_req(const msgpack_object *req, Req **req_unmarshal)
 static
 int unmarshal_post_unlike_req(const msgpack_object *req, Req **req_unmarshal)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *tsx_id;
     const msgpack_object *tk;
@@ -572,7 +572,7 @@ int unmarshal_post_unlike_req(const msgpack_object *req, Req **req_unmarshal)
     assert(req->type == MSGPACK_OBJECT_MAP);
 
     map_iter_kvs(req, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("params"), {
@@ -609,7 +609,7 @@ int unmarshal_post_unlike_req(const msgpack_object *req, Req **req_unmarshal)
 static
 int unmarshal_get_my_chans_req(const msgpack_object *req, Req **req_unmarshal)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *tsx_id;
     const msgpack_object *tk;
@@ -623,7 +623,7 @@ int unmarshal_get_my_chans_req(const msgpack_object *req, Req **req_unmarshal)
     assert(req->type == MSGPACK_OBJECT_MAP);
 
     map_iter_kvs(req, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("params"), {
@@ -661,7 +661,7 @@ int unmarshal_get_my_chans_req(const msgpack_object *req, Req **req_unmarshal)
 static
 int unmarshal_get_my_chans_meta_req(const msgpack_object *req, Req **req_unmarshal)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *tsx_id;
     const msgpack_object *tk;
@@ -675,7 +675,7 @@ int unmarshal_get_my_chans_meta_req(const msgpack_object *req, Req **req_unmarsh
     assert(req->type == MSGPACK_OBJECT_MAP);
 
     map_iter_kvs(req, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("params"), {
@@ -713,7 +713,7 @@ int unmarshal_get_my_chans_meta_req(const msgpack_object *req, Req **req_unmarsh
 static
 int unmarshal_get_chans_req(const msgpack_object *req, Req **req_unmarshal)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *tsx_id;
     const msgpack_object *tk;
@@ -727,7 +727,7 @@ int unmarshal_get_chans_req(const msgpack_object *req, Req **req_unmarshal)
     assert(req->type == MSGPACK_OBJECT_MAP);
 
     map_iter_kvs(req, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("params"), {
@@ -765,7 +765,7 @@ int unmarshal_get_chans_req(const msgpack_object *req, Req **req_unmarshal)
 static
 int unmarshal_get_chan_dtl_req(const msgpack_object *req, Req **req_unmarshal)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *tsx_id;
     const msgpack_object *tk;
@@ -776,7 +776,7 @@ int unmarshal_get_chan_dtl_req(const msgpack_object *req, Req **req_unmarshal)
     assert(req->type == MSGPACK_OBJECT_MAP);
 
     map_iter_kvs(req, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("params"), {
@@ -808,7 +808,7 @@ int unmarshal_get_chan_dtl_req(const msgpack_object *req, Req **req_unmarshal)
 static
 int unmarshal_get_sub_chans_req(const msgpack_object *req, Req **req_unmarshal)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *tsx_id;
     const msgpack_object *tk;
@@ -822,7 +822,7 @@ int unmarshal_get_sub_chans_req(const msgpack_object *req, Req **req_unmarshal)
     assert(req->type == MSGPACK_OBJECT_MAP);
 
     map_iter_kvs(req, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("params"), {
@@ -860,7 +860,7 @@ int unmarshal_get_sub_chans_req(const msgpack_object *req, Req **req_unmarshal)
 static
 int unmarshal_get_posts_req(const msgpack_object *req, Req **req_unmarshal)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *tsx_id;
     const msgpack_object *tk;
@@ -875,7 +875,7 @@ int unmarshal_get_posts_req(const msgpack_object *req, Req **req_unmarshal)
     assert(req->type == MSGPACK_OBJECT_MAP);
 
     map_iter_kvs(req, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("params"), {
@@ -916,7 +916,7 @@ int unmarshal_get_posts_req(const msgpack_object *req, Req **req_unmarshal)
 static
 int unmarshal_get_liked_posts_req(const msgpack_object *req, Req **req_unmarshal)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *tsx_id;
     const msgpack_object *tk;
@@ -930,7 +930,7 @@ int unmarshal_get_liked_posts_req(const msgpack_object *req, Req **req_unmarshal
     assert(req->type == MSGPACK_OBJECT_MAP);
 
     map_iter_kvs(req, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("params"), {
@@ -969,7 +969,7 @@ int unmarshal_get_liked_posts_req(const msgpack_object *req, Req **req_unmarshal
 static
 int unmarshal_get_cmts_req(const msgpack_object *req, Req **req_unmarshal)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *tsx_id;
     const msgpack_object *tk;
@@ -985,7 +985,7 @@ int unmarshal_get_cmts_req(const msgpack_object *req, Req **req_unmarshal)
     assert(req->type == MSGPACK_OBJECT_MAP);
 
     map_iter_kvs(req, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("params"), {
@@ -1029,7 +1029,7 @@ int unmarshal_get_cmts_req(const msgpack_object *req, Req **req_unmarshal)
 static
 int unmarshal_get_stats_req(const msgpack_object *req, Req **req_unmarshal)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *tsx_id;
     const msgpack_object *tk;
@@ -1039,7 +1039,7 @@ int unmarshal_get_stats_req(const msgpack_object *req, Req **req_unmarshal)
     assert(req->type == MSGPACK_OBJECT_MAP);
 
     map_iter_kvs(req, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("params"), {
@@ -1069,7 +1069,7 @@ int unmarshal_get_stats_req(const msgpack_object *req, Req **req_unmarshal)
 static
 int unmarshal_sub_chan_req(const msgpack_object *req, Req **req_unmarshal)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *tsx_id;
     const msgpack_object *tk;
@@ -1080,7 +1080,7 @@ int unmarshal_sub_chan_req(const msgpack_object *req, Req **req_unmarshal)
     assert(req->type == MSGPACK_OBJECT_MAP);
 
     map_iter_kvs(req, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("params"), {
@@ -1112,7 +1112,7 @@ int unmarshal_sub_chan_req(const msgpack_object *req, Req **req_unmarshal)
 static
 int unmarshal_unsub_chan_req(const msgpack_object *req, Req **req_unmarshal)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *tsx_id;
     const msgpack_object *tk;
@@ -1123,7 +1123,7 @@ int unmarshal_unsub_chan_req(const msgpack_object *req, Req **req_unmarshal)
     assert(req->type == MSGPACK_OBJECT_MAP);
 
     map_iter_kvs(req, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("params"), {
@@ -1155,7 +1155,7 @@ int unmarshal_unsub_chan_req(const msgpack_object *req, Req **req_unmarshal)
 static
 int unmarshal_enbl_notif_req(const msgpack_object *req, Req **req_unmarshal)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *tsx_id;
     const msgpack_object *tk;
@@ -1165,7 +1165,7 @@ int unmarshal_enbl_notif_req(const msgpack_object *req, Req **req_unmarshal)
     assert(req->type == MSGPACK_OBJECT_MAP);
 
     map_iter_kvs(req, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("params"), {
@@ -1223,7 +1223,7 @@ static struct {
 
 int rpc_unmarshal_req(const void *rpc, size_t len, Req **req)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *tsx_id;
     char method_str[1024];
@@ -1244,15 +1244,15 @@ int rpc_unmarshal_req(const void *rpc, size_t len, Req **req)
     }
 
     map_iter_kvs(&obj, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
     });
 
-    if (!jsonrpc || jsonrpc->str_sz != strlen("2.0") ||
-        memcmp(jsonrpc->str_val, "2.0", jsonrpc->str_sz) ||
+    if (!version || version->str_sz != strlen("1.0") ||
+        memcmp(version->str_val, "1.0", version->str_sz) ||
         !method || !method->str_sz || !tsx_id) {
-        vlogE("No jsonrpc/method/id field.");
+        vlogE("No version/method/id field.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
     }
@@ -1281,7 +1281,7 @@ typedef struct {
 static
 int unmarshal_new_post_notif(const msgpack_object *notif, Notif **notif_unmarshal)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *chan_id;
     const msgpack_object *post_id;
@@ -1293,7 +1293,7 @@ int unmarshal_new_post_notif(const msgpack_object *notif, Notif **notif_unmarsha
     assert(notif->type == MSGPACK_OBJECT_MAP);
 
     map_iter_kvs(notif, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         method  = map_val_str("method");
         map_iter_kvs(map_val_map("params"), {
             chan_id = map_val_u64("channel_id");
@@ -1337,7 +1337,7 @@ typedef struct {
 static
 int unmarshal_new_cmt_notif(const msgpack_object *notif, Notif **notif_unmarshal)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *chan_id;
     const msgpack_object *post_id;
@@ -1352,7 +1352,7 @@ int unmarshal_new_cmt_notif(const msgpack_object *notif, Notif **notif_unmarshal
     assert(notif->type == MSGPACK_OBJECT_MAP);
 
     map_iter_kvs(notif, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         method  = map_val_str("method");
         map_iter_kvs(map_val_map("params"), {
             chan_id    = map_val_u64("channel_id");
@@ -1400,7 +1400,7 @@ int unmarshal_new_cmt_notif(const msgpack_object *notif, Notif **notif_unmarshal
 static
 int unmarshal_new_likes_notif(const msgpack_object *notif, Notif **notif_unmarshal)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *chan_id;
     const msgpack_object *post_id;
@@ -1412,7 +1412,7 @@ int unmarshal_new_likes_notif(const msgpack_object *notif, Notif **notif_unmarsh
     assert(notif->type == MSGPACK_OBJECT_MAP);
 
     map_iter_kvs(notif, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         method  = map_val_str("method");
         map_iter_kvs(map_val_map("params"), {
             chan_id = map_val_u64("channel_id");
@@ -1455,7 +1455,7 @@ static struct {
 
 int rpc_unmarshal_notif_or_resp_id(const void *rpc, size_t len, Notif **notif, uint64_t *resp_id)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *tsx_id;
     const msgpack_object *method;
     char method_str[1024];
@@ -1476,13 +1476,13 @@ int rpc_unmarshal_notif_or_resp_id(const void *rpc, size_t len, Notif **notif, u
     }
 
     map_iter_kvs(&obj, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         tsx_id  = map_val_u64("id");
         method  = map_val_str("method");
     });
 
-    if (!jsonrpc || jsonrpc->str_sz != strlen("2.0") ||
-        memcmp(jsonrpc->str_val, "2.0", jsonrpc->str_sz) ||
+    if (!version || version->str_sz != strlen("1.0") ||
+        memcmp(version->str_val, "1.0", version->str_sz) ||
         !!tsx_id + !!method != 1) {
         msgpack_unpacked_destroy(&msgpack);
         return -1;
@@ -1513,13 +1513,13 @@ int rpc_unmarshal_notif_or_resp_id(const void *rpc, size_t len, Notif **notif, u
 static
 int rpc_unmarshal_err_resp(ErrResp **err)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *tsx_id;
     const msgpack_object *code;
     ErrResp *tmp;
 
     map_iter_kvs(&msgpack.data, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("error"), {
             code = map_val_i64("code");
@@ -1542,7 +1542,7 @@ int rpc_unmarshal_err_resp(ErrResp **err)
 
 int rpc_unmarshal_decl_owner_resp(DeclOwnerResp **resp, ErrResp **err)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *tsx_id;
     const msgpack_object *phase;
     const msgpack_object *did;
@@ -1556,7 +1556,7 @@ int rpc_unmarshal_decl_owner_resp(DeclOwnerResp **resp, ErrResp **err)
     }
 
     map_iter_kvs(&msgpack.data, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         tsx_id = map_val_u64("id");
         map_iter_kvs(map_val_map("result"), {
             phase       = map_val_str("phase");
@@ -1599,7 +1599,7 @@ int rpc_unmarshal_decl_owner_resp(DeclOwnerResp **resp, ErrResp **err)
 
 int rpc_unmarshal_imp_did_resp(ImpDIDResp **resp, ErrResp **err)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *tsx_id;
     const msgpack_object *did;
     const msgpack_object *tsx_payload;
@@ -1612,7 +1612,7 @@ int rpc_unmarshal_imp_did_resp(ImpDIDResp **resp, ErrResp **err)
     }
 
     map_iter_kvs(&msgpack.data, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("result"), {
             did         = map_val_str("did");
@@ -1647,7 +1647,7 @@ int rpc_unmarshal_imp_did_resp(ImpDIDResp **resp, ErrResp **err)
 
 int rpc_unmarshal_iss_vc_resp(IssVCResp **resp, ErrResp **err)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *tsx_id;
     IssVCResp *tmp;
 
@@ -1657,7 +1657,7 @@ int rpc_unmarshal_iss_vc_resp(IssVCResp **resp, ErrResp **err)
     }
 
     map_iter_kvs(&msgpack.data, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         tsx_id  = map_val_u64("id");
     });
 
@@ -1677,7 +1677,7 @@ int rpc_unmarshal_iss_vc_resp(IssVCResp **resp, ErrResp **err)
 
 int rpc_unmarshal_signin_req_chal_resp(SigninReqChalResp **resp, ErrResp **err)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *tsx_id;
     const msgpack_object *vc_req;
     const msgpack_object *jws;
@@ -1691,7 +1691,7 @@ int rpc_unmarshal_signin_req_chal_resp(SigninReqChalResp **resp, ErrResp **err)
     }
 
     map_iter_kvs(&msgpack.data, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("result"), {
             vc_req = map_val_bool("credential_required");
@@ -1731,7 +1731,7 @@ int rpc_unmarshal_signin_req_chal_resp(SigninReqChalResp **resp, ErrResp **err)
 
 int rpc_unmarshal_signin_conf_chal_resp(SigninConfChalResp **resp, ErrResp **err)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *tsx_id;
     const msgpack_object *tk;
     const msgpack_object *exp;
@@ -1744,7 +1744,7 @@ int rpc_unmarshal_signin_conf_chal_resp(SigninConfChalResp **resp, ErrResp **err
     }
 
     map_iter_kvs(&msgpack.data, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("result"), {
             tk  = map_val_str("access_token");
@@ -1777,7 +1777,7 @@ int rpc_unmarshal_signin_conf_chal_resp(SigninConfChalResp **resp, ErrResp **err
 
 int rpc_unmarshal_create_chan_resp(CreateChanResp **resp, ErrResp **err)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *tsx_id;
     const msgpack_object *chan_id;
     CreateChanResp *tmp;
@@ -1788,7 +1788,7 @@ int rpc_unmarshal_create_chan_resp(CreateChanResp **resp, ErrResp **err)
     }
 
     map_iter_kvs(&msgpack.data, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("result"), {
             chan_id = map_val_u64("id");
@@ -1818,7 +1818,7 @@ int rpc_unmarshal_create_chan_resp(CreateChanResp **resp, ErrResp **err)
 
 int rpc_unmarshal_pub_post_resp(PubPostResp **resp, ErrResp **err)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *tsx_id;
     const msgpack_object *post_id;
     PubPostResp *tmp;
@@ -1829,7 +1829,7 @@ int rpc_unmarshal_pub_post_resp(PubPostResp **resp, ErrResp **err)
     }
 
     map_iter_kvs(&msgpack.data, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("result"), {
             post_id = map_val_u64("id");
@@ -1859,7 +1859,7 @@ int rpc_unmarshal_pub_post_resp(PubPostResp **resp, ErrResp **err)
 
 int rpc_unmarshal_post_cmt_resp(PostCmtResp **resp, ErrResp **err)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *tsx_id;
     const msgpack_object *cmt_id;
     PostCmtResp *tmp;
@@ -1870,7 +1870,7 @@ int rpc_unmarshal_post_cmt_resp(PostCmtResp **resp, ErrResp **err)
     }
 
     map_iter_kvs(&msgpack.data, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("result"), {
             cmt_id = map_val_u64("id");
@@ -1900,7 +1900,7 @@ int rpc_unmarshal_post_cmt_resp(PostCmtResp **resp, ErrResp **err)
 
 int rpc_unmarshal_post_like_resp(PostLikeResp **resp, ErrResp **err)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *tsx_id;
     const msgpack_object *result;
     PostLikeResp *tmp;
@@ -1911,7 +1911,7 @@ int rpc_unmarshal_post_like_resp(PostLikeResp **resp, ErrResp **err)
     }
 
     map_iter_kvs(&msgpack.data, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         tsx_id  = map_val_u64("id");
         result  = map_val_nil("result");
     });
@@ -1938,7 +1938,7 @@ int rpc_unmarshal_post_like_resp(PostLikeResp **resp, ErrResp **err)
 
 int rpc_unmarshal_post_unlike_resp(PostUnlikeResp **resp, ErrResp **err)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *tsx_id;
     const msgpack_object *result;
     PostUnlikeResp *tmp;
@@ -1949,7 +1949,7 @@ int rpc_unmarshal_post_unlike_resp(PostUnlikeResp **resp, ErrResp **err)
     }
 
     map_iter_kvs(&msgpack.data, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         tsx_id  = map_val_u64("id");
         result  = map_val_nil("result");
     });
@@ -1987,7 +1987,7 @@ void get_my_chans_resp_dtor(void *obj)
 
 int rpc_unmarshal_get_my_chans_resp(GetMyChansResp **resp, ErrResp **err)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *tsx_id;
     const msgpack_object *result;
     GetMyChansResp *tmp;
@@ -1999,7 +1999,7 @@ int rpc_unmarshal_get_my_chans_resp(GetMyChansResp **resp, ErrResp **err)
     }
 
     map_iter_kvs(&msgpack.data, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         tsx_id  = map_val_u64("id");
         result  = map_val_arr("result");
     });
@@ -2076,7 +2076,7 @@ void get_my_chans_meta_resp_dtor(void *obj)
 
 int rpc_unmarshal_get_my_chans_meta_resp(GetMyChansMetaResp **resp, ErrResp **err)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *tsx_id;
     const msgpack_object *result;
     GetMyChansMetaResp *tmp;
@@ -2088,7 +2088,7 @@ int rpc_unmarshal_get_my_chans_meta_resp(GetMyChansMetaResp **resp, ErrResp **er
     }
 
     map_iter_kvs(&msgpack.data, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         tsx_id  = map_val_u64("id");
         result  = map_val_arr("result");
     });
@@ -2163,7 +2163,7 @@ void get_chans_resp_dtor(void *obj)
 
 int rpc_unmarshal_get_chans_resp(GetChansResp **resp, ErrResp **err)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *tsx_id;
     const msgpack_object *result;
     GetChansResp *tmp;
@@ -2175,7 +2175,7 @@ int rpc_unmarshal_get_chans_resp(GetChansResp **resp, ErrResp **err)
     }
 
     map_iter_kvs(&msgpack.data, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         tsx_id  = map_val_u64("id");
         result  = map_val_arr("result");
     });
@@ -2262,7 +2262,7 @@ typedef struct {
 
 int rpc_unmarshal_get_chan_dtl_resp(GetChanDtlResp **resp, ErrResp **err)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *tsx_id;
     const msgpack_object *chan_id;
     const msgpack_object *name;
@@ -2280,7 +2280,7 @@ int rpc_unmarshal_get_chan_dtl_resp(GetChanDtlResp **resp, ErrResp **err)
     }
 
     map_iter_kvs(&msgpack.data, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("result"), {
             chan_id    = map_val_u64("id");
@@ -2345,7 +2345,7 @@ void get_sub_chans_resp_dtor(void *obj)
 
 int rpc_unmarshal_get_sub_chans_resp(GetSubChansResp **resp, ErrResp **err)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *tsx_id;
     const msgpack_object *result;
     GetSubChansResp *tmp;
@@ -2357,7 +2357,7 @@ int rpc_unmarshal_get_sub_chans_resp(GetSubChansResp **resp, ErrResp **err)
     }
 
     map_iter_kvs(&msgpack.data, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         tsx_id  = map_val_u64("id");
         result  = map_val_arr("result");
     });
@@ -2450,7 +2450,7 @@ void get_posts_resp_dtor(void *obj)
 
 int rpc_unmarshal_get_posts_resp(GetPostsResp **resp, ErrResp **err)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *tsx_id;
     const msgpack_object *result;
     GetPostsResp *tmp;
@@ -2462,7 +2462,7 @@ int rpc_unmarshal_get_posts_resp(GetPostsResp **resp, ErrResp **err)
     }
 
     map_iter_kvs(&msgpack.data, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         tsx_id  = map_val_u64("id");
         result  = map_val_arr("result");
     });
@@ -2547,7 +2547,7 @@ void get_liked_posts_resp_dtor(void *obj)
 
 int rpc_unmarshal_get_liked_posts_resp(GetLikedPostsResp **resp, ErrResp **err)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *tsx_id;
     const msgpack_object *result;
     GetLikedPostsResp *tmp;
@@ -2559,7 +2559,7 @@ int rpc_unmarshal_get_liked_posts_resp(GetLikedPostsResp **resp, ErrResp **err)
     }
 
     map_iter_kvs(&msgpack.data, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         tsx_id  = map_val_u64("id");
         result  = map_val_arr("result");
     });
@@ -2644,7 +2644,7 @@ void get_cmts_resp_dtor(void *obj)
 
 int rpc_unmarshal_get_cmts_resp(GetCmtsResp **resp, ErrResp **err)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *tsx_id;
     const msgpack_object *result;
     GetCmtsResp *tmp;
@@ -2656,7 +2656,7 @@ int rpc_unmarshal_get_cmts_resp(GetCmtsResp **resp, ErrResp **err)
     }
 
     map_iter_kvs(&msgpack.data, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         tsx_id  = map_val_u64("id");
         result  = map_val_arr("result");
     });
@@ -2740,7 +2740,7 @@ int rpc_unmarshal_get_cmts_resp(GetCmtsResp **resp, ErrResp **err)
 
 int rpc_unmarshal_get_stats_resp(GetStatsResp **resp, ErrResp **err)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *tsx_id;
     const msgpack_object *did;
     const msgpack_object *conn_cs;
@@ -2753,7 +2753,7 @@ int rpc_unmarshal_get_stats_resp(GetStatsResp **resp, ErrResp **err)
     }
 
     map_iter_kvs(&msgpack.data, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("result"), {
             did     = map_val_str("did");
@@ -2786,7 +2786,7 @@ int rpc_unmarshal_get_stats_resp(GetStatsResp **resp, ErrResp **err)
 
 int rpc_unmarshal_sub_chan_resp(SubChanResp **resp, ErrResp **err)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *tsx_id;
     const msgpack_object *result;
     SubChanResp *tmp;
@@ -2797,7 +2797,7 @@ int rpc_unmarshal_sub_chan_resp(SubChanResp **resp, ErrResp **err)
     }
 
     map_iter_kvs(&msgpack.data, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         tsx_id  = map_val_u64("id");
         result  = map_val_nil("result");
     });
@@ -2824,7 +2824,7 @@ int rpc_unmarshal_sub_chan_resp(SubChanResp **resp, ErrResp **err)
 
 int rpc_unmarshal_unsub_chan_resp(UnsubChanResp **resp, ErrResp **err)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *tsx_id;
     const msgpack_object *result;
     UnsubChanResp *tmp;
@@ -2835,7 +2835,7 @@ int rpc_unmarshal_unsub_chan_resp(UnsubChanResp **resp, ErrResp **err)
     }
 
     map_iter_kvs(&msgpack.data, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         tsx_id  = map_val_u64("id");
         result  = map_val_nil("result");
     });
@@ -2862,7 +2862,7 @@ int rpc_unmarshal_unsub_chan_resp(UnsubChanResp **resp, ErrResp **err)
 
 int rpc_unmarshal_enbl_notif_resp(EnblNotifResp **resp, ErrResp **err)
 {
-    const msgpack_object *jsonrpc;
+    const msgpack_object *version;
     const msgpack_object *tsx_id;
     const msgpack_object *result;
     EnblNotifResp *tmp;
@@ -2873,7 +2873,7 @@ int rpc_unmarshal_enbl_notif_resp(EnblNotifResp **resp, ErrResp **err)
     }
 
     map_iter_kvs(&msgpack.data, {
-        jsonrpc = map_val_str("jsonrpc");
+        version = map_val_str("version");
         tsx_id  = map_val_u64("id");
         result  = map_val_nil("result");
     });
@@ -3022,7 +3022,7 @@ Marshalled *rpc_marshal_decl_owner_req(const DeclOwnerReq *req)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 4, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "declare_owner");
         pack_kv_u64(pk, "id", req->tsx_id);
         pack_kv_map(pk, "params", 2, {
@@ -3047,7 +3047,7 @@ Marshalled *rpc_marshal_decl_owner_resp(const DeclOwnerResp *resp)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_map(pk, "result", resp->result.did ? 3 : 1, {
             pack_kv_str(pk, "phase", resp->result.phase);
@@ -3073,7 +3073,7 @@ Marshalled *rpc_marshal_imp_did_req(const ImpDIDReq *req)
     int params_cnt = !!req->params.mnemo + !!req->params.passphrase + !!req->params.idx;
 
     pack_map(pk, params_cnt ? 4 : 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "import_did");
         pack_kv_u64(pk, "id", req->tsx_id);
         pack_kv_map(pk, "params", params_cnt, {
@@ -3099,7 +3099,7 @@ Marshalled *rpc_marshal_imp_did_resp(const ImpDIDResp *resp)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_map(pk, "result", 2, {
             pack_kv_str(pk, "did", resp->result.did);
@@ -3123,7 +3123,7 @@ Marshalled *rpc_marshal_iss_vc_req(const IssVCReq *req)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 4, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "issue_credential");
         pack_kv_u64(pk, "id", req->tsx_id);
         pack_kv_map(pk, "params", 1, {
@@ -3147,7 +3147,7 @@ Marshalled *rpc_marshal_iss_vc_resp(const IssVCResp *resp)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_nil(pk, "result");
     });
@@ -3168,7 +3168,7 @@ Marshalled *rpc_marshal_signin_req_chal_req(const SigninReqChalReq *req)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 4, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "signin_request_challenge");
         pack_kv_u64(pk, "id", req->tsx_id);
         pack_kv_map(pk, "params", 2, {
@@ -3193,7 +3193,7 @@ Marshalled *rpc_marshal_signin_req_chal_resp(const SigninReqChalResp *resp)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_map(pk, "result", resp->result.vc ? 3 : 2, {
             pack_kv_bool(pk, "credential_required", resp->result.vc_req);
@@ -3218,7 +3218,7 @@ Marshalled *rpc_marshal_signin_conf_chal_req(const SigninConfChalReq *req)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 4, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "signin_confirm_challenge");
         pack_kv_u64(pk, "id", req->tsx_id);
         pack_kv_map(pk, "params", req->params.vc ? 2 : 1, {
@@ -3243,7 +3243,7 @@ Marshalled *rpc_marshal_signin_conf_chal_resp(const SigninConfChalResp *resp)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_map(pk, "result", 2, {
             pack_kv_str(pk, "access_token", resp->result.tk);
@@ -3267,7 +3267,7 @@ Marshalled *rpc_marshal_new_post_notif(const NewPostNotif *notif)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "new_post");
         pack_kv_map(pk, "params", 4, {
             pack_kv_u64(pk, "channel_id", notif->params.pinfo->chan_id);
@@ -3293,7 +3293,7 @@ Marshalled *rpc_marshal_new_cmt_notif(const NewCmtNotif *notif)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "new_comment");
         pack_kv_map(pk, "params", 7, {
             pack_kv_u64(pk, "channel_id", notif->params.cinfo->chan_id);
@@ -3322,7 +3322,7 @@ Marshalled *rpc_marshal_new_likes_notif(const NewLikesNotif *notif)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "new_likes");
         pack_kv_map(pk, "params", 4, {
             pack_kv_u64(pk, "channel_id", notif->params.chan_id);
@@ -3348,7 +3348,7 @@ Marshalled *rpc_marshal_err_resp(const ErrResp *resp)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_map(pk, "error", 2, {
             pack_kv_i64(pk, "code", resp->ec);
@@ -3372,7 +3372,7 @@ Marshalled *rpc_marshal_create_chan_req(const CreateChanReq *req)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 4, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "create_channel");
         pack_kv_u64(pk, "id", req->tsx_id);
         pack_kv_map(pk, "params", 3, {
@@ -3398,7 +3398,7 @@ Marshalled *rpc_marshal_create_chan_resp(const CreateChanResp *resp)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_map(pk, "result", 1, {
             pack_kv_u64(pk, "id", resp->result.id);
@@ -3421,7 +3421,7 @@ Marshalled *rpc_marshal_pub_post_req(const PubPostReq *req)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 4, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "publish_post");
         pack_kv_u64(pk, "id", req->tsx_id);
         pack_kv_map(pk, "params", 3, {
@@ -3447,7 +3447,7 @@ Marshalled *rpc_marshal_pub_post_resp(const PubPostResp *resp)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_map(pk, "result", 1, {
             pack_kv_u64(pk, "id", resp->result.id);
@@ -3470,7 +3470,7 @@ Marshalled *rpc_marshal_post_cmt_req(const PostCmtReq *req)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 4, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "post_comment");
         pack_kv_u64(pk, "id", req->tsx_id);
         pack_kv_map(pk, "params", 5, {
@@ -3498,7 +3498,7 @@ Marshalled *rpc_marshal_post_cmt_resp(const PostCmtResp *resp)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_map(pk, "result", 1, {
             pack_kv_u64(pk, "id", resp->result.id);
@@ -3521,7 +3521,7 @@ Marshalled *rpc_marshal_post_like_req(const PostLikeReq *req)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 4, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "post_like");
         pack_kv_u64(pk, "id", req->tsx_id);
         pack_kv_map(pk, "params", 4, {
@@ -3548,7 +3548,7 @@ Marshalled *rpc_marshal_post_like_resp(const PostLikeResp *resp)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_nil(pk, "result");
     });
@@ -3569,7 +3569,7 @@ Marshalled *rpc_marshal_post_unlike_req(const PostUnlikeReq *req)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 4, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "post_unlike");
         pack_kv_u64(pk, "id", req->tsx_id);
         pack_kv_map(pk, "params", 4, {
@@ -3596,7 +3596,7 @@ Marshalled *rpc_marshal_post_unlike_resp(const PostUnlikeResp *resp)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_nil(pk, "result");
     });
@@ -3617,7 +3617,7 @@ Marshalled *rpc_marshal_get_my_chans_req(const GetMyChansReq *req)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 4, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "get_my_channels");
         pack_kv_u64(pk, "id", req->tsx_id);
         pack_kv_map(pk, "params", 5, {
@@ -3646,7 +3646,7 @@ Marshalled *rpc_marshal_get_my_chans_resp(const GetMyChansResp *resp)
     ChanInfo **cinfo;
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_arr(pk, "result", cvector_size(resp->result.cinfos), {
             cvector_foreach(resp->result.cinfos, cinfo) {
@@ -3676,7 +3676,7 @@ Marshalled *rpc_marshal_get_my_chans_meta_req(const GetMyChansMetaReq *req)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 4, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "get_my_channels_metadata");
         pack_kv_u64(pk, "id", req->tsx_id);
         pack_kv_map(pk, "params", 5, {
@@ -3705,7 +3705,7 @@ Marshalled *rpc_marshal_get_my_chans_meta_resp(const GetMyChansMetaResp *resp)
     ChanInfo **cinfo;
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_arr(pk, "result", cvector_size(resp->result.cinfos), {
             cvector_foreach(resp->result.cinfos, cinfo) {
@@ -3733,7 +3733,7 @@ Marshalled *rpc_marshal_get_chans_req(const GetChansReq *req)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 4, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "get_channels");
         pack_kv_u64(pk, "id", req->tsx_id);
         pack_kv_map(pk, "params", 5, {
@@ -3762,7 +3762,7 @@ Marshalled *rpc_marshal_get_chans_resp(const GetChansResp *resp)
     ChanInfo **cinfo;
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_arr(pk, "result", cvector_size(resp->result.cinfos), {
             cvector_foreach(resp->result.cinfos, cinfo) {
@@ -3795,7 +3795,7 @@ Marshalled *rpc_marshal_get_chan_dtl_req(const GetChanDtlReq *req)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 4, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "get_channel_detail");
         pack_kv_u64(pk, "id", req->tsx_id);
         pack_kv_map(pk, "params", 2, {
@@ -3820,7 +3820,7 @@ Marshalled *rpc_marshal_get_chan_dtl_resp(const GetChanDtlResp *resp)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_map(pk, "result", 7, {
             pack_kv_u64(pk, "id", resp->result.cinfo->chan_id);
@@ -3849,7 +3849,7 @@ Marshalled *rpc_marshal_get_sub_chans_req(const GetSubChansReq *req)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 4, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "get_subscribed_channels");
         pack_kv_u64(pk, "id", req->tsx_id);
         pack_kv_map(pk, "params", 5, {
@@ -3878,7 +3878,7 @@ Marshalled *rpc_marshal_get_sub_chans_resp(const GetSubChansResp *resp)
     ChanInfo **cinfo;
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_arr(pk, "result", cvector_size(resp->result.cinfos), {
             cvector_foreach(resp->result.cinfos, cinfo) {
@@ -3911,7 +3911,7 @@ Marshalled *rpc_marshal_get_posts_req(const GetPostsReq *req)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 4, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "get_posts");
         pack_kv_u64(pk, "id", req->tsx_id);
         pack_kv_map(pk, "params", 6, {
@@ -3941,7 +3941,7 @@ Marshalled *rpc_marshal_get_posts_resp(const GetPostsResp *resp)
     PostInfo **pinfo;
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_arr(pk, "result", cvector_size(resp->result.pinfos), {
             cvector_foreach(resp->result.pinfos, pinfo) {
@@ -3973,7 +3973,7 @@ Marshalled *rpc_marshal_get_liked_posts_req(const GetLikedPostsReq *req)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 4, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "get_liked_posts");
         pack_kv_u64(pk, "id", req->tsx_id);
         pack_kv_map(pk, "params", 5, {
@@ -4002,7 +4002,7 @@ Marshalled *rpc_marshal_get_liked_posts_resp(const GetLikedPostsResp *resp)
     PostInfo **pinfo;
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_arr(pk, "result", cvector_size(resp->result.pinfos), {
             cvector_foreach(resp->result.pinfos, pinfo) {
@@ -4034,7 +4034,7 @@ Marshalled *rpc_marshal_get_cmts_req(const GetCmtsReq *req)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 4, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "get_comments");
         pack_kv_u64(pk, "id", req->tsx_id);
         pack_kv_map(pk, "params", 7, {
@@ -4065,7 +4065,7 @@ Marshalled *rpc_marshal_get_cmts_resp(const GetCmtsResp *resp)
     CmtInfo **cinfo;
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_arr(pk, "result", cvector_size(resp->result.cinfos), {
             cvector_foreach(resp->result.cinfos, cinfo) {
@@ -4099,7 +4099,7 @@ Marshalled *rpc_marshal_get_stats_req(const GetStatsReq *req)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 4, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "get_statistics");
         pack_kv_u64(pk, "id", req->tsx_id);
         pack_kv_map(pk, "params", 1, {
@@ -4123,7 +4123,7 @@ Marshalled *rpc_marshal_get_stats_resp(const GetStatsResp *resp)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_map(pk, "result", 2, {
             pack_kv_str(pk, "did", resp->result.did);
@@ -4147,7 +4147,7 @@ Marshalled *rpc_marshal_sub_chan_req(const SubChanReq *req)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 4, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "subscribe_channel");
         pack_kv_u64(pk, "id", req->tsx_id);
         pack_kv_map(pk, "params", 2, {
@@ -4172,7 +4172,7 @@ Marshalled *rpc_marshal_sub_chan_resp(const SubChanResp *resp)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_nil(pk, "result");
     });
@@ -4193,7 +4193,7 @@ Marshalled *rpc_marshal_unsub_chan_req(const UnsubChanReq *req)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 4, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "unsubscribe_channel");
         pack_kv_u64(pk, "id", req->tsx_id);
         pack_kv_map(pk, "params", 2, {
@@ -4218,7 +4218,7 @@ Marshalled *rpc_marshal_unsub_chan_resp(const UnsubChanResp *resp)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_nil(pk, "result");
     });
@@ -4239,7 +4239,7 @@ Marshalled *rpc_marshal_enbl_notif_req(const EnblNotifReq *req)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 4, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "enable_notification");
         pack_kv_u64(pk, "id", req->tsx_id);
         pack_kv_map(pk, "params", 1, {
@@ -4263,7 +4263,7 @@ Marshalled *rpc_marshal_enbl_notif_resp(const EnblNotifResp *resp)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "jsonrpc", "2.0");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_nil(pk, "result");
     });
