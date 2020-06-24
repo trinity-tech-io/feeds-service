@@ -128,8 +128,8 @@ void hdl_signin_req_chal_req(ElaCarrier *c, const char *from, Req *base)
     vlogD("  iss: %s", req->params.iss);
     vlogD("  credential_required: %s", req->params.vc_req ? "true" : "false");
 
-    if (did_is_binding()) {
-        vlogE("Feeds is in setup mode.");
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
         return;
     }
 
@@ -370,8 +370,8 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
     vlogD("  jws: %s", req->params.jws);
     vlogD("  credential: %s", req->params.vc ? req->params.vc : "nil");
 
-    if (did_is_binding()) {
-        vlogE("Feeds is in setup mode.");
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
         return;
     }
 

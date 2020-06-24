@@ -1,4 +1,5 @@
 #include <limits.h>
+#include <unistd.h>
 
 #include <ela_did.h>
 #include <ela_jwt.h>
@@ -29,8 +30,9 @@ static DID *feeds_did;
 static char feeds_did_str[ELA_MAX_DID_LEN];
 static enum {
     OWNER_DECLED = 1,
-    DID_IMPED = 2,
-    VC_ISSED     = 4
+    DID_IMPED    = 2,
+    VC_ISSED     = 4,
+    DID_RESOLVED = 8
 } state;
 static char *payload_buf;
 
@@ -224,7 +226,7 @@ int hdl_http_req(sb_Event *ev)
     if (ev->type != SB_EV_REQUEST)
         return SB_RES_OK;
 
-    if (did_is_binding()) {
+    if (!did_is_ready()) {
         uint8_t nonce[NONCE_BYTES];
 
         crypto_random_nonce(nonce);
@@ -397,6 +399,35 @@ int load_feeds_doc(DID *did, void *context)
     return -1;
 }
 
+static
+void *resolve_did_routine(void *arg)
+{
+    DIDDocument *doc;
+
+    (void)arg;
+
+    while (!(doc = DID_Resolve(feeds_did, false))) ;
+
+    state_set(DID_RESOLVED);
+    vlogI("Feeds DID is resolved, ready to serve.");
+
+    DIDDocument_Destroy(doc);
+    return NULL;
+}
+
+static
+void resolve_did()
+{
+    pthread_t tid;
+    int rc;
+
+    rc = pthread_create(&tid, NULL, resolve_did_routine, NULL);
+    if (rc)
+        return;
+
+    pthread_detach(tid);
+}
+
 int did_init(FeedsConfig *cfg)
 {
     static DIDAdapter adapter = {
@@ -472,6 +503,7 @@ int did_init(FeedsConfig *cfg)
 
     state_set(VC_ISSED);
     vlogI("Credential issued.");
+    resolve_did();
 
     rc = start_binding_svc(cfg);
     goto finally;
@@ -489,9 +521,9 @@ finally:
     return rc;
 }
 
-bool did_is_binding()
+bool did_is_ready()
 {
-    return !state_is_equal(OWNER_DECLED | DID_IMPED | VC_ISSED);
+    return state_is_equal(OWNER_DECLED | DID_IMPED | VC_ISSED | DID_RESOLVED);
 }
 
 static
@@ -794,6 +826,7 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
 
     state_set(VC_ISSED);
     vlogI("Credential issued.");
+    resolve_did();
 
     {
         IssVCResp resp = {

@@ -408,8 +408,8 @@ void hdl_create_chan_req(ElaCarrier *c, const char *from, Req *base)
     vlogD("  name: %s", req->params.name);
     vlogD("  introduction: %s", req->params.intro);
 
-    if (did_is_binding()) {
-        vlogE("Feeds is in setup mode.");
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
         return;
     }
 
@@ -507,8 +507,8 @@ void hdl_pub_post_req(ElaCarrier *c, const char *from, Req *base)
     vlogD("  access_token: %s", req->params.tk);
     vlogD("  channel_id: %" PRIu64, req->params.chan_id);
 
-    if (did_is_binding()) {
-        vlogE("Feeds is in setup mode.");
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
         return;
     }
 
@@ -609,8 +609,8 @@ void hdl_post_cmt_req(ElaCarrier *c, const char *from, Req *base)
     vlogD("  post_id: %" PRIu64, req->params.post_id);
     vlogD("  comment_id: %" PRIu64, req->params.cmt_id);
 
-    if (did_is_binding()) {
-        vlogE("Feeds is in setup mode.");
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
         return;
     }
 
@@ -725,8 +725,8 @@ void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base)
     vlogD("  post_id: %" PRIu64, req->params.post_id);
     vlogD("  comment_id: %" PRIu64, req->params.cmt_id);
 
-    if (did_is_binding()) {
-        vlogE("Feeds is in setup mode.");
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
         return;
     }
 
@@ -815,8 +815,8 @@ void hdl_post_unlike_req(ElaCarrier *c, const char *from, Req *base)
     vlogD("  post_id: %" PRIu64, req->params.post_id);
     vlogD("  comment_id: %" PRIu64, req->params.cmt_id);
 
-    if (did_is_binding()) {
-        vlogE("Feeds is in setup mode.");
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
         return;
     }
 
@@ -902,8 +902,8 @@ void hdl_get_my_chans_req(ElaCarrier *c, const char *from, Req *base)
     vlogD("  lower_bound: %" PRIu64, req->params.qc.lower);
     vlogD("  max_count: %" PRIu64, req->params.qc.maxcnt);
 
-    if (did_is_binding()) {
-        vlogE("Feeds is in setup mode.");
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
         return;
     }
 
@@ -999,8 +999,8 @@ void hdl_get_my_chans_meta_req(ElaCarrier *c, const char *from, Req *base)
     vlogD("  lower_bound: %" PRIu64, req->params.qc.lower);
     vlogD("  max_count: %" PRIu64, req->params.qc.maxcnt);
 
-    if (did_is_binding()) {
-        vlogE("Feeds is in setup mode.");
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
         return;
     }
 
@@ -1094,8 +1094,8 @@ void hdl_get_chans_req(ElaCarrier *c, const char *from, Req *base)
     vlogD("  lower_bound: %" PRIu64, req->params.qc.lower);
     vlogD("  max_count: %" PRIu64, req->params.qc.maxcnt);
 
-    if (did_is_binding()) {
-        vlogE("Feeds is in setup mode.");
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
         return;
     }
 
@@ -1179,8 +1179,8 @@ void hdl_get_chan_dtl_req(ElaCarrier *c, const char *from, Req *base)
     vlogD("  access_token: %s", req->params.tk);
     vlogD("  id: %" PRIu64, req->params.id);
 
-    if (did_is_binding()) {
-        vlogE("Feeds is in setup mode.");
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
         return;
     }
 
@@ -1249,8 +1249,8 @@ void hdl_get_sub_chans_req(ElaCarrier *c, const char *from, Req *base)
     vlogD("  lower_bound: %" PRIu64, req->params.qc.lower);
     vlogD("  max_count: %" PRIu64, req->params.qc.maxcnt);
 
-    if (did_is_binding()) {
-        vlogE("Feeds is in setup mode.");
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
         return;
     }
 
@@ -1340,8 +1340,8 @@ void hdl_get_posts_req(ElaCarrier *c, const char *from, Req *base)
     vlogD("  lower_bound: %" PRIu64, req->params.qc.lower);
     vlogD("  max_count: %" PRIu64, req->params.qc.maxcnt);
 
-    if (did_is_binding()) {
-        vlogE("Feeds is in setup mode.");
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
         return;
     }
 
@@ -1438,8 +1438,8 @@ void hdl_get_liked_posts_req(ElaCarrier *c, const char *from, Req *base)
     vlogD("  lower_bound: %" PRIu64, req->params.qc.lower);
     vlogD("  max_count: %" PRIu64, req->params.qc.maxcnt);
 
-    if (did_is_binding()) {
-        vlogE("Feeds is in setup mode.");
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
         return;
     }
 
@@ -1529,8 +1529,8 @@ void hdl_get_cmts_req(ElaCarrier *c, const char *from, Req *base)
     vlogD("  lower_bound: %" PRIu64, req->params.qc.lower);
     vlogD("  max_count: %" PRIu64, req->params.qc.maxcnt);
 
-    if (did_is_binding()) {
-        vlogE("Feeds is in setup mode.");
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
         return;
     }
 
@@ -1633,8 +1633,8 @@ void hdl_get_stats_req(ElaCarrier *c, const char *from, Req *base)
     vlogI("Received get_statistics request from [%s].", from);
     vlogD("  access_token: %s", req->params.tk);
 
-    if (did_is_binding()) {
-        vlogE("Feeds is in setup mode.");
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
         return;
     }
 
@@ -1685,8 +1685,8 @@ void hdl_sub_chan_req(ElaCarrier *c, const char *from, Req *base)
     vlogD("  access_token: %s", req->params.tk);
     vlogD("  channel_id: %" PRIu64, req->params.id);
 
-    if (did_is_binding()) {
-        vlogE("Feeds is in setup mode.");
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
         return;
     }
 
@@ -1784,8 +1784,8 @@ void hdl_unsub_chan_req(ElaCarrier *c, const char *from, Req *base)
     vlogD("  access_token: %s", req->params.tk);
     vlogD("  channel_id%" PRIu64, req->params.id);
 
-    if (did_is_binding()) {
-        vlogE("Feeds is in setup mode.");
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
         return;
     }
 
@@ -1874,8 +1874,8 @@ void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base)
     vlogI("Received enable_notification request from [%s].", from);
     vlogD("  access_token: %s", req->params.tk);
 
-    if (did_is_binding()) {
-        vlogE("Feeds is in setup mode.");
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
         return;
     }
 
