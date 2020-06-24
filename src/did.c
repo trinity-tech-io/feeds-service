@@ -217,14 +217,26 @@ int qrencode(const char *intext, const char *outfile)
 static
 int hdl_http_req(sb_Event *ev)
 {
-    char addr[ELA_MAX_ADDRESS_LEN + 1];
+    char buf[1024];
     int status = 501;
     int rc;
 
     if (ev->type != SB_EV_REQUEST)
         return SB_RES_OK;
 
-    rc = qrencode(ela_get_address(carrier, addr, sizeof(addr)), qrcode_path);
+    if (did_is_binding()) {
+        uint8_t nonce[NONCE_BYTES];
+
+        crypto_random_nonce(nonce);
+        ela_get_address(carrier, buf, sizeof(buf));
+        strcat(buf, ".");
+        crypto_nonce_to_str(nonce, buf + strlen(buf), sizeof(buf) - strlen(buf));
+    } else {
+        sprintf(buf, "feeds://%s/", feeds_did_str);
+        ela_get_address(carrier, buf + strlen(buf), sizeof(buf) - strlen(buf));
+    }
+
+    rc = qrencode(buf, qrcode_path);
     if (rc < 0)
         goto finally;
 
