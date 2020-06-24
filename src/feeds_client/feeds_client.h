@@ -53,7 +53,7 @@ int feeds_client_signin1(FeedsClient *fc, const char *svc_node_id, SigninReqChal
 int feeds_client_signin2(FeedsClient *fc, const char *svc_node_id,
                          const char *realm, const char *nonce, SigninConfChalResp **resp, ErrResp **err);
 int feeds_client_create_channel(FeedsClient *fc, const char *svc_node_id, const char *name,
-                                const char *intro, CreateChanResp **resp, ErrResp **err);
+                                const char *intro, const char *avatar, CreateChanResp **resp, ErrResp **err);
 int feeds_client_publish_post(FeedsClient *fc, const char *svc_node_id, uint64_t channel_id,
                               const char *content, PubPostResp **resp, ErrResp **err);
 int feeds_client_post_comment(FeedsClient *fc, const char *svc_node_id, uint64_t channel_id,

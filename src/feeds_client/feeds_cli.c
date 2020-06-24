@@ -499,7 +499,7 @@ void create_channel(int argc, char *argv[])
     ErrResp *err = NULL;
     int rc;
 
-    if (argc != 4) {
+    if (argc != 5) {
         console("Invalid command syntax.");
         return;
     }
@@ -510,7 +510,8 @@ void create_channel(int argc, char *argv[])
         return;
     }
 
-    rc = feeds_client_create_channel(fc, argv[1], argv[2], argv[3], &resp, &err);
+    rc = feeds_client_create_channel(fc, argv[1], argv[2], argv[3],
+                                     argv[4], &resp, &err);
     if (rc < 0 || err) {
         console("Failed to create channel. code: %lld",
                 err ? err->ec : -111);
@@ -674,8 +675,8 @@ void get_my_channels(int argc, char **argv)
 
     ChanInfo **i;
     cvector_foreach(resp->result.cinfos, i)
-        console("id: %llu, name: %s, introduction: %s, subscribers: %llu",
-                (*i)->chan_id, (*i)->name, (*i)->intro, (*i)->subs);
+        console("id: %llu, name: %s, introduction: %s, subscribers: %llu, avatar: %s",
+                (*i)->chan_id, (*i)->name, (*i)->intro, (*i)->subs, (*i)->avatar);
 
 finally:
     deref(resp);
@@ -743,9 +744,10 @@ void get_channels(int argc, char **argv)
 
     ChanInfo **i;
     cvector_foreach(resp->result.cinfos, i)
-        console("id: %llu, name: %s, introduction: %s, owner_name: %s, owner_did: %s, subscribers: %llu, last_update: %llu",
+        console("id: %llu, name: %s, introduction: %s, owner_name: %s, owner_did: %s,"
+                " subscribers: %llu, last_update: %llu, avatar: %s",
                 (*i)->chan_id, (*i)->name, (*i)->intro, (*i)->owner->name,
-                (*i)->owner->did, (*i)->subs, (*i)->upd_at);
+                (*i)->owner->did, (*i)->subs, (*i)->upd_at, (*i)->avatar);
 
 finally:
     deref(resp);
@@ -776,11 +778,12 @@ void get_channel_detail(int argc, char **argv)
         goto finally;
     }
 
-    console("id: %llu, name: %s, introduction: %s, owner_name: %s, owner_did: %s, subscribers: %llu, last_update: %llu",
+    console("id: %llu, name: %s, introduction: %s, owner_name: %s, owner_did: %s,"
+            " subscribers: %llu, last_update: %llu, avatar: %s",
             resp->result.cinfo->chan_id, resp->result.cinfo->name,
             resp->result.cinfo->intro, resp->result.cinfo->owner->name,
             resp->result.cinfo->owner->did, resp->result.cinfo->subs,
-            resp->result.cinfo->upd_at);
+            resp->result.cinfo->upd_at, resp->result.cinfo->avatar);
 
 finally:
     deref(resp);
@@ -814,9 +817,10 @@ void get_subscribed_channels(int argc, char **argv)
 
     ChanInfo **i;
     cvector_foreach(resp->result.cinfos, i)
-        console("id: %llu, name: %s, introduction: %s, owner_name: %s, owner_did: %s, subscribers: %llu, last_update: %llu",
+        console("id: %llu, name: %s, introduction: %s, owner_name: %s,"
+                " owner_did: %s, subscribers: %llu, last_update: %llu, avatar: %s",
                 (*i)->chan_id, (*i)->name, (*i)->intro, (*i)->owner->name, (*i)->owner->did,
-                (*i)->subs, (*i)->upd_at);
+                (*i)->subs, (*i)->upd_at, (*i)->avatar);
 
 finally:
     deref(resp);
@@ -1063,7 +1067,7 @@ struct command {
     { "imp_did",                  imp_did,                  "imp_did [nodeid] - Bind owner." },
     { "iss_vc",                   iss_vc,                   "iss_vc [nodeid] [did]- Bind owner." },
     { "signin",                   signin,                   "signin [nodeid] - Bind owner." },
-    { "create_channel",           create_channel,           "create_channel [nodeid] [channel] [intro] - Create channel." },
+    { "create_channel",           create_channel,           "create_channel [nodeid] [channel] [intro] [avatar] - Create channel." },
     { "publish_post",             publish_post,             "publish_post [nodeid] [channel_id] [content] - Publish post." },
     { "post_comment",             post_comment,             "post_comment [nodeid] [channel_id] [post_id] [comment_id] [content] - Post comment." },
     { "post_like",                post_like,                "post_like [nodeid] [channel_id] [post_id] [comment_id] - Post like." },

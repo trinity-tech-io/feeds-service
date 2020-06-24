@@ -46,6 +46,8 @@ typedef struct {
     uint64_t    upd_at;
     uint64_t    subs;
     uint64_t    next_post_id;
+    void       *avatar;
+    size_t      len;
 } ChanInfo;
 
 typedef struct {

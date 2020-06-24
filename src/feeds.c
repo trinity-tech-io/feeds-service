@@ -20,7 +20,6 @@ typedef struct {
     hash_entry_t he_id_key;
     list_t *cass;
     ChanInfo info;
-    char buf[0];
 } Chan;
 
 typedef struct {
@@ -77,8 +76,10 @@ static
 Chan *chan_create(const ChanInfo *ci)
 {
     Chan *chan;
+    void *buf;
 
-    chan = rc_zalloc(sizeof(Chan) + strlen(ci->name) + strlen(ci->intro) + 2, chan_dtor);
+    chan = rc_zalloc(sizeof(Chan) + strlen(ci->name) +
+                     strlen(ci->intro) + 2 + ci->len, chan_dtor);
     if (!chan)
         return NULL;
 
@@ -88,12 +89,13 @@ Chan *chan_create(const ChanInfo *ci)
         return NULL;
     }
 
-    strcpy(chan->buf, ci->name);
-    strcpy(chan->buf + strlen(chan->buf) + 1, ci->intro);
-
-    chan->info       = *ci;
-    chan->info.name  = chan->buf;
-    chan->info.intro = chan->buf + strlen(chan->buf) + 1;
+    buf = chan + 1;
+    chan->info        = *ci;
+    chan->info.name   = strcpy(buf, ci->name);
+    buf += strlen(ci->name) + 1;
+    chan->info.intro  = strcpy(buf, ci->intro);
+    buf += strlen(ci->intro) + 1;
+    chan->info.avatar = memcpy(buf, ci->avatar, ci->len);
 
     chan->he_name_key.data   = chan;
     chan->he_name_key.key    = chan->info.name;
@@ -392,7 +394,9 @@ void hdl_create_chan_req(ElaCarrier *c, const char *from, Req *base)
         .created_at   = time(NULL),
         .upd_at       = ci.created_at,
         .subs         = 0,
-        .next_post_id = POST_ID_START
+        .next_post_id = POST_ID_START,
+        .avatar       = req->params.avatar,
+        .len          = req->params.sz
     };
     Marshalled *resp_marshal = NULL;
     UserInfo *uinfo = NULL;

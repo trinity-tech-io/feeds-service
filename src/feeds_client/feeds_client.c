@@ -528,7 +528,7 @@ int feeds_client_signin2(FeedsClient *fc, const char *svc_node_id,
 }
 
 int feeds_client_create_channel(FeedsClient *fc, const char *svc_node_id, const char *name,
-                                const char *intro, CreateChanResp **resp, ErrResp **err)
+                                const char *intro, const char *avatar, CreateChanResp **resp, ErrResp **err)
 {
     CreateChanReq req = {
         .method = "create_channel",
@@ -536,7 +536,9 @@ int feeds_client_create_channel(FeedsClient *fc, const char *svc_node_id, const 
         .params = {
             .tk = fc->access_token,
             .name = (char *)name,
-            .intro = (char *)intro
+            .intro = (char *)intro,
+            .avatar = (void *)avatar,
+            .sz = strlen(avatar) + 1
         }
     };
     Marshalled *marshal;

@@ -110,6 +110,8 @@ typedef struct {
         AccessToken tk;
         char       *name;
         char       *intro;
+        void       *avatar;
+        size_t      sz;
     } params;
 } CreateChanReq;
 

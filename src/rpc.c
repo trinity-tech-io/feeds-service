@@ -362,6 +362,7 @@ int unmarshal_create_chan_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *tk;
     const msgpack_object *name;
     const msgpack_object *intro;
+    const msgpack_object *avatar;
     CreateChanReq *tmp;
     void *buf;
 
@@ -372,13 +373,15 @@ int unmarshal_create_chan_req(const msgpack_object *req, Req **req_unmarshal)
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("params"), {
-            tk    = map_val_str("access_token");
-            name  = map_val_str("name");
-            intro = map_val_str("introduction");
+            tk     = map_val_str("access_token");
+            name   = map_val_str("name");
+            intro  = map_val_str("introduction");
+            avatar = map_val_bin("avatar");
         });
     });
 
-    if (!tk || !tk->str_sz || !name || !name->str_sz || !intro || !intro->str_sz) {
+    if (!tk || !tk->str_sz || !name || !name->str_sz ||
+        !intro || !intro->str_sz || !avatar || !avatar->bin_sz) {
         vlogE("Invalid create_channel request.");
         return -1;
     }
@@ -390,14 +393,16 @@ int unmarshal_create_chan_req(const msgpack_object *req, Req **req_unmarshal)
         return -1;
 
     buf = tmp + 1;
-    tmp->method       = strncpy(buf, method->str_val, method->str_sz);
+    tmp->method        = strncpy(buf, method->str_val, method->str_sz);
     buf += str_reserve_spc(method);
-    tmp->tsx_id       = tsx_id->u64_val;
-    tmp->params.tk    = strncpy(buf, tk->str_val, tk->str_sz);
+    tmp->tsx_id        = tsx_id->u64_val;
+    tmp->params.tk     = strncpy(buf, tk->str_val, tk->str_sz);
     buf += str_reserve_spc(tk);
-    tmp->params.name  = strncpy(buf, name->str_val, name->str_sz);
+    tmp->params.name   = strncpy(buf, name->str_val, name->str_sz);
     buf += str_reserve_spc(name);
-    tmp->params.intro = strncpy(buf, intro->str_val, intro->str_sz);
+    tmp->params.intro  = strncpy(buf, intro->str_val, intro->str_sz);
+    tmp->params.avatar = (void *)avatar->bin_val;
+    tmp->params.sz     = avatar->bin_sz;
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -2023,6 +2028,7 @@ int rpc_unmarshal_get_my_chans_resp(GetMyChansResp **resp, ErrResp **err)
         const msgpack_object *name;
         const msgpack_object *intro;
         const msgpack_object *subs;
+        const msgpack_object *avatar;
         ChanInfo *ci;
         void *buf;
 
@@ -2031,16 +2037,19 @@ int rpc_unmarshal_get_my_chans_resp(GetMyChansResp **resp, ErrResp **err)
             name    = map_val_str("name");
             intro   = map_val_str("introduction");
             subs    = map_val_u64("subscribers");
+            avatar  = map_val_bin("avatar");
         });
 
-        if (!chan_id || !name || !name->str_sz || !intro || !intro->str_sz || !subs) {
+        if (!chan_id || !name || !name->str_sz || !intro || !intro->str_sz ||
+            !subs || !avatar || !avatar->bin_sz) {
             vlogE("Invalid get_my_channels response: invalid result element.");
             msgpack_unpacked_destroy(&msgpack);
             deref(tmp);
             return -1;
         }
 
-        ci = rc_zalloc(sizeof(ChanInfo) + str_reserve_spc(name) + str_reserve_spc(intro), NULL);
+        ci = rc_zalloc(sizeof(ChanInfo) + str_reserve_spc(name) +
+                       str_reserve_spc(intro) + avatar->bin_sz, NULL);
         if (!ci) {
             msgpack_unpacked_destroy(&msgpack);
             deref(tmp);
@@ -2052,7 +2061,10 @@ int rpc_unmarshal_get_my_chans_resp(GetMyChansResp **resp, ErrResp **err)
         ci->name    = strncpy(buf, name->str_val, name->str_sz);
         buf += str_reserve_spc(name);
         ci->intro   = strncpy(buf, intro->str_val, intro->str_sz);
+        buf += str_reserve_spc(intro);
         ci->subs    = subs->u64_val;
+        ci->avatar  = memcpy(buf, avatar->bin_val, avatar->bin_sz);
+        ci->len     = avatar->bin_sz;
 
         cvector_push_back(tmp->result.cinfos, ci);
     }
@@ -2202,6 +2214,7 @@ int rpc_unmarshal_get_chans_resp(GetChansResp **resp, ErrResp **err)
         const msgpack_object *owner_did;
         const msgpack_object *subs;
         const msgpack_object *upd_at;
+        const msgpack_object *avatar;
         ChanInfoWithOwner *ci;
         void *buf;
 
@@ -2213,11 +2226,12 @@ int rpc_unmarshal_get_chans_resp(GetChansResp **resp, ErrResp **err)
             owner_did  = map_val_str("owner_did");
             subs       = map_val_u64("subscribers");
             upd_at     = map_val_u64("last_update");
+            avatar     = map_val_bin("avatar");
         });
 
         if (!chan_id || !name || !name->str_sz || !intro || !intro->str_sz ||
             !owner_name || !owner_name->str_sz || !owner_did || !owner_did->str_sz ||
-            !subs || !upd_at) {
+            !subs || !upd_at || !avatar || !avatar->bin_sz) {
             vlogE("Invalid get_channels response: invalid result element.");
             msgpack_unpacked_destroy(&msgpack);
             deref(tmp);
@@ -2226,7 +2240,7 @@ int rpc_unmarshal_get_chans_resp(GetChansResp **resp, ErrResp **err)
 
         ci = rc_zalloc(sizeof(ChanInfoWithOwner) + str_reserve_spc(name) +
                        str_reserve_spc(intro) + str_reserve_spc(owner_name) +
-                       str_reserve_spc(owner_did), NULL);
+                       str_reserve_spc(owner_did) + avatar->bin_sz, NULL);
         if (!ci) {
             msgpack_unpacked_destroy(&msgpack);
             deref(tmp);
@@ -2243,8 +2257,11 @@ int rpc_unmarshal_get_chans_resp(GetChansResp **resp, ErrResp **err)
         ci->ci.owner->name = strncpy(buf, owner_name->str_val, owner_name->str_sz);
         buf += str_reserve_spc(owner_name);
         ci->ci.owner->did  = strncpy(buf, owner_did->str_val, owner_did->str_sz);
+        buf += str_reserve_spc(owner_did);
         ci->ci.subs        = subs->u64_val;
         ci->ci.upd_at      = upd_at->u64_val;
+        ci->ci.avatar      = memcpy(buf, avatar->bin_val, avatar->bin_sz);
+        ci->ci.len         = avatar->bin_sz;
 
         cvector_push_back(tmp->result.cinfos, &ci->ci);
     }
@@ -2271,6 +2288,7 @@ int rpc_unmarshal_get_chan_dtl_resp(GetChanDtlResp **resp, ErrResp **err)
     const msgpack_object *owner_did;
     const msgpack_object *subs;
     const msgpack_object *upd_at;
+    const msgpack_object *avatar;
     GetChanDtlRespWithChanInfo *tmp;
     void *buf;
 
@@ -2290,12 +2308,13 @@ int rpc_unmarshal_get_chan_dtl_resp(GetChanDtlResp **resp, ErrResp **err)
             owner_did  = map_val_str("owner_did");
             subs       = map_val_u64("subscribers");
             upd_at     = map_val_u64("last_update");
+            avatar     = map_val_bin("avatar");
         });
     });
 
     if (!chan_id || !name || !name->str_sz || !intro || !intro->str_sz ||
         !owner_name || !owner_name->str_sz || !owner_did || !owner_did->str_sz ||
-        !subs || !upd_at) {
+        !subs || !upd_at || !avatar || !avatar->bin_sz) {
         vlogE("Invalid get_channel_detail response.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
@@ -2303,7 +2322,7 @@ int rpc_unmarshal_get_chan_dtl_resp(GetChanDtlResp **resp, ErrResp **err)
 
     tmp = rc_zalloc(sizeof(GetChanDtlRespWithChanInfo) + str_reserve_spc(name) +
                     str_reserve_spc(intro) + str_reserve_spc(owner_name) +
-                    str_reserve_spc(owner_did), NULL);
+                    str_reserve_spc(owner_did) + avatar->bin_sz, NULL);
     if (!tmp) {
         msgpack_unpacked_destroy(&msgpack);
         return -1;
@@ -2321,8 +2340,11 @@ int rpc_unmarshal_get_chan_dtl_resp(GetChanDtlResp **resp, ErrResp **err)
     tmp->resp.result.cinfo->owner->name = strncpy(buf, owner_name->str_val, owner_name->str_sz);
     buf += str_reserve_spc(owner_name);
     tmp->resp.result.cinfo->owner->did  = strncpy(buf, owner_did->str_val, owner_did->str_sz);
+    buf += str_reserve_spc(owner_did);
     tmp->resp.result.cinfo->subs        = subs->u64_val;
     tmp->resp.result.cinfo->upd_at      = upd_at->u64_val;
+    tmp->resp.result.cinfo->avatar      = memcpy(buf, avatar->bin_val, avatar->bin_sz);
+    tmp->resp.result.cinfo->len         = avatar->bin_sz;
 
     *resp = &tmp->resp;
 
@@ -2384,6 +2406,7 @@ int rpc_unmarshal_get_sub_chans_resp(GetSubChansResp **resp, ErrResp **err)
         const msgpack_object *owner_did;
         const msgpack_object *subs;
         const msgpack_object *upd_at;
+        const msgpack_object *avatar;
         ChanInfoWithOwner *ci;
         void *buf;
 
@@ -2395,11 +2418,12 @@ int rpc_unmarshal_get_sub_chans_resp(GetSubChansResp **resp, ErrResp **err)
             owner_did  = map_val_str("owner_did");
             subs       = map_val_u64("subscribers");
             upd_at     = map_val_u64("last_update");
+            avatar     = map_val_bin("avatar");
         });
 
         if (!chan_id || !name || !name->str_sz || !intro || !intro->str_sz ||
             !owner_name || !owner_name->str_sz || !owner_did || !owner_did->str_sz ||
-            !subs || !upd_at) {
+            !subs || !upd_at || !avatar || !avatar->bin_sz) {
             vlogE("Invalid get_subscribed_channels response: invalid result element.");
             msgpack_unpacked_destroy(&msgpack);
             deref(tmp);
@@ -2408,7 +2432,7 @@ int rpc_unmarshal_get_sub_chans_resp(GetSubChansResp **resp, ErrResp **err)
 
         ci = rc_zalloc(sizeof(ChanInfoWithOwner) + str_reserve_spc(name) +
                        str_reserve_spc(intro) + str_reserve_spc(owner_name) +
-                       str_reserve_spc(owner_did), NULL);
+                       str_reserve_spc(owner_did) + avatar->bin_sz, NULL);
         if (!ci) {
             msgpack_unpacked_destroy(&msgpack);
             deref(tmp);
@@ -2425,8 +2449,11 @@ int rpc_unmarshal_get_sub_chans_resp(GetSubChansResp **resp, ErrResp **err)
         ci->ci.owner->name = strncpy(buf, owner_name->str_val, owner_name->str_sz);
         buf += str_reserve_spc(owner_name);
         ci->ci.owner->did  = strncpy(buf, owner_did->str_val, owner_did->str_sz);
+        buf += str_reserve_spc(owner_did);
         ci->ci.subs        = subs->u64_val;
         ci->ci.upd_at      = upd_at->u64_val;
+        ci->ci.avatar      = memcpy(buf, avatar->bin_val, avatar->bin_sz);
+        ci->ci.len         = avatar->bin_sz;
 
         cvector_push_back(tmp->result.cinfos, &ci->ci);
     }
@@ -3375,10 +3402,11 @@ Marshalled *rpc_marshal_create_chan_req(const CreateChanReq *req)
         pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "create_channel");
         pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 3, {
+        pack_kv_map(pk, "params", 4, {
             pack_kv_str(pk, "access_token", req->params.tk);
             pack_kv_str(pk, "name", req->params.name);
             pack_kv_str(pk, "introduction", req->params.intro);
+            pack_kv_bin(pk, "avatar", req->params.avatar, req->params.sz);
         });
     });
 
@@ -3650,11 +3678,12 @@ Marshalled *rpc_marshal_get_my_chans_resp(const GetMyChansResp *resp)
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_arr(pk, "result", cvector_size(resp->result.cinfos), {
             cvector_foreach(resp->result.cinfos, cinfo) {
-                pack_map(pk, 4, {
+                pack_map(pk, 5, {
                     pack_kv_u64(pk, "id", (*cinfo)->chan_id);
                     pack_kv_str(pk, "name", (*cinfo)->name);
                     pack_kv_str(pk, "introduction", (*cinfo)->intro);
                     pack_kv_u64(pk, "subscribers", (*cinfo)->subs);
+                    pack_kv_bin(pk, "avatar", (*cinfo)->avatar, (*cinfo)->len);
                 });
             }
         });
@@ -3766,7 +3795,7 @@ Marshalled *rpc_marshal_get_chans_resp(const GetChansResp *resp)
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_arr(pk, "result", cvector_size(resp->result.cinfos), {
             cvector_foreach(resp->result.cinfos, cinfo) {
-                pack_map(pk, 7, {
+                pack_map(pk, 8, {
                     pack_kv_u64(pk, "id", (*cinfo)->chan_id);
                     pack_kv_str(pk, "name", (*cinfo)->name);
                     pack_kv_str(pk, "introduction", (*cinfo)->intro);
@@ -3774,6 +3803,7 @@ Marshalled *rpc_marshal_get_chans_resp(const GetChansResp *resp)
                     pack_kv_str(pk, "owner_did", (*cinfo)->owner->did);
                     pack_kv_u64(pk, "subscribers", (*cinfo)->subs);
                     pack_kv_u64(pk, "last_update", (*cinfo)->upd_at);
+                    pack_kv_bin(pk, "avatar", (*cinfo)->avatar, (*cinfo)->len);
                 });
             }
         });
@@ -3822,7 +3852,7 @@ Marshalled *rpc_marshal_get_chan_dtl_resp(const GetChanDtlResp *resp)
     pack_map(pk, 3, {
         pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
-        pack_kv_map(pk, "result", 7, {
+        pack_kv_map(pk, "result", 8, {
             pack_kv_u64(pk, "id", resp->result.cinfo->chan_id);
             pack_kv_str(pk, "name", resp->result.cinfo->name);
             pack_kv_str(pk, "introduction", resp->result.cinfo->intro);
@@ -3830,6 +3860,7 @@ Marshalled *rpc_marshal_get_chan_dtl_resp(const GetChanDtlResp *resp)
             pack_kv_str(pk, "owner_did", resp->result.cinfo->owner->did);
             pack_kv_u64(pk, "subscribers", resp->result.cinfo->subs);
             pack_kv_u64(pk, "last_update", resp->result.cinfo->upd_at);
+            pack_kv_bin(pk, "avatar", resp->result.cinfo->avatar, resp->result.cinfo->len);
         });
     });
 
@@ -3882,7 +3913,7 @@ Marshalled *rpc_marshal_get_sub_chans_resp(const GetSubChansResp *resp)
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_arr(pk, "result", cvector_size(resp->result.cinfos), {
             cvector_foreach(resp->result.cinfos, cinfo) {
-                pack_map(pk, 7, {
+                pack_map(pk, 8, {
                     pack_kv_u64(pk, "id", (*cinfo)->chan_id);
                     pack_kv_str(pk, "name", (*cinfo)->name);
                     pack_kv_str(pk, "introduction", (*cinfo)->intro);
@@ -3890,6 +3921,7 @@ Marshalled *rpc_marshal_get_sub_chans_resp(const GetSubChansResp *resp)
                     pack_kv_str(pk, "owner_did", (*cinfo)->owner->did);
                     pack_kv_u64(pk, "subscribers", (*cinfo)->subs);
                     pack_kv_u64(pk, "last_update", (*cinfo)->upd_at);
+                    pack_kv_bin(pk, "avatar", (*cinfo)->avatar, (*cinfo)->len);
                 });
             }
         });

@@ -66,7 +66,8 @@ int db_init(const char *db_file)
           "  name         TEXT    NOT NULL UNIQUE,"
           "  intro        TEXT    NOT NULL,"
           "  next_post_id INTEGER NOT NULL DEFAULT 1,"
-          "  subscribers  INTEGER NOT NULL DEFAULT 0"
+          "  subscribers  INTEGER NOT NULL DEFAULT 0,"
+          "  avatar       BLOB    NOT NULL"
           ")";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc)
@@ -185,8 +186,8 @@ int db_create_chan(const ChanInfo *ci)
     int rc;
 
     /* ================================= stmt-sep ================================= */
-    sql = "INSERT INTO channels(created_at, updated_at, name, intro) "
-          "  VALUES (:ts, :ts, :name, :intro)";
+    sql = "INSERT INTO channels(created_at, updated_at, name, intro, avatar) "
+          "  VALUES (:ts, :ts, :name, :intro, :avatar)";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc)
         return -1;
@@ -210,6 +211,14 @@ int db_create_chan(const ChanInfo *ci)
     rc = sqlite3_bind_text(stmt,
                            sqlite3_bind_parameter_index(stmt, ":intro"),
                            ci->intro, -1, NULL);
+    if (rc) {
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_bind_blob(stmt,
+                           sqlite3_bind_parameter_index(stmt, ":avatar"),
+                           ci->avatar, ci->len, NULL);
     if (rc) {
         sqlite3_finalize(stmt);
         return -1;
@@ -1291,7 +1300,8 @@ void *row2chan(sqlite3_stmt *stmt)
 {
     const char *name = (const char *)sqlite3_column_text(stmt, 1);
     const char *intro = (const char *)sqlite3_column_text(stmt, 2);
-    ChanInfo *ci = rc_zalloc(sizeof(ChanInfo) + strlen(name) + strlen(intro) + 2, NULL);
+    size_t avatar_sz = sqlite3_column_int64(stmt, 8);
+    ChanInfo *ci = rc_zalloc(sizeof(ChanInfo) + strlen(name) + strlen(intro) + 2 + avatar_sz, NULL);
     void *buf;
 
     if (!ci)
@@ -1303,11 +1313,14 @@ void *row2chan(sqlite3_stmt *stmt)
     ci->name         = strcpy(buf, name);
     buf += strlen(name) + 1;
     ci->intro        = strcpy(buf, intro);
+    buf += strlen(intro) + 1;
     ci->subs         = sqlite3_column_int64(stmt, 3);
     ci->next_post_id = sqlite3_column_int64(stmt, 4);
     ci->upd_at       = sqlite3_column_int64(stmt, 5);
     ci->created_at   = sqlite3_column_int64(stmt, 6);
     ci->owner        = &feeds_owner_info;
+    ci->avatar       = memcpy(buf, sqlite3_column_blob(stmt, 7), avatar_sz);
+    ci->len          = avatar_sz;
 
     return ci;
 }
@@ -1323,7 +1336,7 @@ DBObjIt *db_iter_chans(const QryCriteria *qc)
     /* ================================= stmt-sep ================================= */
     rc = sprintf(sql,
                  "SELECT channel_id, name, intro, subscribers, "
-                 "       next_post_id, updated_at, created_at "
+                 "       next_post_id, updated_at, created_at, avatar, length(avatar) "
                  "  FROM channels");
     if (qc->by) {
         qcol = query_column(CHANNEL, qc->by);
@@ -1386,21 +1399,24 @@ void *row2subchan(sqlite3_stmt *stmt)
 {
     const char *name = (const char *)sqlite3_column_text(stmt, 1);
     const char *intro = (const char *)sqlite3_column_text(stmt, 2);
-    ChanInfo *ci = rc_zalloc(sizeof(ChanInfo) + strlen(name) + strlen(intro) + 2, NULL);
+    size_t avatar_sz = sqlite3_column_int64(stmt, 6);
+    ChanInfo *ci = rc_zalloc(sizeof(ChanInfo) + strlen(name) + strlen(intro) + 2 + avatar_sz, NULL);
     void *buf;
 
     if (!ci)
         return NULL;
 
     buf = ci + 1;
-
-    ci->chan_id      = sqlite3_column_int64(stmt, 0);
-    ci->name         = strcpy(buf, name);
+    ci->chan_id = sqlite3_column_int64(stmt, 0);
+    ci->name    = strcpy(buf, name);
     buf += strlen(name) + 1;
-    ci->intro        = strcpy(buf, intro);
-    ci->subs         = sqlite3_column_int64(stmt, 3);
-    ci->upd_at       = sqlite3_column_int64(stmt, 4);
-    ci->owner        = &feeds_owner_info;
+    ci->intro   = strcpy(buf, intro);
+    buf += strlen(intro) + 1;
+    ci->subs    = sqlite3_column_int64(stmt, 3);
+    ci->upd_at  = sqlite3_column_int64(stmt, 4);
+    ci->owner   = &feeds_owner_info;
+    ci->avatar  = memcpy(buf, sqlite3_column_blob(stmt, 5), avatar_sz);
+    ci->len     = avatar_sz;
 
     return ci;
 }
@@ -1415,7 +1431,7 @@ DBObjIt *db_iter_sub_chans(uint64_t uid, const QryCriteria *qc)
 
     /* ================================= stmt-sep ================================= */
     rc = sprintf(sql,
-                 "SELECT channel_id, name, intro, subscribers, updated_at "
+                 "SELECT channel_id, name, intro, subscribers, updated_at, avatar, length(avatar) "
                  "  FROM (SELECT channel_id "
                  "          FROM subscriptions "
                  "          WHERE user_id = :uid) JOIN channels USING (channel_id)");
