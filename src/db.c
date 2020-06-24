@@ -34,7 +34,7 @@
 typedef struct {
     UserInfo info;
     sqlite3_stmt *stmt;
-} OwnerInfo;
+} DBUserInfo;
 
 typedef void *(*Row2Raw)(sqlite3_stmt *);
 struct DBObjIt {
@@ -1837,19 +1837,19 @@ void db_deinit()
 }
 
 static
-void oinfo_dtor(void *obj)
+void dbuinfo_dtor(void *obj)
 {
-    OwnerInfo *oi = obj;
+    DBUserInfo *ui = obj;
 
-    if (oi->stmt)
-        sqlite3_finalize(oi->stmt);
+    if (ui->stmt)
+        sqlite3_finalize(ui->stmt);
 }
 
 int db_get_owner(UserInfo **ui)
 {
     sqlite3_stmt *stmt;
     const char *sql;
-    OwnerInfo *tmp;
+    DBUserInfo *tmp;
     int rc;
 
     /* ================================= stmt-sep ================================= */
@@ -1878,7 +1878,7 @@ int db_get_owner(UserInfo **ui)
         return -1;
     }
 
-    tmp = rc_zalloc(sizeof(OwnerInfo), oinfo_dtor);
+    tmp = rc_zalloc(sizeof(DBUserInfo), dbuinfo_dtor);
     if (!tmp) {
         sqlite3_finalize(stmt);
         return -1;
@@ -1888,6 +1888,88 @@ int db_get_owner(UserInfo **ui)
     tmp->info.did   = (char *)sqlite3_column_text(stmt, 0);
     tmp->info.name  = (char *)sqlite3_column_text(stmt, 1);
     tmp->info.email = (char *)sqlite3_column_text(stmt, 2);
+    tmp->stmt       = stmt;
+
+    *ui = &tmp->info;
+
+    return 0;
+}
+
+int db_need_upsert_user(const char *did)
+{
+    sqlite3_stmt *stmt;
+    const char *sql;
+    int rc;
+
+    /* ================================= stmt-sep ================================= */
+    sql = "SELECT EXISTS(SELECT * FROM users WHERE did = :did AND name != \"NA\" AND email != \"NA\")";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc)
+        return -1;
+
+    rc = sqlite3_bind_text(stmt,
+                           sqlite3_bind_parameter_index(stmt, ":did"),
+                           did, -1, NULL);
+    if (rc) {
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
+
+    return rc ? 0 : 1;
+}
+
+int db_get_user(const char *did, UserInfo **ui)
+{
+    sqlite3_stmt *stmt;
+    const char *sql;
+    DBUserInfo *tmp;
+    int rc;
+
+    /* ================================= stmt-sep ================================= */
+    sql = "SELECT user_id, did, name, email FROM users WHERE did = :did;";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc)
+        return -1;
+
+    rc = sqlite3_bind_text(stmt,
+                           sqlite3_bind_parameter_index(stmt, ":did"),
+                           did, -1, NULL);
+    if (rc) {
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+    if (rc == SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        *ui = NULL;
+        return 0;
+    }
+
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(DBUserInfo), dbuinfo_dtor);
+    if (!tmp) {
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    tmp->info.uid   = sqlite3_column_int64(stmt, 0);
+    tmp->info.did   = (char *)sqlite3_column_text(stmt, 1);
+    tmp->info.name  = (char *)sqlite3_column_text(stmt, 2);
+    tmp->info.email = (char *)sqlite3_column_text(stmt, 3);
     tmp->stmt       = stmt;
 
     *ui = &tmp->info;

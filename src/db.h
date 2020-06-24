@@ -52,5 +52,7 @@ DBObjIt *db_iter_liked_posts(uint64_t uid, const QryCriteria *qc);
 DBObjIt *db_iter_cmts(uint64_t chan_id, uint64_t post_id, const QryCriteria *qc);
 int db_is_suber(uint64_t uid, uint64_t chan_id);
 int db_get_owner(UserInfo **ui);
+int db_need_upsert_user(const char *did);
+int db_get_user(const char *did, UserInfo **ui);
 
 #endif // __DB_H__

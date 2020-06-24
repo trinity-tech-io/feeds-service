@@ -25,6 +25,7 @@ typedef struct {
     char nonce[NONCE_BYTES * 2];
     char sub[ELA_MAX_DID_LEN];
     time_t expat;
+    bool vc_req;
 } Login;
 
 extern ElaCarrier *carrier;
@@ -61,6 +62,7 @@ Login *login_create(const char *sub)
     strcpy(login->sub, sub);
 
     login->expat = time(NULL) + 60;
+    login->vc_req = db_need_upsert_user(sub) ? true : false;
 
     login->he.data   = login;
     login->he.key    = login->nonce;
@@ -182,7 +184,7 @@ void hdl_signin_req_chal_req(ElaCarrier *c, const char *from, Req *base)
         SigninReqChalResp resp = {
             .tsx_id = req->tsx_id,
             .result = {
-                .vc_req = false,
+                .vc_req = login->vc_req,
                 .jws    = chal,
                 .vc     = vc
             }
@@ -207,7 +209,7 @@ finally:
 }
 
 static
-bool chal_resp_is_valid(JWS *chan_resp)
+bool chal_resp_is_valid(JWS *chan_resp, Login **l)
 {
     char nid[ELA_MAX_ID_LEN + 1];
     char signer_did[ELA_MAX_DID_LEN];
@@ -258,7 +260,7 @@ bool chal_resp_is_valid(JWS *chan_resp)
     }
 
     Presentation_Destroy(vp);
-    deref(login);
+    *l = login;
     return true;
 }
 
@@ -335,22 +337,38 @@ static
 UserInfo *create_uinfo_from_vc(const char *did, Credential *vc)
 {
     VCUserInfo *uinfo;
+    char *name;
+    char *email;
+
+    name = (char *)Credential_GetProperty(vc, "name");
+    if (!name || !strcmp(name, "NA")) {
+        vlogE("Missing/invalid name in credential.");
+        if (name)
+            free(name);
+        return NULL;
+    }
+
+    email = (char *)Credential_GetProperty(vc, "email");
+    if (!email || !strcmp(email, "NA")) {
+        vlogE("Missing/invalid email in credential.");
+        free(name);
+        if (email)
+            free(email);
+        return NULL;
+    }
 
     uinfo = rc_zalloc(sizeof(VCUserInfo), vcuinfo_dtor);
     if (!uinfo) {
         vlogE("OOM.");
+        free(name);
+        free(email);
         return NULL;
     }
 
     strcpy(uinfo->did_buf, did);
     uinfo->info.did = uinfo->did_buf;
-    uinfo->info.name = (char *)(vc ? Credential_GetProperty(vc, "name") : strdup("NA"));
-    uinfo->info.email = (char *)(vc ? Credential_GetProperty(vc, "email") : strdup("NA"));
-
-    if (!uinfo->info.name || !uinfo->info.email) {
-        deref(uinfo);
-        return NULL;
-    }
+    uinfo->info.name = name;
+    uinfo->info.email = email;
 
     return &uinfo->info;
 }
@@ -364,6 +382,7 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
     UserInfo *uinfo = NULL;
     JWS *chal_resp = NULL;
     Credential *vc = NULL;
+    Login *login = NULL;
     int rc;
 
     vlogI("Received signin_request_challenge request from [%s].", from);
@@ -386,7 +405,7 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    if (!chal_resp_is_valid(chal_resp)) {
+    if (!chal_resp_is_valid(chal_resp, &login)) {
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INVALID_PARAMS
@@ -395,11 +414,8 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    if ((vc = Credential_FromJson(req->params.vc, NULL)) &&
-        (strcmp(JWS_GetIssuer(chal_resp),
-                DID_ToString(Credential_GetOwner(vc), did, sizeof(did))) ||
-         !Credential_IsValid(vc))) {
-        vlogE("Invalid credential in signin_confirm_challenge.");
+    if (login->vc_req && !req->params.vc) {
+        vlogE("Missing credential in signin_confirm_challenge.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INVALID_PARAMS
@@ -408,36 +424,62 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    uinfo = create_uinfo_from_vc(JWS_GetIssuer(chal_resp), vc);
-    if (!uinfo) {
-        vlogE("Creating user info from credential failed.");
-        ErrResp resp = {
-            .tsx_id = req->tsx_id,
-            .ec     = ERR_INTERNAL_ERROR
-        };
-        resp_marshal = rpc_marshal_err_resp(&resp);
-        goto finally;
-    }
+    if (req->params.vc) {
+        if ((vc = Credential_FromJson(req->params.vc, NULL)) &&
+            (strcmp(JWS_GetIssuer(chal_resp),
+                    DID_ToString(Credential_GetOwner(vc), did, sizeof(did))) ||
+             !Credential_IsValid(vc))) {
+            vlogE("Invalid credential in signin_confirm_challenge.");
+            ErrResp resp = {
+                .tsx_id = req->tsx_id,
+                .ec     = ERR_INVALID_PARAMS
+            };
+            resp_marshal = rpc_marshal_err_resp(&resp);
+            goto finally;
+        }
 
-    if (!strcmp(uinfo->did, feeds_owner_info.did) && (oinfo_upd(uinfo) < 0)) {
-        vlogE("Updating owner info failed.");
-        ErrResp resp = {
-            .tsx_id = req->tsx_id,
-            .ec     = ERR_INTERNAL_ERROR
-        };
-        resp_marshal = rpc_marshal_err_resp(&resp);
-        goto finally;
-    }
+        uinfo = create_uinfo_from_vc(JWS_GetIssuer(chal_resp), vc);
+        if (!uinfo) {
+            vlogE("Creating user info from credential failed.");
+            ErrResp resp = {
+                .tsx_id = req->tsx_id,
+                .ec     = ERR_INTERNAL_ERROR
+            };
+            resp_marshal = rpc_marshal_err_resp(&resp);
+            goto finally;
+        }
 
-    rc = db_upsert_user(uinfo, &uinfo->uid);
-    if (rc < 0) {
-        vlogE("Upsert user info to database failed.");
-        ErrResp resp = {
-            .tsx_id = req->tsx_id,
-            .ec     = ERR_INTERNAL_ERROR
-        };
-        resp_marshal = rpc_marshal_err_resp(&resp);
-        goto finally;
+        if (!strcmp(uinfo->did, feeds_owner_info.did) && (oinfo_upd(uinfo) < 0)) {
+            vlogE("Updating owner info failed.");
+            ErrResp resp = {
+                .tsx_id = req->tsx_id,
+                .ec     = ERR_INTERNAL_ERROR
+            };
+            resp_marshal = rpc_marshal_err_resp(&resp);
+            goto finally;
+        }
+
+        rc = db_upsert_user(uinfo, &uinfo->uid);
+        if (rc < 0) {
+            vlogE("Upsert user info to database failed.");
+            ErrResp resp = {
+                .tsx_id = req->tsx_id,
+                .ec     = ERR_INTERNAL_ERROR
+            };
+            resp_marshal = rpc_marshal_err_resp(&resp);
+            goto finally;
+        }
+    } else {
+        rc = db_get_user(login->sub, &uinfo);
+        if (rc < 0) {
+            vlogE("Loading user info from database failed.");
+            ErrResp resp = {
+                .tsx_id = req->tsx_id,
+                .ec     = ERR_INTERNAL_ERROR
+            };
+            resp_marshal = rpc_marshal_err_resp(&resp);
+            goto finally;
+        }
     }
 
     access_token = gen_access_token(uinfo);
@@ -478,6 +520,7 @@ finally:
     if (chal_resp)
         JWS_Destroy(chal_resp);
     deref(uinfo);
+    deref(login);
 }
 
 static
