@@ -394,7 +394,7 @@ void iss_vc(int argc, char **argv)
     ErrResp *err = NULL;
     int rc;
 
-    if (argc != 3) {
+    if (argc != 2) {
         console("Invalid command syntax.");
         return;
     }
@@ -405,7 +405,8 @@ void iss_vc(int argc, char **argv)
         return;
     }
 
-    rc = feeds_client_iss_vc(fc, argv[1], argv[2], &resp, &err);
+    rc = feeds_client_iss_vc(fc, argv[1],
+                             "did:elastos:ijUnD4KeRpeBUFmcEDCbhxMTJRzUYCQCZM", &resp, &err);
     if (rc < 0) {
         console("Failed to issue VC.");
         goto finally;
@@ -1065,7 +1066,7 @@ struct command {
 
     { "decl_owner",               decl_owner,               "decl_owner [nodeid] - Bind owner." },
     { "imp_did",                  imp_did,                  "imp_did [nodeid] - Bind owner." },
-    { "iss_vc",                   iss_vc,                   "iss_vc [nodeid] [did]- Bind owner." },
+    { "iss_vc",                   iss_vc,                   "iss_vc [nodeid]- Bind owner." },
     { "signin",                   signin,                   "signin [nodeid] - Bind owner." },
     { "create_channel",           create_channel,           "create_channel [nodeid] [channel] [intro] [avatar] - Create channel." },
     { "publish_post",             publish_post,             "publish_post [nodeid] [channel_id] [content] - Publish post." },
