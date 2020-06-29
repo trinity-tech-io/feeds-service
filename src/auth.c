@@ -349,13 +349,8 @@ UserInfo *create_uinfo_from_vc(const char *did, Credential *vc)
     }
 
     email = (char *)Credential_GetProperty(vc, "email");
-    if (!email || !strcmp(email, "NA")) {
-        vlogE("Missing/invalid email in credential.");
-        free(name);
-        if (email)
-            free(email);
-        return NULL;
-    }
+    if (!email)
+        email = strdup("NA");
 
     uinfo = rc_zalloc(sizeof(VCUserInfo), vcuinfo_dtor);
     if (!uinfo) {

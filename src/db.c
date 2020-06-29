@@ -1902,7 +1902,7 @@ int db_need_upsert_user(const char *did)
     int rc;
 
     /* ================================= stmt-sep ================================= */
-    sql = "SELECT EXISTS(SELECT * FROM users WHERE did = :did AND name != \"NA\" AND email != \"NA\")";
+    sql = "SELECT EXISTS(SELECT * FROM users WHERE did = :did AND name != \"NA\")";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc)
         return -1;
