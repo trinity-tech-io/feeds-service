@@ -55,11 +55,7 @@
 #include "rpc.h"
 #include "db.h"
 
-#ifdef DID_TESTNET
-static const char *resolver = "http://api.elastos.io:21606";
-#else
 static const char *resolver = "http://api.elastos.io:20606";
-#endif
 size_t connecting_clients;
 ElaCarrier *carrier;
 static bool stop;

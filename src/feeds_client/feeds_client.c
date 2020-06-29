@@ -29,11 +29,7 @@
 #include "feeds_client.h"
 #include "cfg.h"
 
-#ifdef DID_TESTNET
-static const char *resolver = "http://api.elastos.io:21606";
-#else
 static const char *resolver = "http://api.elastos.io:20606";
-#endif
 const char *mnemonic = "advance duty suspect finish space matter squeeze elephant twenty over stick shield";
 
 struct FeedsClient {

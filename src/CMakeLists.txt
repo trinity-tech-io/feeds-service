@@ -52,10 +52,6 @@ if(HAVE_SIGACTION)
     add_definitions(-DHAVE_SIGACTION=1)
 endif()
 
-if(DID_TESTNET)
-    add_definitions(-DDID_TESTNET=1)
-endif()
-
 set(SRC
     db.c
     cfg.c
