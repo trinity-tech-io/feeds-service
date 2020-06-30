@@ -505,7 +505,7 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_signin_conf_chal_resp(&resp);
-        vlogD("Sending signin_confirm_challenge response: ",
+        vlogD("Sending signin_confirm_challenge response: "
               "{access_token: %s, exp: %" PRIu64 "}", resp.result.tk, resp.result.exp);
     }
 

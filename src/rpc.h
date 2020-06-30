@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 #include "c-vector/cvector.h"
 #include "obj.h"
@@ -202,6 +203,7 @@ typedef struct {
 typedef struct {
     uint64_t tsx_id;
     struct {
+        bool is_last;
         cvector_vector_type(ChanInfo *) cinfos;
     } result;
 } GetMyChansResp;
@@ -234,6 +236,7 @@ typedef struct {
 typedef struct {
     uint64_t tsx_id;
     struct {
+        bool is_last;
         cvector_vector_type(ChanInfo *) cinfos;
     } result;
 } GetChansResp;
@@ -266,6 +269,7 @@ typedef struct {
 typedef struct {
     uint64_t tsx_id;
     struct {
+        bool is_last;
         cvector_vector_type(ChanInfo *) cinfos;
     } result;
 } GetSubChansResp;
@@ -283,6 +287,7 @@ typedef struct {
 typedef struct {
     uint64_t tsx_id;
     struct {
+        bool is_last;
         cvector_vector_type(PostInfo *) pinfos;
     } result;
 } GetPostsResp;
@@ -299,6 +304,7 @@ typedef struct {
 typedef struct {
     uint64_t tsx_id;
     struct {
+        bool is_last;
         cvector_vector_type(PostInfo *) pinfos;
     } result;
 } GetLikedPostsResp;
@@ -317,6 +323,7 @@ typedef struct {
 typedef struct {
     uint64_t tsx_id;
     struct {
+        bool is_last;
         cvector_vector_type(CmtInfo *) cinfos;
     } result;
 } GetCmtsResp;

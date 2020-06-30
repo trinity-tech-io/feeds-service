@@ -59,6 +59,7 @@ set(SRC
     err.c
     auth.c
     main.c
+    msgq.c
     mkdirs.c
     sandbird/sandbird.c
     did.c

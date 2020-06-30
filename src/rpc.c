@@ -1995,7 +1995,8 @@ int rpc_unmarshal_get_my_chans_resp(GetMyChansResp **resp, ErrResp **err)
 {
     const msgpack_object *version;
     const msgpack_object *tsx_id;
-    const msgpack_object *result;
+    const msgpack_object *is_last;
+    const msgpack_object *chans;
     GetMyChansResp *tmp;
     int i;
 
@@ -2007,10 +2008,13 @@ int rpc_unmarshal_get_my_chans_resp(GetMyChansResp **resp, ErrResp **err)
     map_iter_kvs(&msgpack.data, {
         version = map_val_str("version");
         tsx_id  = map_val_u64("id");
-        result  = map_val_arr("result");
+        map_iter_kvs(map_val_map("result"), {
+            is_last = map_val_bool("is_last");
+            chans   = map_val_arr("channels");
+        });
     });
 
-    if (!result) {
+    if (!is_last || !chans) {
         vlogE("Invalid get_my_channels response: invalid result.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
@@ -2022,9 +2026,10 @@ int rpc_unmarshal_get_my_chans_resp(GetMyChansResp **resp, ErrResp **err)
         return -1;
     }
 
-    tmp->tsx_id = tsx_id->u64_val;
+    tmp->tsx_id         = tsx_id->u64_val;
+    tmp->result.is_last = is_last->bool_val;
 
-    for (i = 0; i < result->arr_sz; ++i) {
+    for (i = 0; i < chans->arr_sz; ++i) {
         const msgpack_object *chan_id;
         const msgpack_object *name;
         const msgpack_object *intro;
@@ -2033,7 +2038,7 @@ int rpc_unmarshal_get_my_chans_resp(GetMyChansResp **resp, ErrResp **err)
         ChanInfo *ci;
         void *buf;
 
-        map_iter_kvs(arr_val_map(result, i), {
+        map_iter_kvs(arr_val_map(chans, i), {
             chan_id = map_val_u64("id");
             name    = map_val_str("name");
             intro   = map_val_str("introduction");
@@ -2178,7 +2183,8 @@ int rpc_unmarshal_get_chans_resp(GetChansResp **resp, ErrResp **err)
 {
     const msgpack_object *version;
     const msgpack_object *tsx_id;
-    const msgpack_object *result;
+    const msgpack_object *is_last;
+    const msgpack_object *chans;
     GetChansResp *tmp;
     int i;
 
@@ -2190,10 +2196,13 @@ int rpc_unmarshal_get_chans_resp(GetChansResp **resp, ErrResp **err)
     map_iter_kvs(&msgpack.data, {
         version = map_val_str("version");
         tsx_id  = map_val_u64("id");
-        result  = map_val_arr("result");
+        map_iter_kvs(map_val_map("result"), {
+            is_last = map_val_bool("is_last");
+            chans   = map_val_arr("channels");
+        });
     });
 
-    if (!result) {
+    if (!is_last || !chans) {
         vlogE("Invalid get_channels response: invalid result.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
@@ -2205,9 +2214,10 @@ int rpc_unmarshal_get_chans_resp(GetChansResp **resp, ErrResp **err)
         return -1;
     }
 
-    tmp->tsx_id = tsx_id->u64_val;
+    tmp->tsx_id         = tsx_id->u64_val;
+    tmp->result.is_last = is_last->bool_val;
 
-    for (i = 0; i < result->arr_sz; ++i) {
+    for (i = 0; i < chans->arr_sz; ++i) {
         const msgpack_object *chan_id;
         const msgpack_object *name;
         const msgpack_object *intro;
@@ -2219,7 +2229,7 @@ int rpc_unmarshal_get_chans_resp(GetChansResp **resp, ErrResp **err)
         ChanInfoWithOwner *ci;
         void *buf;
 
-        map_iter_kvs(arr_val_map(result, i), {
+        map_iter_kvs(arr_val_map(chans, i), {
             chan_id    = map_val_u64("id");
             name       = map_val_str("name");
             intro      = map_val_str("introduction");
@@ -2370,7 +2380,8 @@ int rpc_unmarshal_get_sub_chans_resp(GetSubChansResp **resp, ErrResp **err)
 {
     const msgpack_object *version;
     const msgpack_object *tsx_id;
-    const msgpack_object *result;
+    const msgpack_object *is_last;
+    const msgpack_object *chans;
     GetSubChansResp *tmp;
     int i;
 
@@ -2382,10 +2393,13 @@ int rpc_unmarshal_get_sub_chans_resp(GetSubChansResp **resp, ErrResp **err)
     map_iter_kvs(&msgpack.data, {
         version = map_val_str("version");
         tsx_id  = map_val_u64("id");
-        result  = map_val_arr("result");
+        map_iter_kvs(map_val_map("result"), {
+            is_last = map_val_bool("is_last");
+            chans   = map_val_arr("channels");
+        });
     });
 
-    if (!result) {
+    if (!is_last || !chans) {
         vlogE("Invalid get_subscribed_channels response: invalid result.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
@@ -2397,9 +2411,10 @@ int rpc_unmarshal_get_sub_chans_resp(GetSubChansResp **resp, ErrResp **err)
         return -1;
     }
 
-    tmp->tsx_id = tsx_id->u64_val;
+    tmp->tsx_id         = tsx_id->u64_val;
+    tmp->result.is_last = is_last->bool_val;
 
-    for (i = 0; i < result->arr_sz; ++i) {
+    for (i = 0; i < chans->arr_sz; ++i) {
         const msgpack_object *chan_id;
         const msgpack_object *name;
         const msgpack_object *intro;
@@ -2411,7 +2426,7 @@ int rpc_unmarshal_get_sub_chans_resp(GetSubChansResp **resp, ErrResp **err)
         ChanInfoWithOwner *ci;
         void *buf;
 
-        map_iter_kvs(arr_val_map(result, i), {
+        map_iter_kvs(arr_val_map(chans, i), {
             chan_id    = map_val_u64("id");
             name       = map_val_str("name");
             intro      = map_val_str("introduction");
@@ -2480,7 +2495,8 @@ int rpc_unmarshal_get_posts_resp(GetPostsResp **resp, ErrResp **err)
 {
     const msgpack_object *version;
     const msgpack_object *tsx_id;
-    const msgpack_object *result;
+    const msgpack_object *is_last;
+    const msgpack_object *posts;
     GetPostsResp *tmp;
     int i;
 
@@ -2492,10 +2508,13 @@ int rpc_unmarshal_get_posts_resp(GetPostsResp **resp, ErrResp **err)
     map_iter_kvs(&msgpack.data, {
         version = map_val_str("version");
         tsx_id  = map_val_u64("id");
-        result  = map_val_arr("result");
+        map_iter_kvs(map_val_map("result"), {
+            is_last = map_val_bool("is_last");
+            posts   = map_val_arr("posts");
+        });
     });
 
-    if (!result) {
+    if (!is_last || !posts) {
         vlogE("Invalid get_posts response: invalid result.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
@@ -2507,9 +2526,10 @@ int rpc_unmarshal_get_posts_resp(GetPostsResp **resp, ErrResp **err)
         return -1;
     }
 
-    tmp->tsx_id = tsx_id->u64_val;
+    tmp->tsx_id         = tsx_id->u64_val;
+    tmp->result.is_last = is_last->bool_val;
 
-    for (i = 0; i < result->arr_sz; ++i) {
+    for (i = 0; i < posts->arr_sz; ++i) {
         const msgpack_object *chan_id;
         const msgpack_object *post_id;
         const msgpack_object *content;
@@ -2519,7 +2539,7 @@ int rpc_unmarshal_get_posts_resp(GetPostsResp **resp, ErrResp **err)
         PostInfo *pi;
         void *buf;
 
-        map_iter_kvs(arr_val_map(result, i), {
+        map_iter_kvs(arr_val_map(posts, i), {
             chan_id    = map_val_u64("channel_id");
             post_id    = map_val_u64("id");
             content    = map_val_bin("content");
@@ -2577,7 +2597,8 @@ int rpc_unmarshal_get_liked_posts_resp(GetLikedPostsResp **resp, ErrResp **err)
 {
     const msgpack_object *version;
     const msgpack_object *tsx_id;
-    const msgpack_object *result;
+    const msgpack_object *is_last;
+    const msgpack_object *posts;
     GetLikedPostsResp *tmp;
     int i;
 
@@ -2589,10 +2610,13 @@ int rpc_unmarshal_get_liked_posts_resp(GetLikedPostsResp **resp, ErrResp **err)
     map_iter_kvs(&msgpack.data, {
         version = map_val_str("version");
         tsx_id  = map_val_u64("id");
-        result  = map_val_arr("result");
+        map_iter_kvs(map_val_map("result"), {
+            is_last = map_val_bool("is_last");
+            posts   = map_val_arr("posts");
+        });
     });
 
-    if (!result) {
+    if (!is_last || !posts) {
         vlogE("Invalid get_liked_posts response: invalid result.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
@@ -2604,9 +2628,10 @@ int rpc_unmarshal_get_liked_posts_resp(GetLikedPostsResp **resp, ErrResp **err)
         return -1;
     }
 
-    tmp->tsx_id = tsx_id->u64_val;
+    tmp->tsx_id         = tsx_id->u64_val;
+    tmp->result.is_last = is_last->bool_val;
 
-    for (i = 0; i < result->arr_sz; ++i) {
+    for (i = 0; i < posts->arr_sz; ++i) {
         const msgpack_object *chan_id;
         const msgpack_object *post_id;
         const msgpack_object *content;
@@ -2616,7 +2641,7 @@ int rpc_unmarshal_get_liked_posts_resp(GetLikedPostsResp **resp, ErrResp **err)
         PostInfo *pi;
         void *buf;
 
-        map_iter_kvs(arr_val_map(result, i), {
+        map_iter_kvs(arr_val_map(posts, i), {
             chan_id    = map_val_u64("channel_id");
             post_id    = map_val_u64("id");
             content    = map_val_bin("content");
@@ -2674,7 +2699,8 @@ int rpc_unmarshal_get_cmts_resp(GetCmtsResp **resp, ErrResp **err)
 {
     const msgpack_object *version;
     const msgpack_object *tsx_id;
-    const msgpack_object *result;
+    const msgpack_object *is_last;
+    const msgpack_object *cmts;
     GetCmtsResp *tmp;
     int i;
 
@@ -2686,10 +2712,13 @@ int rpc_unmarshal_get_cmts_resp(GetCmtsResp **resp, ErrResp **err)
     map_iter_kvs(&msgpack.data, {
         version = map_val_str("version");
         tsx_id  = map_val_u64("id");
-        result  = map_val_arr("result");
+        map_iter_kvs(map_val_map("result"), {
+            is_last = map_val_bool("is_last");
+            cmts    = map_val_arr("comments");
+        });
     });
 
-    if (!result) {
+    if (!is_last || !cmts) {
         vlogE("Invalid get_comments response: invalid result.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
@@ -2701,9 +2730,10 @@ int rpc_unmarshal_get_cmts_resp(GetCmtsResp **resp, ErrResp **err)
         return -1;
     }
 
-    tmp->tsx_id = tsx_id->u64_val;
+    tmp->tsx_id         = tsx_id->u64_val;
+    tmp->result.is_last = is_last->bool_val;
 
-    for (i = 0; i < result->arr_sz; ++i) {
+    for (i = 0; i < cmts->arr_sz; ++i) {
         const msgpack_object *chan_id;
         const msgpack_object *post_id;
         const msgpack_object *id;
@@ -2715,7 +2745,7 @@ int rpc_unmarshal_get_cmts_resp(GetCmtsResp **resp, ErrResp **err)
         CmtInfo *ci;
         void *buf;
 
-        map_iter_kvs(arr_val_map(result, i), {
+        map_iter_kvs(arr_val_map(cmts, i), {
             chan_id    = map_val_u64("channel_id");
             post_id    = map_val_u64("post_id");
             id         = map_val_u64("id");
@@ -3677,16 +3707,19 @@ Marshalled *rpc_marshal_get_my_chans_resp(const GetMyChansResp *resp)
     pack_map(pk, 3, {
         pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
-        pack_kv_arr(pk, "result", cvector_size(resp->result.cinfos), {
-            cvector_foreach(resp->result.cinfos, cinfo) {
-                pack_map(pk, 5, {
-                    pack_kv_u64(pk, "id", (*cinfo)->chan_id);
-                    pack_kv_str(pk, "name", (*cinfo)->name);
-                    pack_kv_str(pk, "introduction", (*cinfo)->intro);
-                    pack_kv_u64(pk, "subscribers", (*cinfo)->subs);
-                    pack_kv_bin(pk, "avatar", (*cinfo)->avatar, (*cinfo)->len);
-                });
-            }
+        pack_kv_map(pk, "result", 2, {
+            pack_kv_bool(pk, "is_last", resp->result.is_last);
+            pack_kv_arr(pk, "channels", cvector_size(resp->result.cinfos), {
+                cvector_foreach(resp->result.cinfos, cinfo) {
+                    pack_map(pk, 5, {
+                        pack_kv_u64(pk, "id", (*cinfo)->chan_id);
+                        pack_kv_str(pk, "name", (*cinfo)->name);
+                        pack_kv_str(pk, "introduction", (*cinfo)->intro);
+                        pack_kv_u64(pk, "subscribers", (*cinfo)->subs);
+                        pack_kv_bin(pk, "avatar", (*cinfo)->avatar, (*cinfo)->len);
+                    });
+                }
+            });
         });
     });
 
@@ -3794,19 +3827,22 @@ Marshalled *rpc_marshal_get_chans_resp(const GetChansResp *resp)
     pack_map(pk, 3, {
         pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
-        pack_kv_arr(pk, "result", cvector_size(resp->result.cinfos), {
-            cvector_foreach(resp->result.cinfos, cinfo) {
-                pack_map(pk, 8, {
-                    pack_kv_u64(pk, "id", (*cinfo)->chan_id);
-                    pack_kv_str(pk, "name", (*cinfo)->name);
-                    pack_kv_str(pk, "introduction", (*cinfo)->intro);
-                    pack_kv_str(pk, "owner_name", (*cinfo)->owner->name);
-                    pack_kv_str(pk, "owner_did", (*cinfo)->owner->did);
-                    pack_kv_u64(pk, "subscribers", (*cinfo)->subs);
-                    pack_kv_u64(pk, "last_update", (*cinfo)->upd_at);
-                    pack_kv_bin(pk, "avatar", (*cinfo)->avatar, (*cinfo)->len);
-                });
-            }
+        pack_kv_map(pk, "result", 2, {
+            pack_kv_bool(pk, "is_last", resp->result.is_last);
+            pack_kv_arr(pk, "channels", cvector_size(resp->result.cinfos), {
+                cvector_foreach(resp->result.cinfos, cinfo) {
+                    pack_map(pk, 8, {
+                        pack_kv_u64(pk, "id", (*cinfo)->chan_id);
+                        pack_kv_str(pk, "name", (*cinfo)->name);
+                        pack_kv_str(pk, "introduction", (*cinfo)->intro);
+                        pack_kv_str(pk, "owner_name", (*cinfo)->owner->name);
+                        pack_kv_str(pk, "owner_did", (*cinfo)->owner->did);
+                        pack_kv_u64(pk, "subscribers", (*cinfo)->subs);
+                        pack_kv_u64(pk, "last_update", (*cinfo)->upd_at);
+                        pack_kv_bin(pk, "avatar", (*cinfo)->avatar, (*cinfo)->len);
+                    });
+                }
+            });
         });
     });
 
@@ -3912,19 +3948,22 @@ Marshalled *rpc_marshal_get_sub_chans_resp(const GetSubChansResp *resp)
     pack_map(pk, 3, {
         pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
-        pack_kv_arr(pk, "result", cvector_size(resp->result.cinfos), {
-            cvector_foreach(resp->result.cinfos, cinfo) {
-                pack_map(pk, 8, {
-                    pack_kv_u64(pk, "id", (*cinfo)->chan_id);
-                    pack_kv_str(pk, "name", (*cinfo)->name);
-                    pack_kv_str(pk, "introduction", (*cinfo)->intro);
-                    pack_kv_str(pk, "owner_name", (*cinfo)->owner->name);
-                    pack_kv_str(pk, "owner_did", (*cinfo)->owner->did);
-                    pack_kv_u64(pk, "subscribers", (*cinfo)->subs);
-                    pack_kv_u64(pk, "last_update", (*cinfo)->upd_at);
-                    pack_kv_bin(pk, "avatar", (*cinfo)->avatar, (*cinfo)->len);
-                });
-            }
+        pack_kv_map(pk, "result", 2, {
+            pack_kv_bool(pk, "is_last", resp->result.is_last);
+            pack_kv_arr(pk, "channels", cvector_size(resp->result.cinfos), {
+                cvector_foreach(resp->result.cinfos, cinfo) {
+                    pack_map(pk, 8, {
+                        pack_kv_u64(pk, "id", (*cinfo)->chan_id);
+                        pack_kv_str(pk, "name", (*cinfo)->name);
+                        pack_kv_str(pk, "introduction", (*cinfo)->intro);
+                        pack_kv_str(pk, "owner_name", (*cinfo)->owner->name);
+                        pack_kv_str(pk, "owner_did", (*cinfo)->owner->did);
+                        pack_kv_u64(pk, "subscribers", (*cinfo)->subs);
+                        pack_kv_u64(pk, "last_update", (*cinfo)->upd_at);
+                        pack_kv_bin(pk, "avatar", (*cinfo)->avatar, (*cinfo)->len);
+                    });
+                }
+            });
         });
     });
 
@@ -3976,17 +4015,20 @@ Marshalled *rpc_marshal_get_posts_resp(const GetPostsResp *resp)
     pack_map(pk, 3, {
         pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
-        pack_kv_arr(pk, "result", cvector_size(resp->result.pinfos), {
-            cvector_foreach(resp->result.pinfos, pinfo) {
-                pack_map(pk, 6, {
-                    pack_kv_u64(pk, "channel_id", (*pinfo)->chan_id);
-                    pack_kv_u64(pk, "id", (*pinfo)->post_id);
-                    pack_kv_bin(pk, "content", (*pinfo)->content, (*pinfo)->len);
-                    pack_kv_u64(pk, "comments", (*pinfo)->cmts);
-                    pack_kv_u64(pk, "likes", (*pinfo)->likes);
-                    pack_kv_u64(pk, "created_at", (*pinfo)->created_at);
-                });
-            }
+        pack_kv_map(pk, "result", 2, {
+            pack_kv_bool(pk, "is_last", resp->result.is_last);
+            pack_kv_arr(pk, "posts", cvector_size(resp->result.pinfos), {
+                cvector_foreach(resp->result.pinfos, pinfo) {
+                    pack_map(pk, 6, {
+                        pack_kv_u64(pk, "channel_id", (*pinfo)->chan_id);
+                        pack_kv_u64(pk, "id", (*pinfo)->post_id);
+                        pack_kv_bin(pk, "content", (*pinfo)->content, (*pinfo)->len);
+                        pack_kv_u64(pk, "comments", (*pinfo)->cmts);
+                        pack_kv_u64(pk, "likes", (*pinfo)->likes);
+                        pack_kv_u64(pk, "created_at", (*pinfo)->created_at);
+                    });
+                }
+            });
         });
     });
 
@@ -4037,17 +4079,20 @@ Marshalled *rpc_marshal_get_liked_posts_resp(const GetLikedPostsResp *resp)
     pack_map(pk, 3, {
         pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
-        pack_kv_arr(pk, "result", cvector_size(resp->result.pinfos), {
-            cvector_foreach(resp->result.pinfos, pinfo) {
-                pack_map(pk, 6, {
-                    pack_kv_u64(pk, "channel_id", (*pinfo)->chan_id);
-                    pack_kv_u64(pk, "id", (*pinfo)->post_id);
-                    pack_kv_bin(pk, "content", (*pinfo)->content, (*pinfo)->len);
-                    pack_kv_u64(pk, "comments", (*pinfo)->cmts);
-                    pack_kv_u64(pk, "likes", (*pinfo)->likes);
-                    pack_kv_u64(pk, "created_at", (*pinfo)->created_at);
-                });
-            }
+        pack_kv_map(pk, "result", 2, {
+            pack_kv_bool(pk, "is_last", resp->result.is_last);
+            pack_kv_arr(pk, "posts", cvector_size(resp->result.pinfos), {
+                cvector_foreach(resp->result.pinfos, pinfo) {
+                    pack_map(pk, 6, {
+                        pack_kv_u64(pk, "channel_id", (*pinfo)->chan_id);
+                        pack_kv_u64(pk, "id", (*pinfo)->post_id);
+                        pack_kv_bin(pk, "content", (*pinfo)->content, (*pinfo)->len);
+                        pack_kv_u64(pk, "comments", (*pinfo)->cmts);
+                        pack_kv_u64(pk, "likes", (*pinfo)->likes);
+                        pack_kv_u64(pk, "created_at", (*pinfo)->created_at);
+                    });
+                }
+            });
         });
     });
 
@@ -4100,19 +4145,22 @@ Marshalled *rpc_marshal_get_cmts_resp(const GetCmtsResp *resp)
     pack_map(pk, 3, {
         pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
-        pack_kv_arr(pk, "result", cvector_size(resp->result.cinfos), {
-            cvector_foreach(resp->result.cinfos, cinfo) {
-                pack_map(pk, 8, {
-                    pack_kv_u64(pk, "channel_id", (*cinfo)->chan_id);
-                    pack_kv_u64(pk, "post_id", (*cinfo)->post_id);
-                    pack_kv_u64(pk, "id", (*cinfo)->cmt_id);
-                    pack_kv_u64(pk, "comment_id", (*cinfo)->reply_to_cmt);
-                    pack_kv_str(pk, "user_name", (*cinfo)->user.name);
-                    pack_kv_bin(pk, "content", (*cinfo)->content, (*cinfo)->len);
-                    pack_kv_u64(pk, "likes", (*cinfo)->likes);
-                    pack_kv_u64(pk, "created_at", (*cinfo)->created_at);
-                });
-            }
+        pack_kv_map(pk, "result", 2, {
+            pack_kv_bool(pk, "is_last", resp->result.is_last);
+            pack_kv_arr(pk, "comments", cvector_size(resp->result.cinfos), {
+                cvector_foreach(resp->result.cinfos, cinfo) {
+                    pack_map(pk, 8, {
+                        pack_kv_u64(pk, "channel_id", (*cinfo)->chan_id);
+                        pack_kv_u64(pk, "post_id", (*cinfo)->post_id);
+                        pack_kv_u64(pk, "id", (*cinfo)->cmt_id);
+                        pack_kv_u64(pk, "comment_id", (*cinfo)->reply_to_cmt);
+                        pack_kv_str(pk, "user_name", (*cinfo)->user.name);
+                        pack_kv_bin(pk, "content", (*cinfo)->content, (*cinfo)->len);
+                        pack_kv_u64(pk, "likes", (*cinfo)->likes);
+                        pack_kv_u64(pk, "created_at", (*cinfo)->created_at);
+                    });
+                }
+            });
         });
     });
 

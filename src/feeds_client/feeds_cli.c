@@ -512,7 +512,7 @@ void create_channel(int argc, char *argv[])
     }
 
     rc = feeds_client_create_channel(fc, argv[1], argv[2], argv[3],
-                                     argv[4], &resp, &err);
+                                     atoi(argv[4]), &resp, &err);
     if (rc < 0 || err) {
         console("Failed to create channel. code: %lld",
                 err ? err->ec : -111);
@@ -544,7 +544,7 @@ void publish_post(int argc, char **argv)
         return;
     }
 
-    rc = feeds_client_publish_post(fc, argv[1], atoi(argv[2]), argv[3], &resp, &err);
+    rc = feeds_client_publish_post(fc, argv[1], atoi(argv[2]), atoi(argv[3]), &resp, &err);
     if (rc < 0 || err) {
         console("Failed to publish post. Code: %lld", err ? err->ec : -111);
         goto finally;
@@ -576,7 +576,7 @@ void post_comment(int argc, char **argv)
     }
 
     rc = feeds_client_post_comment(fc, argv[1], atoi(argv[2]), atoi(argv[3]),
-                                   atoi(argv[4]), argv[5], &resp, &err);
+                                   atoi(argv[4]), atoi(argv[5]), &resp, &err);
     if (rc < 0 || err) {
         console("Failed to post comment. Code: %lld", err ? err->ec : -111);
         goto finally;
@@ -676,8 +676,8 @@ void get_my_channels(int argc, char **argv)
 
     ChanInfo **i;
     cvector_foreach(resp->result.cinfos, i)
-        console("id: %llu, name: %s, introduction: %s, subscribers: %llu, avatar: %s",
-                (*i)->chan_id, (*i)->name, (*i)->intro, (*i)->subs, (*i)->avatar);
+        console("id: %llu, name: %s, introduction: %s, subscribers: %llu, avatar_sz: %" PRIu64,
+                (*i)->chan_id, (*i)->name, (*i)->intro, (*i)->subs, (*i)->len);
 
 finally:
     deref(resp);
@@ -746,9 +746,9 @@ void get_channels(int argc, char **argv)
     ChanInfo **i;
     cvector_foreach(resp->result.cinfos, i)
         console("id: %llu, name: %s, introduction: %s, owner_name: %s, owner_did: %s,"
-                " subscribers: %llu, last_update: %llu, avatar: %s",
+                " subscribers: %llu, last_update: %llu, avatar_sz: %" PRIu64,
                 (*i)->chan_id, (*i)->name, (*i)->intro, (*i)->owner->name,
-                (*i)->owner->did, (*i)->subs, (*i)->upd_at, (*i)->avatar);
+                (*i)->owner->did, (*i)->subs, (*i)->upd_at, (*i)->len);
 
 finally:
     deref(resp);
@@ -819,9 +819,9 @@ void get_subscribed_channels(int argc, char **argv)
     ChanInfo **i;
     cvector_foreach(resp->result.cinfos, i)
         console("id: %llu, name: %s, introduction: %s, owner_name: %s,"
-                " owner_did: %s, subscribers: %llu, last_update: %llu, avatar: %s",
+                " owner_did: %s, subscribers: %llu, last_update: %llu, avatar_sz: %" PRIu64,
                 (*i)->chan_id, (*i)->name, (*i)->intro, (*i)->owner->name, (*i)->owner->did,
-                (*i)->subs, (*i)->upd_at, (*i)->avatar);
+                (*i)->subs, (*i)->upd_at, (*i)->len);
 
 finally:
     deref(resp);
@@ -855,8 +855,8 @@ void get_posts(int argc, char **argv)
 
     PostInfo **i;
     cvector_foreach(resp->result.pinfos, i)
-        console("channel_id: %llu, id: %llu, content: %s, comments: %llu, likes: %llu, created_at: %llu",
-                (*i)->chan_id, (*i)->post_id, (*i)->content, (*i)->cmts, (*i)->likes, (*i)->created_at);
+        console("channel_id: %llu, id: %llu, content_sz: %" PRIu64 ", comments: %llu, likes: %llu, created_at: %llu",
+                (*i)->chan_id, (*i)->post_id, (*i)->len, (*i)->cmts, (*i)->likes, (*i)->created_at);
 
 finally:
     deref(resp);
@@ -890,8 +890,8 @@ void get_liked_posts(int argc, char **argv)
 
     PostInfo **i;
     cvector_foreach(resp->result.pinfos, i)
-        console("channel_id: %llu, id: %llu, content: %s, comments: %llu, likes: %llu, created_at: %llu",
-                (*i)->chan_id, (*i)->post_id, (*i)->content, (*i)->cmts, (*i)->likes, (*i)->created_at);
+        console("channel_id: %llu, id: %llu, content_sz: %" PRIu64 ", comments: %llu, likes: %llu, created_at: %llu",
+                (*i)->chan_id, (*i)->post_id, (*i)->len, (*i)->cmts, (*i)->likes, (*i)->created_at);
 
 finally:
     deref(resp);
@@ -926,9 +926,9 @@ void get_comments(int argc, char **argv)
 
     CmtInfo **i;
     cvector_foreach(resp->result.cinfos, i)
-        console("channel_id: %llu, post_id: %llu, id: %llu, comment_id:%llu, user_name: %s, content: %s, likes: %llu, created_at: %llu",
+        console("channel_id: %llu, post_id: %llu, id: %llu, comment_id:%llu, user_name: %s, content_sz: %" PRIu64 ", likes: %llu, created_at: %llu",
                 (*i)->chan_id, (*i)->post_id, (*i)->cmt_id, (*i)->reply_to_cmt,
-                (*i)->user.name, (*i)->content, (*i)->likes, (*i)->created_at);
+                (*i)->user.name, (*i)->len, (*i)->likes, (*i)->created_at);
 
 finally:
     deref(resp);

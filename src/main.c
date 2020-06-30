@@ -50,6 +50,7 @@
 
 #include "feeds.h"
 #include "auth.h"
+#include "msgq.h"
 #include "cfg.h"
 #include "did.h"
 #include "rpc.h"
@@ -146,6 +147,7 @@ void friend_connection_callback(ElaCarrier *c, const char *friend_id,
 
     --connecting_clients;
     feeds_deactivate_suber(friend_id);
+    msgq_peer_offline(friend_id);
 }
 
 static
@@ -410,6 +412,16 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    rc = msgq_init();
+    if (rc < 0) {
+        transport_deinit();
+        auth_deinit();
+        feeds_deinit();
+        did_deinit();
+        db_deinit();
+        return -1;
+    }
+
     signal(SIGINT, shutdown_proc);
     signal(SIGTERM, shutdown_proc);
     signal(SIGSEGV, shutdown_proc);
@@ -427,6 +439,7 @@ int main(int argc, char *argv[])
 
     rc = ela_run(carrier, 10);
 
+    msgq_deinit();
     transport_deinit();
     auth_deinit();
     feeds_deinit();

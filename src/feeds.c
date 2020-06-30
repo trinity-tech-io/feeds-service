@@ -1,6 +1,7 @@
 #include <crystal.h>
 
 #include "feeds.h"
+#include "msgq.h"
 #include "auth.h"
 #include "did.h"
 #include "obj.h"
@@ -204,8 +205,7 @@ void notify_of_new_post(const ActiveSuber *as, const PostInfo *pi)
     vlogD("Sending new post notification to [%s]: "
           "{channel_id: %" PRIu64 ", post_id: %" PRIu64 "}",
           as->node_id, pi->chan_id, pi->post_id);
-    ela_send_friend_message(carrier, as->node_id, notif_marshal->data, notif_marshal->sz + 1, NULL);
-    deref(notif_marshal);
+    msgq_enq(as->node_id, notif_marshal);
 }
 
 static
@@ -227,8 +227,7 @@ void notify_of_new_cmt(const ActiveSuber *as, const CmtInfo *ci)
           "{channel_id: %" PRIu64 ", post_id: %" PRIu64
           ", comment_id: %" PRIu64 ", refcomment_id: %" PRIu64 "}",
           as->node_id, ci->chan_id, ci->post_id, ci->cmt_id, ci->reply_to_cmt);
-    ela_send_friend_message(carrier, as->node_id, notif_marshal->data, notif_marshal->sz + 1, NULL);
-    deref(notif_marshal);
+    msgq_enq(as->node_id, notif_marshal);
 }
 
 static
@@ -253,8 +252,7 @@ void notify_of_new_likes(const ActiveSuber *as, uint64_t cid,
     vlogD("Sending new likes notification to [%s]: "
           "{channel_id: %" PRIu64 ", post_id: %" PRIu64
           ", comment_id: %" PRIu64 "}", as->node_id, cid, pid, cmtid);
-    ela_send_friend_message(carrier, as->node_id, notif_marshal->data, notif_marshal->sz + 1, NULL);
-    deref(notif_marshal);
+    msgq_enq(as->node_id, notif_marshal);
 }
 
 static
@@ -402,8 +400,8 @@ void hdl_create_chan_req(ElaCarrier *c, const char *from, Req *base)
     int rc;
 
     vlogD("Received create_channel request from [%s]: "
-          "{access_token: %s, name: %s, introduction: %s}",
-          from, req->params.tk, req->params.name, req->params.intro);
+          "{access_token: %s, name: %s, introduction: %s, avatar_length: %" PRIu64 "}",
+          from, req->params.tk, req->params.name, req->params.intro, req->params.sz);
 
     if (!did_is_ready()) {
         vlogE("Feeds DID is not ready.");
@@ -480,10 +478,8 @@ void hdl_create_chan_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal) {
-        ela_send_friend_message(c, from, resp_marshal->data, resp_marshal->sz, NULL);
-        deref(resp_marshal);
-    }
+    if (resp_marshal)
+        msgq_enq(from, resp_marshal);
     deref(uinfo);
     deref(chan);
 }
@@ -501,8 +497,8 @@ void hdl_pub_post_req(ElaCarrier *c, const char *from, Req *base)
     int rc;
 
     vlogD("Received publish_post request from [%s]: "
-          "{access_token: %s, channel_id: %" PRIu64 "}",
-          from, req->params.tk, req->params.chan_id);
+          "{access_token: %s, channel_id: %" PRIu64 ", content_length: %" PRIu64 "}",
+          from, req->params.tk, req->params.chan_id, req->params.sz);
 
     if (!did_is_ready()) {
         vlogE("Feeds DID is not ready.");
@@ -580,10 +576,8 @@ void hdl_pub_post_req(ElaCarrier *c, const char *from, Req *base)
         notify_of_new_post(cas->as, &new_post);
 
 finally:
-    if (resp_marshal) {
-        ela_send_friend_message(c, from, resp_marshal->data, resp_marshal->sz, NULL);
-        deref(resp_marshal);
-    }
+    if (resp_marshal)
+        msgq_enq(from, resp_marshal);
     deref(uinfo);
     deref(chan);
 }
@@ -602,8 +596,8 @@ void hdl_post_cmt_req(ElaCarrier *c, const char *from, Req *base)
 
     vlogD("Received create_channel request from [%s]: "
           "{access_token: %s, channel_id: %" PRIu64
-          ", post_id: %" PRIu64 ", comment_id: %" PRIu64 "}",
-          from, req->params.tk, req->params.chan_id, req->params.post_id, req->params.cmt_id);
+          ", post_id: %" PRIu64 ", comment_id: %" PRIu64 ", content_length: %" PRIu64 "}",
+          from, req->params.tk, req->params.chan_id, req->params.post_id, req->params.cmt_id, req->params.sz);
 
     if (!did_is_ready()) {
         vlogE("Feeds DID is not ready.");
@@ -695,10 +689,8 @@ void hdl_post_cmt_req(ElaCarrier *c, const char *from, Req *base)
         notify_of_new_cmt(cas->as, &new_cmt);
 
 finally:
-    if (resp_marshal) {
-        ela_send_friend_message(c, from, resp_marshal->data, resp_marshal->sz, NULL);
-        deref(resp_marshal);
-    }
+    if (resp_marshal)
+        msgq_enq(from, resp_marshal);
     deref(uinfo);
     deref(chan);
 }
@@ -809,10 +801,8 @@ void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base)
                                 req->params.post_id, req->params.cmt_id, likes);
 
 finally:
-    if (resp_marshal) {
-        ela_send_friend_message(c, from, resp_marshal->data, resp_marshal->sz, NULL);
-        deref(resp_marshal);
-    }
+    if (resp_marshal)
+        msgq_enq(from, resp_marshal);
     deref(uinfo);
     deref(chan);
 }
@@ -893,14 +883,13 @@ void hdl_post_unlike_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal) {
-        ela_send_friend_message(c, from, resp_marshal->data, resp_marshal->sz, NULL);
-        deref(resp_marshal);
-    }
+    if (resp_marshal)
+        msgq_enq(from, resp_marshal);
     deref(uinfo);
     deref(chan);
 }
 
+#define MAX_CONTENT_LEN (ELA_MAX_APP_BULKMSG_LEN - 100 * 1024)
 void hdl_get_my_chans_req(ElaCarrier *c, const char *from, Req *base)
 {
     GetMyChansReq *req = (GetMyChansReq *)base;
@@ -956,8 +945,9 @@ void hdl_get_my_chans_req(ElaCarrier *c, const char *from, Req *base)
     foreach_db_obj(cinfo) {
         cvector_push_back(cinfos, ref(cinfo));
         vlogD("Retrieved channel: "
-              "{channel_id: %" PRIu64 ", name: %s, introduction: %s, subscribers: %" PRIu64 "}",
-              cinfo->chan_id, cinfo->name, cinfo->intro, cinfo->subs);
+              "{channel_id: %" PRIu64 ", name: %s, introduction: %s, subscribers: %" PRIu64
+              ", avatar_length: %" PRIu64 "}",
+              cinfo->chan_id, cinfo->name, cinfo->intro, cinfo->subs, cinfo->len);
     }
     if (rc < 0) {
         vlogE("Iterating owned channels failed");
@@ -970,21 +960,56 @@ void hdl_get_my_chans_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     {
-        GetMyChansResp resp = {
-            .tsx_id = req->tsx_id,
-            .result = {
-                .cinfos = cinfos
-            }
-        };
-        resp_marshal = rpc_marshal_get_my_chans_resp(&resp);
-        vlogD("Sending get_my_channels response.");
+        size_t left = MAX_CONTENT_LEN;
+        cvector_vector_type(ChanInfo *) cinfos_tmp = NULL;
+        int i;
+
+        if (!cvector_size(cinfos)) {
+            GetMyChansResp resp = {
+                .tsx_id = req->tsx_id,
+                .result = {
+                    .is_last = true,
+                    .cinfos  = cinfos
+                }
+            };
+            resp_marshal = rpc_marshal_get_my_chans_resp(&resp);
+            vlogD("Sending get_my_channels response.");
+            goto finally;
+        }
+
+        for (i = 0; i < cvector_size(cinfos); ++i) {
+            left -= cinfos[i]->len;
+            cvector_push_back(cinfos_tmp, cinfos[i]);
+
+            if (!(!left || i == cvector_size(cinfos) - 1 || cinfos[i + 1]->len > left))
+                continue;
+
+            GetMyChansResp resp = {
+                .tsx_id = req->tsx_id,
+                .result = {
+                    .is_last = i == cvector_size(cinfos) - 1,
+                    .cinfos  = cinfos_tmp
+                }
+            };
+            resp_marshal = rpc_marshal_get_my_chans_resp(&resp);
+
+            vlogD("Sending get_my_channels response.");
+
+            rc = msgq_enq(from, resp_marshal);
+            resp_marshal = NULL;
+            if (rc < 0)
+                break;
+
+            cvector_set_size(cinfos_tmp, 0);
+            left = MAX_CONTENT_LEN;
+        }
+
+        cvector_free(cinfos_tmp);
     }
 
 finally:
-    if (resp_marshal) {
-        ela_send_friend_message(c, from, resp_marshal->data, resp_marshal->sz, NULL);
-        deref(resp_marshal);
-    }
+    if (resp_marshal)
+        msgq_enq(from, resp_marshal);
     if (cinfos) {
         ChanInfo **i;
         cvector_foreach(cinfos, i)
@@ -1074,10 +1099,8 @@ void hdl_get_my_chans_meta_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal) {
-        ela_send_friend_message(c, from, resp_marshal->data, resp_marshal->sz, NULL);
-        deref(resp_marshal);
-    }
+    if (resp_marshal)
+        msgq_enq(from, resp_marshal);
     if (cinfos) {
         ChanInfo **i;
         cvector_foreach(cinfos, i)
@@ -1134,9 +1157,10 @@ void hdl_get_chans_req(ElaCarrier *c, const char *from, Req *base)
         cvector_push_back(cinfos, ref(cinfo));
         vlogD("Retrieved channel: "
               "{channel_id: %" PRIu64 ", name: %s, introduction: %s, "
-              "owner_name: %s, owner_did: %s, subscribers: %" PRIu64 ", last_update: %" PRIu64 "}",
+              "owner_name: %s, owner_did: %s, subscribers: %" PRIu64 ", last_update: %" PRIu64
+              ", avatar_length: %" PRIu64 "}",
               cinfo->chan_id, cinfo->name, cinfo->intro, cinfo->owner->name,
-              cinfo->owner->did, cinfo->subs, cinfo->upd_at);
+              cinfo->owner->did, cinfo->subs, cinfo->upd_at, cinfo->len);
     }
     if (rc < 0) {
         vlogE("Iterating channels failed.");
@@ -1149,21 +1173,56 @@ void hdl_get_chans_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     {
-        GetChansResp resp = {
-            .tsx_id = req->tsx_id,
-            .result = {
-                .cinfos = cinfos
-            }
-        };
-        resp_marshal = rpc_marshal_get_chans_resp(&resp);
-        vlogD("Sending get_channels response.");
+        size_t left = MAX_CONTENT_LEN;
+        cvector_vector_type(ChanInfo *) cinfos_tmp = NULL;
+        int i;
+
+        if (!cvector_size(cinfos)) {
+            GetChansResp resp = {
+                .tsx_id = req->tsx_id,
+                .result = {
+                    .is_last = true,
+                    .cinfos  = cinfos
+                }
+            };
+            resp_marshal = rpc_marshal_get_chans_resp(&resp);
+            vlogD("Sending get_channels response.");
+            goto finally;
+        }
+
+        for (i = 0; i < cvector_size(cinfos); ++i) {
+            left -= cinfos[i]->len;
+            cvector_push_back(cinfos_tmp, cinfos[i]);
+
+            if (!(!left || i == cvector_size(cinfos) - 1 || cinfos[i + 1]->len > left))
+                continue;
+
+            GetChansResp resp = {
+                .tsx_id = req->tsx_id,
+                .result = {
+                    .is_last = i == cvector_size(cinfos) - 1,
+                    .cinfos  = cinfos_tmp
+                }
+            };
+            resp_marshal = rpc_marshal_get_chans_resp(&resp);
+
+            vlogD("Sending get_channels response.");
+
+            rc = msgq_enq(from, resp_marshal);
+            resp_marshal = NULL;
+            if (rc < 0)
+                break;
+
+            cvector_set_size(cinfos_tmp, 0);
+            left = MAX_CONTENT_LEN;
+        }
+
+        cvector_free(cinfos_tmp);
     }
 
 finally:
-    if (resp_marshal) {
-        ela_send_friend_message(c, from, resp_marshal->data, resp_marshal->sz, NULL);
-        deref(resp_marshal);
-    }
+    if (resp_marshal)
+        msgq_enq(from, resp_marshal);
     if (cinfos) {
         ChanInfo **i;
         cvector_foreach(cinfos, i)
@@ -1221,16 +1280,15 @@ void hdl_get_chan_dtl_req(ElaCarrier *c, const char *from, Req *base)
         resp_marshal = rpc_marshal_get_chan_dtl_resp(&resp);
         vlogD("Sending get_channel_detail response: "
               "{channel_id: %" PRIu64 ", name: %s, introduction: %s, "
-              "owner_name: %s, owner_did: %s, subscribers: %" PRIu64 ", last_update: %" PRIu64 "}",
+              "owner_name: %s, owner_did: %s, subscribers: %" PRIu64
+              ", last_update: %" PRIu64 ", avatar_length: %" PRIu64 "}",
               chan->info.chan_id, chan->info.name, chan->info.intro, chan->info.owner->name,
-              chan->info.owner->did, chan->info.subs, chan->info.upd_at);
+              chan->info.owner->did, chan->info.subs, chan->info.upd_at, chan->info.len);
     }
 
 finally:
-    if (resp_marshal) {
-        ela_send_friend_message(c, from, resp_marshal->data, resp_marshal->sz, NULL);
-        deref(resp_marshal);
-    }
+    if (resp_marshal)
+        msgq_enq(from, resp_marshal);
     deref(uinfo);
     deref(chan);
 }
@@ -1281,9 +1339,9 @@ void hdl_get_sub_chans_req(ElaCarrier *c, const char *from, Req *base)
         cvector_push_back(cinfos, ref(cinfo));
         vlogD("Retrieved channel: "
               "{channel_id: %" PRIu64 ", name: %s, introduction: %s, owner_name: %s, "
-              "owner_did: %s, subscribers: %" PRIu64 ", last_update: %" PRIu64 "}",
+              "owner_did: %s, subscribers: %" PRIu64 ", last_update: %" PRIu64 ", avatar_length: %" PRIu64 "}",
               cinfo->chan_id, cinfo->name, cinfo->intro, cinfo->owner->name,
-              cinfo->owner->did, cinfo->subs, cinfo->upd_at);
+              cinfo->owner->did, cinfo->subs, cinfo->upd_at, cinfo->len);
     }
     if (rc < 0) {
         vlogE("Iterating subscribed channels failed.");
@@ -1296,21 +1354,56 @@ void hdl_get_sub_chans_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     {
-        GetSubChansResp resp = {
-            .tsx_id = req->tsx_id,
-            .result = {
-                .cinfos = cinfos
-            }
-        };
-        resp_marshal = rpc_marshal_get_sub_chans_resp(&resp);
-        vlogD("Sending get_subscribed_channels response.");
+        size_t left = MAX_CONTENT_LEN;
+        cvector_vector_type(ChanInfo *) cinfos_tmp = NULL;
+        int i;
+
+        if (!cvector_size(cinfos)) {
+            GetSubChansResp resp = {
+                .tsx_id = req->tsx_id,
+                .result = {
+                    .is_last = true,
+                    .cinfos  = cinfos
+                }
+            };
+            resp_marshal = rpc_marshal_get_sub_chans_resp(&resp);
+            vlogD("Sending get_subscribed_channels response.");
+            goto finally;
+        }
+
+        for (i = 0; i < cvector_size(cinfos); ++i) {
+            left -= cinfos[i]->len;
+            cvector_push_back(cinfos_tmp, cinfos[i]);
+
+            if (!(!left || i == cvector_size(cinfos) - 1 || cinfos[i + 1]->len > left))
+                continue;
+
+            GetSubChansResp resp = {
+                .tsx_id = req->tsx_id,
+                .result = {
+                    .is_last = i == cvector_size(cinfos) - 1,
+                    .cinfos  = cinfos_tmp
+                }
+            };
+            resp_marshal = rpc_marshal_get_sub_chans_resp(&resp);
+
+            vlogD("Sending get_subscribed_channels response.");
+
+            rc = msgq_enq(from, resp_marshal);
+            resp_marshal = NULL;
+            if (rc < 0)
+                break;
+
+            cvector_set_size(cinfos_tmp, 0);
+            left = MAX_CONTENT_LEN;
+        }
+
+        cvector_free(cinfos_tmp);
     }
 
 finally:
-    if (resp_marshal) {
-        ela_send_friend_message(c, from, resp_marshal->data, resp_marshal->sz, NULL);
-        deref(resp_marshal);
-    }
+    if (resp_marshal)
+        msgq_enq(from, resp_marshal);
     if (cinfos) {
         ChanInfo **i;
         cvector_foreach(cinfos, i)
@@ -1378,8 +1471,8 @@ void hdl_get_posts_req(ElaCarrier *c, const char *from, Req *base)
         cvector_push_back(pinfos, ref(pinfo));
         vlogD("Retrieved post: "
               "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", comments: %" PRIu64
-              ", likes: %" PRIu64 ", created_at: %" PRIu64 "}",
-              pinfo->chan_id, pinfo->post_id, pinfo->cmts, pinfo->likes, pinfo->created_at);
+              ", likes: %" PRIu64 ", created_at: %" PRIu64 ", content_length: %" PRIu64 "}",
+              pinfo->chan_id, pinfo->post_id, pinfo->cmts, pinfo->likes, pinfo->created_at, pinfo->len);
     }
     if (rc < 0) {
         vlogE("Iterating posts failed.");
@@ -1392,21 +1485,56 @@ void hdl_get_posts_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     {
-        GetPostsResp resp = {
-            .tsx_id = req->tsx_id,
-            .result = {
-                .pinfos = pinfos
-            }
-        };
-        resp_marshal = rpc_marshal_get_posts_resp(&resp);
-        vlogD("Sending get_posts response.");
+        size_t left = MAX_CONTENT_LEN;
+        cvector_vector_type(PostInfo *) pinfos_tmp = NULL;
+        int i;
+
+        if (!cvector_size(pinfos)) {
+            GetPostsResp resp = {
+                .tsx_id = req->tsx_id,
+                .result = {
+                    .is_last = true,
+                    .pinfos  = pinfos
+                }
+            };
+            resp_marshal = rpc_marshal_get_posts_resp(&resp);
+            vlogD("Sending get_posts response.");
+            goto finally;
+        }
+
+        for (i = 0; i < cvector_size(pinfos); ++i) {
+            left -= pinfos[i]->len;
+            cvector_push_back(pinfos_tmp, pinfos[i]);
+
+            if (!(!left || i == cvector_size(pinfos) - 1 || pinfos[i + 1]->len > left))
+                continue;
+
+            GetPostsResp resp = {
+                .tsx_id = req->tsx_id,
+                .result = {
+                    .is_last = i == cvector_size(pinfos) - 1,
+                    .pinfos  = pinfos_tmp
+                }
+            };
+            resp_marshal = rpc_marshal_get_posts_resp(&resp);
+
+            vlogD("Sending get_posts response.");
+
+            rc = msgq_enq(from, resp_marshal);
+            resp_marshal = NULL;
+            if (rc < 0)
+                break;
+
+            cvector_set_size(pinfos_tmp, 0);
+            left = MAX_CONTENT_LEN;
+        }
+
+        cvector_free(pinfos_tmp);
     }
 
 finally:
-    if (resp_marshal) {
-        ela_send_friend_message(c, from, resp_marshal->data, resp_marshal->sz, NULL);
-        deref(resp_marshal);
-    }
+    if (resp_marshal)
+        msgq_enq(from, resp_marshal);
     if (pinfos) {
         PostInfo **i;
         cvector_foreach(pinfos, i)
@@ -1463,8 +1591,8 @@ void hdl_get_liked_posts_req(ElaCarrier *c, const char *from, Req *base)
         cvector_push_back(pinfos, ref(pinfo));
         vlogD("Retrieved post: "
               "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", comments: %" PRIu64
-              ", likes: %" PRIu64 ", created_at: %" PRIu64 "}",
-              pinfo->chan_id, pinfo->post_id, pinfo->cmts, pinfo->likes, pinfo->created_at);
+              ", likes: %" PRIu64 ", created_at: %" PRIu64 ", content_length: %" PRIu64 "}",
+              pinfo->chan_id, pinfo->post_id, pinfo->cmts, pinfo->likes, pinfo->created_at, pinfo->len);
     }
     if (rc < 0) {
         vlogE("Iterating posts failed.");
@@ -1477,21 +1605,56 @@ void hdl_get_liked_posts_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     {
-        GetLikedPostsResp resp = {
-            .tsx_id = req->tsx_id,
-            .result = {
-                .pinfos = pinfos
-            }
-        };
-        resp_marshal = rpc_marshal_get_liked_posts_resp(&resp);
-        vlogD("Sending get_liked_posts response.");
+        size_t left = MAX_CONTENT_LEN;
+        cvector_vector_type(PostInfo *) pinfos_tmp = NULL;
+        int i;
+
+        if (!cvector_size(pinfos)) {
+            GetLikedPostsResp resp = {
+                .tsx_id = req->tsx_id,
+                .result = {
+                    .is_last = true,
+                    .pinfos  = pinfos
+                }
+            };
+            resp_marshal = rpc_marshal_get_liked_posts_resp(&resp);
+            vlogD("Sending get_liked_posts response.");
+            goto finally;
+        }
+
+        for (i = 0; i < cvector_size(pinfos); ++i) {
+            left -= pinfos[i]->len;
+            cvector_push_back(pinfos_tmp, pinfos[i]);
+
+            if (!(!left || i == cvector_size(pinfos) - 1 || pinfos[i + 1]->len > left))
+                continue;
+
+            GetLikedPostsResp resp = {
+                .tsx_id = req->tsx_id,
+                .result = {
+                    .is_last = i == cvector_size(pinfos) - 1,
+                    .pinfos  = pinfos_tmp
+                }
+            };
+            resp_marshal = rpc_marshal_get_liked_posts_resp(&resp);
+
+            vlogD("Sending get_liked_posts response.");
+
+            rc = msgq_enq(from, resp_marshal);
+            resp_marshal = NULL;
+            if (rc < 0)
+                break;
+
+            cvector_set_size(pinfos_tmp, 0);
+            left = MAX_CONTENT_LEN;
+        }
+
+        cvector_free(pinfos_tmp);
     }
 
 finally:
-    if (resp_marshal) {
-        ela_send_friend_message(c, from, resp_marshal->data, resp_marshal->sz, NULL);
-        deref(resp_marshal);
-    }
+    if (resp_marshal)
+        msgq_enq(from, resp_marshal);
     if (pinfos) {
         PostInfo **i;
         cvector_foreach(pinfos, i)
@@ -1570,9 +1733,10 @@ void hdl_get_cmts_req(ElaCarrier *c, const char *from, Req *base)
         cvector_push_back(cinfos, ref(cinfo));
         vlogD("Retrieved comment: "
               "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", comment_id: %" PRIu64
-              ", refcomment_id: %" PRIu64 ", user_name: %s, likes: %" PRIu64 ", created_at: %" PRIu64 "}",
+              ", refcomment_id: %" PRIu64 ", user_name: %s, likes: %" PRIu64
+              ", created_at: %" PRIu64 ", content_length: %" PRIu64 "}",
               cinfo->chan_id, cinfo->post_id, cinfo->cmt_id, cinfo->reply_to_cmt,
-              cinfo->user.name, cinfo->likes, cinfo->created_at);
+              cinfo->user.name, cinfo->likes, cinfo->created_at, cinfo->len);
     }
     if (rc < 0) {
         vlogE("Iterating comments failed.");
@@ -1585,21 +1749,56 @@ void hdl_get_cmts_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     {
-        GetCmtsResp resp = {
-            .tsx_id = req->tsx_id,
-            .result = {
-                .cinfos = cinfos
-            }
-        };
-        resp_marshal = rpc_marshal_get_cmts_resp(&resp);
-        vlogD("Sending get_comments response.");
+        size_t left = MAX_CONTENT_LEN;
+        cvector_vector_type(CmtInfo *) cinfos_tmp = NULL;
+        int i;
+
+        if (!cvector_size(cinfos)) {
+            GetCmtsResp resp = {
+                .tsx_id = req->tsx_id,
+                .result = {
+                    .is_last = true,
+                    .cinfos  = cinfos
+                }
+            };
+            resp_marshal = rpc_marshal_get_cmts_resp(&resp);
+            vlogD("Sending get_comments response.");
+            goto finally;
+        }
+
+        for (i = 0; i < cvector_size(cinfos); ++i) {
+            left -= cinfos[i]->len;
+            cvector_push_back(cinfos_tmp, cinfos[i]);
+
+            if (!(!left || i == cvector_size(cinfos) - 1 || cinfos[i + 1]->len > left))
+                continue;
+
+            GetCmtsResp resp = {
+                .tsx_id = req->tsx_id,
+                .result = {
+                    .is_last = i == cvector_size(cinfos) - 1,
+                    .cinfos  = cinfos_tmp
+                }
+            };
+            resp_marshal = rpc_marshal_get_cmts_resp(&resp);
+
+            vlogD("Sending get_comments response.");
+
+            rc = msgq_enq(from, resp_marshal);
+            resp_marshal = NULL;
+            if (rc < 0)
+                break;
+
+            cvector_set_size(cinfos_tmp, 0);
+            left = MAX_CONTENT_LEN;
+        }
+
+        cvector_free(cinfos_tmp);
     }
 
 finally:
-    if (resp_marshal) {
-        ela_send_friend_message(c, from, resp_marshal->data, resp_marshal->sz, NULL);
-        deref(resp_marshal);
-    }
+    if (resp_marshal)
+        msgq_enq(from, resp_marshal);
     if (cinfos) {
         CmtInfo **i;
         cvector_foreach(cinfos, i)
@@ -1651,10 +1850,8 @@ void hdl_get_stats_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal) {
-        ela_send_friend_message(c, from, resp_marshal->data, resp_marshal->sz, NULL);
-        deref(resp_marshal);
-    }
+    if (resp_marshal)
+        msgq_enq(from, resp_marshal);
     deref(uinfo);
 }
 
@@ -1748,10 +1945,8 @@ void hdl_sub_chan_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal) {
-        ela_send_friend_message(c, from, resp_marshal->data, resp_marshal->sz, NULL);
-        deref(resp_marshal);
-    }
+    if (resp_marshal)
+        msgq_enq(from, resp_marshal);
     deref(uinfo);
     deref(chan);
     deref(cas);
@@ -1830,10 +2025,8 @@ void hdl_unsub_chan_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal) {
-        ela_send_friend_message(c, from, resp_marshal->data, resp_marshal->sz, NULL);
-        deref(resp_marshal);
-    }
+    if (resp_marshal)
+        msgq_enq(from, resp_marshal);
     deref(chan);
     deref(uinfo);
 }
@@ -1948,10 +2141,8 @@ void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal) {
-        ela_send_friend_message(c, from, resp_marshal->data, resp_marshal->sz, NULL);
-        deref(resp_marshal);
-    }
+    if (resp_marshal)
+        msgq_enq(from, resp_marshal);
     if (cass) {
         cvector_foreach(cass, i)
             deref(*i);

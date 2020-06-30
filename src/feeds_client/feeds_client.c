@@ -98,19 +98,20 @@ void on_receiving_message(ElaCarrier *carrier, const char *from,
         if (!strcmp(notif->method, "new_post")) {
             NewPostNotif *n = (NewPostNotif *)notif;
             console("New post:");
-            console("  channel_id: %llu, id: %llu, content: %s, created_at: %llu",
+            console("  channel_id: %llu, id: %llu, content_length: %" PRIu64 ", created_at: %llu",
                     n->params.pinfo->chan_id, n->params.pinfo->post_id,
-                    n->params.pinfo->content, n->params.pinfo->created_at);
+                    n->params.pinfo->len, n->params.pinfo->created_at);
         } else if (!strcmp(notif->method, "new_comment")) {
             NewCmtNotif *n = (NewCmtNotif *)notif;
             console("New comment:");
-            console("  channel_id: %llu, post_id: %llu, id: %llu, comment_id: %llu, user_name: %s, content: %s, created_at: %llu",
+            console("  channel_id: %llu, post_id: %llu, id: %llu, comment_id: %llu, "
+                    "user_name: %s, content_length: %" PRIu64 ", created_at: %llu",
                     n->params.cinfo->chan_id,
                     n->params.cinfo->post_id,
                     n->params.cinfo->cmt_id,
                     n->params.cinfo->reply_to_cmt,
                     n->params.cinfo->user.name,
-                    n->params.cinfo->content,
+                    n->params.cinfo->len,
                     n->params.cinfo->created_at);
         } else {
             NewLikesNotif *n = (NewLikesNotif *)notif;
@@ -127,6 +128,8 @@ void on_receiving_message(ElaCarrier *carrier, const char *from,
 
     pthread_mutex_lock(&fc->lock);
     if (fc->waiting_response) {
+        while (fc->resp || fc->err)
+            pthread_cond_wait(&fc->cond, &fc->lock);
         if (!unmarshal(&fc->resp, &fc->err))
             pthread_cond_signal(&fc->cond);
     }
@@ -341,6 +344,7 @@ int transaction_start(FeedsClient *fc, const char *svc_addr, const void *req, si
 
     fc->resp = NULL;
     fc->err = NULL;
+    fc->unmarshal = NULL;
     fc->waiting_response = false;
 
     pthread_mutex_unlock(&fc->lock);
@@ -524,7 +528,7 @@ int feeds_client_signin2(FeedsClient *fc, const char *svc_node_id,
 }
 
 int feeds_client_create_channel(FeedsClient *fc, const char *svc_node_id, const char *name,
-                                const char *intro, const char *avatar, CreateChanResp **resp, ErrResp **err)
+                                const char *intro, size_t avatar_sz, CreateChanResp **resp, ErrResp **err)
 {
     CreateChanReq req = {
         .method = "create_channel",
@@ -533,14 +537,15 @@ int feeds_client_create_channel(FeedsClient *fc, const char *svc_node_id, const 
             .tk = fc->access_token,
             .name = (char *)name,
             .intro = (char *)intro,
-            .avatar = (void *)avatar,
-            .sz = strlen(avatar) + 1
+            .avatar = malloc(avatar_sz * 1024 * 1024),
+            .sz = avatar_sz * 1024 * 1024
         }
     };
     Marshalled *marshal;
     int rc;
 
     marshal = rpc_marshal_create_chan_req(&req);
+    free(req.params.avatar);
     if (!marshal)
         return -1;
 
@@ -551,7 +556,7 @@ int feeds_client_create_channel(FeedsClient *fc, const char *svc_node_id, const 
 }
 
 int feeds_client_publish_post(FeedsClient *fc, const char *svc_node_id, uint64_t channel_id,
-                              const char *content, PubPostResp **resp, ErrResp **err)
+                              size_t content_sz, PubPostResp **resp, ErrResp **err)
 {
     PubPostReq req = {
         .method = "publish_post",
@@ -559,14 +564,15 @@ int feeds_client_publish_post(FeedsClient *fc, const char *svc_node_id, uint64_t
         .params = {
             .tk = fc->access_token,
             .chan_id = channel_id,
-            .content = (char *)content,
-            .sz = strlen(content) + 1
+            .content = malloc(content_sz * 1024 * 1024),
+            .sz = content_sz * 1024 * 1024
         }
     };
     Marshalled *marshal;
     int rc;
 
     marshal = rpc_marshal_pub_post_req(&req);
+    free(req.params.content);
     if (!marshal)
         return -1;
 
@@ -577,7 +583,7 @@ int feeds_client_publish_post(FeedsClient *fc, const char *svc_node_id, uint64_t
 }
 
 int feeds_client_post_comment(FeedsClient *fc, const char *svc_node_id, uint64_t channel_id,
-                              uint64_t post_id, uint64_t comment_id, const char *content,
+                              uint64_t post_id, uint64_t comment_id, size_t content_sz,
                               PostCmtResp **resp, ErrResp **err)
 {
     PostCmtReq req = {
@@ -588,14 +594,15 @@ int feeds_client_post_comment(FeedsClient *fc, const char *svc_node_id, uint64_t
             .chan_id = channel_id,
             .post_id = post_id,
             .cmt_id = comment_id,
-            .content = (char *)content,
-            .sz = strlen(content) + 1
+            .content = malloc(content_sz * 1024 * 1024),
+            .sz = content_sz * 1024 * 1024
         }
     };
     Marshalled *marshal;
     int rc;
 
     marshal = rpc_marshal_post_cmt_req(&req);
+    free(req.params.content);
     if (!marshal)
         return -1;
 
@@ -674,6 +681,7 @@ int feeds_client_get_my_channels(FeedsClient *fc, const char *svc_node_id, QryFl
             }
         }
     };
+    GetMyChansResp *resp_tmp = NULL;
     Marshalled *marshal;
     int rc;
 
@@ -681,10 +689,62 @@ int feeds_client_get_my_channels(FeedsClient *fc, const char *svc_node_id, QryFl
     if (!marshal)
         return -1;
 
+    pthread_mutex_lock(&fc->lock);
+    fc->waiting_response = true;
     fc->unmarshal = rpc_unmarshal_get_my_chans_resp;
-    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+
+    rc = ela_send_friend_message(fc->carrier, svc_node_id, marshal->data, marshal->sz, NULL);
     deref(marshal);
-    return rc;
+    if (rc < 0) {
+        fc->unmarshal = NULL;
+        fc->waiting_response = false;
+        pthread_mutex_unlock(&fc->lock);
+        return -1;
+    }
+
+    while (1) {
+        while (!fc->resp && !fc->err)
+            pthread_cond_wait(&fc->cond, &fc->lock);
+        pthread_cond_signal(&fc->cond);
+
+        if (fc->resp) {
+            GetMyChansResp *r = fc->resp;
+            fc->resp = NULL;
+
+            if (!resp_tmp)
+                resp_tmp = ref(r);
+            else {
+                ChanInfo **ci;
+                cvector_foreach(r->result.cinfos, ci)
+                    cvector_push_back(resp_tmp->result.cinfos, ref(*ci));
+            }
+
+            if (!r->result.is_last) {
+                deref(r);
+                continue;
+            }
+
+            fc->unmarshal = NULL;
+            fc->waiting_response = false;
+
+            pthread_mutex_unlock(&fc->lock);
+
+            deref(r);
+            *resp = resp_tmp;
+
+            return 0;
+        } else {
+            *err = fc->err;
+
+            fc->err = NULL;
+            fc->unmarshal = NULL;
+            fc->waiting_response = false;
+
+            pthread_mutex_unlock(&fc->lock);
+
+            return 0;
+        }
+    }
 }
 
 int feeds_client_get_my_channels_metadata(FeedsClient *fc, const char *svc_node_id, QryFld qf,
@@ -734,6 +794,7 @@ int feeds_client_get_channels(FeedsClient *fc, const char *svc_node_id, QryFld q
             }
         }
     };
+    GetChansResp *resp_tmp = NULL;
     Marshalled *marshal;
     int rc;
 
@@ -741,10 +802,62 @@ int feeds_client_get_channels(FeedsClient *fc, const char *svc_node_id, QryFld q
     if (!marshal)
         return -1;
 
+    pthread_mutex_lock(&fc->lock);
+    fc->waiting_response = true;
     fc->unmarshal = rpc_unmarshal_get_chans_resp;
-    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+
+    rc = ela_send_friend_message(fc->carrier, svc_node_id, marshal->data, marshal->sz, NULL);
     deref(marshal);
-    return rc;
+    if (rc < 0) {
+        fc->unmarshal = NULL;
+        fc->waiting_response = false;
+        pthread_mutex_unlock(&fc->lock);
+        return -1;
+    }
+
+    while (1) {
+        while (!fc->resp && !fc->err)
+            pthread_cond_wait(&fc->cond, &fc->lock);
+        pthread_cond_signal(&fc->cond);
+
+        if (fc->resp) {
+            GetChansResp *r = fc->resp;
+            fc->resp = NULL;
+
+            if (!resp_tmp)
+                resp_tmp = ref(r);
+            else {
+                ChanInfo **ci;
+                cvector_foreach(r->result.cinfos, ci)
+                    cvector_push_back(resp_tmp->result.cinfos, ref(*ci));
+            }
+
+            if (!r->result.is_last) {
+                deref(r);
+                continue;
+            }
+
+            fc->unmarshal = NULL;
+            fc->waiting_response = false;
+
+            pthread_mutex_unlock(&fc->lock);
+
+            deref(r);
+            *resp = resp_tmp;
+
+            return 0;
+        } else {
+            *err = fc->err;
+
+            fc->err = NULL;
+            fc->unmarshal = NULL;
+            fc->waiting_response = false;
+
+            pthread_mutex_unlock(&fc->lock);
+
+            return 0;
+        }
+    }
 }
 
 int feeds_client_get_channel_detail(FeedsClient *fc, const char *svc_node_id, uint64_t id,
@@ -788,6 +901,7 @@ int feeds_client_get_subscribed_channels(FeedsClient *fc, const char *svc_node_i
             }
         }
     };
+    GetSubChansResp *resp_tmp = NULL;
     Marshalled *marshal;
     int rc;
 
@@ -795,10 +909,62 @@ int feeds_client_get_subscribed_channels(FeedsClient *fc, const char *svc_node_i
     if (!marshal)
         return -1;
 
+    pthread_mutex_lock(&fc->lock);
+    fc->waiting_response = true;
     fc->unmarshal = rpc_unmarshal_get_sub_chans_resp;
-    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+
+    rc = ela_send_friend_message(fc->carrier, svc_node_id, marshal->data, marshal->sz, NULL);
     deref(marshal);
-    return rc;
+    if (rc < 0) {
+        fc->unmarshal = NULL;
+        fc->waiting_response = false;
+        pthread_mutex_unlock(&fc->lock);
+        return -1;
+    }
+
+    while (1) {
+        while (!fc->resp && !fc->err)
+            pthread_cond_wait(&fc->cond, &fc->lock);
+        pthread_cond_signal(&fc->cond);
+
+        if (fc->resp) {
+            GetSubChansResp *r = fc->resp;
+            fc->resp = NULL;
+
+            if (!resp_tmp)
+                resp_tmp = ref(r);
+            else {
+                ChanInfo **ci;
+                cvector_foreach(r->result.cinfos, ci)
+                    cvector_push_back(resp_tmp->result.cinfos, ref(*ci));
+            }
+
+            if (!r->result.is_last) {
+                deref(r);
+                continue;
+            }
+
+            fc->unmarshal = NULL;
+            fc->waiting_response = false;
+
+            pthread_mutex_unlock(&fc->lock);
+
+            deref(r);
+            *resp = resp_tmp;
+
+            return 0;
+        } else {
+            *err = fc->err;
+
+            fc->err = NULL;
+            fc->unmarshal = NULL;
+            fc->waiting_response = false;
+
+            pthread_mutex_unlock(&fc->lock);
+
+            return 0;
+        }
+    }
 }
 
 int feeds_client_get_posts(FeedsClient *fc, const char *svc_node_id, uint64_t cid, QryFld qf,
@@ -818,6 +984,7 @@ int feeds_client_get_posts(FeedsClient *fc, const char *svc_node_id, uint64_t ci
             }
         }
     };
+    GetPostsResp *resp_tmp = NULL;
     Marshalled *marshal;
     int rc;
 
@@ -825,10 +992,62 @@ int feeds_client_get_posts(FeedsClient *fc, const char *svc_node_id, uint64_t ci
     if (!marshal)
         return -1;
 
+    pthread_mutex_lock(&fc->lock);
+    fc->waiting_response = true;
     fc->unmarshal = rpc_unmarshal_get_posts_resp;
-    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+
+    rc = ela_send_friend_message(fc->carrier, svc_node_id, marshal->data, marshal->sz, NULL);
     deref(marshal);
-    return rc;
+    if (rc < 0) {
+        fc->unmarshal = NULL;
+        fc->waiting_response = false;
+        pthread_mutex_unlock(&fc->lock);
+        return -1;
+    }
+
+    while (1) {
+        while (!fc->resp && !fc->err)
+            pthread_cond_wait(&fc->cond, &fc->lock);
+        pthread_cond_signal(&fc->cond);
+
+        if (fc->resp) {
+            GetPostsResp *r = fc->resp;
+            fc->resp = NULL;
+
+            if (!resp_tmp)
+                resp_tmp = ref(r);
+            else {
+                PostInfo **pi;
+                cvector_foreach(r->result.pinfos, pi)
+                    cvector_push_back(resp_tmp->result.pinfos, ref(*pi));
+            }
+
+            if (!r->result.is_last) {
+                deref(r);
+                continue;
+            }
+
+            fc->unmarshal = NULL;
+            fc->waiting_response = false;
+
+            pthread_mutex_unlock(&fc->lock);
+
+            deref(r);
+            *resp = resp_tmp;
+
+            return 0;
+        } else {
+            *err = fc->err;
+
+            fc->err = NULL;
+            fc->unmarshal = NULL;
+            fc->waiting_response = false;
+
+            pthread_mutex_unlock(&fc->lock);
+
+            return 0;
+        }
+    }
 }
 
 int feeds_client_get_liked_posts(FeedsClient *fc, const char *svc_node_id, QryFld qf, uint64_t upper,
@@ -847,6 +1066,7 @@ int feeds_client_get_liked_posts(FeedsClient *fc, const char *svc_node_id, QryFl
             }
         }
     };
+    GetLikedPostsResp *resp_tmp = NULL;
     Marshalled *marshal;
     int rc;
 
@@ -854,10 +1074,62 @@ int feeds_client_get_liked_posts(FeedsClient *fc, const char *svc_node_id, QryFl
     if (!marshal)
         return -1;
 
+    pthread_mutex_lock(&fc->lock);
+    fc->waiting_response = true;
     fc->unmarshal = rpc_unmarshal_get_liked_posts_resp;
-    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+
+    rc = ela_send_friend_message(fc->carrier, svc_node_id, marshal->data, marshal->sz, NULL);
     deref(marshal);
-    return rc;
+    if (rc < 0) {
+        fc->unmarshal = NULL;
+        fc->waiting_response = false;
+        pthread_mutex_unlock(&fc->lock);
+        return -1;
+    }
+
+    while (1) {
+        while (!fc->resp && !fc->err)
+            pthread_cond_wait(&fc->cond, &fc->lock);
+        pthread_cond_signal(&fc->cond);
+
+        if (fc->resp) {
+            GetLikedPostsResp *r = fc->resp;
+            fc->resp = NULL;
+
+            if (!resp_tmp)
+                resp_tmp = ref(r);
+            else {
+                PostInfo **pi;
+                cvector_foreach(r->result.pinfos, pi)
+                    cvector_push_back(resp_tmp->result.pinfos, ref(*pi));
+            }
+
+            if (!r->result.is_last) {
+                deref(r);
+                continue;
+            }
+
+            fc->unmarshal = NULL;
+            fc->waiting_response = false;
+
+            pthread_mutex_unlock(&fc->lock);
+
+            deref(r);
+            *resp = resp_tmp;
+
+            return 0;
+        } else {
+            *err = fc->err;
+
+            fc->err = NULL;
+            fc->unmarshal = NULL;
+            fc->waiting_response = false;
+
+            pthread_mutex_unlock(&fc->lock);
+
+            return 0;
+        }
+    }
 }
 
 int feeds_client_get_comments(FeedsClient *fc, const char *svc_node_id, uint64_t cid, uint64_t pid,
@@ -879,6 +1151,7 @@ int feeds_client_get_comments(FeedsClient *fc, const char *svc_node_id, uint64_t
             }
         }
     };
+    GetCmtsResp *resp_tmp = NULL;
     Marshalled *marshal;
     int rc;
 
@@ -886,10 +1159,62 @@ int feeds_client_get_comments(FeedsClient *fc, const char *svc_node_id, uint64_t
     if (!marshal)
         return -1;
 
+    pthread_mutex_lock(&fc->lock);
+    fc->waiting_response = true;
     fc->unmarshal = rpc_unmarshal_get_cmts_resp;
-    rc = transaction_start(fc, svc_node_id, marshal->data, marshal->sz, (void **)resp, err);
+
+    rc = ela_send_friend_message(fc->carrier, svc_node_id, marshal->data, marshal->sz, NULL);
     deref(marshal);
-    return rc;
+    if (rc < 0) {
+        fc->unmarshal = NULL;
+        fc->waiting_response = false;
+        pthread_mutex_unlock(&fc->lock);
+        return -1;
+    }
+
+    while (1) {
+        while (!fc->resp && !fc->err)
+            pthread_cond_wait(&fc->cond, &fc->lock);
+        pthread_cond_signal(&fc->cond);
+
+        if (fc->resp) {
+            GetCmtsResp *r = fc->resp;
+            fc->resp = NULL;
+
+            if (!resp_tmp)
+                resp_tmp = ref(r);
+            else {
+                CmtInfo **ci;
+                cvector_foreach(r->result.cinfos, ci)
+                    cvector_push_back(resp_tmp->result.cinfos, ref(*ci));
+            }
+
+            if (!r->result.is_last) {
+                deref(r);
+                continue;
+            }
+
+            fc->unmarshal = NULL;
+            fc->waiting_response = false;
+
+            pthread_mutex_unlock(&fc->lock);
+
+            deref(r);
+            *resp = resp_tmp;
+
+            return 0;
+        } else {
+            *err = fc->err;
+
+            fc->err = NULL;
+            fc->unmarshal = NULL;
+            fc->waiting_response = false;
+
+            pthread_mutex_unlock(&fc->lock);
+
+            return 0;
+        }
+    }
 }
 
 int feeds_client_get_statistics(FeedsClient *fc, const char *svc_node_id, GetStatsResp **resp, ErrResp **err)

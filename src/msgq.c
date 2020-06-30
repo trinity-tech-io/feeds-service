@@ -1,0 +1,211 @@
+#include <ela_carrier.h>
+#include <crystal.h>
+
+#include "msgq.h"
+
+typedef struct {
+    hash_entry_t he;
+    char peer[ELA_MAX_ID_LEN + 1];
+    list_t *q;
+    bool depr;
+} MsgQ;
+
+typedef struct {
+    list_entry_t le;
+    Marshalled *data;
+} Msg;
+
+extern ElaCarrier *carrier;
+
+static hashtable_t *msgqs;
+
+static inline
+MsgQ *msgq_get(const char *peer)
+{
+    return hashtable_get(msgqs, peer, strlen(peer));
+}
+
+static inline
+MsgQ *msgq_put(MsgQ *q)
+{
+    return hashtable_put(msgqs, &q->he);
+}
+
+static inline
+MsgQ *msgq_rm(const char *peer)
+{
+    return hashtable_remove(msgqs, peer, strlen(peer));
+}
+
+static inline
+Msg *msgq_pop_head(MsgQ *q)
+{
+    return list_is_empty(q->q) ? NULL : list_pop_head(q->q);
+}
+
+static inline
+void msgq_push_tail(MsgQ *q, Msg *m)
+{
+    list_push_tail(q->q, &m->le);
+}
+
+static
+void msg_dtor(void *obj)
+{
+    Msg *msg = obj;
+
+    deref(msg->data);
+}
+
+static
+Msg *msg_create(Marshalled *msg)
+{
+    Msg *m = rc_zalloc(sizeof(Msg), msg_dtor);
+    if (!m)
+        return NULL;
+
+    m->le.data = m;
+    m->data    = ref(msg);
+
+    return m;
+}
+
+static
+void msgq_dtor(void *obj)
+{
+    MsgQ *q = obj;
+
+    deref(q->q);
+}
+
+static
+MsgQ *msgq_create(const char *to)
+{
+    MsgQ *q = rc_zalloc(sizeof(MsgQ), msgq_dtor);
+    if (!q)
+        return NULL;
+
+    q->q = list_create(0, NULL);
+    if (!q->q) {
+        deref(q);
+        return NULL;
+    }
+
+    strcpy(q->peer, to);
+    q->he.data   = q;
+    q->he.key    = q->peer;
+    q->he.keylen = strlen(q->peer);
+
+    return q;
+}
+
+static
+void on_msg_receipt(int64_t msgid, ElaReceiptState state, void *context)
+{
+    MsgQ *q = context;
+    Msg *m = NULL;
+
+    (void)msgid;
+    (void)state;
+
+    vlogD("Message [%" PRIi64 "] receipt status: %s", msgid,
+          state == ElaReceipt_ByFriend ? "received" :
+                                         state == ElaReceipt_Offline ? "friend offline" : "error");
+
+    if (q->depr) {
+        vlogD("Message queue is deprecated.");
+        goto finally;
+    }
+
+    if (!(m = msgq_pop_head(q))) {
+        vlogD("Transport channel becomes idle.");
+        deref(msgq_rm(q->peer));
+        goto finally;
+    }
+
+    msgid = ela_send_message_with_receipt(carrier, q->peer, m->data->data,
+                                          m->data->sz, on_msg_receipt, ref(q));
+    if (msgid > 0)
+        vlogD("Send message [%" PRIi64 "].", msgid);
+
+finally:
+    deref(q);
+    deref(m);
+}
+
+int msgq_enq(const char *to, Marshalled *msg)
+{
+    MsgQ *q = NULL;
+    Msg *m = NULL;
+    int rc = -1;
+    int64_t msgid;
+
+    q = msgq_get(to);
+    if (q) {
+        vlogD("Transport channel is busy, put in message queue.");
+
+        m = msg_create(msg);
+        if (!m) {
+            vlogE("Creating message failed.");
+            goto finally;
+        }
+
+        msgq_push_tail(q, m);
+        rc = 0;
+        goto finally;
+    }
+
+
+    q = msgq_create(to);
+    if (!q) {
+        vlogE("Creating message queue failed.");
+        goto finally;
+    }
+
+    msgid = ela_send_message_with_receipt(carrier, to, msg->data, msg->sz, on_msg_receipt, ref(q));
+    if (msgid <= 0) {
+        vlogE("Sending message with receipt failed.");
+        goto finally;
+    }
+
+    vlogD("Transport channel is idle, send message [%" PRIi64 "] instantly.", msgid);
+
+    msgq_put(q);
+    rc = 0;
+
+finally:
+    deref(q);
+    deref(m);
+    deref(msg);
+    return rc;
+}
+
+void msgq_peer_offline(const char *peer)
+{
+    MsgQ *q = msgq_rm(peer);
+
+    if (q) {
+        vlogD("Set message queue deprecated.");
+        q->depr = true;
+    }
+
+    deref(q);
+}
+
+int msgq_init()
+{
+    msgqs = hashtable_create(8, 0, NULL, NULL);
+    if (!msgqs) {
+        vlogE("Creating message queues failed");
+        return -1;
+    }
+
+    vlogI("Message queue module initialized.");
+
+    return 0;
+}
+
+void msgq_deinit()
+{
+    deref(msgqs);
+}
