@@ -24,6 +24,9 @@ ExternalProject_Add(
         -DHDKEY_ONLY=FALSE
 )
 
+_ep_get_complete_stampfile(Elastos.DID.Native.SDK DID_STAMPFILE)
+set(ENV{DID_STAMPFILE} "${DID_STAMPFILE}")
+
 export_shared_library(eladid)
 
 add_library(libeladid-shared INTERFACE)

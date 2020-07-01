@@ -21,11 +21,14 @@ ExternalProject_Add(
         -DENABLE_CRYPTO=TRUE
         -DENABLE_TESTS=FALSE
 )
+
 ExternalProject_Add_StepDependencies(
     libcrystal
     install
+    Elastos.NET.Carrier.Native.SDK
+    "$ENV{CARRIER_STAMPFILE}"
     Elastos.DID.Native.SDK
-    Elastos.NET.Carrier.Native.SDK)
+    "$ENV{DID_STAMPFILE}")
 
 export_shared_library(crystal)
 
