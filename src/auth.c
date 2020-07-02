@@ -126,9 +126,9 @@ void hdl_signin_req_chal_req(ElaCarrier *c, const char *from, Req *base)
     char *chal = NULL;
     char *vc = NULL;
 
-    vlogI("Received signin_request_challenge request from [%s].", from);
-    vlogD("  iss: %s", req->params.iss);
-    vlogD("  credential_required: %s", req->params.vc_req ? "true" : "false");
+    vlogD("Received signin_request_challenge request from [%s]: "
+          "{iss: %s, credential_required: %s}", from, req->params.iss,
+          req->params.vc_req ? "true" : "false");
 
     if (!did_is_ready()) {
         vlogE("Feeds DID is not ready.");
@@ -190,10 +190,10 @@ void hdl_signin_req_chal_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_signin_req_chal_resp(&resp);
-        vlogI("Sending signin_request_challenge response.");
-        vlogD("  credential_required: %s", resp.result.vc_req ? "true" : "false");
-        vlogD("  jws: %s", resp.result.jws);
-        vlogD("  credential: %s", resp.result.vc ? resp.result.vc : "nil");
+        vlogD("Sending signin_request_challenge response: "
+              "{credential_required: %s, jws: %s, credential: %s}",
+              resp.result.vc_req ? "true" : "false", resp.result.jws,
+              resp.result.vc ? resp.result.vc : "nil");
     }
 
 finally:
@@ -380,9 +380,9 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
     Login *login = NULL;
     int rc;
 
-    vlogI("Received signin_request_challenge request from [%s].", from);
-    vlogD("  jws: %s", req->params.jws);
-    vlogD("  credential: %s", req->params.vc ? req->params.vc : "nil");
+    vlogD("Received signin_request_challenge request from [%s]: "
+          "{jws: %s, credential: %s}", from, req->params.jws,
+          req->params.vc ? req->params.vc : "nil");
 
     if (!did_is_ready()) {
         vlogE("Feeds DID is not ready.");
@@ -498,9 +498,8 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_signin_conf_chal_resp(&resp);
-        vlogI("Sending signin_confirm_challenge response.");
-        vlogD("  access_token: %s", resp.result.tk);
-        vlogD("  exp: %" PRIu64, resp.result.exp);
+        vlogD("Sending signin_confirm_challenge response: ",
+              "{access_token: %s, exp: %" PRIu64 "}", resp.result.tk, resp.result.exp);
     }
 
 finally:
