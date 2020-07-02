@@ -447,7 +447,7 @@ int did_init(FeedsConfig *cfg)
 
     feeds_didstore = DIDStore_Open(cfg->didstore_dir, &adapter);
     if (!feeds_didstore) {
-        vlogE("Opening DID store failed.");
+        vlogE("Opening DID store failed: %s", DIDError_GetMessage());
         goto failure;
     }
 
@@ -491,7 +491,7 @@ int did_init(FeedsConfig *cfg)
 
     vc_url = DIDURL_NewByDid(feeds_did, VC_FRAG);
     if (!vc_url) {
-        vlogE("Getting VC URL failed.");
+        vlogE("Getting VC URL failed: %s", DIDError_GetMessage());
         goto failure;
     }
 
@@ -667,7 +667,7 @@ void hdl_imp_did_req(ElaCarrier *c, const char *from, Req *base)
     if (!req->params.mnemo) {
         mnemo_gen = (char *)Mnemonic_Generate("english");
         if (!mnemo_gen) {
-            vlogE("Generating mnemonic failed.");
+            vlogE("Generating mnemonic failed: %s", DIDError_GetMessage());
             ErrResp resp = {
                 .tsx_id = req->tsx_id,
                 .ec     = ERR_INTERNAL_ERROR
@@ -682,7 +682,7 @@ void hdl_imp_did_req(ElaCarrier *c, const char *from, Req *base)
                                       req->params.passphrase ? req->params.passphrase : "",
                                       "english", true);
     if (rc < 0) {
-        vlogE("Initializing DID store private identity failed.");
+        vlogE("Initializing DID store private identity failed: %s", DIDError_GetMessage());
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -693,7 +693,7 @@ void hdl_imp_did_req(ElaCarrier *c, const char *from, Req *base)
 
     feeds_doc = DIDStore_NewDIDByIndex(feeds_didstore, feeds_storepass, req->params.idx, NULL);
     if (!feeds_doc) {
-        vlogE("Newing DID in DID store failed.");
+        vlogE("Newing DID in DID store failed: %s", DIDError_GetMessage());
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -744,6 +744,8 @@ bool Credential_IsValid_ResolveSubLocally(Credential *cred)
 
     DIDBackend_SetLocalResolveHandle(local_resolver);
     is_valid = Credential_IsValid(cred);
+    if (!is_valid)
+        vlogE("Resolving VC locally failed: %s", DIDError_GetMessage());
     DIDBackend_SetLocalResolveHandle(NULL);
 
     return is_valid;
@@ -767,7 +769,7 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
 
     vc_url = DIDURL_NewByDid(feeds_did, VC_FRAG);
     if (!vc_url) {
-        vlogE("Getting VC URL failed.");
+        vlogE("Getting VC URL failed: %s", DIDError_GetMessage());
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -778,7 +780,7 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
 
     vc = Credential_FromJson(req->params.vc, feeds_did);
     if (!vc) {
-        vlogE("Unmarshalling credential failed.");
+        vlogE("Unmarshalling credential failed: %s", DIDError_GetMessage());
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INVALID_PARAMS
@@ -828,7 +830,7 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (DIDStore_StoreCredential(feeds_didstore, vc) < 0) {
-        vlogE("Storing credential failed.");
+        vlogE("Storing credential failed: %s", DIDError_GetMessage());
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INVALID_PARAMS
