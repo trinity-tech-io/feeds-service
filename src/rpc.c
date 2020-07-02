@@ -1570,7 +1570,8 @@ int rpc_unmarshal_decl_owner_resp(DeclOwnerResp **resp, ErrResp **err)
         });
     });
 
-    if (!phase || !(!strcmp(phase->str_val, "did_imported") ?
+    if (!phase || !((phase->str_sz == strlen("did_imported") &&
+                     !memcmp(phase->str_val, "did_imported", phase->str_sz)) ?
                     (did && tsx_payload && tsx_payload->str_sz) :
                     (!did && !tsx_payload))) {
         vlogE("Invalid declare_owner response.");
