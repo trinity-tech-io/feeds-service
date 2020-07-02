@@ -732,6 +732,23 @@ finally:
         Mnemonic_Free(mnemo_gen);
 }
 
+static DIDDocument *local_resolver(DID *did)
+{
+    return DID_Equals(did, feeds_did) ? DIDStore_LoadDID(feeds_didstore, feeds_did) : NULL;
+}
+
+static inline
+bool Credential_IsValid_ResolveSubLocally(Credential *cred)
+{
+    bool is_valid;
+
+    DIDBackend_SetLocalResolveHandle(local_resolver);
+    is_valid = Credential_IsValid(cred);
+    DIDBackend_SetLocalResolveHandle(NULL);
+
+    return is_valid;
+}
+
 void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
 {
     IssVCReq *req = (IssVCReq *)base;
@@ -770,7 +787,7 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    if (!Credential_IsValid(vc)) {
+    if (!Credential_IsValid_ResolveSubLocally(vc)) {
         vlogE("Credential is invalid.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
@@ -810,7 +827,7 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    if (DIDStore_StoreCredential(feeds_didstore, vc, NULL) < 0) {
+    if (DIDStore_StoreCredential(feeds_didstore, vc) < 0) {
         vlogE("Storing credential failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
