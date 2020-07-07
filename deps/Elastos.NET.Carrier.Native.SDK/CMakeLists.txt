@@ -22,10 +22,20 @@ ExternalProject_Add(
         -DENABLE_DOCS=FALSE
 )
 
-_ep_get_complete_stampfile(Elastos.NET.Carrier.Native.SDK CARRIER_STAMPFILE)
-set(ENV{CARRIER_STAMPFILE} "${CARRIER_STAMPFILE}")
+ExternalProject_Get_property(Elastos.DID.Native.SDK STAMP_DIR)
+ExternalProject_Add_StepDependencies(
+    Elastos.NET.Carrier.Native.SDK
+    install
+    Elastos.DID.Native.SDK
+    "${STAMP_DIR}/Elastos.DID.Native.SDK-done"
+)
+
+message(${STAMP_DIR})
 
 export_shared_library(elacarrier)
-
 add_library(libelacarrier-shared INTERFACE)
 target_link_libraries(libelacarrier-shared INTERFACE elacarrier libcrystal-shared)
+
+export_shared_library(crystal)
+add_library(libcrystal-shared INTERFACE)
+target_link_libraries(libcrystal-shared INTERFACE crystal)

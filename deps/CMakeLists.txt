@@ -9,10 +9,6 @@ add_submodule(Elastos.DID.Native.SDK
     DEPENDS platform-specific)
 add_submodule(Elastos.NET.Carrier.Native.SDK
     DEPENDS platform-specific)
-add_submodule(libsodium
-    DEPENDS platform-specific)
-add_submodule(libcrystal
-    DEPENDS platform-specific libsodium)
 add_submodule(sqlite
     DEPENDS platform-specific)
 add_submodule(CUnit
