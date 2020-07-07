@@ -1402,16 +1402,23 @@ int unmarshal_new_cmt_notif(const msgpack_object *notif, Notif **notif_unmarshal
     return 0;
 }
 
+typedef struct {
+    NewLikeNotif notif;
+    LikeInfo li;
+} NewLikeNotifWithLInfo;
+
 static
-int unmarshal_new_likes_notif(const msgpack_object *notif, Notif **notif_unmarshal)
+int unmarshal_new_like_notif(const msgpack_object *notif, Notif **notif_unmarshal)
 {
     const msgpack_object *version;
     const msgpack_object *method;
     const msgpack_object *chan_id;
     const msgpack_object *post_id;
     const msgpack_object *cmt_id;
+    const msgpack_object *user_name;
+    const msgpack_object *user_did;
     const msgpack_object *cnt;
-    NewLikesNotif *tmp;
+    NewLikeNotifWithLInfo *tmp;
     void *buf;
 
     assert(notif->type == MSGPACK_OBJECT_MAP);
@@ -1420,31 +1427,92 @@ int unmarshal_new_likes_notif(const msgpack_object *notif, Notif **notif_unmarsh
         version = map_val_str("version");
         method  = map_val_str("method");
         map_iter_kvs(map_val_map("params"), {
-            chan_id = map_val_u64("channel_id");
-            post_id = map_val_u64("post_id");
-            cmt_id  = map_val_u64("comment_id");
-            cnt     = map_val_u64("count");
+            chan_id   = map_val_u64("channel_id");
+            post_id   = map_val_u64("post_id");
+            cmt_id    = map_val_u64("comment_id");
+            user_name = map_val_str("user_name");
+            user_did  = map_val_str("user_did");
+            cnt       = map_val_u64("total_count");
         });
     });
 
     if (!chan_id || !chan_id_is_valid(chan_id->u64_val) ||
-        !post_id || !post_id_is_valid(post_id->u64_val) || !cnt) {
-        vlogE("Invalid new_likes notification.");
+        !post_id || !post_id_is_valid(post_id->u64_val) ||
+        !user_name || !user_name->str_sz || !user_did || !user_did->str_sz || !cnt) {
+        vlogE("Invalid new_like notification.");
         return -1;
     }
 
-    tmp = rc_zalloc(sizeof(NewLikesNotif) + str_reserve_spc(method), NULL);
+    tmp = rc_zalloc(sizeof(NewLikeNotifWithLInfo) + str_reserve_spc(method) +
+                    str_reserve_spc(user_name) + str_reserve_spc(user_did), NULL);
     if (!tmp)
         return -1;
 
     buf = tmp + 1;
-    tmp->method         = strncpy(buf, method->str_val, method->str_sz);
-    tmp->params.chan_id = chan_id->u64_val;
-    tmp->params.post_id = post_id->u64_val;
-    tmp->params.cmt_id  = cmt_id->u64_val;
-    tmp->params.cnt     = cnt->u64_val;
+    tmp->notif.method               = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->notif.params.li            = &tmp->li;
+    tmp->notif.params.li->chan_id   = chan_id->u64_val;
+    tmp->notif.params.li->post_id   = post_id->u64_val;
+    tmp->notif.params.li->cmt_id    = cmt_id->u64_val;
+    tmp->notif.params.li->user.name = strncpy(buf, user_name->str_val, user_name->str_sz);
+    buf += str_reserve_spc(user_name);
+    tmp->notif.params.li->user.did  = strncpy(buf, user_did->str_val, user_did->str_sz);
+    tmp->notif.params.li->total_cnt = cnt->u64_val;
 
-    *notif_unmarshal = (Notif *)tmp;
+    *notif_unmarshal = (Notif *)&tmp->notif;
+    return 0;
+}
+
+typedef struct {
+    NewSubNotif notif;
+    UserInfo ui;
+} NewSubNotifWithUInfo;
+
+static
+int unmarshal_new_sub_notif(const msgpack_object *notif, Notif **notif_unmarshal)
+{
+    const msgpack_object *version;
+    const msgpack_object *method;
+    const msgpack_object *chan_id;
+    const msgpack_object *user_name;
+    const msgpack_object *user_did;
+    NewSubNotifWithUInfo *tmp;
+    void *buf;
+
+    assert(notif->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(notif, {
+        version = map_val_str("version");
+        method  = map_val_str("method");
+        map_iter_kvs(map_val_map("params"), {
+            chan_id   = map_val_u64("channel_id");
+            user_name = map_val_str("user_name");
+            user_did  = map_val_str("user_did");
+        });
+    });
+
+    if (!chan_id || !chan_id_is_valid(chan_id->u64_val) ||
+        !user_name || !user_name->str_sz || !user_did || !user_did->str_sz) {
+        vlogE("Invalid new_subscription notification.");
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(NewSubNotifWithUInfo) + str_reserve_spc(method) +
+                    str_reserve_spc(user_name) + str_reserve_spc(user_did), NULL);
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->notif.method             = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->notif.params.uinfo       = &tmp->ui;
+    tmp->notif.params.chan_id     = chan_id->u64_val;
+    tmp->notif.params.uinfo->name = strncpy(buf, user_name->str_val, user_name->str_sz);
+    buf += str_reserve_spc(user_name);
+    tmp->notif.params.uinfo->did  = strncpy(buf, user_did->str_val, user_did->str_sz);
+
+    *notif_unmarshal = (Notif *)&tmp->notif;
     return 0;
 }
 
@@ -1453,9 +1521,10 @@ static struct {
     char *method;
     NotifHdlr *parser;
 } notif_parsers[] = {
-    {"new_post"   , unmarshal_new_post_notif },
-    {"new_comment", unmarshal_new_cmt_notif  },
-    {"new_likes"  , unmarshal_new_likes_notif},
+    {"new_post"        , unmarshal_new_post_notif },
+    {"new_comment"     , unmarshal_new_cmt_notif  },
+    {"new_like"        , unmarshal_new_like_notif },
+    {"new_subscription", unmarshal_new_sub_notif  }
 };
 
 int rpc_unmarshal_notif_or_resp_id(const void *rpc, size_t len, Notif **notif, uint64_t *resp_id)
@@ -3373,7 +3442,7 @@ Marshalled *rpc_marshal_new_cmt_notif(const NewCmtNotif *notif)
     return &m->m;
 }
 
-Marshalled *rpc_marshal_new_likes_notif(const NewLikesNotif *notif)
+Marshalled *rpc_marshal_new_like_notif(const NewLikeNotif *notif)
 {
     msgpack_sbuffer *buf = msgpack_sbuffer_new();
     msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
@@ -3381,12 +3450,39 @@ Marshalled *rpc_marshal_new_likes_notif(const NewLikesNotif *notif)
 
     pack_map(pk, 3, {
         pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "new_likes");
-        pack_kv_map(pk, "params", 4, {
+        pack_kv_str(pk, "method", "new_like");
+        pack_kv_map(pk, "params", 6, {
+            pack_kv_u64(pk, "channel_id", notif->params.li->chan_id);
+            pack_kv_u64(pk, "post_id", notif->params.li->post_id);
+            pack_kv_u64(pk, "comment_id", notif->params.li->cmt_id);
+            pack_kv_str(pk, "user_name", notif->params.li->user.name);
+            pack_kv_str(pk, "user_did", notif->params.li->user.did);
+            pack_kv_u64(pk, "total_count", notif->params.li->total_cnt);
+        });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_new_sub_notif(const NewSubNotif *notif)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_str(pk, "method", "new_subscription");
+        pack_kv_map(pk, "params", 3, {
             pack_kv_u64(pk, "channel_id", notif->params.chan_id);
-            pack_kv_u64(pk, "post_id", notif->params.post_id);
-            pack_kv_u64(pk, "comment_id", notif->params.cmt_id);
-            pack_kv_u64(pk, "count", notif->params.cnt);
+            pack_kv_str(pk, "user_name", notif->params.uinfo->name);
+            pack_kv_str(pk, "user_did", notif->params.uinfo->did);
         });
     });
 

@@ -15,6 +15,7 @@ static uint64_t nxt_chan_id = CHAN_ID_START;
 static hashtable_t *ass;
 static hashtable_t *chans_by_name;
 static hashtable_t *chans_by_id;
+static char owner_notif_node_id[ELA_MAX_ID_LEN + 1];
 
 typedef struct {
     hash_entry_t he_name_key;
@@ -188,7 +189,7 @@ void feeds_deinit()
 }
 
 static
-void notify_of_new_post(const ActiveSuber *as, const PostInfo *pi)
+void notify_of_new_post(const char *peer, const PostInfo *pi)
 {
     NewPostNotif notif = {
         .method = "new_post",
@@ -204,12 +205,12 @@ void notify_of_new_post(const ActiveSuber *as, const PostInfo *pi)
 
     vlogD("Sending new post notification to [%s]: "
           "{channel_id: %" PRIu64 ", post_id: %" PRIu64 "}",
-          as->node_id, pi->chan_id, pi->post_id);
-    msgq_enq(as->node_id, notif_marshal);
+          peer, pi->chan_id, pi->post_id);
+    msgq_enq(peer, notif_marshal);
 }
 
 static
-void notify_of_new_cmt(const ActiveSuber *as, const CmtInfo *ci)
+void notify_of_new_cmt(const char *peer, const CmtInfo *ci)
 {
     NewCmtNotif notif = {
         .method = "new_comment",
@@ -226,33 +227,52 @@ void notify_of_new_cmt(const ActiveSuber *as, const CmtInfo *ci)
     vlogD("Sending new comment notification to [%s]: "
           "{channel_id: %" PRIu64 ", post_id: %" PRIu64
           ", comment_id: %" PRIu64 ", refcomment_id: %" PRIu64 "}",
-          as->node_id, ci->chan_id, ci->post_id, ci->cmt_id, ci->reply_to_cmt);
-    msgq_enq(as->node_id, notif_marshal);
+          peer, ci->chan_id, ci->post_id, ci->cmt_id, ci->reply_to_cmt);
+    msgq_enq(peer, notif_marshal);
 }
 
 static
-void notify_of_new_likes(const ActiveSuber *as, uint64_t cid,
-                         uint64_t pid, uint64_t cmtid, uint64_t likes)
+void notify_of_new_like(const char *peer, const LikeInfo *li)
 {
-    NewLikesNotif notif = {
-        .method = "new_likes",
+    NewLikeNotif notif = {
+        .method = "new_like",
         .params = {
-            .chan_id = cid,
-            .post_id = pid,
-            .cmt_id  = cmtid,
-            .cnt     = likes
+            .li = (LikeInfo *)li
         }
     };
     Marshalled *notif_marshal;
 
-    notif_marshal = rpc_marshal_new_likes_notif(&notif);
+    notif_marshal = rpc_marshal_new_like_notif(&notif);
     if (!notif_marshal)
         return;
 
-    vlogD("Sending new likes notification to [%s]: "
+    vlogD("Sending new like notification to [%s]: "
           "{channel_id: %" PRIu64 ", post_id: %" PRIu64
-          ", comment_id: %" PRIu64 "}", as->node_id, cid, pid, cmtid);
-    msgq_enq(as->node_id, notif_marshal);
+          ", comment_id: %" PRIu64 ", user_name: %s, user_did: %s, total_count: " PRIu64 "}",
+          peer, li->chan_id, li->post_id, li->cmt_id, li->user.name, li->user.did, li->total_cnt);
+    msgq_enq(peer, notif_marshal);
+}
+
+static
+void notify_of_new_sub(const char *peer, const uint64_t chan_id, const UserInfo *uinfo)
+{
+    NewSubNotif notif = {
+        .method = "new_subscription",
+        .params = {
+            .chan_id = chan_id,
+            .uinfo   = (UserInfo *)uinfo
+        }
+    };
+    Marshalled *notif_marshal;
+
+    notif_marshal = rpc_marshal_new_sub_notif(&notif);
+    if (!notif_marshal)
+        return;
+
+    vlogD("Sending new subscription notification to [%s]: "
+          "{channel_id: %" PRIu64 ", user_name: %s, user_did: %s}",
+          peer, chan_id, uinfo->name, uinfo->did);
+    msgq_enq(peer, notif_marshal);
 }
 
 static
@@ -572,8 +592,11 @@ void hdl_pub_post_req(ElaCarrier *c, const char *from, Req *base)
               "{id: %" PRIu64 "}", new_post.post_id);
     }
 
+    if (owner_notif_node_id[0])
+        notify_of_new_post(owner_notif_node_id, &new_post);
+
     list_foreach(chan->cass, cas)
-        notify_of_new_post(cas->as, &new_post);
+        notify_of_new_post(cas->as->node_id, &new_post);
 
 finally:
     if (resp_marshal)
@@ -685,8 +708,11 @@ void hdl_post_cmt_req(ElaCarrier *c, const char *from, Req *base)
         vlogD("Sending post_comment response: {id: %" PRIu64 "}", new_cmt.cmt_id);
     }
 
+    if (owner_notif_node_id[0])
+        notify_of_new_cmt(owner_notif_node_id, &new_cmt);
+
     list_foreach(chan->cass, cas)
-        notify_of_new_cmt(cas->as, &new_cmt);
+        notify_of_new_cmt(cas->as->node_id, &new_cmt);
 
 finally:
     if (resp_marshal)
@@ -703,7 +729,7 @@ void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base)
     ChanActiveSuber *cas;
     list_iterator_t it;
     Chan *chan = NULL;
-    uint64_t likes;
+    LikeInfo li;
     int rc;
 
     vlogD("Received post_like request from [%s]: "
@@ -773,7 +799,7 @@ void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    rc = db_add_like(uinfo->uid, req->params.chan_id, req->params.post_id, req->params.cmt_id, &likes);
+    rc = db_add_like(uinfo->uid, req->params.chan_id, req->params.post_id, req->params.cmt_id, &li.total_cnt);
     if (rc < 0) {
         vlogE("Adding like to database failed");
         ErrResp resp = {
@@ -795,10 +821,16 @@ void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base)
         vlogD("Sending post_like response.");
     }
 
-    if (!(likes % 10))
-        list_foreach(chan->cass, cas)
-            notify_of_new_likes(cas->as, req->params.chan_id,
-                                req->params.post_id, req->params.cmt_id, likes);
+    li.chan_id = req->params.chan_id;
+    li.post_id = req->params.post_id;
+    li.cmt_id  = req->params.cmt_id;
+    li.user    = *uinfo;
+
+    if (owner_notif_node_id[0])
+        notify_of_new_like(owner_notif_node_id, &li);
+
+    list_foreach(chan->cass, cas)
+        notify_of_new_like(cas->as->node_id, &li);
 
 finally:
     if (resp_marshal)
@@ -1944,6 +1976,9 @@ void hdl_sub_chan_req(ElaCarrier *c, const char *from, Req *base)
         vlogD("Sending subscribe_channel response.");
     }
 
+    if (owner_notif_node_id[0])
+        notify_of_new_sub(owner_notif_node_id, chan->info.chan_id, uinfo);
+
 finally:
     if (resp_marshal)
         msgq_enq(from, resp_marshal);
@@ -2068,6 +2103,21 @@ void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
+    if (user_id_is_owner(uinfo->uid)) {
+        if (owner_notif_node_id[0]) {
+            vlogE("Already enabled notification");
+            ErrResp resp = {
+                .tsx_id = req->tsx_id,
+                .ec     = ERR_WRONG_STATE
+            };
+            resp_marshal = rpc_marshal_err_resp(&resp);
+            goto finally;
+        }
+
+        strcpy(owner_notif_node_id, from);
+        goto respond;
+    }
+
     if (as_exist(from)) {
         vlogE("Already enabled notification");
         ErrResp resp = {
@@ -2132,6 +2182,7 @@ void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base)
 
     as_put(as);
 
+respond:
     {
         EnblNotifResp resp = {
             .tsx_id = req->tsx_id,
@@ -2155,10 +2206,16 @@ finally:
 
 void feeds_deactivate_suber(const char *node_id)
 {
-    ActiveSuber *as = as_remove(node_id);
     hashtable_iterator_t it;
     ChanActiveSuber *cas;
+    ActiveSuber *as;
 
+    if (!strcmp(node_id, owner_notif_node_id)) {
+        owner_notif_node_id[0] = '\0';
+        return;
+    }
+
+    as = as_remove(node_id);
     if (!as)
         return;
 

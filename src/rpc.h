@@ -404,12 +404,17 @@ typedef struct {
 typedef struct {
     char *method;
     struct {
-        uint64_t chan_id;
-        uint64_t post_id;
-        uint64_t cmt_id;
-        uint64_t cnt;
+        LikeInfo *li;
     } params;
-} NewLikesNotif;
+} NewLikeNotif;
+
+typedef struct {
+    char *method;
+    struct {
+        uint64_t chan_id;
+        UserInfo *uinfo;
+    } params;
+} NewSubNotif;
 
 typedef struct {
     void  *data;
@@ -452,7 +457,8 @@ Marshalled *rpc_marshal_signin_conf_chal_req(const SigninConfChalReq *req);
 Marshalled *rpc_marshal_signin_conf_chal_resp(const SigninConfChalResp *resp);
 Marshalled *rpc_marshal_new_post_notif(const NewPostNotif *notif);
 Marshalled *rpc_marshal_new_cmt_notif(const NewCmtNotif *notif);
-Marshalled *rpc_marshal_new_likes_notif(const NewLikesNotif *notif);
+Marshalled *rpc_marshal_new_like_notif(const NewLikeNotif *notif);
+Marshalled *rpc_marshal_new_sub_notif(const NewSubNotif *notif);
 Marshalled *rpc_marshal_err_resp(const ErrResp *resp);
 Marshalled *rpc_marshal_create_chan_req(const CreateChanReq *req);
 Marshalled *rpc_marshal_create_chan_resp(const CreateChanResp *resp);

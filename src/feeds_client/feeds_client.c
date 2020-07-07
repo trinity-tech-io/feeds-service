@@ -113,14 +113,18 @@ void on_receiving_message(ElaCarrier *carrier, const char *from,
                     n->params.cinfo->user.name,
                     n->params.cinfo->len,
                     n->params.cinfo->created_at);
-        } else {
-            NewLikesNotif *n = (NewLikesNotif *)notif;
+        } else if (!strcmp(notif->method, "new_like")) {
+            NewLikeNotif *n = (NewLikeNotif *)notif;
             console("New like:");
-            console("  channel_id: %llu, post_id: %llu, comment_id: %llu, count: %llu",
-                    n->params.chan_id,
-                    n->params.post_id,
-                    n->params.cmt_id,
-                    n->params.cnt);
+            console("  channel_id: %" PRIu64 ", post_id: %" PRIu64 ", comment_id: %" PRIu64
+                    ", user_name: %s, user_did: %s, count: %" PRIu64,
+                    n->params.li->chan_id, n->params.li->post_id, n->params.li->cmt_id,
+                    n->params.li->user.name, n->params.li->user.did, n->params.li->total_cnt);
+        } else {
+            NewSubNotif *n = (NewSubNotif *)notif;
+            console("New subscription:");
+            console("  channel_id: %" PRIu64 ", user_name: %s, user_did: %s",
+                    n->params.chan_id, n->params.uinfo->name, n->params.uinfo->did);
         }
         deref(notif);
         return;

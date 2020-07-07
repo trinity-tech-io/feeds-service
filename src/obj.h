@@ -74,4 +74,12 @@ typedef struct {
     uint64_t    likes;
 } CmtInfo;
 
+typedef struct {
+    uint64_t chan_id;
+    uint64_t post_id;
+    uint64_t cmt_id;
+    UserInfo user;
+    uint64_t total_cnt;
+} LikeInfo;
+
 #endif // __OBJ_H__
