@@ -11,23 +11,18 @@
 extern ElaCarrier *carrier;
 extern size_t connecting_clients;
 
-static uint64_t nxt_chan_id = CHAN_ID_START;
-static hashtable_t *ass;
-static hashtable_t *chans_by_name;
-static hashtable_t *chans_by_id;
-static char owner_notif_node_id[ELA_MAX_ID_LEN + 1];
-
 typedef struct {
     hash_entry_t he_name_key;
     hash_entry_t he_id_key;
-    list_t *cass;
+    list_t *aspcs;
     ChanInfo info;
 } Chan;
 
 typedef struct {
     hash_entry_t he;
-    hashtable_t *cass_by_chan_id;
-    char node_id[ELA_MAX_ID_LEN + 1];
+    hashtable_t *aspcs;
+    hashtable_t *ndpass;
+    uint64_t uid;
 } ActiveSuber;
 
 typedef struct {
@@ -35,7 +30,26 @@ typedef struct {
     hash_entry_t he;
     const Chan *chan;
     const ActiveSuber *as;
-} ChanActiveSuber;
+} ActiveSuberPerChan;
+
+typedef struct {
+    hash_entry_t he;
+    char node_id[ELA_MAX_ID_LEN + 1];
+    list_t *ndpass;
+} NotifDest;
+
+typedef struct {
+    hash_entry_t he;
+    list_entry_t le;
+    ActiveSuber *as;
+    NotifDest *nd;
+} NotifDestPerActiveSuber;
+
+static uint64_t nxt_chan_id = CHAN_ID_START;
+static hashtable_t *ass;
+static hashtable_t *nds;
+static hashtable_t *chans_by_name;
+static hashtable_t *chans_by_id;
 
 #define hashtable_foreach(htab, entry)                                \
     for (hashtable_iterate((htab), &it);                              \
@@ -58,7 +72,7 @@ Chan *chan_put(Chan *chan)
 }
 
 static
-int channel_id_compare(const void *key1, size_t len1, const void *key2, size_t len2)
+int u64_cmp(const void *key1, size_t len1, const void *key2, size_t len2)
 {
     assert(key1 && sizeof(uint64_t) == len1);
     assert(key2 && sizeof(uint64_t) == len2);
@@ -71,7 +85,7 @@ void chan_dtor(void *obj)
 {
     Chan *chan = obj;
 
-    deref(chan->cass);
+    deref(chan->aspcs);
 }
 
 static
@@ -85,8 +99,8 @@ Chan *chan_create(const ChanInfo *ci)
     if (!chan)
         return NULL;
 
-    chan->cass = list_create(0, NULL);
-    if (!chan->cass) {
+    chan->aspcs = list_create(0, NULL);
+    if (!chan->aspcs) {
         deref(chan);
         return NULL;
     }
@@ -157,15 +171,21 @@ int feeds_init(FeedsConfig *cfg)
         goto failure;
     }
 
-    chans_by_id = hashtable_create(8, 0, NULL, channel_id_compare);
+    chans_by_id = hashtable_create(8, 0, NULL, u64_cmp);
     if (!chans_by_id) {
         vlogE("Creating channels by id failed");
         goto failure;
     }
 
-    ass = hashtable_create(8, 0, NULL, NULL);
+    ass = hashtable_create(8, 0, NULL, u64_cmp);
     if (!ass) {
         vlogE("Creating active subscribers failed");
+        goto failure;
+    }
+
+    nds = hashtable_create(8, 0, NULL, NULL);
+    if (!nds) {
+        vlogE("Creating notification destinations failed");
         goto failure;
     }
 
@@ -186,6 +206,7 @@ void feeds_deinit()
     deref(chans_by_name);
     deref(chans_by_id);
     deref(ass);
+    deref(nds);
 }
 
 static
@@ -280,11 +301,12 @@ void as_dtor(void *obj)
 {
     ActiveSuber *as = obj;
 
-    deref(as->cass_by_chan_id);
+    deref(as->aspcs);
+    deref(as->ndpass);
 }
 
 static
-ActiveSuber *as_create(const char *node_id)
+ActiveSuber *as_create(uint64_t uid)
 {
     ActiveSuber *as;
 
@@ -292,40 +314,45 @@ ActiveSuber *as_create(const char *node_id)
     if (!as)
         return NULL;
 
-    as->cass_by_chan_id = hashtable_create(8, 0, NULL, channel_id_compare);
-    if (!as->cass_by_chan_id) {
+    as->aspcs = hashtable_create(8, 0, NULL, u64_cmp);
+    if (!as->aspcs) {
         deref(as);
         return NULL;
     }
 
-    strcpy(as->node_id, node_id);
+    as->ndpass = hashtable_create(8, 0, NULL, NULL);
+    if (!as->ndpass) {
+        deref(as);
+        return NULL;
+    }
 
+    as->uid       = uid;
     as->he.data   = as;
-    as->he.key    = as->node_id;
-    as->he.keylen = strlen(as->node_id);
+    as->he.key    = &as->uid;
+    as->he.keylen = sizeof(as->uid);
 
     return as;
 }
 
 static
-ChanActiveSuber *cas_create(const ActiveSuber *as, const Chan *chan)
+ActiveSuberPerChan *aspc_create(const ActiveSuber *as, const Chan *chan)
 {
-    ChanActiveSuber *cas;
+    ActiveSuberPerChan *aspc;
 
-    cas = rc_zalloc(sizeof(ChanActiveSuber), NULL);
-    if (!cas)
+    aspc = rc_zalloc(sizeof(ActiveSuberPerChan), NULL);
+    if (!aspc)
         return NULL;
 
-    cas->chan = chan;
-    cas->as = as;
+    aspc->chan = chan;
+    aspc->as   = as;
 
-    cas->he.data = cas;
-    cas->he.key = &cas->chan->info.chan_id;
-    cas->he.keylen = sizeof(cas->chan->info.chan_id);
+    aspc->he.data = aspc;
+    aspc->he.key = &aspc->chan->info.chan_id;
+    aspc->he.keylen = sizeof(aspc->chan->info.chan_id);
 
-    cas->le.data = cas;
+    aspc->le.data = aspc;
 
-    return cas;
+    return aspc;
 }
 
 static inline
@@ -347,21 +374,15 @@ int chan_exist_by_id(uint64_t id)
 }
 
 static inline
-ActiveSuber *as_get(const char *node_id)
+ActiveSuber *as_get(uint64_t uid)
 {
-    return hashtable_get(ass, node_id, strlen(node_id));
+    return hashtable_get(ass, &uid, sizeof(uid));
 }
 
 static inline
-int as_exist(const char *node_id)
+ActiveSuber *as_remove(uint64_t uid)
 {
-    return hashtable_exist(ass, node_id, strlen(node_id));
-}
-
-static inline
-ActiveSuber *as_remove(const char *node_id)
-{
-    return hashtable_remove(ass, node_id, strlen(node_id));
+    return hashtable_remove(ass, &uid, sizeof(uid));
 }
 
 static inline
@@ -371,32 +392,63 @@ ActiveSuber *as_put(ActiveSuber *as)
 }
 
 static inline
-ChanActiveSuber *cas_put(ChanActiveSuber *cas)
+NotifDest *nd_get(const char *node_id)
 {
-    list_add(cas->chan->cass, &cas->le);
-    return hashtable_put(cas->as->cass_by_chan_id, &cas->he);
+    return hashtable_get(nds, node_id, strlen(node_id));
 }
 
 static inline
-ChanActiveSuber *cas_remove(const char *node_id, Chan *chan)
+NotifDest *nd_put(NotifDest *nd)
 {
-    ChanActiveSuber *cas;
+    return hashtable_put(nds, &nd->he);
+}
+
+static inline
+NotifDest *nd_remove(const char *node_id)
+{
+    return hashtable_remove(nds, node_id, strlen(node_id));
+}
+
+static inline
+int ndpas_exist(ActiveSuber *as, const char *node_id)
+{
+    return hashtable_exist(as->ndpass, node_id, strlen(node_id));
+}
+
+static inline
+NotifDestPerActiveSuber *ndpas_put(NotifDestPerActiveSuber *ndpas)
+{
+    list_add(ndpas->nd->ndpass, &ndpas->le);
+    return hashtable_put(ndpas->as->ndpass, &ndpas->he);
+}
+
+static inline
+ActiveSuberPerChan *aspc_put(ActiveSuberPerChan *aspc)
+{
+    list_add(aspc->chan->aspcs, &aspc->le);
+    return hashtable_put(aspc->as->aspcs, &aspc->he);
+}
+
+static inline
+ActiveSuberPerChan *aspc_remove(uint64_t uid, Chan *chan)
+{
+    ActiveSuberPerChan *aspc;
     ActiveSuber *as;
 
-    as = as_get(node_id);
+    as = as_get(uid);
     if (!as)
         return NULL;
 
-    cas = hashtable_remove(as->cass_by_chan_id, &chan->info.chan_id, sizeof(chan->info.chan_id));
-    if (!cas) {
+    aspc = hashtable_remove(as->aspcs, &chan->info.chan_id, sizeof(chan->info.chan_id));
+    if (!aspc) {
         deref(as);
         return NULL;
     }
 
-    deref(list_remove_entry(chan->cass, &cas->le));
+    deref(list_remove_entry(chan->aspcs, &aspc->le));
     deref(as);
 
-    return cas;
+    return aspc;
 }
 
 void hdl_create_chan_req(ElaCarrier *c, const char *from, Req *base)
@@ -508,7 +560,7 @@ void hdl_pub_post_req(ElaCarrier *c, const char *from, Req *base)
 {
     PubPostReq *req = (PubPostReq *)base;
     Marshalled *resp_marshal = NULL;
-    ChanActiveSuber *cas;
+    ActiveSuberPerChan *aspc;
     UserInfo *uinfo = NULL;
     list_iterator_t it;
     Chan *chan = NULL;
@@ -592,11 +644,13 @@ void hdl_pub_post_req(ElaCarrier *c, const char *from, Req *base)
               "{id: %" PRIu64 "}", new_post.post_id);
     }
 
-    if (owner_notif_node_id[0])
-        notify_of_new_post(owner_notif_node_id, &new_post);
+    list_foreach(chan->aspcs, aspc) {
+        NotifDestPerActiveSuber *ndpas;
+        hashtable_iterator_t it;
 
-    list_foreach(chan->cass, cas)
-        notify_of_new_post(cas->as->node_id, &new_post);
+        hashtable_foreach(aspc->as->ndpass, ndpas)
+            notify_of_new_post(ndpas->nd->node_id, &new_post);
+    }
 
 finally:
     if (resp_marshal)
@@ -609,7 +663,7 @@ void hdl_post_cmt_req(ElaCarrier *c, const char *from, Req *base)
 {
     PostCmtReq *req = (PostCmtReq *)base;
     Marshalled *resp_marshal = NULL;
-    ChanActiveSuber *cas;
+    ActiveSuberPerChan *aspc;
     UserInfo *uinfo = NULL;
     list_iterator_t it;
     Chan *chan = NULL;
@@ -708,11 +762,13 @@ void hdl_post_cmt_req(ElaCarrier *c, const char *from, Req *base)
         vlogD("Sending post_comment response: {id: %" PRIu64 "}", new_cmt.cmt_id);
     }
 
-    if (owner_notif_node_id[0])
-        notify_of_new_cmt(owner_notif_node_id, &new_cmt);
+    list_foreach(chan->aspcs, aspc) {
+        NotifDestPerActiveSuber *ndpas;
+        hashtable_iterator_t it;
 
-    list_foreach(chan->cass, cas)
-        notify_of_new_cmt(cas->as->node_id, &new_cmt);
+        hashtable_foreach(aspc->as->ndpass, ndpas)
+            notify_of_new_cmt(ndpas->nd->node_id, &new_cmt);
+    }
 
 finally:
     if (resp_marshal)
@@ -726,7 +782,7 @@ void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base)
     PostLikeReq *req = (PostLikeReq *)base;
     Marshalled *resp_marshal = NULL;
     UserInfo *uinfo = NULL;
-    ChanActiveSuber *cas;
+    ActiveSuberPerChan *aspc;
     list_iterator_t it;
     Chan *chan = NULL;
     LikeInfo li;
@@ -826,11 +882,13 @@ void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base)
     li.cmt_id  = req->params.cmt_id;
     li.user    = *uinfo;
 
-    if (owner_notif_node_id[0])
-        notify_of_new_like(owner_notif_node_id, &li);
+    list_foreach(chan->aspcs, aspc) {
+        NotifDestPerActiveSuber *ndpas;
+        hashtable_iterator_t it;
 
-    list_foreach(chan->cass, cas)
-        notify_of_new_like(cas->as->node_id, &li);
+        hashtable_foreach(aspc->as->ndpass, ndpas)
+            notify_of_new_like(ndpas->nd->node_id, &li);
+    }
 
 finally:
     if (resp_marshal)
@@ -1890,8 +1948,9 @@ finally:
 void hdl_sub_chan_req(ElaCarrier *c, const char *from, Req *base)
 {
     SubChanReq *req = (SubChanReq *)base;
-    ChanActiveSuber *cas = NULL;
+    ActiveSuberPerChan *aspc = NULL;
     Marshalled *resp_marshal = NULL;
+    ActiveSuber *owner = NULL;
     ActiveSuber *as = NULL;
     UserInfo *uinfo = NULL;
     Chan *chan = NULL;
@@ -1937,10 +1996,10 @@ void hdl_sub_chan_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    as = as_get(from);
+    as = as_get(uinfo->uid);
     if (as) {
-        cas = cas_create(as, chan);
-        if (!cas) {
+        aspc = aspc_create(as, chan);
+        if (!aspc) {
             vlogE("Creating channel active subscriber failed.");
             ErrResp resp = {
                 .tsx_id = req->tsx_id,
@@ -1962,8 +2021,8 @@ void hdl_sub_chan_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    if (cas)
-        cas_put(cas);
+    if (aspc)
+        aspc_put(aspc);
 
     ++chan->info.subs;
     vlogI("[%s] subscribed to channel [%" PRIu64 "]", uinfo->did, req->params.id);
@@ -1976,15 +2035,21 @@ void hdl_sub_chan_req(ElaCarrier *c, const char *from, Req *base)
         vlogD("Sending subscribe_channel response.");
     }
 
-    if (owner_notif_node_id[0])
-        notify_of_new_sub(owner_notif_node_id, chan->info.chan_id, uinfo);
+    if ((owner = as_get(OWNER_USER_ID))) {
+        hashtable_iterator_t it;
+        NotifDestPerActiveSuber *ndpas;
+
+        hashtable_foreach(owner->ndpass, ndpas)
+            notify_of_new_sub(ndpas->nd->node_id, chan->info.chan_id, uinfo);
+    }
 
 finally:
     if (resp_marshal)
         msgq_enq(from, resp_marshal);
+    deref(owner);
     deref(uinfo);
     deref(chan);
-    deref(cas);
+    deref(aspc);
     deref(as);
 }
 
@@ -2047,7 +2112,7 @@ void hdl_unsub_chan_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    deref(cas_remove(from, chan));
+    deref(aspc_remove(uinfo->uid, chan));
     --chan->info.subs;
     vlogI("[%s] unsubscribed channel [%" PRIu64 "]", uinfo->did, req->params.id);
 
@@ -2066,14 +2131,68 @@ finally:
     deref(uinfo);
 }
 
+static
+void nd_dtor(void *obj)
+{
+    NotifDest *nd = (NotifDest *)obj;
+
+    deref(nd->ndpass);
+}
+
+static
+NotifDest *nd_create(const char *node_id)
+{
+    NotifDest *nd = rc_zalloc(sizeof(NotifDest), nd_dtor);
+    if (!nd) {
+        vlogE("Creating Notification Destination failed.");
+        return NULL;
+    }
+
+    nd->ndpass = list_create(0, NULL);
+    if (!nd->ndpass) {
+        deref(nd);
+        return NULL;
+    }
+
+    strcpy(nd->node_id, node_id);
+    nd->he.data   = nd;
+    nd->he.key    = nd->node_id;
+    nd->he.keylen = strlen(nd->node_id);
+
+    return nd;
+}
+
+static
+NotifDestPerActiveSuber *ndpas_create(ActiveSuber *as, NotifDest *nd)
+{
+    NotifDestPerActiveSuber *ndpas = rc_zalloc(sizeof(NotifDestPerActiveSuber), NULL);
+    if (!ndpas)
+        return NULL;
+
+    ndpas->as = as;
+    ndpas->nd = nd;
+
+    ndpas->he.data   = ndpas;
+    ndpas->he.key    = nd->node_id;
+    ndpas->he.keylen = strlen(nd->node_id);
+
+    ndpas->le.data = ndpas;
+
+    return ndpas;
+}
+
 void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base)
 {
     EnblNotifReq *req = (EnblNotifReq *)base;
-    cvector_vector_type(ChanActiveSuber *) cass = NULL;
+    cvector_vector_type(ActiveSuberPerChan *) aspcs = NULL;
+    NotifDestPerActiveSuber *ndpas = NULL;
     Marshalled *resp_marshal = NULL;
     ActiveSuber *as = NULL;
     UserInfo *uinfo = NULL;
-    ChanActiveSuber **i;
+    ActiveSuberPerChan **i;
+    NotifDest *nd = NULL;
+    bool new_nd = false;
+    bool new_as = false;
     DBObjIt *it = NULL;
     ChanInfo *cinfo;
     QryCriteria qc = {
@@ -2103,22 +2222,8 @@ void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    if (user_id_is_owner(uinfo->uid)) {
-        if (owner_notif_node_id[0]) {
-            vlogE("Already enabled notification");
-            ErrResp resp = {
-                .tsx_id = req->tsx_id,
-                .ec     = ERR_WRONG_STATE
-            };
-            resp_marshal = rpc_marshal_err_resp(&resp);
-            goto finally;
-        }
-
-        strcpy(owner_notif_node_id, from);
-        goto respond;
-    }
-
-    if (as_exist(from)) {
+    as = as_get(uinfo->uid);
+    if (as && ndpas_exist(as, from)) {
         vlogE("Already enabled notification");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
@@ -2126,11 +2231,40 @@ void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base)
         };
         resp_marshal = rpc_marshal_err_resp(&resp);
         goto finally;
+    } else if (!as) {
+        as = as_create(uinfo->uid);
+        if (!as) {
+            vlogE("Creating active subscriber failed.");
+            rc = ERR_INTERNAL_ERROR;
+            ErrResp resp = {
+                .tsx_id = req->tsx_id,
+                .ec     = ERR_INTERNAL_ERROR
+            };
+            resp_marshal = rpc_marshal_err_resp(&resp);
+            goto finally;
+        }
+        new_as = true;
     }
 
-    as = as_create(from);
-    if (!as) {
-        vlogE("Creating active subscriber failed.");
+    nd = nd_get(from);
+    if (!nd) {
+        nd = nd_create(from);
+        if (!nd) {
+            vlogE("Creating notification destination failed.");
+            rc = ERR_INTERNAL_ERROR;
+            ErrResp resp = {
+                .tsx_id = req->tsx_id,
+                .ec     = ERR_INTERNAL_ERROR
+            };
+            resp_marshal = rpc_marshal_err_resp(&resp);
+            goto finally;
+        }
+        new_nd = true;
+    }
+
+    ndpas = ndpas_create(as, nd);
+    if (!ndpas) {
+        vlogE("Creating notification destination per active subscriber failed.");
         rc = ERR_INTERNAL_ERROR;
         ErrResp resp = {
             .tsx_id = req->tsx_id,
@@ -2153,10 +2287,10 @@ void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base)
 
     foreach_db_obj(cinfo) {
         Chan *chan = chan_get_by_id(cinfo->chan_id);
-        ChanActiveSuber *cas = cas_create(as, chan);
+        ActiveSuberPerChan *aspc = aspc_create(as, chan);
         vlogD("Enabling notification of channel [%" PRIu64 "] for [%s]", chan->info.chan_id, uinfo->did);
         deref(chan);
-        if (!cas) {
+        if (!aspc) {
             vlogE("Creating channel active subscriber failed.");
             ErrResp resp = {
                 .tsx_id = req->tsx_id,
@@ -2165,7 +2299,7 @@ void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base)
             resp_marshal = rpc_marshal_err_resp(&resp);
             goto finally;
         }
-        cvector_push_back(cass, cas);
+        cvector_push_back(aspcs, aspc);
     }
     if (rc < 0) {
         vlogE("Iterating subscribed channels failed.");
@@ -2177,12 +2311,15 @@ void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    cvector_foreach(cass, i)
-        cas_put(*i);
+    ndpas_put(ndpas);
+    cvector_foreach(aspcs, i)
+        aspc_put(*i);
 
-    as_put(as);
+    if (new_as)
+        as_put(as);
+    if (new_nd)
+        nd_put(nd);
 
-respond:
     {
         EnblNotifResp resp = {
             .tsx_id = req->tsx_id,
@@ -2194,11 +2331,13 @@ respond:
 finally:
     if (resp_marshal)
         msgq_enq(from, resp_marshal);
-    if (cass) {
-        cvector_foreach(cass, i)
+    if (aspcs) {
+        cvector_foreach(aspcs, i)
             deref(*i);
-        cvector_free(cass);
+        cvector_free(aspcs);
     }
+    deref(ndpas);
+    deref(nd);
     deref(as);
     deref(uinfo);
     deref(it);
@@ -2206,21 +2345,26 @@ finally:
 
 void feeds_deactivate_suber(const char *node_id)
 {
-    hashtable_iterator_t it;
-    ChanActiveSuber *cas;
-    ActiveSuber *as;
+    list_iterator_t it;
+    NotifDest *nd;
+    NotifDestPerActiveSuber *ndpas;
 
-    if (!strcmp(node_id, owner_notif_node_id)) {
-        owner_notif_node_id[0] = '\0';
+    nd = nd_remove(node_id);
+    if (!nd)
         return;
+
+    list_foreach(nd->ndpass, ndpas) {
+        ActiveSuber *as = ndpas->as;
+        deref(hashtable_remove(as->ndpass, node_id, strlen(node_id)));
+        if (hashtable_is_empty(as->ndpass)) {
+            hashtable_iterator_t it;
+            ActiveSuberPerChan *aspc;
+
+            hashtable_foreach(as->aspcs, aspc)
+                deref(list_remove_entry(aspc->chan->aspcs, &aspc->le));
+            deref(as_remove(as->uid));
+        }
     }
 
-    as = as_remove(node_id);
-    if (!as)
-        return;
-
-    hashtable_foreach(as->cass_by_chan_id, cas)
-        deref(list_remove_entry(cas->chan->cass, &cas->le));
-
-    deref(as);
+    deref(nd);
 }
