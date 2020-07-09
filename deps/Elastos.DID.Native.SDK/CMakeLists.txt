@@ -7,9 +7,9 @@ ExternalProject_Add(
     Elastos.DID.Native.SDK
 
     PREFIX ${FEEDS_DEPS_BUILD_PREFIX}
-    URL "https://github.com/elastos/Elastos.DID.Native.SDK/archive/5719ecfdd5440f9485009492a99206287103fa4f.zip"
-    URL_HASH SHA256=e07bd6379187a8ccf4a269ea7fb5db5d025000a0c692bc49406b7b6ea890e913
-    DOWNLOAD_NAME "Elastos.DID.Native.SDK-5719ecfdd5440f9485009492a99206287103fa4f.zip"
+    URL "https://github.com/elastos/Elastos.DID.Native.SDK/archive/c05bd04ae51c7543ea1425d0b080e61f7c7997aa.zip"
+    URL_HASH SHA256=b6dc861fbf41c933026d7d8a3877aeb688fb81ce7bffe5f91636fc311314af1a
+    DOWNLOAD_NAME "Elastos.DID.Native.SDK-c05bd04ae51c7543ea1425d0b080e61f7c7997aa.zip"
     DOWNLOAD_DIR ${FEEDS_DEPS_TARBALL_DIR}
     DOWNLOAD_NO_PROGRESS 1
     LOG_DOWNLOAD FALSE
