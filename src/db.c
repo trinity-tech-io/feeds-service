@@ -579,7 +579,7 @@ int db_add_cmt(CmtInfo *ci, uint64_t *id)
     rc = sqlite3_step(stmt);
     if (rc != SQLITE_ROW) {
         sqlite3_finalize(stmt);
-        return -1;
+        goto rollback;
     }
 
     *id = sqlite3_column_int64(stmt, 0);
@@ -830,7 +830,7 @@ int db_add_like(uint64_t uid, uint64_t channel_id, uint64_t post_id,
     rc = sqlite3_step(stmt);
     if (rc != SQLITE_ROW) {
         sqlite3_finalize(stmt);
-        return -1;
+        goto rollback;
     }
 
     *likes = sqlite3_column_int64(stmt, 0);
