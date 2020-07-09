@@ -746,6 +746,29 @@ void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
+    if (req->params.post_id >= chan->info.next_post_id) {
+        vlogE("Posting like on non-existent post");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if (req->params.cmt_id &&
+        ((rc = db_cmt_exists(req->params.chan_id,
+                             req->params.post_id,
+                             req->params.cmt_id)) < 0 || !rc)) {
+        vlogE("Posting like on non-existent comment");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
     if ((rc = db_like_exists(uinfo->uid, req->params.chan_id,
                              req->params.post_id, req->params.cmt_id)) < 0 ||
         rc > 0) {
