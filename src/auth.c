@@ -213,23 +213,25 @@ bool chal_resp_is_valid(JWS *chan_resp, Login **l)
 {
     char nid[ELA_MAX_ID_LEN + 1];
     char signer_did[ELA_MAX_DID_LEN];
-    const char *vp_str;
     Presentation *vp;
+    char *vp_str;
     Login *login;
 
-    if (!(vp_str = JWS_GetClaimAsJson(chan_resp, "presentation"))) {
+    if (!(vp_str = (char *)JWS_GetClaimAsJson(chan_resp, "presentation"))) {
         vlogE("Invalid challenge response: missing presentation.");
         return false;
     }
 
     if (!(vp = Presentation_FromJson(vp_str))) {
         vlogE("Invalid challenge response: unmarshalling presentation failed: %s", DIDError_GetMessage());
+        free(vp_str);
         return false;
     }
 
     if (!Presentation_IsValid(vp)) {
         vlogE("Invalid challenge response presentation: %s", DIDError_GetMessage());
         Presentation_Destroy(vp);
+        free(vp_str);
         return false;
     }
 
@@ -237,29 +239,34 @@ bool chal_resp_is_valid(JWS *chan_resp, Login **l)
                JWS_GetIssuer(chan_resp))) {
         vlogE("Invalid challenge response presentation signer and jws issuer mismatch.");
         Presentation_Destroy(vp);
+        free(vp_str);
         return false;
     }
 
     if (strcmp(Presentation_GetRealm(vp), ela_get_nodeid(carrier, nid, sizeof(nid)))) {
         vlogE("Invalid challenge response realm.");
         Presentation_Destroy(vp);
+        free(vp_str);
         return false;
     }
 
     if (!(login = pending_login_remove(Presentation_GetNonce(vp)))) {
         vlogE("Invalid challenge response nonce.");
         Presentation_Destroy(vp);
+        free(vp_str);
         return false;
     }
 
     if (strcmp(signer_did, login->sub)) {
         vlogE("Invalid challenge response signer.");
-        Presentation_Destroy(vp);
         deref(login);
+        Presentation_Destroy(vp);
+        free(vp_str);
         return false;
     }
 
     Presentation_Destroy(vp);
+    free(vp_str);
     *l = login;
     return true;
 }
