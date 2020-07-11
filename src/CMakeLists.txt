@@ -87,6 +87,7 @@ set(ELAFEEDS_DEPENDS
     Elastos.NET.Carrier.Native.SDK
     Elastos.DID.Native.SDK
     msgpack-c
+    libcrystal
     libconfig
     libqrencode
     sqlite)
@@ -114,6 +115,7 @@ set(SRC
 set(FEEDSCLI_DEPENDS
     Elastos.NET.Carrier.Native.SDK
     Elastos.DID.Native.SDK
+    libcrystal
     msgpack-c
     libconfig)
 
