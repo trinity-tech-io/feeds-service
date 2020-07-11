@@ -2,32 +2,19 @@ project(libconfig)
 
 include(ExternalProject)
 
-if(WIN32)
-    set_win_build_options(WIN_BUILD_OPTIONS Static)
+set(CONFIGURE_CMD ./configure)
+set(CONFIGURE_ARGS
+    --prefix=${FEEDS_INT_DIST_DIR}
+    --enable-shared=no
+    --disable-shared
+    --enable-static=yes
+    --disable-cxx
+    ${EXTERNAL_AUTOCONF_PROJECT_ADDITIONAL_ARGS})
 
-    set(CONFIGURE_CMD echo)
-    set(CONFIGURE_ARGS Done)
+set(BUILD_CMD make)
 
-    set(BUILD_CMD msbuild)
-    set(BUILD_ARGS ${WIN_BUILD_OPTIONS}
-        libconfig_vs2017.sln)
-
-    set(INSTALL_CMD echo)
-    set(INSTALL_ARGS Done)
-else()
-    set(CONFIGURE_CMD ./configure)
-    set(CONFIGURE_ARGS
-        --prefix=${FEEDS_INT_DIST_DIR}
-        --enable-shared=no
-        --disable-shared
-        --enable-static=yes
-        --disable-cxx)
-
-    set(BUILD_CMD make)
-
-    set(INSTALL_CMD make)
-    set(INSTALL_ARGS install)
-endif()
+set(INSTALL_CMD make)
+set(INSTALL_ARGS install)
 
 ExternalProject_Add(
     libconfig

@@ -10,7 +10,8 @@ set(CONFIGURE_ARGS
     --prefix=${FEEDS_INT_DIST_DIR}
     --enable-shared=no
     --disable-shared
-    --enable-static=yes)
+    --enable-static=yes
+    ${EXTERNAL_AUTOCONF_PROJECT_ADDITIONAL_ARGS})
 
 set(BUILD_CMD make)
 

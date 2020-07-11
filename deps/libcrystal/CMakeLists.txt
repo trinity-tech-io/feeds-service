@@ -20,6 +20,7 @@ ExternalProject_Add(
         -DLIBSODIUM_STATIC=TRUE
         -DENABLE_CRYPTO=TRUE
         -DENABLE_TESTS=FALSE
+        ${EXTERNAL_CMAKE_PROJECT_ADDITIONAL_ARGS}
 )
 
 ExternalProject_Get_property(Elastos.DID.Native.SDK STAMP_DIR)
