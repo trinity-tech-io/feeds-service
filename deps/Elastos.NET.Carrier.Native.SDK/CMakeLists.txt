@@ -22,9 +22,6 @@ ExternalProject_Add(
         -DENABLE_DOCS=FALSE
 )
 
-_ep_get_complete_stampfile(Elastos.NET.Carrier.Native.SDK CARRIER_STAMPFILE)
-set(ENV{CARRIER_STAMPFILE} "${CARRIER_STAMPFILE}")
-
 export_shared_library(elacarrier)
 
 add_library(libelacarrier-shared INTERFACE)

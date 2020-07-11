@@ -22,13 +22,20 @@ ExternalProject_Add(
         -DENABLE_TESTS=FALSE
 )
 
+ExternalProject_Get_property(Elastos.DID.Native.SDK STAMP_DIR)
+set(DID_STAMP_DIR ${STAMP_DIR})
+
+ExternalProject_Get_property(Elastos.NET.Carrier.Native.SDK STAMP_DIR)
+set(CARRIER_STAMP_DIR ${STAMP_DIR})
+
 ExternalProject_Add_StepDependencies(
     libcrystal
     install
-    Elastos.NET.Carrier.Native.SDK
-    "$ENV{CARRIER_STAMPFILE}"
     Elastos.DID.Native.SDK
-    "$ENV{DID_STAMPFILE}")
+    ${DID_STAMP_DIR}/Elastos.DID.Native.SDK-done
+    Elastos.NET.Carrier.Native.SDK
+    ${CARRIER_STAMP_DIR}/Elastos.NET.Carrier.Native.SDK-done
+)
 
 export_shared_library(crystal)
 
