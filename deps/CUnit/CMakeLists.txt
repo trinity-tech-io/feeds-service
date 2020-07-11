@@ -1,6 +1,5 @@
 project(CUnit)
 
-include(FeedsDefaults)
 include(ExternalProject)
 
 set(CONFIGURE_CMD
@@ -10,23 +9,23 @@ set(CONFIGURE_CMD
     ./configure)
 
 set(CONFIGURE_ARGS
-    "--prefix=${FEEDS_INT_DIST_DIR}"
-    "--enable-shared=no"
-    "--disable-shared"
-    "--enable-static=yes")
+    --prefix=${FEEDS_INT_DIST_DIR}
+    --enable-shared=no
+    --disable-shared
+    --enable-static=yes)
 
-set(BUILD_CMD "make")
+set(BUILD_CMD make)
 
-set(INSTALL_CMD "make")
-set(INSTALL_ARGS "install")
+set(INSTALL_CMD make)
+set(INSTALL_ARGS install)
 
 ExternalProject_Add(
     CUnit
 
     PREFIX ${FEEDS_DEPS_BUILD_PREFIX}
-    URL "http://jaist.dl.sourceforge.net/project/cunit/CUnit/2.1-3/CUnit-2.1-3.tar.bz2"
+    URL http://jaist.dl.sourceforge.net/project/cunit/CUnit/2.1-3/CUnit-2.1-3.tar.bz2
     URL_HASH SHA256=f5b29137f845bb08b77ec60584fdb728b4e58f1023e6f249a464efa49a40f214
-    DOWNLOAD_NAME "CUnit-2.1-3.tar.bz2"
+    DOWNLOAD_NAME CUnit-2.1-3.tar.bz2
     DOWNLOAD_DIR ${FEEDS_DEPS_TARBALL_DIR}
     DOWNLOAD_NO_PROGRESS 1
 

@@ -1,6 +1,5 @@
 project(Elastos.DID.Native.SDK)
 
-include(FeedsDefaults)
 include(ExternalProject)
 
 ExternalProject_Add(
@@ -22,6 +21,7 @@ ExternalProject_Add(
         -DENABLE_DOCS=FALSE
         -DENABLE_SPVADAPTER=FALSE
         -DHDKEY_ONLY=FALSE
+        ${EXTERNAL_CMAKE_PROJECT_ADDITIONAL_ARGS}
 )
 
 export_shared_library(eladid)

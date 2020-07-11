@@ -1,4 +1,3 @@
-include(FeedsDefaults)
 include(CheckIncludeFile)
 include(CheckFunctionExists)
 
@@ -98,12 +97,12 @@ add_dependencies(feeds_daemon ${ELAFEEDS_DEPENDS})
 set_target_properties(feeds_daemon PROPERTIES OUTPUT_NAME feedsd)
 target_link_libraries(feeds_daemon ${LIBS})
 install(TARGETS feeds_daemon
-    RUNTIME DESTINATION "bin"
-    ARCHIVE DESTINATION "lib"
-    LIBRARY DESTINATION "lib")
+    RUNTIME DESTINATION bin
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib)
 
 install(FILES feeds.conf
-    DESTINATION "etc/feeds")
+    DESTINATION etc/feeds)
 
 set(SRC
     mkdirs.c
@@ -133,9 +132,9 @@ add_dependencies(feeds_cli ${FEEDSCLI_DEPENDS})
 set_target_properties(feeds_cli PROPERTIES OUTPUT_NAME feeds_cli)
 target_link_libraries(feeds_cli ${LIBS})
 install(TARGETS feeds_cli
-    RUNTIME DESTINATION "bin"
-    ARCHIVE DESTINATION "lib"
-    LIBRARY DESTINATION "lib")
+    RUNTIME DESTINATION bin
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib)
 
 install(FILES feeds_client/feeds_cli.conf
     DESTINATION "etc/feeds")
