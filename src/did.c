@@ -27,6 +27,7 @@ static char qrcode_path[PATH_MAX];
 static DIDStore *feeds_didstore;
 static bool http_is_running;
 static DID *feeds_did;
+static char http_nonce_str[1024];
 static char feeds_did_str[ELA_MAX_DID_LEN];
 static enum {
     OWNER_DECLED = 1,
@@ -226,19 +227,16 @@ int hdl_http_req(sb_Event *ev)
     if (ev->type != SB_EV_REQUEST)
         return SB_RES_OK;
 
-    if (!did_is_ready()) {
-        uint8_t nonce[NONCE_BYTES];
+    vlogI("Received HTTP request to path[%s]", ev->path);
 
-        crypto_random_nonce(nonce);
-        ela_get_address(carrier, buf, sizeof(buf));
-        strcat(buf, ".");
-        crypto_nonce_to_str(nonce, buf + strlen(buf), sizeof(buf) - strlen(buf));
-    } else {
+    if (did_is_ready()) {
         sprintf(buf, "feeds://%s/", feeds_did_str);
         ela_get_address(carrier, buf + strlen(buf), sizeof(buf) - strlen(buf));
     }
 
-    rc = qrencode(buf, qrcode_path);
+    vlogI("Return HTTP response: %s", did_is_ready() ? buf : http_nonce_str);
+
+    rc = qrencode(did_is_ready() ? buf : http_nonce_str, qrcode_path);
     if (rc < 0)
         goto finally;
 
@@ -433,11 +431,18 @@ int did_init(FeedsConfig *cfg)
     static DIDAdapter adapter = {
         .createIdTransaction = create_id_tsx
     };
+    uint8_t http_nonce[NONCE_BYTES];
     DIDURL *vc_url = NULL;
     UserInfo *ui = NULL;
     int rc;
 
     sprintf(qrcode_path, "%s/qrcode.png", cfg->data_dir);
+
+    crypto_random_nonce(http_nonce);
+    ela_get_address(carrier, http_nonce_str, sizeof(http_nonce_str));
+    strcat(http_nonce_str, ".");
+    crypto_nonce_to_str(http_nonce, http_nonce_str + strlen(http_nonce_str),
+                        sizeof(http_nonce_str) - strlen(http_nonce_str));
 
     feeds_storepass = strdup(cfg->didstore_passwd);
     if (!feeds_storepass) {
@@ -636,7 +641,7 @@ void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base)
         };
         resp_marshal = rpc_marshal_decl_owner_resp(&resp);
         vlogD("Sending declare_owner response: "
-              "{phase: %s, did: nil, transaction_payload: nil", resp.result.phase);
+              "{phase: %s, did: nil, transaction_payload: nil}", resp.result.phase);
     }
 
 finally:

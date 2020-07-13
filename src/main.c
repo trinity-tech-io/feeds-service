@@ -159,6 +159,7 @@ void friend_request_callback(ElaCarrier *c, const char *user_id,
     (void)hello;
     (void)context;
 
+    vlogI("Received friend request from [%s]", user_id);
     ela_accept_friend(c, user_id);
 }
 
@@ -372,9 +373,24 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    rc = transport_init(&cfg);
+    if (rc < 0) {
+        free_cfg(&cfg);
+        return -1;
+    }
+
+    rc = msgq_init();
+    if (rc < 0) {
+        free_cfg(&cfg);
+        transport_deinit();
+        return -1;
+    }
+
     rc = db_init(cfg.db_fpath);
     if (rc < 0) {
         free_cfg(&cfg);
+        msgq_deinit();
+        transport_deinit();
         return -1;
     }
 
@@ -382,43 +398,29 @@ int main(int argc, char *argv[])
     if (rc < 0) {
         free_cfg(&cfg);
         db_deinit();
-        return -1;
-    }
-
-    rc = feeds_init(&cfg);
-    if (rc < 0) {
-        free_cfg(&cfg);
-        did_deinit();
-        db_deinit();
+        msgq_deinit();
+        transport_deinit();
         return -1;
     }
 
     rc = auth_init();
     if (rc < 0) {
         free_cfg(&cfg);
-        feeds_deinit();
         did_deinit();
         db_deinit();
+        msgq_deinit();
+        transport_deinit();
         return -1;
     }
 
-    rc = transport_init(&cfg);
+    rc = feeds_init(&cfg);
     free_cfg(&cfg);
     if (rc < 0) {
         auth_deinit();
-        feeds_deinit();
         did_deinit();
         db_deinit();
-        return -1;
-    }
-
-    rc = msgq_init();
-    if (rc < 0) {
+        msgq_deinit();
         transport_deinit();
-        auth_deinit();
-        feeds_deinit();
-        did_deinit();
-        db_deinit();
         return -1;
     }
 
@@ -439,12 +441,12 @@ int main(int argc, char *argv[])
 
     rc = ela_run(carrier, 10);
 
-    msgq_deinit();
-    transport_deinit();
-    auth_deinit();
     feeds_deinit();
+    auth_deinit();
     did_deinit();
     db_deinit();
+    msgq_deinit();
+    transport_deinit();
 
     return rc;
 }
