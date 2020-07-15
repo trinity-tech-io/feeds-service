@@ -902,7 +902,6 @@ void hdl_post_unlike_req(ElaCarrier *c, const char *from, Req *base)
     PostUnlikeReq *req = (PostUnlikeReq *)base;
     Marshalled *resp_marshal = NULL;
     UserInfo *uinfo = NULL;
-    list_iterator_t it;
     Chan *chan = NULL;
     int rc;
 
@@ -1329,7 +1328,6 @@ void hdl_get_chan_dtl_req(ElaCarrier *c, const char *from, Req *base)
     Marshalled *resp_marshal = NULL;
     UserInfo *uinfo = NULL;
     Chan *chan = NULL;
-    int rc;
 
     vlogD("Received get_channel_detail request from [%s]: "
           "{access_token: %s, id: %" PRIu64 "}", from, req->params.tk, req->params.id);
@@ -1905,7 +1903,6 @@ void hdl_get_stats_req(ElaCarrier *c, const char *from, Req *base)
     GetStatsReq *req = (GetStatsReq *)base;
     Marshalled *resp_marshal = NULL;
     UserInfo *uinfo = NULL;
-    int rc;
 
     vlogD("Received get_statistics request from [%s]: "
           "{access_token: %s}", from, req->params.tk);
