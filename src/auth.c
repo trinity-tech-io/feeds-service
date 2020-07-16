@@ -387,7 +387,7 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
     Login *login = NULL;
     int rc;
 
-    vlogD("Received signin_request_challenge request from [%s]: "
+    vlogD("Received signin_confirm_challenge request from [%s]: "
           "{jws: %s, credential: %s}", from, req->params.jws,
           req->params.vc ? req->params.vc : "nil");
 
