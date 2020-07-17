@@ -27,7 +27,8 @@ static char qrcode_path[PATH_MAX];
 static DIDStore *feeds_didstore;
 static bool http_is_running;
 static DID *feeds_did;
-static char http_nonce_str[1024];
+static char nonce_str[NONCE_BYTES << 1];
+static char feeds_url[1024];
 static char feeds_did_str[ELA_MAX_DID_LEN];
 static enum {
     OWNER_DECLED = 1,
@@ -41,6 +42,9 @@ typedef struct {
     UserInfo info;
     char did_buf[ELA_MAX_DID_LEN];
 } VCUserInfo;
+
+static
+void gen_feeds_url();
 
 static inline
 bool state_is_set(int s)
@@ -57,6 +61,7 @@ bool state_is_equal(int s)
 static inline
 void state_set(int s)
 {
+    gen_feeds_url();
     state |= s;
 }
 
@@ -69,6 +74,23 @@ bool create_id_tsx(DIDAdapter *adapter, const char *payload, const char *memo)
     payload_buf = strdup(payload);
 
     return true;
+}
+
+static
+void gen_feeds_url()
+{
+    int rc;
+
+    rc = sprintf(feeds_url, "%s://", did_is_ready() ? "feeds" : "feeds_raw");
+
+    if (state_is_set(DID_IMPED))
+        sprintf(feeds_url + rc, "%s/", feeds_did_str);
+
+    ela_get_address(carrier, feeds_url + strlen(feeds_url),
+                    sizeof(feeds_url) - strlen(feeds_url));
+
+    if (!did_is_ready())
+        sprintf(feeds_url + strlen(feeds_url), "/%s", nonce_str);
 }
 
 #define INCHES_PER_METER (100.0/2.54)
@@ -220,7 +242,6 @@ int qrencode(const char *intext, const char *outfile)
 static
 int hdl_http_req(sb_Event *ev)
 {
-    char buf[1024];
     int status = 501;
     int rc;
 
@@ -228,15 +249,9 @@ int hdl_http_req(sb_Event *ev)
         return SB_RES_OK;
 
     vlogI("Received HTTP request to path[%s]", ev->path);
+    vlogI("Return HTTP response: %s", feeds_url);
 
-    if (did_is_ready()) {
-        sprintf(buf, "feeds://%s/", feeds_did_str);
-        ela_get_address(carrier, buf + strlen(buf), sizeof(buf) - strlen(buf));
-    }
-
-    vlogI("Return HTTP response: %s", did_is_ready() ? buf : http_nonce_str);
-
-    rc = qrencode(did_is_ready() ? buf : http_nonce_str, qrcode_path);
+    rc = qrencode(feeds_url, qrcode_path);
     if (rc < 0)
         goto finally;
 
@@ -431,18 +446,16 @@ int did_init(FeedsConfig *cfg)
     static DIDAdapter adapter = {
         .createIdTransaction = create_id_tsx
     };
-    uint8_t http_nonce[NONCE_BYTES];
+    uint8_t nonce[NONCE_BYTES];
     DIDURL *vc_url = NULL;
     UserInfo *ui = NULL;
     int rc;
 
     sprintf(qrcode_path, "%s/qrcode.png", cfg->data_dir);
 
-    crypto_random_nonce(http_nonce);
-    ela_get_address(carrier, http_nonce_str, sizeof(http_nonce_str));
-    strcat(http_nonce_str, ".");
-    crypto_nonce_to_str(http_nonce, http_nonce_str + strlen(http_nonce_str),
-                        sizeof(http_nonce_str) - strlen(http_nonce_str));
+    crypto_random_nonce(nonce);
+    crypto_nonce_to_str(nonce, nonce_str, sizeof(nonce_str));
+    gen_feeds_url();
 
     feeds_storepass = strdup(cfg->didstore_passwd);
     if (!feeds_storepass) {
