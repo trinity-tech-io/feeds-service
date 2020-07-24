@@ -1,0 +1,17 @@
+[Unit]
+Description=Elastos Feeds Service Daemon
+After=network-online.target
+
+[Service]
+Type=simple
+RuntimeDirectory=ela-feedsd
+RuntimeDirectoryMode=755
+PIDFile=/var/run/ela-feedsd/ela-feedsd.pid
+ExecStart=/bin/ela-feedsd --config=/etc/ela-feedsd/feedsd.conf
+User=ela-feedsd
+Group=ela-feedsd
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

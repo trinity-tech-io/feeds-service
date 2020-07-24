@@ -94,15 +94,29 @@ set(ELAFEEDS_DEPENDS
 
 add_executable(feeds_daemon ${SRC})
 add_dependencies(feeds_daemon ${ELAFEEDS_DEPENDS})
-set_target_properties(feeds_daemon PROPERTIES OUTPUT_NAME feedsd)
+set_target_properties(feeds_daemon PROPERTIES OUTPUT_NAME ela-feedsd)
 target_link_libraries(feeds_daemon ${LIBS})
+
 install(TARGETS feeds_daemon
     RUNTIME DESTINATION bin
     ARCHIVE DESTINATION lib
-    LIBRARY DESTINATION lib)
+    LIBRARY DESTINATION lib
+    COMPONENT core)
 
-install(FILES feeds.conf
-    DESTINATION etc/feeds)
+install(FILES feedsd.conf
+    DESTINATION etc/ela-feedsd
+    COMPONENT core)
+
+if(CMAKE_SYSTEM_NAME STREQUAL Linux)
+    install(FILES ${CMAKE_SOURCE_DIR}/scripts/ela-feedsd.service
+        DESTINATION lib/systemd/system
+        COMPONENT core)
+
+    install(PROGRAMS ${CMAKE_SOURCE_DIR}/scripts/ela-feedsd.sh
+        DESTINATION etc/init.d
+        RENAME ela-feedsd
+        COMPONENT core)
+endif()
 
 set(SRC
     mkdirs.c
@@ -127,14 +141,61 @@ set(LIBS
     libeladid-shared
     pthread)
 
-add_executable(feeds_cli ${SRC})
+add_executable(feeds_cli EXCLUDE_FROM_ALL ${SRC})
 add_dependencies(feeds_cli ${FEEDSCLI_DEPENDS})
-set_target_properties(feeds_cli PROPERTIES OUTPUT_NAME feeds_cli)
+set_target_properties(feeds_cli PROPERTIES OUTPUT_NAME ela-feeds-cli)
+
+add_custom_target(utils
+    DEPENDS feeds_cli)
+
 target_link_libraries(feeds_cli ${LIBS})
 install(TARGETS feeds_cli
+    EXCLUDE_FROM_ALL
+    COMPONENT utils
     RUNTIME DESTINATION bin
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib)
 
 install(FILES feeds_client/feeds_cli.conf
-    DESTINATION "etc/feeds")
+    EXCLUDE_FROM_ALL
+    COMPONENT utils
+    DESTINATION etc/ela-feedsd)
+
+add_custom_target(install_utils
+    COMMAND ${CMAKE_COMMAND}
+        -DCOMPONENT=utils
+        -P ${CMAKE_BINARY_DIR}/cmake_install.cmake
+    DEPENDS utils)
+
+if(CMAKE_SYSTEM_NAME STREQUAL Linux)
+    set(CPACK_GENERATOR DEB)
+
+    set(CPACK_PACKAGE_DESCRIPTION "Elastos Feeds Service Distribution Packages")
+    set(CPACK_PACKAGE_VENDOR elastos.org)
+    set(CPACK_PACKAGE_CONTACT libin@elastos.org)
+    set(CPACK_PACKAGING_INSTALL_PREFIX /)
+    set(CPACK_PACKAGE_CHECKSUM MD5)
+    set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+    set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE ${CMAKE_SYSTEM_PROCESSOR})
+
+    set(CPACK_COMPONENTS_ALL core)
+
+    set(CPACK_DEBIAN_PACKAGE_PREDEPENDS adduser)
+    set(CPACK_DEBIAN_PACKAGE_DEPENDS
+        "lsb-base (>= 3.0), init-system-helpers (>= 1.18~),
+        libc6 (>= 2.14), libsystemd0")
+    set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "http://www.elastos.org/")
+    set(CPACK_DEBIAN_PACKAGE_DESCRIPTION
+        "Elastos Feeds service daemon.")
+
+    set(CPACK_DEBIAN_PACKAGE_CONTROL_STRICT_PERMISSION TRUE)
+
+    set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA
+        ${CMAKE_SOURCE_DIR}/debian/postinst
+        ${CMAKE_SOURCE_DIR}/debian/postrm
+        ${CMAKE_SOURCE_DIR}/debian/preinst
+        ${CMAKE_SOURCE_DIR}/debian/prerm
+        ${CMAKE_SOURCE_DIR}/debian/conffiles)
+
+    include(CPack)
+endif()
