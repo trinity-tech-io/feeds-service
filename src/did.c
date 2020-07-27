@@ -614,7 +614,7 @@ void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base)
         vlogE("Owner mismatch.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
-            .ec     = ERR_INVALID_PARAMS
+            .ec     = ERR_NOT_AUTHORIZED
         };
         resp_marshal = rpc_marshal_err_resp(&resp);
     } else if (!state_is_set(DID_IMPED)) {
