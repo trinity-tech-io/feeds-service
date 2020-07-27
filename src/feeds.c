@@ -671,7 +671,7 @@ void hdl_post_cmt_req(ElaCarrier *c, const char *from, Req *base)
     time_t now;
     int rc;
 
-    vlogD("Received create_channel request from [%s]: "
+    vlogD("Received post_comment request from [%s]: "
           "{access_token: %s, channel_id: %" PRIu64
           ", post_id: %" PRIu64 ", comment_id: %" PRIu64 ", content_length: %" PRIu64 "}",
           from, req->params.tk, req->params.chan_id, req->params.post_id, req->params.cmt_id, req->params.sz);

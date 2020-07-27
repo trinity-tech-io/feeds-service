@@ -96,7 +96,7 @@ static void qualified_path(const char *path, const char *ref, char *qualified)
 }
 
 #define DEFAULT_LOG_LEVEL ElaLogLevel_Info
-#define DEFAULT_DATA_DIR  "~/.feeds"
+#define DEFAULT_DATA_DIR  "/var/lib/ela-feedsd"
 FeedsConfig *load_cfg(const char *cfg_file, FeedsConfig *fc)
 {
     config_setting_t *nodes_setting;
@@ -209,6 +209,7 @@ FeedsConfig *load_cfg(const char *cfg_file, FeedsConfig *fc)
     fc->carrier_opts.persistent_location = strdup(path);
     if (!fc->carrier_opts.persistent_location ||
         mkdirs(fc->carrier_opts.persistent_location, S_IRWXU) < 0) {
+        fprintf(stderr, "Making carrier dir[%s] failed.\n", fc->carrier_opts.persistent_location);
         config_destroy(&cfg);
         free_cfg(fc);
         return NULL;
@@ -217,6 +218,7 @@ FeedsConfig *load_cfg(const char *cfg_file, FeedsConfig *fc)
     sprintf(path, "%s/didcache", fc->data_dir);
     fc->didcache_dir = strdup(path);
     if (!fc->didcache_dir || mkdirs(fc->didcache_dir, S_IRWXU) < 0) {
+        fprintf(stderr, "Making did cache dir[%s] failed.\n", fc->didcache_dir);
         config_destroy(&cfg);
         free_cfg(fc);
         return NULL;
@@ -225,6 +227,7 @@ FeedsConfig *load_cfg(const char *cfg_file, FeedsConfig *fc)
     sprintf(path, "%s/didstore", fc->data_dir);
     fc->didstore_dir = strdup(path);
     if (!fc->didstore_dir || mkdirs(fc->didstore_dir, S_IRWXU) < 0) {
+        fprintf(stderr, "Making did store dir[%s] failed.\n", fc->didstore_dir);
         config_destroy(&cfg);
         free_cfg(fc);
         return NULL;
@@ -234,6 +237,7 @@ FeedsConfig *load_cfg(const char *cfg_file, FeedsConfig *fc)
     fc->db_fpath = strdup(path);
     strcpy(path, fc->db_fpath);
     if (!fc->db_fpath || mkdirs(dirname(path), S_IRWXU) < 0) {
+        fprintf(stderr, "Making db dir[%s] failed.\n", path);
         config_destroy(&cfg);
         free_cfg(fc);
         return NULL;
@@ -241,6 +245,7 @@ FeedsConfig *load_cfg(const char *cfg_file, FeedsConfig *fc)
 
     rc = config_lookup_string(&cfg, "did.store-password", &stropt);
     if (!rc || !*stropt || !(fc->didstore_passwd = strdup(stropt))) {
+        fprintf(stderr, "Missing did.store-password entry.\n");
         config_destroy(&cfg);
         free_cfg(fc);
         return NULL;
@@ -248,6 +253,7 @@ FeedsConfig *load_cfg(const char *cfg_file, FeedsConfig *fc)
 
     rc = config_lookup_string(&cfg, "did.binding-server.ip", &stropt);
     if (!rc || !*stropt || !(fc->http_ip = strdup(stropt))) {
+        fprintf(stderr, "Missing did.binding-server.ip entry.\n");
         config_destroy(&cfg);
         free_cfg(fc);
         return NULL;
@@ -255,6 +261,7 @@ FeedsConfig *load_cfg(const char *cfg_file, FeedsConfig *fc)
 
     rc = config_lookup_int(&cfg, "did.binding-server.port", &intopt);
     if (!rc || (intopt <= 0 || intopt > 65535)) {
+        fprintf(stderr, "Missing did.binding-server.port entry.\n");
         config_destroy(&cfg);
         free_cfg(fc);
         return NULL;

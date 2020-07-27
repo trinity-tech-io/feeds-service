@@ -108,7 +108,7 @@ void on_msg_receipt(int64_t msgid, ElaReceiptState state, void *context)
     (void)msgid;
     (void)state;
 
-    vlogD("Message [%" PRIi64 "] receipt status: %s", msgid,
+    vlogD("Message [%" PRIi64 "] to [%s] receipt status: %s", msgid, q->peer,
           state == ElaReceipt_ByFriend ? "received" :
                                          state == ElaReceipt_Offline ? "friend offline" : "error");
 
@@ -126,7 +126,7 @@ void on_msg_receipt(int64_t msgid, ElaReceiptState state, void *context)
     msgid = ela_send_message_with_receipt(carrier, q->peer, m->data->data,
                                           m->data->sz, on_msg_receipt, ref(q));
     if (msgid > 0)
-        vlogD("Send message [%" PRIi64 "].", msgid);
+        vlogD("Send message [%" PRIi64 "] to [%s].", msgid, q->peer);
 
 finally:
     deref(q);
@@ -142,7 +142,7 @@ int msgq_enq(const char *to, Marshalled *msg)
 
     q = msgq_get(to);
     if (q) {
-        vlogD("Transport channel is busy, put in message queue.");
+        vlogD("Transport channel[%s] is busy, put in message queue.", to);
 
         m = msg_create(msg);
         if (!m) {
@@ -164,11 +164,11 @@ int msgq_enq(const char *to, Marshalled *msg)
 
     msgid = ela_send_message_with_receipt(carrier, to, msg->data, msg->sz, on_msg_receipt, ref(q));
     if (msgid <= 0) {
-        vlogE("Sending message with receipt failed.");
+        vlogE("Sending message with receipt to [%s] failed.", to);
         goto finally;
     }
 
-    vlogD("Transport channel is idle, send message [%" PRIi64 "] instantly.", msgid);
+    vlogD("Transport channel is idle, send message [%" PRIi64 "] to [%s] instantly.", msgid, to);
 
     msgq_put(q);
     rc = 0;
@@ -185,7 +185,7 @@ void msgq_peer_offline(const char *peer)
     MsgQ *q = msgq_rm(peer);
 
     if (q) {
-        vlogD("Set message queue deprecated.");
+        vlogD("Set message queue[%s] deprecated.", q->peer);
         q->depr = true;
     }
 

@@ -52,7 +52,7 @@ Login *login_create(const char *sub)
 
     login = rc_zalloc(sizeof(Login), NULL);
     if (!login) {
-        vlogE("OOM.");
+        vlogE("OOM");
         return NULL;
     }
 
@@ -178,7 +178,8 @@ void hdl_signin_req_chal_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     pending_login_put(login);
-    vlogI("User[%s] requests to login[%s]", req->params.iss, login->nonce);
+    vlogI("User[%s] from [%s] requests to login{nonce: %s, subject: %s, expiration: %" PRIu64 ", vc_required: %s}",
+          req->params.iss, from, login->nonce, login->sub, (uint64_t)login->expat, login->vc_req ? "true" : "false");
 
     {
         SigninReqChalResp resp = {
@@ -190,9 +191,9 @@ void hdl_signin_req_chal_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_signin_req_chal_resp(&resp);
-        vlogD("Sending signin_request_challenge response: "
+        vlogD("Sending signin_request_challenge response to [%s]: "
               "{credential_required: %s, jws: %s, credential: %s}",
-              resp.result.vc_req ? "true" : "false", resp.result.jws,
+              from, resp.result.vc_req ? "true" : "false", resp.result.jws,
               resp.result.vc ? resp.result.vc : "nil");
     }
 
@@ -218,7 +219,7 @@ bool chal_resp_is_valid(JWS *chan_resp, Login **l)
     Login *login;
 
     if (!(vp_str = (char *)JWS_GetClaimAsJson(chan_resp, "presentation"))) {
-        vlogE("Invalid challenge response: missing presentation.");
+        vlogE("Invalid challenge response: get presentation failed: %s", DIDError_GetMessage());
         return false;
     }
 
@@ -237,28 +238,31 @@ bool chal_resp_is_valid(JWS *chan_resp, Login **l)
 
     if (strcmp(DID_ToString(Presentation_GetSigner(vp), signer_did, sizeof(signer_did)),
                JWS_GetIssuer(chan_resp))) {
-        vlogE("Invalid challenge response presentation signer and jws issuer mismatch.");
+        vlogE("Invalid challenge response presentation signer and jws issuer mismatch."
+              "signer DID: [%s], issuer DID: [%s]", signer_did, JWS_GetIssuer(chan_resp));
         Presentation_Destroy(vp);
         free(vp_str);
         return false;
     }
 
     if (strcmp(Presentation_GetRealm(vp), ela_get_nodeid(carrier, nid, sizeof(nid)))) {
-        vlogE("Invalid challenge response realm.");
+        vlogE("Invalid challenge response realm. expected: [%s], actual: [%s]",
+              nid, Presentation_GetRealm(vp));
         Presentation_Destroy(vp);
         free(vp_str);
         return false;
     }
 
     if (!(login = pending_login_remove(Presentation_GetNonce(vp)))) {
-        vlogE("Invalid challenge response nonce.");
+        vlogE("Invalid challenge response nonce[%s]", Presentation_GetNonce(vp));
         Presentation_Destroy(vp);
         free(vp_str);
         return false;
     }
 
     if (strcmp(signer_did, login->sub)) {
-        vlogE("Invalid challenge response signer.");
+        vlogE("Invalid challenge response signer. expected: [%s], actual: [%s]",
+              login->sub, signer_did);
         deref(login);
         Presentation_Destroy(vp);
         free(vp_str);
@@ -361,7 +365,7 @@ UserInfo *create_uinfo_from_vc(const char *did, Credential *vc)
 
     uinfo = rc_zalloc(sizeof(VCUserInfo), vcuinfo_dtor);
     if (!uinfo) {
-        vlogE("OOM.");
+        vlogE("OOM");
         free(name);
         free(email);
         return NULL;
@@ -379,7 +383,7 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
 {
     SigninConfChalReq *req = (SigninConfChalReq *)base;
     Marshalled *resp_marshal = NULL;
-    char did[ELA_MAX_DID_LEN];
+    char owner_did[ELA_MAX_DID_LEN];
     char *access_token = NULL;
     UserInfo *uinfo = NULL;
     JWS *chal_resp = NULL;
@@ -427,11 +431,30 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (req->params.vc) {
-        if ((vc = Credential_FromJson(req->params.vc, NULL)) &&
-            (strcmp(JWS_GetIssuer(chal_resp),
-                    DID_ToString(Credential_GetOwner(vc), did, sizeof(did))) ||
-             !Credential_IsValid(vc))) {
+        if (!(vc = Credential_FromJson(req->params.vc, NULL))) {
+            vlogE("Unmarshalling credential in signin_confirm_challenge: %s", DIDError_GetMessage());
+            ErrResp resp = {
+                .tsx_id = req->tsx_id,
+                .ec     = ERR_INVALID_PARAMS
+            };
+            resp_marshal = rpc_marshal_err_resp(&resp);
+            goto finally;
+        }
+
+        if (!Credential_IsValid(vc)) {
             vlogE("Invalid credential in signin_confirm_challenge: %s", DIDError_GetMessage());
+            ErrResp resp = {
+                .tsx_id = req->tsx_id,
+                .ec     = ERR_INVALID_PARAMS
+            };
+            resp_marshal = rpc_marshal_err_resp(&resp);
+            goto finally;
+        }
+
+        if (strcmp(JWS_GetIssuer(chal_resp),
+                   DID_ToString(Credential_GetOwner(vc), owner_did, sizeof(owner_did)))) {
+            vlogE("Invalid credential in signin_confirm_challenge: issuer and owner mismatch: "
+                  "issuer: [%s], owner: [%s]", JWS_GetIssuer(chal_resp), owner_did);
             ErrResp resp = {
                 .tsx_id = req->tsx_id,
                 .ec     = ERR_INVALID_PARAMS
@@ -442,7 +465,6 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
 
         uinfo = create_uinfo_from_vc(JWS_GetIssuer(chal_resp), vc);
         if (!uinfo) {
-            vlogE("Creating user info from credential failed.");
             ErrResp resp = {
                 .tsx_id = req->tsx_id,
                 .ec     = ERR_INTERNAL_ERROR
@@ -452,7 +474,6 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
         }
 
         if (!strcmp(uinfo->did, feeds_owner_info.did) && (oinfo_upd(uinfo) < 0)) {
-            vlogE("Updating owner info failed.");
             ErrResp resp = {
                 .tsx_id = req->tsx_id,
                 .ec     = ERR_INTERNAL_ERROR
@@ -494,7 +515,8 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    vlogI("User[%s] has logged in", uinfo->did);
+    vlogI("User{did: %s, uid: %" PRIu64 ", name: %s, email: %s} has logged in with nonce[%s]",
+          uinfo->did, uinfo->uid, uinfo->name, uinfo->email, login->nonce);
 
     {
         SigninConfChalResp resp = {
@@ -505,8 +527,8 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_signin_conf_chal_resp(&resp);
-        vlogD("Sending signin_confirm_challenge response: "
-              "{access_token: %s, exp: %" PRIu64 "}", resp.result.tk, resp.result.exp);
+        vlogD("Sending signin_confirm_challenge response to [%s]: "
+              "{access_token: %s, exp: %" PRIu64 "}", from, resp.result.tk, resp.result.exp);
     }
 
 finally:
@@ -537,6 +559,8 @@ bool access_token_is_valid(JWS *token)
 {
     DIDURL *keyurl = NULL;
     bool valid = false;
+    char auth_key[ELA_MAX_DIDURL_LEN];
+    time_t now;
 
     keyurl = DIDURL_FromString(JWS_GetKeyId(token), NULL);
     if (!keyurl) {
@@ -545,12 +569,14 @@ bool access_token_is_valid(JWS *token)
     }
 
     if (!DIDURL_Equals(keyurl, feeeds_auth_key_url)) {
-        vlogE("Getting access token signing key URL mismatch.");
+        vlogE("Getting access token signing key URL mismatch: expected: [%s], actual: [%s].",
+              DIDURL_ToString(feeeds_auth_key_url, auth_key, sizeof(auth_key), true), JWS_GetKeyId(token));
         goto finally;
     }
 
-    if (JWS_GetExpiration(token) < time(NULL)) {
-        vlogE("Access token has expired.");
+    if (JWS_GetExpiration(token) < (now = time(NULL))) {
+        vlogE("Access token has expired. expiration: %" PRIu64 ", now: %" PRIu64,
+              (uint64_t)JWS_GetExpiration(token), (uint64_t)now);
         goto finally;
     }
 
@@ -578,8 +604,10 @@ UserInfo *create_uinfo_from_access_token(const char *token_marshal)
         goto finally;
 
     uinfo = rc_zalloc(sizeof(AccessTokenUserInfo), atuinfo_dtor);
-    if (!uinfo)
+    if (!uinfo) {
+        vlogE("OOM");
         goto finally;
+    }
 
     uinfo->info.did   = (char *)JWS_GetSubject(token);
     uinfo->info.uid   = JWS_GetClaimAsInteger(token, "uid");
@@ -629,7 +657,8 @@ void auth_expire_login()
             break;
 
         if (login->expat < time(NULL)) {
-            vlogI("Login[%s] has expired.", login->nonce);
+            vlogI("Login{nonce: %s, subject: %s, expiration: %" PRIu64 ", vc_required: %s} has expired.",
+                  login->nonce, login->sub, (uint64_t)login->expat, login->vc_req ? "true" : "false");
             hashtable_iterator_remove(&it);
         }
 

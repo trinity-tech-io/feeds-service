@@ -65,6 +65,24 @@ void state_set(int s)
     state |= s;
 }
 
+static inline
+const char *state_str()
+{
+    if (state_is_set(DID_RESOLVED))
+        return "did resolved" ;
+
+    if (state_is_set(VC_ISSED))
+        return "credential issued";
+
+    if (state_is_set(DID_IMPED))
+        return "did imported";
+
+    if (state_is_set(OWNER_DECLED))
+        return "owner declared";
+
+    return "to be configured";
+}
+
 static
 bool create_id_tsx(DIDAdapter *adapter, const char *payload, const char *memo)
 {
@@ -119,7 +137,7 @@ int qrencode(const char *intext, const char *outfile)
     realwidth = (qrcode->width + margin * 2) * size;
     row = (unsigned char *)malloc((realwidth + 7) / 8);
     if (row == NULL) {
-        vlogE("Failed to allocate memory.");
+        vlogE("OOM");
         QRcode_free(qrcode);
         return -1;
     }
@@ -305,17 +323,20 @@ int start_binding_svc(FeedsConfig *fc)
 
     http = sb_new_server(&opts);
     if (!http) {
-        vlogE("Creating http server instance failed.");
+        vlogE("Creating HTTP server instance failed.");
         return -1;
     }
 
     http_is_running = true;
     rc = pthread_create(&tid, NULL, http_server_routine, http);
     if (rc) {
+        vlogE("HTTP server failed to start");
         http_is_running = false;
         sb_close_server(http);
         return -1;
     }
+
+    vlogI("HTTP server started.");
 
     pthread_detach(tid);
 
@@ -383,10 +404,13 @@ int oinfo_upd(const UserInfo *ui)
     char *name = strdup(ui->name);
     char *email = strdup(ui->email);
 
-    if (!name)
+    if (!name) {
+        vlogE("OOM");
         return -1;
+    }
 
     if (!email) {
+        vlogE("OOM");
         free(name);
         return -1;
     }
@@ -435,8 +459,12 @@ void resolve_did()
     int rc;
 
     rc = pthread_create(&tid, NULL, resolve_did_routine, NULL);
-    if (rc)
+    if (rc) {
+        vlogE("Failed to start DID resolving routine");
         return;
+    }
+
+    vlogI("Start resolving DID");
 
     pthread_detach(tid);
 }
@@ -597,6 +625,7 @@ void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base)
 
         vlogI("Owner declared: [%s].", req->params.owner_did);
         state_set(OWNER_DECLED);
+
         {
             DeclOwnerResp resp = {
                 .tsx_id = req->tsx_id,
@@ -607,11 +636,11 @@ void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base)
                 }
             };
             resp_marshal = rpc_marshal_decl_owner_resp(&resp);
-            vlogD("Sending declare_owner response: "
-                  "{phase: %s, did: nil, transaction_payload: nil}", resp.result.phase);
+            vlogD("Sending declare_owner response to [%s]: "
+                  "{phase: %s, did: nil, transaction_payload: nil}", from, resp.result.phase);
         }
     } else if (strcmp(req->params.owner_did, feeds_owner_info.did)) {
-        vlogE("Owner mismatch.");
+        vlogE("Owner mismatch. Expected: [%s], actual: [%s]", feeds_owner_info.did, req->params.owner_did);
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_AUTHORIZED
@@ -627,8 +656,8 @@ void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_decl_owner_resp(&resp);
-        vlogD("Sending declare_owner response: "
-              "{phase: %s, did: nil, transaction_payload: nil}", resp.result.phase);
+        vlogD("Sending declare_owner response to [%s]: "
+              "{phase: %s, did: nil, transaction_payload: nil}", from, resp.result.phase);
     } else if (!state_is_set(VC_ISSED)) {
         DeclOwnerResp resp = {
             .tsx_id = req->tsx_id,
@@ -639,9 +668,9 @@ void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_decl_owner_resp(&resp);
-        vlogD("Sending declare_owner response: "
+        vlogD("Sending declare_owner response to [%s]: "
               "{phase: %s, did: %s, transaction_payload: %s}",
-              resp.result.phase, resp.result.did, resp.result.tsx_payload);
+              from, resp.result.phase, resp.result.did, resp.result.tsx_payload);
         clear_tsx_payload();
     } else {
         DeclOwnerResp resp = {
@@ -653,8 +682,8 @@ void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_decl_owner_resp(&resp);
-        vlogD("Sending declare_owner response: "
-              "{phase: %s, did: nil, transaction_payload: nil}", resp.result.phase);
+        vlogD("Sending declare_owner response to [%s]: "
+              "{phase: %s, did: nil, transaction_payload: nil}", from, resp.result.phase);
     }
 
 finally:
@@ -678,7 +707,7 @@ void hdl_imp_did_req(ElaCarrier *c, const char *from, Req *base)
           req->params.idx);
 
     if (!state_is_equal(OWNER_DECLED)) {
-        vlogE("Importing DID in a wrong state.");
+        vlogE("Importing DID in a wrong state. Current state: %s", state_str());
         return;
     }
 
@@ -736,8 +765,8 @@ void hdl_imp_did_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_imp_did_resp(&resp);
-        vlogD("Sending import_did response: "
-              "{did: %s, transaction_payload: %s}", resp.result.did, resp.result.tsx_payload);
+        vlogD("Sending import_did response to [%s]: {did: %s, transaction_payload: %s}",
+              from, resp.result.did, resp.result.tsx_payload);
         clear_tsx_payload();
     }
 
@@ -773,7 +802,7 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
 {
     IssVCReq *req = (IssVCReq *)base;
     Marshalled *resp_marshal = NULL;
-    char did[ELA_MAX_DID_LEN];
+    char iss_did[ELA_MAX_DID_LEN];
     DIDURL *vc_url = NULL;
     Credential *vc = NULL;
 
@@ -781,7 +810,7 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
           "{credential: %s}", from, req->params.vc);
 
     if (!state_is_equal(OWNER_DECLED | DID_IMPED)) {
-        vlogE("Issuing credential in a wrong state.");
+        vlogE("Issuing credential in a wrong state. Current state: %s", state_str());
         return;
     }
 
@@ -808,7 +837,6 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (!Credential_IsValid_ResolveSubLocally(vc)) {
-        vlogE("Credential is invalid.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INVALID_PARAMS
@@ -818,7 +846,13 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (!DIDURL_Equals(Credential_GetId(vc), vc_url)) {
-        vlogE("Credential ID mismatch.");
+        char vc_url_str[ELA_MAX_DIDURL_LEN];
+        char vc_id[ELA_MAX_DIDURL_LEN];
+
+        vlogE("Credential ID mismatch. Expected: [%s], actual: [%s]",
+              DIDURL_ToString(vc_url, vc_url_str, sizeof(vc_url_str), true),
+              DIDURL_ToString(Credential_GetId(vc), vc_id, sizeof(vc_id), true));
+
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INVALID_PARAMS
@@ -828,7 +862,11 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (!DID_Equals(Credential_GetOwner(vc), feeds_did)) {
-        vlogE("Credential owner mismatch.");
+        char vc_owner_did[ELA_MAX_DID_LEN];
+
+        vlogE("Credential owner mismatch. Expected: [%s], actual: [%s]",
+              feeds_did_str, DID_ToString(Credential_GetOwner(vc), vc_owner_did, sizeof(vc_owner_did)));
+
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INVALID_PARAMS
@@ -837,8 +875,8 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    if (strcmp(DID_ToString(Credential_GetIssuer(vc), did, sizeof(did)), feeds_owner_info.did)) {
-        vlogE("Credential issuer mismatch.");
+    if (strcmp(DID_ToString(Credential_GetIssuer(vc), iss_did, sizeof(iss_did)), feeds_owner_info.did)) {
+        vlogE("Credential issuer mismatch. Expected: [%s], actual: [%s]", feeds_owner_info.did, iss_did);
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INVALID_PARAMS
