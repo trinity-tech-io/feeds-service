@@ -1,0 +1,111 @@
+Binary files libcrystal/.DS_Store and libcrystal-mod/.DS_Store differ
+diff -ruN libcrystal/include/crystal/vlog.h libcrystal-mod/include/crystal/vlog.h
+--- libcrystal/include/crystal/vlog.h	2019-05-24 16:32:11.000000000 +0800
++++ libcrystal-mod/include/crystal/vlog.h	2020-07-29 12:26:42.000000000 +0800
+@@ -46,43 +46,43 @@
+ #define vlogF(format, ...) \
+     do { \
+         if (log_level >= VLOG_FATAL) \
+-            vlog(VLOG_FATAL, format, ##__VA_ARGS__); \
++            vlog(VLOG_FATAL, format " (%s:%d)", ##__VA_ARGS__, __FILE__, __LINE__); \
+     } while(0)
+ 
+ #define vlogE(format, ...) \
+     do { \
+         if (log_level >= VLOG_ERROR) \
+-            vlog(VLOG_ERROR, format, ##__VA_ARGS__); \
++            vlog(VLOG_ERROR, format " (%s:%d)", ##__VA_ARGS__, __FILE__, __LINE__); \
+     } while(0)
+ 
+ #define vlogW(format, ...) \
+     do { \
+         if (log_level >= VLOG_WARN) \
+-            vlog(VLOG_WARN, format, ##__VA_ARGS__); \
++            vlog(VLOG_WARN, format " (%s:%d)", ##__VA_ARGS__, __FILE__, __LINE__); \
+     } while(0)
+ 
+ #define vlogI(format, ...) \
+     do { \
+         if (log_level >= VLOG_INFO) \
+-            vlog(VLOG_INFO, format, ##__VA_ARGS__); \
++            vlog(VLOG_INFO, format " (%s:%d)", ##__VA_ARGS__, __FILE__, __LINE__); \
+     } while(0)
+ 
+ #define vlogD(format, ...) \
+     do { \
+         if (log_level >= VLOG_DEBUG) \
+-            vlog(VLOG_DEBUG, format, ##__VA_ARGS__); \
++            vlog(VLOG_DEBUG, format " (%s:%d)", ##__VA_ARGS__, __FILE__, __LINE__); \
+     } while(0)
+ 
+ #define vlogT(format, ...) \
+     do { \
+         if (log_level >= VLOG_TRACE) \
+-            vlog(VLOG_TRACE, format, ##__VA_ARGS__); \
++            vlog(VLOG_TRACE, format " (%s:%d)", ##__VA_ARGS__, __FILE__, __LINE__); \
+     } while(0)
+ 
+ #define vlogV(format, ...) \
+     do { \
+         if (log_level >= VLOG_VERBOSE) \
+-            vlog(VLOG_VERBOSE, format, ##__VA_ARGS__); \
++            vlog(VLOG_VERBOSE, format " (%s:%d)", ##__VA_ARGS__, __FILE__, __LINE__); \
+     } while(0)
+ 
+ typedef void log_printer(const char *format, va_list args);
+diff -ruN libcrystal/src/CMakeLists.txt libcrystal-mod/src/CMakeLists.txt
+--- libcrystal/src/CMakeLists.txt	2019-05-24 16:32:11.000000000 +0800
++++ libcrystal-mod/src/CMakeLists.txt	2020-07-28 17:42:16.000000000 +0800
+@@ -28,6 +28,8 @@
+         "slim-pthread or pthreads-win32 are recommended.")
+ endif()
+ 
++set(CMAKE_C_STANDARD 99)
++
+ set(SRC
+     base58.c
+     bitset.c
+diff -ruN libcrystal/src/vlog.c libcrystal-mod/src/vlog.c
+--- libcrystal/src/vlog.c	2019-05-24 16:32:11.000000000 +0800
++++ libcrystal-mod/src/vlog.c	2020-07-29 12:15:55.000000000 +0800
+@@ -25,6 +25,7 @@
+ #include <time.h>
+ #include <stdarg.h>
+ #include <pthread.h>
++#include <stddef.h>
+ 
+ #include "crystal/vlog.h"
+ 
+@@ -222,15 +223,29 @@
+         level = VLOG_VERBOSE;
+ 
+     char timestr[20];
+-    char buf[1024];
++    char *buf;
++    va_list args_dup;
+     time_t cur = time(NULL);
++    int rc;
++
++    va_copy(args_dup, args);
++    rc = vsnprintf(NULL, 0, format, args_dup);
++    va_end(args_dup);
++    if (rc <= 0)
++        return;
++
++    buf = rc + 1 > 1024 ? malloc(rc + 1) : alloca(rc + 1);
++    if (!buf)
++        return;
+ 
+     strftime(timestr, 20, TIME_FORMAT, localtime(&cur));
+-    vsnprintf(buf, sizeof(buf), format, args);
+-    buf[1023] = 0;
++    vsnprintf(buf, rc + 1, format, args);
+ 
+     output(level, "%s - %-7s : %s\n",
+             timestr, level_names[level], buf);
++
++    if (rc + 1 > 1024)
++        free(buf);
+ }
+ 
+ void vlog(int level, const char *format, ...)
