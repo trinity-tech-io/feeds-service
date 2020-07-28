@@ -31,10 +31,11 @@ static char nonce_str[NONCE_BYTES << 1];
 static char feeds_url[1024];
 static char feeds_did_str[ELA_MAX_DID_LEN];
 static enum {
-    OWNER_DECLED = 1,
-    DID_IMPED    = 2,
-    VC_ISSED     = 4,
-    DID_RESOLVED = 8
+    NO_OWNER,
+    OWNER_DECLED,
+    DID_IMPED,
+    VC_ISSED,
+    DID_RESOLVED
 } state;
 static char *payload_buf;
 
@@ -47,40 +48,24 @@ static
 void gen_feeds_url();
 
 static inline
-bool state_is_set(int s)
-{
-    return state & s;
-}
-
-static inline
-bool state_is_equal(int s)
-{
-    return state == s;
-}
-
-static inline
 void state_set(int s)
 {
+    state = s;
     gen_feeds_url();
-    state |= s;
 }
 
 static inline
 const char *state_str()
 {
-    if (state_is_set(DID_RESOLVED))
-        return "did resolved" ;
+    static const char *str[] = {
+        "no owner",
+        "owner declared",
+        "did imported",
+        "credential issued",
+        "did resolved"
+    };
 
-    if (state_is_set(VC_ISSED))
-        return "credential issued";
-
-    if (state_is_set(DID_IMPED))
-        return "did imported";
-
-    if (state_is_set(OWNER_DECLED))
-        return "owner declared";
-
-    return "to be configured";
+    return str[state];
 }
 
 static
@@ -99,15 +84,15 @@ void gen_feeds_url()
 {
     int rc;
 
-    rc = sprintf(feeds_url, "%s://", did_is_ready() ? "feeds" : "feeds_raw");
+    rc = sprintf(feeds_url, "%s://", state >= VC_ISSED ? "feeds" : "feeds_raw");
 
-    if (state_is_set(DID_IMPED))
+    if (state >= DID_IMPED)
         sprintf(feeds_url + rc, "%s/", feeds_did_str);
 
     ela_get_address(carrier, feeds_url + strlen(feeds_url),
                     sizeof(feeds_url) - strlen(feeds_url));
 
-    if (!did_is_ready())
+    if (state < VC_ISSED)
         sprintf(feeds_url + strlen(feeds_url), "/%s", nonce_str);
 }
 
@@ -569,7 +554,7 @@ finally:
 
 bool did_is_ready()
 {
-    return state_is_equal(OWNER_DECLED | DID_IMPED | VC_ISSED | DID_RESOLVED);
+    return state == DID_RESOLVED;
 }
 
 static
@@ -603,7 +588,7 @@ void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base)
     vlogD("Received declare_owner request from [%s]: "
           "{nonce: %s, owner_did: %s}", from, req->params.nonce, req->params.owner_did);
 
-    if (!state_is_set(OWNER_DECLED)) {
+    if (state == NO_OWNER) {
         if (oinfo_init(&ui) < 0) {
             ErrResp resp = {
                 .tsx_id = req->tsx_id,
@@ -646,7 +631,7 @@ void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base)
             .ec     = ERR_NOT_AUTHORIZED
         };
         resp_marshal = rpc_marshal_err_resp(&resp);
-    } else if (!state_is_set(DID_IMPED)) {
+    } else if (state == OWNER_DECLED) {
         DeclOwnerResp resp = {
             .tsx_id = req->tsx_id,
             .result = {
@@ -658,7 +643,7 @@ void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base)
         resp_marshal = rpc_marshal_decl_owner_resp(&resp);
         vlogD("Sending declare_owner response to [%s]: "
               "{phase: %s, did: nil, transaction_payload: nil}", from, resp.result.phase);
-    } else if (!state_is_set(VC_ISSED)) {
+    } else if (state == DID_IMPED) {
         DeclOwnerResp resp = {
             .tsx_id = req->tsx_id,
             .result = {
@@ -706,7 +691,7 @@ void hdl_imp_did_req(ElaCarrier *c, const char *from, Req *base)
           req->params.passphrase ? req->params.passphrase : "nil",
           req->params.idx);
 
-    if (!state_is_equal(OWNER_DECLED)) {
+    if (state != OWNER_DECLED) {
         vlogE("Importing DID in a wrong state. Current state: %s", state_str());
         return;
     }
@@ -809,7 +794,7 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
     vlogD("Received issue_credential request from [%s]: "
           "{credential: %s}", from, req->params.vc);
 
-    if (!state_is_equal(OWNER_DECLED | DID_IMPED)) {
+    if (state != DID_IMPED) {
         vlogE("Issuing credential in a wrong state. Current state: %s", state_str());
         return;
     }
