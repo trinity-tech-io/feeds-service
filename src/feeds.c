@@ -269,7 +269,7 @@ void notify_of_new_like(const char *peer, const LikeInfo *li)
 
     vlogD("Sending new like notification to [%s]: "
           "{channel_id: %" PRIu64 ", post_id: %" PRIu64
-          ", comment_id: %" PRIu64 ", user_name: %s, user_did: %s, total_count: " PRIu64 "}",
+          ", comment_id: %" PRIu64 ", user_name: %s, user_did: %s, total_count: %" PRIu64 "}",
           peer, li->chan_id, li->post_id, li->cmt_id, li->user.name, li->user.did, li->total_cnt);
     msgq_enq(peer, notif_marshal);
 }
