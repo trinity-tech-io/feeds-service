@@ -51,7 +51,14 @@ if(HAVE_SIGACTION)
     add_definitions(-DHAVE_SIGACTION=1)
 endif()
 
-set(SRC
+include_directories(
+    .
+    ${FEEDS_INT_DIST_DIR}/include)
+
+link_directories(
+    ${FEEDS_INT_DIST_DIR}/lib)
+
+add_executable(feedsd
     db.c
     cfg.c
     rpc.c
@@ -64,14 +71,16 @@ set(SRC
     did.c
     feeds.c)
 
-include_directories(
-    .
-    ${FEEDS_INT_DIST_DIR}/include)
+add_dependencies(feedsd
+    Elastos.NET.Carrier.Native.SDK
+    Elastos.DID.Native.SDK
+    msgpack-c
+    libcrystal
+    libconfig
+    libqrencode
+    sqlite)
 
-link_directories(
-    ${FEEDS_INT_DIST_DIR}/lib)
-
-set(LIBS
+target_link_libraries(feedsd
     msgpackc
     sqlite3
     config
@@ -83,47 +92,33 @@ set(LIBS
     dl
     m)
 
-set(ELAFEEDS_DEPENDS
-    Elastos.NET.Carrier.Native.SDK
-    Elastos.DID.Native.SDK
-    msgpack-c
-    libcrystal
-    libconfig
-    libqrencode
-    sqlite)
-
-add_executable(feeds_daemon ${SRC})
-add_dependencies(feeds_daemon ${ELAFEEDS_DEPENDS})
-set_target_properties(feeds_daemon PROPERTIES OUTPUT_NAME ela-feedsd)
-target_link_libraries(feeds_daemon ${LIBS})
-
-install(TARGETS feeds_daemon
+install(TARGETS feedsd
     RUNTIME DESTINATION bin
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
-    COMPONENT core)
+    COMPONENT main)
 
 install(FILES feedsd.conf
-    DESTINATION etc/ela-feedsd
-    COMPONENT core)
+    DESTINATION etc/feedsd
+    COMPONENT main)
 
 if(CMAKE_SYSTEM_NAME STREQUAL Linux)
-    install(FILES ${CMAKE_SOURCE_DIR}/scripts/ela-feedsd.service
+    install(FILES ${CMAKE_SOURCE_DIR}/scripts/feedsd.service
         DESTINATION lib/systemd/system
-        COMPONENT core)
+        COMPONENT main)
 
-    install(PROGRAMS ${CMAKE_SOURCE_DIR}/scripts/ela-feedsd.sh
+    install(PROGRAMS ${CMAKE_SOURCE_DIR}/scripts/feedsd.sh
         DESTINATION etc/init.d
-        RENAME ela-feedsd
-        COMPONENT core)
+        RENAME feedsd
+        COMPONENT main)
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL Linux)
     set(CPACK_GENERATOR DEB)
 
-    set(CPACK_PACKAGE_DESCRIPTION "Elastos Feeds Service Distribution Packages")
-    set(CPACK_PACKAGE_VENDOR elastos.org)
-    set(CPACK_PACKAGE_CONTACT libin@elastos.org)
+    set(CPACK_PACKAGE_DESCRIPTION "Feeds Service Distribution Packages")
+    set(CPACK_PACKAGE_VENDOR trinity-tech.io)
+    set(CPACK_PACKAGE_CONTACT lifayi@trinity-tech.io)
     set(CPACK_PACKAGING_INSTALL_PREFIX /)
     set(CPACK_PACKAGE_CHECKSUM MD5)
     set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
@@ -134,15 +129,15 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
         set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE amd64)
     endif()
 
-    set(CPACK_COMPONENTS_ALL core)
+    set(CPACK_COMPONENTS_ALL main)
 
     set(CPACK_DEBIAN_PACKAGE_PREDEPENDS adduser)
     set(CPACK_DEBIAN_PACKAGE_DEPENDS
         "lsb-base (>= 3.0), init-system-helpers (>= 1.18~),
         libc6 (>= 2.14), libsystemd0")
-    set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "http://www.elastos.org/")
+    set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "http://www.trinity-tech.io/")
     set(CPACK_DEBIAN_PACKAGE_DESCRIPTION
-        "Elastos Feeds service daemon.")
+        "Feeds service daemon.")
 
     set(CPACK_DEBIAN_PACKAGE_CONTROL_STRICT_PERMISSION TRUE)
 

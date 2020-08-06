@@ -96,7 +96,7 @@ static void qualified_path(const char *path, const char *ref, char *qualified)
 }
 
 #define DEFAULT_LOG_LEVEL ElaLogLevel_Info
-#define DEFAULT_DATA_DIR  "/var/lib/ela-feedsd"
+#define DEFAULT_DATA_DIR  "/var/lib/feedsd"
 FeedsConfig *load_cfg(const char *cfg_file, FeedsConfig *fc)
 {
     config_setting_t *nodes_setting;

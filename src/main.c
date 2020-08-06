@@ -182,7 +182,7 @@ static
 void usage(void)
 {
     printf("Elastos feeds service.\n");
-    printf("Usage: ela-feedsd [OPTION]...\n");
+    printf("Usage: feedsd [OPTION]...\n");
     printf("\n");
     printf("First run options:\n");
     printf("  -d, --daemon              Run as daemon.\n");
@@ -200,9 +200,9 @@ void usage(void)
 #define CONFIG_NAME "feedsd.conf"
 static const char *default_cfg_files[] = {
     "./"CONFIG_NAME,
-    "../etc/ela-feedsd/"CONFIG_NAME,
-    "/usr/local/etc/ela-feedsd/"CONFIG_NAME,
-    "/etc/ela-feedsd/"CONFIG_NAME,
+    "../etc/feedsd/"CONFIG_NAME,
+    "/usr/local/etc/feedsd/"CONFIG_NAME,
+    "/etc/feedsd/"CONFIG_NAME,
     NULL
 };
 

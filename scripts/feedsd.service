@@ -1,0 +1,18 @@
+[Unit]
+Description=Feeds Service Daemon
+After=network-online.target
+
+[Service]
+Type=simple
+RuntimeDirectory=feedsd
+RuntimeDirectoryMode=755
+WorkingDirectory=/var/lib/feedsd
+PIDFile=/var/run/feedsd/feedsd.pid
+ExecStart=/bin/feedsd --config=/etc/feedsd/feedsd.conf
+User=feedsd
+Group=feedsd
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

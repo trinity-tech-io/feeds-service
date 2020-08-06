@@ -10,5 +10,3 @@ add_submodule(sqlite)
 add_submodule(zlib)
 add_submodule(libpng DEPENDS zlib)
 add_submodule(libqrencode DEPENDS libpng)
-
-

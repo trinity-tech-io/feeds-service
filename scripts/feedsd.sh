@@ -1,26 +1,26 @@
 #! /bin/sh
 ### BEGIN INIT INFO
-# Provides:          ela-feedsd
+# Provides:          feedsd
 # Required-Start:    $remote_fs $syslog
 # Required-Stop:     $remote_fs $syslog
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: Starts the Elastos Feeds service daemon
-# Description:       Starts the Elastos Feeds service daemon
+# Short-Description: Starts the Feeds service daemon
+# Description:       Starts the Feeds service daemon
 ### END INIT INFO
 
 # PATH should only include /usr/* if it runs after the mountnfs.sh script
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
-DESC="Elastos Feeds service daemon"
-NAME=ela-feedsd
+DESC="Feeds service daemon"
+NAME=feedsd
 DAEMON=/bin/$NAME
-CONFIG_FILE=/etc/ela-feeds/feedsd.conf
+CONFIG_FILE=/etc/feeds/feedsd.conf
 DAEMON_ARGS="--config=$CONFIG_FILE"
 PIDDIR=/var/run/$NAME
 PIDFILE=$PIDDIR/$NAME.pid
 SCRIPTNAME=/etc/init.d/$NAME
-USER=ela-feedsd
-GROUP=ela-feedsd
+USER=feedsd
+GROUP=feedsd
 
 # Exit if the package is not installed
 [ -x "$DAEMON" ] || exit 0
