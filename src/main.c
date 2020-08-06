@@ -181,8 +181,8 @@ int sys_coredump_set(bool enable)
 static
 void usage(void)
 {
-    printf("Elastos feeds server.\n");
-    printf("Usage: elafeeds [OPTION]...\n");
+    printf("Elastos feeds service.\n");
+    printf("Usage: ela-feedsd [OPTION]...\n");
     printf("\n");
     printf("First run options:\n");
     printf("  -d, --daemon              Run as daemon.\n");
