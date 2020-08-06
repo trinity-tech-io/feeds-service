@@ -428,7 +428,8 @@ void *resolve_did_routine(void *arg)
 
     (void)arg;
 
-    while (!(doc = DID_Resolve(feeds_did, false))) ;
+    while (!(doc = DID_Resolve(feeds_did, false)))
+        sleep(30);
 
     state_set(DID_RESOLVED);
     vlogI("Feeds DID is resolved, ready to serve.");
