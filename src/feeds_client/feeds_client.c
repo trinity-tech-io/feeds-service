@@ -98,14 +98,14 @@ void on_receiving_message(ElaCarrier *carrier, const char *from,
         if (!strcmp(notif->method, "new_post")) {
             NewPostNotif *n = (NewPostNotif *)notif;
             console("New post:");
-            console("  channel_id: %llu, id: %llu, content_length: %" PRIu64 ", created_at: %llu",
+            console("  channel_id: %llu, id: %llu, content_length: %zu, created_at: %llu",
                     n->params.pinfo->chan_id, n->params.pinfo->post_id,
                     n->params.pinfo->len, n->params.pinfo->created_at);
         } else if (!strcmp(notif->method, "new_comment")) {
             NewCmtNotif *n = (NewCmtNotif *)notif;
             console("New comment:");
             console("  channel_id: %llu, post_id: %llu, id: %llu, comment_id: %llu, "
-                    "user_name: %s, content_length: %" PRIu64 ", created_at: %llu",
+                    "user_name: %s, content_length: %zu, created_at: %llu",
                     n->params.cinfo->chan_id,
                     n->params.cinfo->post_id,
                     n->params.cinfo->cmt_id,

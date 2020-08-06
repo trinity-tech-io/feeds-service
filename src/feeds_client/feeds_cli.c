@@ -676,7 +676,7 @@ void get_my_channels(int argc, char **argv)
 
     ChanInfo **i;
     cvector_foreach(resp->result.cinfos, i)
-        console("id: %llu, name: %s, introduction: %s, subscribers: %llu, avatar_sz: %" PRIu64,
+        console("id: %llu, name: %s, introduction: %s, subscribers: %llu, avatar_sz: %zu",
                 (*i)->chan_id, (*i)->name, (*i)->intro, (*i)->subs, (*i)->len);
 
 finally:
@@ -746,7 +746,7 @@ void get_channels(int argc, char **argv)
     ChanInfo **i;
     cvector_foreach(resp->result.cinfos, i)
         console("id: %llu, name: %s, introduction: %s, owner_name: %s, owner_did: %s,"
-                " subscribers: %llu, last_update: %llu, avatar_sz: %" PRIu64,
+                " subscribers: %llu, last_update: %llu, avatar_sz: %zu",
                 (*i)->chan_id, (*i)->name, (*i)->intro, (*i)->owner->name,
                 (*i)->owner->did, (*i)->subs, (*i)->upd_at, (*i)->len);
 
@@ -819,7 +819,7 @@ void get_subscribed_channels(int argc, char **argv)
     ChanInfo **i;
     cvector_foreach(resp->result.cinfos, i)
         console("id: %llu, name: %s, introduction: %s, owner_name: %s,"
-                " owner_did: %s, subscribers: %llu, last_update: %llu, avatar_sz: %" PRIu64,
+                " owner_did: %s, subscribers: %llu, last_update: %llu, avatar_sz: %zu",
                 (*i)->chan_id, (*i)->name, (*i)->intro, (*i)->owner->name, (*i)->owner->did,
                 (*i)->subs, (*i)->upd_at, (*i)->len);
 
@@ -855,7 +855,7 @@ void get_posts(int argc, char **argv)
 
     PostInfo **i;
     cvector_foreach(resp->result.pinfos, i)
-        console("channel_id: %llu, id: %llu, content_sz: %" PRIu64 ", comments: %llu, likes: %llu, created_at: %llu",
+        console("channel_id: %llu, id: %llu, content_sz: %zu, comments: %llu, likes: %llu, created_at: %llu",
                 (*i)->chan_id, (*i)->post_id, (*i)->len, (*i)->cmts, (*i)->likes, (*i)->created_at);
 
 finally:
@@ -890,7 +890,7 @@ void get_liked_posts(int argc, char **argv)
 
     PostInfo **i;
     cvector_foreach(resp->result.pinfos, i)
-        console("channel_id: %llu, id: %llu, content_sz: %" PRIu64 ", comments: %llu, likes: %llu, created_at: %llu",
+        console("channel_id: %llu, id: %llu, content_sz: %zu, comments: %llu, likes: %llu, created_at: %llu",
                 (*i)->chan_id, (*i)->post_id, (*i)->len, (*i)->cmts, (*i)->likes, (*i)->created_at);
 
 finally:
@@ -926,7 +926,7 @@ void get_comments(int argc, char **argv)
 
     CmtInfo **i;
     cvector_foreach(resp->result.cinfos, i)
-        console("channel_id: %llu, post_id: %llu, id: %llu, comment_id:%llu, user_name: %s, content_sz: %" PRIu64 ", likes: %llu, created_at: %llu",
+        console("channel_id: %llu, post_id: %llu, id: %llu, comment_id:%llu, user_name: %s, content_sz: %zu, likes: %llu, created_at: %llu",
                 (*i)->chan_id, (*i)->post_id, (*i)->cmt_id, (*i)->reply_to_cmt,
                 (*i)->user.name, (*i)->len, (*i)->likes, (*i)->created_at);
 

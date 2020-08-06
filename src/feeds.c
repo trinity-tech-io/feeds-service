@@ -472,7 +472,7 @@ void hdl_create_chan_req(ElaCarrier *c, const char *from, Req *base)
     int rc;
 
     vlogD("Received create_channel request from [%s]: "
-          "{access_token: %s, name: %s, introduction: %s, avatar_length: %" PRIu64 "}",
+          "{access_token: %s, name: %s, introduction: %s, avatar_length: %zu}",
           from, req->params.tk, req->params.name, req->params.intro, req->params.sz);
 
     if (!did_is_ready()) {
@@ -569,7 +569,7 @@ void hdl_pub_post_req(ElaCarrier *c, const char *from, Req *base)
     int rc;
 
     vlogD("Received publish_post request from [%s]: "
-          "{access_token: %s, channel_id: %" PRIu64 ", content_length: %" PRIu64 "}",
+          "{access_token: %s, channel_id: %" PRIu64 ", content_length: %zu}",
           from, req->params.tk, req->params.chan_id, req->params.sz);
 
     if (!did_is_ready()) {
@@ -673,7 +673,7 @@ void hdl_post_cmt_req(ElaCarrier *c, const char *from, Req *base)
 
     vlogD("Received post_comment request from [%s]: "
           "{access_token: %s, channel_id: %" PRIu64
-          ", post_id: %" PRIu64 ", comment_id: %" PRIu64 ", content_length: %" PRIu64 "}",
+          ", post_id: %" PRIu64 ", comment_id: %" PRIu64 ", content_length: %zu}",
           from, req->params.tk, req->params.chan_id, req->params.post_id, req->params.cmt_id, req->params.sz);
 
     if (!did_is_ready()) {
@@ -1035,7 +1035,7 @@ void hdl_get_my_chans_req(ElaCarrier *c, const char *from, Req *base)
         cvector_push_back(cinfos, ref(cinfo));
         vlogD("Retrieved channel: "
               "{channel_id: %" PRIu64 ", name: %s, introduction: %s, subscribers: %" PRIu64
-              ", avatar_length: %" PRIu64 "}",
+              ", avatar_length: %zu}",
               cinfo->chan_id, cinfo->name, cinfo->intro, cinfo->subs, cinfo->len);
     }
     if (rc < 0) {
@@ -1247,7 +1247,7 @@ void hdl_get_chans_req(ElaCarrier *c, const char *from, Req *base)
         vlogD("Retrieved channel: "
               "{channel_id: %" PRIu64 ", name: %s, introduction: %s, "
               "owner_name: %s, owner_did: %s, subscribers: %" PRIu64 ", last_update: %" PRIu64
-              ", avatar_length: %" PRIu64 "}",
+              ", avatar_length: %zu}",
               cinfo->chan_id, cinfo->name, cinfo->intro, cinfo->owner->name,
               cinfo->owner->did, cinfo->subs, cinfo->upd_at, cinfo->len);
     }
@@ -1369,7 +1369,7 @@ void hdl_get_chan_dtl_req(ElaCarrier *c, const char *from, Req *base)
         vlogD("Sending get_channel_detail response: "
               "{channel_id: %" PRIu64 ", name: %s, introduction: %s, "
               "owner_name: %s, owner_did: %s, subscribers: %" PRIu64
-              ", last_update: %" PRIu64 ", avatar_length: %" PRIu64 "}",
+              ", last_update: %" PRIu64 ", avatar_length: %zu}",
               chan->info.chan_id, chan->info.name, chan->info.intro, chan->info.owner->name,
               chan->info.owner->did, chan->info.subs, chan->info.upd_at, chan->info.len);
     }
@@ -1427,7 +1427,7 @@ void hdl_get_sub_chans_req(ElaCarrier *c, const char *from, Req *base)
         cvector_push_back(cinfos, ref(cinfo));
         vlogD("Retrieved channel: "
               "{channel_id: %" PRIu64 ", name: %s, introduction: %s, owner_name: %s, "
-              "owner_did: %s, subscribers: %" PRIu64 ", last_update: %" PRIu64 ", avatar_length: %" PRIu64 "}",
+              "owner_did: %s, subscribers: %" PRIu64 ", last_update: %" PRIu64 ", avatar_length: %zu}",
               cinfo->chan_id, cinfo->name, cinfo->intro, cinfo->owner->name,
               cinfo->owner->did, cinfo->subs, cinfo->upd_at, cinfo->len);
     }
@@ -1559,7 +1559,7 @@ void hdl_get_posts_req(ElaCarrier *c, const char *from, Req *base)
         cvector_push_back(pinfos, ref(pinfo));
         vlogD("Retrieved post: "
               "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", comments: %" PRIu64
-              ", likes: %" PRIu64 ", created_at: %" PRIu64 ", content_length: %" PRIu64 "}",
+              ", likes: %" PRIu64 ", created_at: %" PRIu64 ", content_length: %zu}",
               pinfo->chan_id, pinfo->post_id, pinfo->cmts, pinfo->likes, pinfo->created_at, pinfo->len);
     }
     if (rc < 0) {
@@ -1679,7 +1679,7 @@ void hdl_get_liked_posts_req(ElaCarrier *c, const char *from, Req *base)
         cvector_push_back(pinfos, ref(pinfo));
         vlogD("Retrieved post: "
               "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", comments: %" PRIu64
-              ", likes: %" PRIu64 ", created_at: %" PRIu64 ", content_length: %" PRIu64 "}",
+              ", likes: %" PRIu64 ", created_at: %" PRIu64 ", content_length: %zu}",
               pinfo->chan_id, pinfo->post_id, pinfo->cmts, pinfo->likes, pinfo->created_at, pinfo->len);
     }
     if (rc < 0) {
@@ -1822,7 +1822,7 @@ void hdl_get_cmts_req(ElaCarrier *c, const char *from, Req *base)
         vlogD("Retrieved comment: "
               "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", comment_id: %" PRIu64
               ", refcomment_id: %" PRIu64 ", user_name: %s, likes: %" PRIu64
-              ", created_at: %" PRIu64 ", content_length: %" PRIu64 "}",
+              ", created_at: %" PRIu64 ", content_length: %zu}",
               cinfo->chan_id, cinfo->post_id, cinfo->cmt_id, cinfo->reply_to_cmt,
               cinfo->user.name, cinfo->likes, cinfo->created_at, cinfo->len);
     }
