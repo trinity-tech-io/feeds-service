@@ -197,12 +197,12 @@ void usage(void)
     printf("\n");
 }
 
-#define CONFIG_NAME "feeds.conf"
+#define CONFIG_NAME "feedsd.conf"
 static const char *default_cfg_files[] = {
     "./"CONFIG_NAME,
-    "../etc/feeds/"CONFIG_NAME,
-    "/usr/local/etc/feeds/"CONFIG_NAME,
-    "/etc/feeds/"CONFIG_NAME,
+    "../etc/ela-feedsd/"CONFIG_NAME,
+    "/usr/local/etc/ela-feedsd/"CONFIG_NAME,
+    "/etc/ela-feedsd/"CONFIG_NAME,
     NULL
 };
 
