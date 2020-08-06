@@ -8,6 +8,7 @@
 #include <png.h>
 
 #include "sandbird/sandbird.h"
+#include "msgq.h"
 #include "err.h"
 #include "rpc.h"
 #include "did.h"
@@ -673,10 +674,8 @@ void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal) {
-        ela_send_friend_message(c, from, resp_marshal->data, resp_marshal->sz, NULL);
-        deref(resp_marshal);
-    }
+    if (resp_marshal)
+        msgq_enq(from, resp_marshal);
 }
 
 void hdl_imp_did_req(ElaCarrier *c, const char *from, Req *base)
@@ -757,10 +756,8 @@ void hdl_imp_did_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal) {
-        ela_send_friend_message(c, from, resp_marshal->data, resp_marshal->sz, NULL);
-        deref(resp_marshal);
-    }
+    if (resp_marshal)
+        msgq_enq(from, resp_marshal);
     if (mnemo_gen)
         Mnemonic_Free(mnemo_gen);
 }
@@ -897,10 +894,8 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal) {
-        ela_send_friend_message(c, from, resp_marshal->data, resp_marshal->sz, NULL);
-        deref(resp_marshal);
-    }
+    if (resp_marshal)
+        msgq_enq(from, resp_marshal);
     if (vc)
         Credential_Destroy(vc);
     if (vc_url)

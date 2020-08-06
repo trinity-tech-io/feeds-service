@@ -6,6 +6,7 @@
 #include <ela_carrier.h>
 
 #include "auth.h"
+#include "msgq.h"
 #include "err.h"
 #include "did.h"
 #include "db.h"
@@ -198,10 +199,8 @@ void hdl_signin_req_chal_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal) {
-        ela_send_friend_message(c, from, resp_marshal->data, resp_marshal->sz, NULL);
-        deref(resp_marshal);
-    }
+    if (resp_marshal)
+        msgq_enq(from, resp_marshal);
     if (chal)
         free(chal);
     if (vc)
@@ -532,10 +531,8 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal) {
-        ela_send_friend_message(c, from, resp_marshal->data, resp_marshal->sz, NULL);
-        deref(resp_marshal);
-    }
+    if (resp_marshal)
+        msgq_enq(from, resp_marshal);
     if (access_token)
         free(access_token);
     if (vc)
