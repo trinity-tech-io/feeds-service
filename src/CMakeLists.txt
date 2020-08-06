@@ -118,55 +118,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
         COMPONENT core)
 endif()
 
-set(SRC
-    mkdirs.c
-    rpc.c
-    err.c
-    feeds_client/cfg.c
-    feeds_client/feeds_cli.c
-    feeds_client/feeds_client.c)
-
-set(FEEDSCLI_DEPENDS
-    Elastos.NET.Carrier.Native.SDK
-    Elastos.DID.Native.SDK
-    libcrystal
-    msgpack-c
-    libconfig)
-
-set(LIBS
-    config
-    msgpackc
-    libcrystal-shared
-    libelacarrier-shared
-    libeladid-shared
-    pthread)
-
-add_executable(feeds_cli EXCLUDE_FROM_ALL ${SRC})
-add_dependencies(feeds_cli ${FEEDSCLI_DEPENDS})
-set_target_properties(feeds_cli PROPERTIES OUTPUT_NAME ela-feeds-cli)
-
-add_custom_target(utils
-    DEPENDS feeds_cli)
-
-target_link_libraries(feeds_cli ${LIBS})
-install(TARGETS feeds_cli
-    EXCLUDE_FROM_ALL
-    COMPONENT utils
-    RUNTIME DESTINATION bin
-    ARCHIVE DESTINATION lib
-    LIBRARY DESTINATION lib)
-
-install(FILES feeds_client/feeds_cli.conf
-    EXCLUDE_FROM_ALL
-    COMPONENT utils
-    DESTINATION etc/ela-feedsd)
-
-add_custom_target(install_utils
-    COMMAND ${CMAKE_COMMAND}
-        -DCOMPONENT=utils
-        -P ${CMAKE_BINARY_DIR}/cmake_install.cmake
-    DEPENDS utils)
-
 if(CMAKE_SYSTEM_NAME STREQUAL Linux)
     set(CPACK_GENERATOR DEB)
 
