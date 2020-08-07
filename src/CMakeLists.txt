@@ -51,13 +51,6 @@ if(HAVE_SIGACTION)
     add_definitions(-DHAVE_SIGACTION=1)
 endif()
 
-include_directories(
-    .
-    ${FEEDS_INT_DIST_DIR}/include)
-
-link_directories(
-    ${FEEDS_INT_DIST_DIR}/lib)
-
 add_executable(feedsd
     db.c
     cfg.c
@@ -66,8 +59,6 @@ add_executable(feedsd
     auth.c
     main.c
     msgq.c
-    mkdirs.c
-    sandbird/sandbird.c
     did.c
     feeds.c)
 
@@ -78,7 +69,10 @@ add_dependencies(feedsd
     libcrystal
     libconfig
     libqrencode
-    sqlite)
+    sqlite
+    cvector
+    mkdirs
+    sandbird)
 
 target_link_libraries(feedsd
     msgpackc
@@ -88,6 +82,9 @@ target_link_libraries(feedsd
     libelacarrier-shared
     libeladid-shared
     libqrencode-static
+    cvector
+    mkdirs
+    sandbird
     pthread
     dl
     m)

@@ -7,7 +7,7 @@
 #include <qrencode.h>
 #include <png.h>
 
-#include "sandbird/sandbird.h"
+#include "sandbird.h"
 #include "msgq.h"
 #include "err.h"
 #include "rpc.h"

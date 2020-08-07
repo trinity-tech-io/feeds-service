@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-#include "c-vector/cvector.h"
+#include "cvector.h"
 #include "obj.h"
 
 typedef char *AccessToken;
