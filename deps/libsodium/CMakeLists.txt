@@ -1,6 +1,5 @@
 project(libsodium)
 
-include(FeedsDefaults)
 include(ExternalProject)
 
 set(CONFIGURE_CMD "./configure")

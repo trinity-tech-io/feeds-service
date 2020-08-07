@@ -1,6 +1,5 @@
 project(libcrystal)
 
-include(FeedsDefaults)
 include(ExternalProject)
 
 ExternalProject_Add(
