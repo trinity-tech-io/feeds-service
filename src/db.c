@@ -1482,6 +1482,7 @@ const char *query_column(QueryObject qo, QryFld qf)
                     return "comment_id";
                 default:
                     assert(0);
+                    return NULL;
             }
         case UPD_AT:
             return "updated_at";
@@ -1489,6 +1490,7 @@ const char *query_column(QueryObject qo, QryFld qf)
             return "created_at";
         default:
             assert(0);
+            return NULL;
     }
 }
 
