@@ -89,13 +89,24 @@ target_link_libraries(feedsd
     dl
     m)
 
+if(CMAKE_SYSTEM_NAME STREQUAL Linux)
+    set(FEEDSD_LOG_DIR /var/log/feedsd)
+    set(FEEDSD_DATA_DIR /var/lib/feedsd)
+else()
+    set(FEEDSD_LOG_DIR ~/.feedsd)
+    set(FEEDSD_DATA_DIR ~/.feedsd)
+endif()
+
+configure_file(feedsd.conf.in feedsd.conf @ONLY
+    NEWLINE_STYLE UNIX)
+
 install(TARGETS feedsd
     RUNTIME DESTINATION bin
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
     COMPONENT main)
 
-install(FILES feedsd.conf
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/feedsd.conf
     DESTINATION etc/feedsd
     COMPONENT main)
 

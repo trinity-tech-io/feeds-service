@@ -43,6 +43,6 @@ did = {
 # Defualt log level is INFO
 log-level = 4
 
-log-file = "/var/log/feedsd/feedsd.log"
+log-file = "@FEEDSD_LOG_DIR@/feedsd.log"
 
-data-dir = "/var/lib/feedsd"
+data-dir = "@FEEDSD_DATA_DIR@"
