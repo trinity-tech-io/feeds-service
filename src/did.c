@@ -57,8 +57,7 @@ static enum {
     NO_OWNER,
     OWNER_DECLED,
     DID_IMPED,
-    VC_ISSED,
-    DID_RESOLVED
+    VC_ISSED
 } state;
 static char *payload_buf;
 
@@ -84,8 +83,7 @@ const char *state_str()
         "no owner",
         "owner declared",
         "did imported",
-        "credential issued",
-        "did resolved"
+        "credential issued"
     };
 
     return str[state];
@@ -446,39 +444,10 @@ int load_feeds_doc(DID *did, void *context)
     return -1;
 }
 
-static
-void *resolve_did_routine(void *arg)
+static inline
+DIDDocument *local_resolver(DID *did)
 {
-    DIDDocument *doc;
-
-    (void)arg;
-
-    while (!(doc = DID_Resolve(feeds_did, false)))
-        sleep(30);
-
-    state_set(DID_RESOLVED);
-    vlogI("Feeds DID is resolved, ready to serve.");
-
-    DIDDocument_Destroy(doc);
-    return NULL;
-}
-
-static
-int resolve_did()
-{
-    pthread_t tid;
-    int rc;
-
-    rc = pthread_create(&tid, NULL, resolve_did_routine, NULL);
-    if (rc) {
-        vlogE("Failed to start DID resolving routine");
-        return -1;
-    }
-
-    vlogI("Start resolving DID");
-
-    pthread_detach(tid);
-    return 0;
+    return DID_Equals(did, feeds_did) ? DIDStore_LoadDID(feeds_didstore, feeds_did) : NULL;
 }
 
 int did_init(FeedsConfig *cfg)
@@ -542,6 +511,7 @@ int did_init(FeedsConfig *cfg)
     feeds_did = DIDDocument_GetSubject(feeds_doc);
     DID_ToString(feeds_did, feeds_did_str, sizeof(feeds_did_str));
     feeeds_auth_key_url = DIDDocument_GetDefaultPublicKey(feeds_doc);
+    DIDBackend_SetLocalResolveHandle(local_resolver);
 
     vlogI("DID imported: [%s]", feeds_did_str);
 
@@ -557,17 +527,8 @@ int did_init(FeedsConfig *cfg)
         goto finally;
     }
 
-    vlogI("Credential issued.");
-
-    doc = DID_Resolve(feeds_did, false);
-    if (!doc) {
-        state_set(VC_ISSED);
-        rc = resolve_did();
-        goto finally;
-    }
-
-    vlogI("Feeds DID is resolved, ready to serve.");
-    state_set(DID_RESOLVED);
+    vlogI("Credential issued, ready to serve.");
+    state_set(VC_ISSED);
 
     goto finally;
 
@@ -590,14 +551,16 @@ finally:
 
 bool did_is_ready()
 {
-    return state == DID_RESOLVED;
+    return state == VC_ISSED;
 }
 
 static
 char *gen_tsx_payload()
 {
+    DIDBackend_SetLocalResolveHandle(NULL);
     DIDStore_PublishDID(feeds_didstore, feeds_storepass, feeds_did,
                         feeeds_auth_key_url, true);
+    DIDBackend_SetLocalResolveHandle(local_resolver);
     return payload_buf;
 }
 
@@ -771,6 +734,7 @@ void hdl_imp_did_req(ElaCarrier *c, const char *from, Req *base)
     feeds_did = DIDDocument_GetSubject(feeds_doc);
     DID_ToString(feeds_did, feeds_did_str, sizeof(feeds_did_str));
     feeeds_auth_key_url = DIDDocument_GetDefaultPublicKey(feeds_doc);
+    DIDBackend_SetLocalResolveHandle(local_resolver);
 
     vlogI("DID imported: [%s].", feeds_did_str);
     state_set(DID_IMPED);
@@ -796,25 +760,6 @@ finally:
         Mnemonic_Free(mnemo_gen);
 }
 
-static DIDDocument *local_resolver(DID *did)
-{
-    return DID_Equals(did, feeds_did) ? DIDStore_LoadDID(feeds_didstore, feeds_did) : NULL;
-}
-
-static inline
-bool Credential_IsValid_ResolveSubLocally(Credential *cred)
-{
-    bool is_valid;
-
-    DIDBackend_SetLocalResolveHandle(local_resolver);
-    is_valid = Credential_IsValid(cred);
-    if (!is_valid)
-        vlogE("Resolving VC locally failed: %s", DIDError_GetMessage());
-    DIDBackend_SetLocalResolveHandle(NULL);
-
-    return is_valid;
-}
-
 void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
 {
     IssVCReq *req = (IssVCReq *)base;
@@ -822,7 +767,6 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
     char iss_did[ELA_MAX_DID_LEN];
     DIDURL *vc_url = NULL;
     Credential *vc = NULL;
-    int rc;
 
     vlogD("Received issue_credential request from [%s]: "
           "{credential: %s}", from, req->params.vc);
@@ -854,7 +798,8 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    if (!Credential_IsValid_ResolveSubLocally(vc)) {
+    if (!Credential_IsValid(vc)) {
+        vlogE("Credential is invalid: %s", DIDError_GetMessage());
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INVALID_PARAMS
@@ -916,14 +861,8 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
     feeds_vc = vc;
     vc = NULL;
 
+    vlogI("Credential issued, ready to serve.");
     state_set(VC_ISSED);
-    vlogI("Credential issued.");
-
-    rc = resolve_did();
-    if (rc < 0) {
-        vlogE("Failed to resolve DID");
-        abort();
-    }
 
     {
         IssVCResp resp = {
