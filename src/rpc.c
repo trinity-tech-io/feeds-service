@@ -1019,7 +1019,7 @@ int unmarshal_get_cmts_req(const msgpack_object *req, Req **req_unmarshal)
     if (!tmp)
         return -1;
 
-    buf = &tmp->params + 1;
+    buf = tmp + 1;
     tmp->method           = strncpy(buf, method->str_val, method->str_sz);
     buf += str_reserve_spc(method);
     tmp->tsx_id           = tsx_id->u64_val;
