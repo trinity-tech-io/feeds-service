@@ -117,6 +117,8 @@ void gen_feeds_url()
 
     if (state < VC_ISSED)
         sprintf(feeds_url + strlen(feeds_url), "/%s", nonce_str);
+
+    vlogI("Generate feeds URL: %s", feeds_url);
 }
 
 #define INCHES_PER_METER (100.0/2.54)
@@ -462,7 +464,7 @@ void *resolve_did_routine(void *arg)
 }
 
 static
-void resolve_did()
+int resolve_did()
 {
     pthread_t tid;
     int rc;
@@ -470,12 +472,13 @@ void resolve_did()
     rc = pthread_create(&tid, NULL, resolve_did_routine, NULL);
     if (rc) {
         vlogE("Failed to start DID resolving routine");
-        return;
+        return -1;
     }
 
     vlogI("Start resolving DID");
 
     pthread_detach(tid);
+    return 0;
 }
 
 int did_init(FeedsConfig *cfg)
@@ -484,6 +487,7 @@ int did_init(FeedsConfig *cfg)
         .createIdTransaction = create_id_tsx
     };
     uint8_t nonce[NONCE_BYTES];
+    DIDDocument *doc = NULL;
     DIDURL *vc_url = NULL;
     UserInfo *ui = NULL;
     int rc;
@@ -492,7 +496,6 @@ int did_init(FeedsConfig *cfg)
 
     crypto_random_nonce(nonce);
     crypto_nonce_to_str(nonce, nonce_str, sizeof(nonce_str));
-    gen_feeds_url();
 
     feeds_storepass = strdup(cfg->didstore_passwd);
     if (!feeds_storepass) {
@@ -513,7 +516,7 @@ int did_init(FeedsConfig *cfg)
     }
 
     if (!ui) {
-        rc = start_binding_svc(cfg);
+        state_set(NO_OWNER);
         goto finally;
     }
 
@@ -523,17 +526,16 @@ int did_init(FeedsConfig *cfg)
         goto failure;
     }
 
-    state_set(OWNER_DECLED);
     vlogI("Owner declared: [%s]", feeds_owner_info.did);
 
     if (!DIDStore_ContainsPrivateIdentity(feeds_didstore)) {
-        rc = start_binding_svc(cfg);
+        state_set(OWNER_DECLED);
         goto finally;
     }
 
     DIDStore_ListDIDs(feeds_didstore, DID_FILTER_HAS_PRIVATEKEY, load_feeds_doc, NULL);
     if (!feeds_doc) {
-        rc = start_binding_svc(cfg);
+        state_set(OWNER_DECLED);
         goto finally;
     }
 
@@ -541,7 +543,6 @@ int did_init(FeedsConfig *cfg)
     DID_ToString(feeds_did, feeds_did_str, sizeof(feeds_did_str));
     feeeds_auth_key_url = DIDDocument_GetDefaultPublicKey(feeds_doc);
 
-    state_set(DID_IMPED);
     vlogI("DID imported: [%s]", feeds_did_str);
 
     vc_url = DIDURL_NewByDid(feeds_did, VC_FRAG);
@@ -552,25 +553,36 @@ int did_init(FeedsConfig *cfg)
 
     feeds_vc = DIDStore_LoadCredential(feeds_didstore, feeds_did, vc_url);
     if (!feeds_vc) {
-        rc = start_binding_svc(cfg);
+        state_set(DID_IMPED);
         goto finally;
     }
 
-    state_set(VC_ISSED);
     vlogI("Credential issued.");
-    resolve_did();
 
-    rc = start_binding_svc(cfg);
+    doc = DID_Resolve(feeds_did, false);
+    if (!doc) {
+        state_set(VC_ISSED);
+        rc = resolve_did();
+        goto finally;
+    }
+
+    vlogI("Feeds DID is resolved, ready to serve.");
+    state_set(DID_RESOLVED);
+
     goto finally;
 
 failure:
     rc = -1;
 
 finally:
+    if (!rc)
+        rc = start_binding_svc(cfg);
     if (rc < 0)
         did_deinit();
     if (vc_url)
         DIDURL_Destroy(vc_url);
+    if (doc)
+        DIDDocument_Destroy(doc);
     deref(ui);
 
     return rc;
@@ -810,6 +822,7 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
     char iss_did[ELA_MAX_DID_LEN];
     DIDURL *vc_url = NULL;
     Credential *vc = NULL;
+    int rc;
 
     vlogD("Received issue_credential request from [%s]: "
           "{credential: %s}", from, req->params.vc);
@@ -894,7 +907,7 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
         vlogE("Storing credential failed: %s", DIDError_GetMessage());
         ErrResp resp = {
             .tsx_id = req->tsx_id,
-            .ec     = ERR_INVALID_PARAMS
+            .ec     = ERR_INTERNAL_ERROR
         };
         resp_marshal = rpc_marshal_err_resp(&resp);
         goto finally;
@@ -905,7 +918,12 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
 
     state_set(VC_ISSED);
     vlogI("Credential issued.");
-    resolve_did();
+
+    rc = resolve_did();
+    if (rc < 0) {
+        vlogE("Failed to resolve DID");
+        abort();
+    }
 
     {
         IssVCResp resp = {

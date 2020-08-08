@@ -182,7 +182,6 @@ int load_chans_from_db()
     return 0;
 }
 
-
 int feeds_init(FeedsConfig *cfg)
 {
     int rc;
