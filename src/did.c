@@ -561,6 +561,9 @@ char *gen_tsx_payload()
     DIDStore_PublishDID(feeds_didstore, feeds_storepass, feeds_did,
                         feeeds_auth_key_url, true);
     DIDBackend_SetLocalResolveHandle(local_resolver);
+    if (!payload_buf)
+        vlogE("Failed to generate transaction payload: %s", DIDError_GetMessage());
+
     return payload_buf;
 }
 
@@ -651,6 +654,16 @@ void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base)
                 .tsx_payload = gen_tsx_payload()
             }
         };
+
+        if (!resp.result.tsx_payload) {
+            ErrResp err_resp = {
+                .tsx_id = req->tsx_id,
+                .ec     = ERR_INTERNAL_ERROR
+            };
+            resp_marshal = rpc_marshal_err_resp(&err_resp);
+            goto finally;
+        }
+
         resp_marshal = rpc_marshal_decl_owner_resp(&resp);
         vlogD("Sending declare_owner response to [%s]: "
               "{phase: %s, did: %s, transaction_payload: %s}",
@@ -747,6 +760,16 @@ void hdl_imp_did_req(ElaCarrier *c, const char *from, Req *base)
                 .tsx_payload = gen_tsx_payload()
             }
         };
+
+        if (!resp.result.tsx_payload) {
+            ErrResp err_resp = {
+                .tsx_id = req->tsx_id,
+                .ec     = ERR_INTERNAL_ERROR
+            };
+            resp_marshal = rpc_marshal_err_resp(&err_resp);
+            goto finally;
+        }
+
         resp_marshal = rpc_marshal_imp_did_resp(&resp);
         vlogD("Sending import_did response to [%s]: {did: %s, transaction_payload: %s}",
               from, resp.result.did, resp.result.tsx_payload);
