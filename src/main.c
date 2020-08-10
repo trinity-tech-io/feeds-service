@@ -414,8 +414,8 @@ int main(int argc, char *argv[])
     }
 
     rc = feeds_init(&cfg);
-    free_cfg(&cfg);
     if (rc < 0) {
+        free_cfg(&cfg);
         auth_deinit();
         did_deinit();
         db_deinit();
@@ -432,10 +432,18 @@ int main(int argc, char *argv[])
     printf("  Node ID: %s\n", ela_get_nodeid(carrier, buf, sizeof(buf)));
     printf("  User ID: %s\n", ela_get_userid(carrier, buf, sizeof(buf)));
     printf("  Address: %s\n", ela_get_address(carrier, buf, sizeof(buf)));
+    printf("Visit http://%s:%s using your browser to start binding process."
+           "Verification code:[%s]\n", cfg.http_ip, cfg.http_port, did_get_nonce());
+    free_cfg(&cfg);
 
     if (daemon && daemonize() < 0) {
         fprintf(stderr, "Demonize failure!\n");
-        free_cfg(&cfg);
+        feeds_deinit();
+        auth_deinit();
+        did_deinit();
+        db_deinit();
+        msgq_deinit();
+        transport_deinit();
         return -1;
     }
 

@@ -36,6 +36,7 @@ extern Credential *feeds_vc;
 int did_init(FeedsConfig *cfg);
 void did_deinit();
 bool did_is_ready();
+const char *did_get_nonce();
 int oinfo_upd(const UserInfo *ui);
 void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_imp_did_req(ElaCarrier *c, const char *from, Req *base);

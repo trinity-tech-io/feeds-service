@@ -554,6 +554,11 @@ bool did_is_ready()
     return state == VC_ISSED;
 }
 
+const char *did_get_nonce()
+{
+    return nonce_str;
+}
+
 static
 char *gen_tsx_payload()
 {
