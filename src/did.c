@@ -502,7 +502,7 @@ int did_init(FeedsConfig *cfg)
         goto finally;
     }
 
-    DIDStore_ListDIDs(feeds_didstore, DID_FILTER_HAS_PRIVATEKEY, load_feeds_doc, NULL);
+    DIDStore_ListDIDs(feeds_didstore, DIDFilter_HasPrivateKey, load_feeds_doc, NULL);
     if (!feeds_doc) {
         state_set(OWNER_DECLED);
         goto finally;
