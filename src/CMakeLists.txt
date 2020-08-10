@@ -51,6 +51,8 @@ if(HAVE_SIGACTION)
     add_definitions(-DHAVE_SIGACTION=1)
 endif()
 
+link_directories(${FEEDS_INT_DIST_DIR}/lib)
+
 add_executable(feedsd
     db.c
     cfg.c
