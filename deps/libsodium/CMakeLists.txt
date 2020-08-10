@@ -27,15 +27,13 @@ ExternalProject_Add(
     libsodium
 
     PREFIX ${FEEDS_DEPS_BUILD_PREFIX}
-    URL https://github.com/jedisct1/libsodium/releases/download/1.0.11/libsodium-1.0.11.tar.gz
-    URL_HASH SHA256=a14549db3c49f6ae2170cbbf4664bd48ace50681045e8dbea7c8d9fb96f9c765
-    DOWNLOAD_NAME libsodium-1.0.11.tar.gz
+    URL "https://github.com/jedisct1/libsodium/releases/download/1.0.18-RELEASE/libsodium-1.0.18.tar.gz"
+    URL_HASH SHA256=6f504490b342a4f8a4c4a02fc9b866cbef8622d5df4e5452b46be121e46636c1
+    DOWNLOAD_NAME "libsodium-1.0.18.tar.gz"
     DOWNLOAD_DIR ${FEEDS_DEPS_TARBALL_DIR}
     DOWNLOAD_NO_PROGRESS 1
 
     BUILD_IN_SOURCE 1
-
-    PATCH_COMMAND ${PATCH_EXE} -s -p1 < ${CMAKE_CURRENT_LIST_DIR}/libsodium.patch
 
     CONFIGURE_COMMAND ${CONFIGURE_CMD} ${CONFIGURE_ARGS}
     BUILD_COMMAND ${BUILD_CMD} ${BUILD_ARGS}

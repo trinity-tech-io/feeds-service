@@ -1,22 +1,15 @@
-diff -ruN Elastos.NET.Carrier.Native.SDK/deps/libcrystal/CMakeLists.txt Elastos.NET.Carrier.Native.SDK-mod/deps/libcrystal/CMakeLists.txt
---- Elastos.NET.Carrier.Native.SDK/deps/libcrystal/CMakeLists.txt	2020-06-19 18:07:12.000000000 +0800
-+++ Elastos.NET.Carrier.Native.SDK-mod/deps/libcrystal/CMakeLists.txt	2020-08-07 18:38:43.000000000 +0800
-@@ -14,6 +14,8 @@
-     DOWNLOAD_DIR ${CARRIER_DEPS_TARBALL_DIR}
-     DOWNLOAD_NO_PROGRESS 1
- 
-+    PATCH_COMMAND ${PATCH_EXE} -s -p1 < ${CMAKE_CURRENT_LIST_DIR}/libcrystal.patch
-+
-     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CARRIER_INT_DIST_DIR}
-         -DENABLE_STATIC=${ENABLE_STATIC}
-         -DENABLE_SHARED=${ENABLE_SHARED}
 diff -ruN Elastos.NET.Carrier.Native.SDK/deps/libcrystal/libcrystal.patch Elastos.NET.Carrier.Native.SDK-mod/deps/libcrystal/libcrystal.patch
---- Elastos.NET.Carrier.Native.SDK/deps/libcrystal/libcrystal.patch	1970-01-01 08:00:00.000000000 +0800
-+++ Elastos.NET.Carrier.Native.SDK-mod/deps/libcrystal/libcrystal.patch	2020-08-07 18:39:00.000000000 +0800
-@@ -0,0 +1,545 @@
+--- Elastos.NET.Carrier.Native.SDK/deps/libcrystal/libcrystal.patch	2020-08-10 14:00:18.000000000 +0800
++++ Elastos.NET.Carrier.Native.SDK-mod/deps/libcrystal/libcrystal.patch	2020-08-10 14:40:16.000000000 +0800
+@@ -1,8 +1,36 @@
+-diff --git a/src/crypto.c b/src/crypto.c
+-index f69775b..4ad852b 100644
+---- a/src/crypto.c
+-+++ b/src/crypto.c
+-@@ -164,6 +164,8 @@ void crypto_compute_symmetric_key(const uint8_t *public_key,
 +diff -ruN libcrystal/include/crystal/linkedhashtable.h libcrystal-mod/include/crystal/linkedhashtable.h
 +--- libcrystal/include/crystal/linkedhashtable.h	2019-05-24 16:32:11.000000000 +0800
-++++ libcrystal-mod/include/crystal/linkedhashtable.h	2020-08-07 18:35:44.000000000 +0800
+++++ libcrystal-mod/include/crystal/linkedhashtable.h	2020-08-10 13:04:22.000000000 +0800
 +@@ -39,11 +39,11 @@
 +     const void *        key;
 +     size_t              keylen;
@@ -31,145 +24,9 @@ diff -ruN Elastos.NET.Carrier.Native.SDK/deps/libcrystal/libcrystal.patch Elasto
 + } hashtable_iterator_t;
 + 
 + CRYSTAL_API
-+diff -ruN libcrystal/include/crystal/vlog.h libcrystal-mod/include/crystal/vlog.h
-+--- libcrystal/include/crystal/vlog.h	2019-05-24 16:32:11.000000000 +0800
-++++ libcrystal-mod/include/crystal/vlog.h	2020-08-07 18:35:44.000000000 +0800
-+@@ -43,47 +43,91 @@
-+ CRYSTAL_API
-+ extern int log_level;
-+ 
-+-#define vlogF(format, ...) \
-+-    do { \
-+-        if (log_level >= VLOG_FATAL) \
-+-            vlog(VLOG_FATAL, format, ##__VA_ARGS__); \
-+-    } while(0)
-+-
-+-#define vlogE(format, ...) \
-+-    do { \
-+-        if (log_level >= VLOG_ERROR) \
-+-            vlog(VLOG_ERROR, format, ##__VA_ARGS__); \
-+-    } while(0)
-+-
-+-#define vlogW(format, ...) \
-+-    do { \
-+-        if (log_level >= VLOG_WARN) \
-+-            vlog(VLOG_WARN, format, ##__VA_ARGS__); \
-+-    } while(0)
-+-
-+-#define vlogI(format, ...) \
-+-    do { \
-+-        if (log_level >= VLOG_INFO) \
-+-            vlog(VLOG_INFO, format, ##__VA_ARGS__); \
-+-    } while(0)
-+-
-+-#define vlogD(format, ...) \
-+-    do { \
-+-        if (log_level >= VLOG_DEBUG) \
-+-            vlog(VLOG_DEBUG, format, ##__VA_ARGS__); \
-+-    } while(0)
-+-
-+-#define vlogT(format, ...) \
-+-    do { \
-+-        if (log_level >= VLOG_TRACE) \
-+-            vlog(VLOG_TRACE, format, ##__VA_ARGS__); \
-+-    } while(0)
-+-
-+-#define vlogV(format, ...) \
-+-    do { \
-+-        if (log_level >= VLOG_VERBOSE) \
-+-            vlog(VLOG_VERBOSE, format, ##__VA_ARGS__); \
-+-    } while(0)
-++#ifndef NDEBUG
-++    #define vlogF(format, ...) \
-++        do { \
-++            if (log_level >= VLOG_FATAL) \
-++                vlog(VLOG_FATAL, format " (%s:%d)", ##__VA_ARGS__, __FILE__, __LINE__); \
-++        } while(0)
-++
-++    #define vlogE(format, ...) \
-++        do { \
-++            if (log_level >= VLOG_ERROR) \
-++                vlog(VLOG_ERROR, format " (%s:%d)", ##__VA_ARGS__, __FILE__, __LINE__); \
-++        } while(0)
-++
-++    #define vlogW(format, ...) \
-++        do { \
-++            if (log_level >= VLOG_WARN) \
-++                vlog(VLOG_WARN, format " (%s:%d)", ##__VA_ARGS__, __FILE__, __LINE__); \
-++        } while(0)
-++
-++    #define vlogI(format, ...) \
-++        do { \
-++            if (log_level >= VLOG_INFO) \
-++                vlog(VLOG_INFO, format " (%s:%d)", ##__VA_ARGS__, __FILE__, __LINE__); \
-++        } while(0)
-++
-++    #define vlogD(format, ...) \
-++        do { \
-++            if (log_level >= VLOG_DEBUG) \
-++                vlog(VLOG_DEBUG, format " (%s:%d)", ##__VA_ARGS__, __FILE__, __LINE__); \
-++        } while(0)
-++
-++    #define vlogT(format, ...) \
-++        do { \
-++            if (log_level >= VLOG_TRACE) \
-++                vlog(VLOG_TRACE, format " (%s:%d)", ##__VA_ARGS__, __FILE__, __LINE__); \
-++        } while(0)
-++
-++    #define vlogV(format, ...) \
-++        do { \
-++            if (log_level >= VLOG_VERBOSE) \
-++                vlog(VLOG_VERBOSE, format " (%s:%d)", ##__VA_ARGS__, __FILE__, __LINE__); \
-++        } while(0)
-++#else
-++    #define vlogF(format, ...) \
-++            do { \
-++                if (log_level >= VLOG_FATAL) \
-++                    vlog(VLOG_FATAL, format, ##__VA_ARGS__); \
-++            } while(0)
-++
-++    #define vlogE(format, ...) \
-++            do { \
-++                if (log_level >= VLOG_ERROR) \
-++                    vlog(VLOG_ERROR, format, ##__VA_ARGS__); \
-++            } while(0)
-++
-++    #define vlogW(format, ...) \
-++            do { \
-++                if (log_level >= VLOG_WARN) \
-++                    vlog(VLOG_WARN, format, ##__VA_ARGS__); \
-++            } while(0)
-++
-++    #define vlogI(format, ...) \
-++            do { \
-++                if (log_level >= VLOG_INFO) \
-++                    vlog(VLOG_INFO, format, ##__VA_ARGS__); \
-++            } while(0)
-++
-++    #define vlogD(format, ...) \
-++            do { \
-++                if (log_level >= VLOG_DEBUG) \
-++                    vlog(VLOG_DEBUG, format, ##__VA_ARGS__); \
-++            } while(0)
-++
-++    #define vlogT(format, ...) \
-++            do { \
-++                if (log_level >= VLOG_TRACE) \
-++                    vlog(VLOG_TRACE, format, ##__VA_ARGS__); \
-++            } while(0)
-++
-++    #define vlogV(format, ...) \
-++            do { \
-++                if (log_level >= VLOG_VERBOSE) \
-++                    vlog(VLOG_VERBOSE, format, ##__VA_ARGS__); \
-++            } while(0)
-++#endif
-+ 
-+ typedef void log_printer(const char *format, va_list args);
-+ 
 +diff -ruN libcrystal/src/CMakeLists.txt libcrystal-mod/src/CMakeLists.txt
 +--- libcrystal/src/CMakeLists.txt	2019-05-24 16:32:11.000000000 +0800
-++++ libcrystal-mod/src/CMakeLists.txt	2020-08-07 18:35:44.000000000 +0800
+++++ libcrystal-mod/src/CMakeLists.txt	2020-08-10 13:04:22.000000000 +0800
 +@@ -28,6 +28,8 @@
 +         "slim-pthread or pthreads-win32 are recommended.")
 + endif()
@@ -179,9 +36,38 @@ diff -ruN Elastos.NET.Carrier.Native.SDK/deps/libcrystal/libcrystal.patch Elasto
 + set(SRC
 +     base58.c
 +     bitset.c
++diff -ruN libcrystal/src/crypto.c libcrystal-mod/src/crypto.c
++--- libcrystal/src/crypto.c	2019-05-24 16:32:11.000000000 +0800
+++++ libcrystal-mod/src/crypto.c	2020-08-10 14:37:09.000000000 +0800
++@@ -164,6 +164,8 @@
+  #pragma GCC diagnostic pop
+  #endif
+  
+@@ -11,7 +39,7 @@
+  ssize_t crypto_encrypt(const uint8_t *key, const uint8_t *nonce,
+                         const uint8_t *plain, size_t length, uint8_t *encrypted)
+  {
+-@@ -173,20 +175,42 @@ ssize_t crypto_encrypt(const uint8_t *key, const uint8_t *nonce,
++@@ -173,20 +175,42 @@
+      if (length == 0 || !key || !nonce || !plain || !encrypted)
+          return -1;
+  
+@@ -57,7 +85,7 @@
+      return length + crypto_box_MACBYTES;
+  }
+  
+-@@ -215,18 +239,40 @@ ssize_t crypto_decrypt(const uint8_t *key, const uint8_t *nonce,
++@@ -215,18 +239,40 @@
+          || !encrypted || !plain)
+          return -1;
+  
+@@ -101,3 +129,383 @@
+      return length - crypto_box_MACBYTES;
+  }
+  
 +diff -ruN libcrystal/src/linkedhashtable.c libcrystal-mod/src/linkedhashtable.c
 +--- libcrystal/src/linkedhashtable.c	2019-05-24 16:32:11.000000000 +0800
-++++ libcrystal-mod/src/linkedhashtable.c	2020-08-07 18:35:44.000000000 +0800
+++++ libcrystal-mod/src/linkedhashtable.c	2020-08-10 13:04:22.000000000 +0800
 +@@ -41,6 +41,7 @@
 +     size_t               keylen;
 +     void *               data;
@@ -477,7 +363,7 @@ diff -ruN Elastos.NET.Carrier.Native.SDK/deps/libcrystal/libcrystal.patch Elasto
 + }
 +diff -ruN libcrystal/src/linkedlist.c libcrystal-mod/src/linkedlist.c
 +--- libcrystal/src/linkedlist.c	2019-05-24 16:32:11.000000000 +0800
-++++ libcrystal-mod/src/linkedlist.c	2020-08-07 18:35:44.000000000 +0800
+++++ libcrystal-mod/src/linkedlist.c	2020-08-10 13:04:22.000000000 +0800
 +@@ -303,28 +303,20 @@
 +     list_unlock(lst);
 + }
@@ -517,7 +403,7 @@ diff -ruN Elastos.NET.Carrier.Native.SDK/deps/libcrystal/libcrystal.patch Elasto
 + 
 +diff -ruN libcrystal/src/vlog.c libcrystal-mod/src/vlog.c
 +--- libcrystal/src/vlog.c	2019-05-24 16:32:11.000000000 +0800
-++++ libcrystal-mod/src/vlog.c	2020-08-07 18:35:44.000000000 +0800
+++++ libcrystal-mod/src/vlog.c	2020-08-10 13:04:22.000000000 +0800
 +@@ -25,6 +25,7 @@
 + #include <time.h>
 + #include <stdarg.h>

@@ -1,6 +1,6 @@
 diff -ruN libcrystal/include/crystal/linkedhashtable.h libcrystal-mod/include/crystal/linkedhashtable.h
 --- libcrystal/include/crystal/linkedhashtable.h	2019-05-24 16:32:11.000000000 +0800
-+++ libcrystal-mod/include/crystal/linkedhashtable.h	2020-08-07 18:35:44.000000000 +0800
++++ libcrystal-mod/include/crystal/linkedhashtable.h	2020-08-10 13:04:22.000000000 +0800
 @@ -39,11 +39,11 @@
      const void *        key;
      size_t              keylen;
@@ -15,145 +15,9 @@ diff -ruN libcrystal/include/crystal/linkedhashtable.h libcrystal-mod/include/cr
  } hashtable_iterator_t;
  
  CRYSTAL_API
-diff -ruN libcrystal/include/crystal/vlog.h libcrystal-mod/include/crystal/vlog.h
---- libcrystal/include/crystal/vlog.h	2019-05-24 16:32:11.000000000 +0800
-+++ libcrystal-mod/include/crystal/vlog.h	2020-08-07 18:35:44.000000000 +0800
-@@ -43,47 +43,91 @@
- CRYSTAL_API
- extern int log_level;
- 
--#define vlogF(format, ...) \
--    do { \
--        if (log_level >= VLOG_FATAL) \
--            vlog(VLOG_FATAL, format, ##__VA_ARGS__); \
--    } while(0)
--
--#define vlogE(format, ...) \
--    do { \
--        if (log_level >= VLOG_ERROR) \
--            vlog(VLOG_ERROR, format, ##__VA_ARGS__); \
--    } while(0)
--
--#define vlogW(format, ...) \
--    do { \
--        if (log_level >= VLOG_WARN) \
--            vlog(VLOG_WARN, format, ##__VA_ARGS__); \
--    } while(0)
--
--#define vlogI(format, ...) \
--    do { \
--        if (log_level >= VLOG_INFO) \
--            vlog(VLOG_INFO, format, ##__VA_ARGS__); \
--    } while(0)
--
--#define vlogD(format, ...) \
--    do { \
--        if (log_level >= VLOG_DEBUG) \
--            vlog(VLOG_DEBUG, format, ##__VA_ARGS__); \
--    } while(0)
--
--#define vlogT(format, ...) \
--    do { \
--        if (log_level >= VLOG_TRACE) \
--            vlog(VLOG_TRACE, format, ##__VA_ARGS__); \
--    } while(0)
--
--#define vlogV(format, ...) \
--    do { \
--        if (log_level >= VLOG_VERBOSE) \
--            vlog(VLOG_VERBOSE, format, ##__VA_ARGS__); \
--    } while(0)
-+#ifndef NDEBUG
-+    #define vlogF(format, ...) \
-+        do { \
-+            if (log_level >= VLOG_FATAL) \
-+                vlog(VLOG_FATAL, format " (%s:%d)", ##__VA_ARGS__, __FILE__, __LINE__); \
-+        } while(0)
-+
-+    #define vlogE(format, ...) \
-+        do { \
-+            if (log_level >= VLOG_ERROR) \
-+                vlog(VLOG_ERROR, format " (%s:%d)", ##__VA_ARGS__, __FILE__, __LINE__); \
-+        } while(0)
-+
-+    #define vlogW(format, ...) \
-+        do { \
-+            if (log_level >= VLOG_WARN) \
-+                vlog(VLOG_WARN, format " (%s:%d)", ##__VA_ARGS__, __FILE__, __LINE__); \
-+        } while(0)
-+
-+    #define vlogI(format, ...) \
-+        do { \
-+            if (log_level >= VLOG_INFO) \
-+                vlog(VLOG_INFO, format " (%s:%d)", ##__VA_ARGS__, __FILE__, __LINE__); \
-+        } while(0)
-+
-+    #define vlogD(format, ...) \
-+        do { \
-+            if (log_level >= VLOG_DEBUG) \
-+                vlog(VLOG_DEBUG, format " (%s:%d)", ##__VA_ARGS__, __FILE__, __LINE__); \
-+        } while(0)
-+
-+    #define vlogT(format, ...) \
-+        do { \
-+            if (log_level >= VLOG_TRACE) \
-+                vlog(VLOG_TRACE, format " (%s:%d)", ##__VA_ARGS__, __FILE__, __LINE__); \
-+        } while(0)
-+
-+    #define vlogV(format, ...) \
-+        do { \
-+            if (log_level >= VLOG_VERBOSE) \
-+                vlog(VLOG_VERBOSE, format " (%s:%d)", ##__VA_ARGS__, __FILE__, __LINE__); \
-+        } while(0)
-+#else
-+    #define vlogF(format, ...) \
-+            do { \
-+                if (log_level >= VLOG_FATAL) \
-+                    vlog(VLOG_FATAL, format, ##__VA_ARGS__); \
-+            } while(0)
-+
-+    #define vlogE(format, ...) \
-+            do { \
-+                if (log_level >= VLOG_ERROR) \
-+                    vlog(VLOG_ERROR, format, ##__VA_ARGS__); \
-+            } while(0)
-+
-+    #define vlogW(format, ...) \
-+            do { \
-+                if (log_level >= VLOG_WARN) \
-+                    vlog(VLOG_WARN, format, ##__VA_ARGS__); \
-+            } while(0)
-+
-+    #define vlogI(format, ...) \
-+            do { \
-+                if (log_level >= VLOG_INFO) \
-+                    vlog(VLOG_INFO, format, ##__VA_ARGS__); \
-+            } while(0)
-+
-+    #define vlogD(format, ...) \
-+            do { \
-+                if (log_level >= VLOG_DEBUG) \
-+                    vlog(VLOG_DEBUG, format, ##__VA_ARGS__); \
-+            } while(0)
-+
-+    #define vlogT(format, ...) \
-+            do { \
-+                if (log_level >= VLOG_TRACE) \
-+                    vlog(VLOG_TRACE, format, ##__VA_ARGS__); \
-+            } while(0)
-+
-+    #define vlogV(format, ...) \
-+            do { \
-+                if (log_level >= VLOG_VERBOSE) \
-+                    vlog(VLOG_VERBOSE, format, ##__VA_ARGS__); \
-+            } while(0)
-+#endif
- 
- typedef void log_printer(const char *format, va_list args);
- 
 diff -ruN libcrystal/src/CMakeLists.txt libcrystal-mod/src/CMakeLists.txt
 --- libcrystal/src/CMakeLists.txt	2019-05-24 16:32:11.000000000 +0800
-+++ libcrystal-mod/src/CMakeLists.txt	2020-08-07 18:35:44.000000000 +0800
++++ libcrystal-mod/src/CMakeLists.txt	2020-08-10 13:04:22.000000000 +0800
 @@ -28,6 +28,8 @@
          "slim-pthread or pthreads-win32 are recommended.")
  endif()
@@ -163,9 +27,111 @@ diff -ruN libcrystal/src/CMakeLists.txt libcrystal-mod/src/CMakeLists.txt
  set(SRC
      base58.c
      bitset.c
+diff -ruN libcrystal/src/crypto.c libcrystal-mod/src/crypto.c
+--- libcrystal/src/crypto.c	2019-05-24 16:32:11.000000000 +0800
++++ libcrystal-mod/src/crypto.c	2020-08-10 14:37:09.000000000 +0800
+@@ -164,6 +164,8 @@
+ #pragma GCC diagnostic pop
+ #endif
+ 
++#define STACK_BUFFER_MAXSIZE (2 * 1024)
++
+ ssize_t crypto_encrypt(const uint8_t *key, const uint8_t *nonce,
+                        const uint8_t *plain, size_t length, uint8_t *encrypted)
+ {
+@@ -173,20 +175,42 @@
+     if (length == 0 || !key || !nonce || !plain || !encrypted)
+         return -1;
+ 
+-    _plain = (uint8_t *)alloca(length + crypto_box_ZEROBYTES);
+-    _encrypted = (uint8_t *)alloca(length + crypto_box_MACBYTES + crypto_box_BOXZEROBYTES);
++    if(length > STACK_BUFFER_MAXSIZE) {
++        _plain = (uint8_t *)malloc(length + crypto_box_ZEROBYTES);
++        if(!_plain)
++            return -1;
++        _encrypted = (uint8_t *)malloc(length + crypto_box_MACBYTES + crypto_box_BOXZEROBYTES);
++        if(!_encrypted) {
++            free(_plain);
++            return -1;
++        }
++    } else {
++        _plain = (uint8_t *)alloca(length + crypto_box_ZEROBYTES);
++        _encrypted = (uint8_t *)alloca(length + crypto_box_MACBYTES + crypto_box_BOXZEROBYTES);
++    }
+ 
+     // Pad the plain with 32 zero bytes.
+     memset(_plain, 0, crypto_box_ZEROBYTES);
+     memcpy(_plain + crypto_box_ZEROBYTES, plain, length);
+ 
+     if (crypto_box_afternm(_encrypted, _plain, length + crypto_box_ZEROBYTES,
+-                           nonce, key) != 0)
++                           nonce, key) != 0) {
++        if(length > STACK_BUFFER_MAXSIZE) {
++            free(_plain);
++            free(_encrypted);
++        }
+         return -1;
++    }
+ 
+     /* Unpad the encrypted message. */
+     memcpy(encrypted, _encrypted + crypto_box_BOXZEROBYTES,
+            length + crypto_box_MACBYTES);
++
++    if(length > STACK_BUFFER_MAXSIZE) {
++        free(_plain);
++        free(_encrypted);
++    }
++
+     return length + crypto_box_MACBYTES;
+ }
+ 
+@@ -215,18 +239,40 @@
+         || !encrypted || !plain)
+         return -1;
+ 
+-    _plain = (uint8_t *)alloca(length + crypto_box_ZEROBYTES);
+-    _encrypted = (uint8_t *)alloca(length + crypto_box_BOXZEROBYTES);
++    if(length > STACK_BUFFER_MAXSIZE) {
++        _plain = (uint8_t *)malloc(length + crypto_box_ZEROBYTES);
++        if(!_plain)
++            return -1;
++        _encrypted = (uint8_t *)malloc(length + crypto_box_BOXZEROBYTES);
++        if(!_encrypted) {
++            free(_plain);
++            return -1;
++        }
++    } else {
++        _plain = (uint8_t *)alloca(length + crypto_box_ZEROBYTES);
++        _encrypted = (uint8_t *)alloca(length + crypto_box_BOXZEROBYTES);
++    }
+ 
+     // Pad the encrypted message with 16 zero bytes.
+     memset(_encrypted, 0, crypto_box_BOXZEROBYTES);
+     memcpy(_encrypted + crypto_box_BOXZEROBYTES, encrypted, length);
+ 
+     if (crypto_box_open_afternm(_plain, _encrypted,
+-                        length + crypto_box_BOXZEROBYTES, nonce, key) != 0)
++                        length + crypto_box_BOXZEROBYTES, nonce, key) != 0) {
++        if(length > STACK_BUFFER_MAXSIZE) {
++            free(_plain);
++            free(_encrypted);
++        }
+         return -1;
++    }
+ 
+     memcpy(plain, _plain + crypto_box_ZEROBYTES, length - crypto_box_MACBYTES);
++
++    if(length > STACK_BUFFER_MAXSIZE) {
++        free(_plain);
++        free(_encrypted);
++    }
++
+     return length - crypto_box_MACBYTES;
+ }
+ 
 diff -ruN libcrystal/src/linkedhashtable.c libcrystal-mod/src/linkedhashtable.c
 --- libcrystal/src/linkedhashtable.c	2019-05-24 16:32:11.000000000 +0800
-+++ libcrystal-mod/src/linkedhashtable.c	2020-08-07 18:35:44.000000000 +0800
++++ libcrystal-mod/src/linkedhashtable.c	2020-08-10 13:04:22.000000000 +0800
 @@ -41,6 +41,7 @@
      size_t               keylen;
      void *               data;
@@ -461,7 +427,7 @@ diff -ruN libcrystal/src/linkedhashtable.c libcrystal-mod/src/linkedhashtable.c
  }
 diff -ruN libcrystal/src/linkedlist.c libcrystal-mod/src/linkedlist.c
 --- libcrystal/src/linkedlist.c	2019-05-24 16:32:11.000000000 +0800
-+++ libcrystal-mod/src/linkedlist.c	2020-08-07 18:35:44.000000000 +0800
++++ libcrystal-mod/src/linkedlist.c	2020-08-10 13:04:22.000000000 +0800
 @@ -303,28 +303,20 @@
      list_unlock(lst);
  }
@@ -501,7 +467,7 @@ diff -ruN libcrystal/src/linkedlist.c libcrystal-mod/src/linkedlist.c
  
 diff -ruN libcrystal/src/vlog.c libcrystal-mod/src/vlog.c
 --- libcrystal/src/vlog.c	2019-05-24 16:32:11.000000000 +0800
-+++ libcrystal-mod/src/vlog.c	2020-08-07 18:35:44.000000000 +0800
++++ libcrystal-mod/src/vlog.c	2020-08-10 13:04:22.000000000 +0800
 @@ -25,6 +25,7 @@
  #include <time.h>
  #include <stdarg.h>
