@@ -426,7 +426,6 @@ int main(int argc, char *argv[])
 
     signal(SIGINT, shutdown_proc);
     signal(SIGTERM, shutdown_proc);
-    signal(SIGSEGV, shutdown_proc);
 
     printf("Carrier node identities:\n");
     printf("  Node ID: %s\n", ela_get_nodeid(carrier, buf, sizeof(buf)));
