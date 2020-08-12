@@ -38,3 +38,14 @@ Carrier address will be generated after executing the command. Open in the brows
 http://localhost:10080/
 
 The configuration here is localhost, which can be modified in the configuration file "feeds.conf".
+
+
+# Build and Run using docker
+
+
+```
+docker build -t feeds .
+
+docker run -d -p 10080:10080 feeds
+//you can change the first 10080 to what port you want to expose
+```
