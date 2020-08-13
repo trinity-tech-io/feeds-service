@@ -1,51 +1,59 @@
-# How to build the Feeds service
+Elastos.Net.Feeds.Node
+=====================
+## 1. Introduction
 
-## 1. Download service code
+Feeds dApp is an update-to-date social dApp soultion with characteristics of access with DIDs, dentralized servers,  you-own-your-data and more. Where feeds service/node is backend service for front feeds dApp on mobile devices. 
+Anyone who is inetresting to feeds want to share his great ideas with his friends or even with public,  he is recommended to setup his  own feeds service/node and "speak" on your own feeds with comfortable name. And remember, you will own your all datum from your feeds.
+
+## 3. Buid from source
+
+We assumed that you already installed feeds dApp on your mobile device, and want built feeds service to experience the whole dApp in the next.
+
+#### Prerequisites
+
+Feeds service/node is currently a CMake-based project, and deeply depending on the following projects:
+
+- [Elastos.NET.Carrier.Native.SDK](https://github.com/elastos/Elastos.NET.Carrier.Native.SDK)
+- [Elastos.DID.Native.SDK](https://github.com/elastos/Elastos.DID.Native.SDK)
+
+Please carefully read build instructions on README.md of repositories above and prepare all build tools.
+
+### Build from source
+
+With all prerequisites installed, then clone source code onto local device and start build process with following commands:
 
 ```
-$ git clone https://gitlab.com/elastos/Elastos.Service.Feeds/
-```
-
-## 2. Create a directory to store compiled files
-
-For example：
-
-```
-$ cd /Users/XXX/Workspace/
-$ mkdir FeedsService
-```
-
-## 3. Start to compile
-
-```
-$ cd /Users/XXX/Workspace/Elastos.Service.Feeds/build
-$ cmake -DCMAKE_INSTALL_PREFIX=/Users/XXX/Workspace/FeedsService ..
-$ make -j4  # Overcoming the wall for the first compilation
+$ git clone https://gitlab.com/elastos/Elastos.Service.Feeds
+$ cd Elastos.Service.Feeds
+$ mkdir build
+$ cmake -DCMAKE_INSTALL_PREFIX=YOUR-PATH ../..
+$ make -j4
 $ make install
 ```
 
-## 4. Start the Feeds service
+### Run in developer mode
 
-Excuting the command to start a Feeds Service：
-
-```
-$ cd /Users/XXX/Workspace/FeedsService/bin
-$ ./feedsd -c ../etc/feedsd/feedsd.conf
-```
-
-Carrier address will be generated after executing the command. Open in the browser:
-
-http://localhost:10080/
-
-The configuration here is localhost, which can be modified in the configuration file "feeds.conf".
-
-
-# Build and Run using docker
-
+As finished building source, you can directly run feeds service in handy way:
 
 ```
-docker build -t feeds .
-
-docker run -d -p 10080:10080 feeds
-//you can change the first 10080 to what port you want to expose
+$ cd YOUR-PATH/bin
+$ ./feedsd
 ```
+Defaultly, all data generated from running would be cached in your $HOME/.feeds unless you update the configuration file with your preference.
+
+### Paring/Binding  service
+
+As feeds service started, open browser with address **http://localhost:10080**,  start to conduct the binding/paring procedure with feeds dApp on mobile device.
+
+## 4. Run from Docker
+
+COMING SOON.
+
+## 5. Acknowledgments
+
+A sincere thank to the all team and projects we are relying on.
+
+## 6. License
+
+This project is licensed under the term of **GPLv3**
+
