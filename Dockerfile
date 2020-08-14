@@ -1,8 +1,8 @@
 FROM ubuntu:18.04 
 
-RUN apt-get update && apt-get install cmake git build-essential libsqlite3-dev sqlite3 libcurl4-openssl-dev libzip-dev automake libtool pkg-config -y
+RUN apt-get update -y && apt-get install cmake git build-essential libsqlite3-dev sqlite3 libcurl4-openssl-dev libzip-dev automake libtool pkg-config -y
 
-RUN git clone https://gitlab.com/elastos/Elastos.Service.Feeds.git
+ADD . /Elastos.Service.Feeds/
 
 WORKDIR /Elastos.Service.Feeds/build
 

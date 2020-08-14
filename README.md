@@ -5,7 +5,7 @@ Elastos.Net.Feeds.Node
 Feeds dApp is an update-to-date social dApp soultion with characteristics of access with DIDs, dentralized servers,  you-own-your-data and more. Where feeds service/node is backend service for front feeds dApp on mobile devices. 
 Anyone who is inetresting to feeds want to share his great ideas with his friends or even with public,  he is recommended to setup his  own feeds service/node and "speak" on your own feeds with comfortable name. And remember, you will own your all datum from your feeds.
 
-## 3. Buid from source
+## 3. Build from source
 
 We assumed that you already installed feeds dApp on your mobile device, and want built feeds service to experience the whole dApp in the next.
 
@@ -46,8 +46,14 @@ Defaultly, all data generated from running would be cached in your $HOME/.feeds 
 As feeds service started, open browser with address **http://localhost:10080**,  start to conduct the binding/paring procedure with feeds dApp on mobile device.
 
 ## 4. Run from Docker
-
-COMING SOON.
+- Build docker image[Optional]
+```
+docker build -t elastos/feeds-node
+```
+- Run docker container
+```
+docker run --name feeds-node -p 10080:10080 elastos/feeds-node:latest
+```
 
 ## 5. Acknowledgments
 
