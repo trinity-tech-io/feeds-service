@@ -1,11 +1,22 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
 case "$1" in
-  upgrade)
+  upgrade|install)
+  echo "By clicking yes you hereby accept and agree to our Terms below. Feeds is owned and operated by Trinity Tech Co., Ltd. and its affiliates (“Trinity”, “we”, or “us”), and you agree to abide by the specific terms for the Feeds application below (collectively our “Terms”). By using our Feeds application, its content, and services (the “App”), you agree to be solely responsible for your use of the App and any content you post and provide, including compliance with applicable laws, rules, and regulations. You should only post and provide content that you are comfortable sharing with others. You must be at least 13 years old to use the App or no longer considered to be a minor in your jurisdiction (ie. state, providence or country). We do not endorse, support, represent or guarantee the completeness, truthfulness, accuracy, or reliability of any content on the App. You hereby acknowledge that you may be exposed to harmful, inaccurate or inappropriate content while using the App."
+  echo ""
+  while true; do
+      read -p "Do you agree? [Y/n]" yn
+      yn=${yn:-y}
+      case ${yn} in
+          [Yy]*) break;;
+          [Nn]*) exit 1;;
+          *) echo "Please answer yes or no.";;
+      esac
+  done
   ;;
-  install|abort-upgrade)
+  abort-upgrade)
   ;;
   *)
     echo "preinst called with unknown argument '$1'" >&2
