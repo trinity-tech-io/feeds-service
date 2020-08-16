@@ -431,8 +431,12 @@ int main(int argc, char *argv[])
     printf("  Node ID: %s\n", ela_get_nodeid(carrier, buf, sizeof(buf)));
     printf("  User ID: %s\n", ela_get_userid(carrier, buf, sizeof(buf)));
     printf("  Address: %s\n", ela_get_address(carrier, buf, sizeof(buf)));
-    printf("Visit http://%s:%s using your browser to start binding process."
-           "Verification code:[%s]\n", cfg.http_ip, cfg.http_port, did_get_nonce());
+    if (!did_is_ready())
+        printf("Visit http://YOUR-IP-ADDRESS:%s using your browser to start binding process."
+               "Verification code:[%s]\n", cfg.http_port, did_get_nonce());
+    else
+        printf("Visiting http://YOUR-IP-ADDRESS:%s with your browser to retrieve the QRcode "
+               "of feeds URL\n", cfg.http_port);
     free_cfg(&cfg);
 
     if (daemon && daemonize() < 0) {
