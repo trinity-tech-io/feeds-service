@@ -331,7 +331,8 @@ int start_binding_svc(FeedsConfig *fc)
 
     http = sb_new_server(&opts);
     if (!http) {
-        vlogE("Creating HTTP server instance failed.");
+        vlogE("Creating HTTP server instance failed: %s:%s is in use.",
+              fc->http_ip, fc->http_port);
         return -1;
     }
 
