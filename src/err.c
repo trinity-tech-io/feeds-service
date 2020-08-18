@@ -26,13 +26,15 @@ static struct {
     int err_code;
     const char *str;
 } errstr[] = {
-    {ERR_ALREADY_EXISTS  , "Entity Already Exists"   },
-    {ERR_NOT_EXIST       , "Entity Not Exists"       },
-    {ERR_NOT_AUTHORIZED  , "Operation Not Authorized"},
-    {ERR_WRONG_STATE     , "Operation In Wrong State"},
-    {ERR_ACCESS_TOKEN_EXP, "Access Token Expired"    },
-    {ERR_INTERNAL_ERROR  , "Internal Error"          },
-    {ERR_INVALID_PARAMS  , "Invalid Parameters"      }
+    {ERR_ALREADY_EXISTS   , "Entity Already Exists"        },
+    {ERR_NOT_EXIST        , "Entity Not Exists"            },
+    {ERR_NOT_AUTHORIZED   , "Operation Not Authorized"     },
+    {ERR_WRONG_STATE      , "Operation In Wrong State"     },
+    {ERR_ACCESS_TOKEN_EXP , "Access Token Expired"         },
+    {ERR_INTERNAL_ERROR   , "Internal Error"               },
+    {ERR_INVALID_PARAMS   , "Invalid Parameters"           },
+    {ERR_INVALID_CHAL_RESP, "Invalid Challenge Response"   },
+    {ERR_INVALID_VC       , "Invalid Verifiable Credential"}
 };
 
 const char *err_strerror(int rc)

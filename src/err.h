@@ -30,6 +30,8 @@
 #define ERR_ACCESS_TOKEN_EXP (-5)
 #define ERR_INTERNAL_ERROR (-6)
 #define ERR_INVALID_PARAMS (-7)
+#define ERR_INVALID_CHAL_RESP (-8)
+#define ERR_INVALID_VC (-9)
 
 const char *err_strerror(int rc);
 

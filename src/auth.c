@@ -426,7 +426,7 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
         vlogE("Invalid jws in signin_confirm_challenge: %s", DIDError_GetMessage());
         ErrResp resp = {
             .tsx_id = req->tsx_id,
-            .ec     = ERR_INVALID_PARAMS
+            .ec     = ERR_INVALID_CHAL_RESP
         };
         resp_marshal = rpc_marshal_err_resp(&resp);
         goto finally;
@@ -435,7 +435,7 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
     if (!chal_resp_is_valid(chal_resp, &login)) {
         ErrResp resp = {
             .tsx_id = req->tsx_id,
-            .ec     = ERR_INVALID_PARAMS
+            .ec     = ERR_INVALID_CHAL_RESP
         };
         resp_marshal = rpc_marshal_err_resp(&resp);
         goto finally;
@@ -456,7 +456,7 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
             vlogE("Unmarshalling credential in signin_confirm_challenge: %s", DIDError_GetMessage());
             ErrResp resp = {
                 .tsx_id = req->tsx_id,
-                .ec     = ERR_INVALID_PARAMS
+                .ec     = ERR_INVALID_VC
             };
             resp_marshal = rpc_marshal_err_resp(&resp);
             goto finally;
@@ -466,7 +466,7 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
             vlogE("Invalid credential in signin_confirm_challenge: %s", DIDError_GetMessage());
             ErrResp resp = {
                 .tsx_id = req->tsx_id,
-                .ec     = ERR_INVALID_PARAMS
+                .ec     = ERR_INVALID_VC
             };
             resp_marshal = rpc_marshal_err_resp(&resp);
             goto finally;
@@ -478,7 +478,7 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
                   "issuer: [%s], owner: [%s]", JWS_GetIssuer(chal_resp), owner_did);
             ErrResp resp = {
                 .tsx_id = req->tsx_id,
-                .ec     = ERR_INVALID_PARAMS
+                .ec     = ERR_INVALID_VC
             };
             resp_marshal = rpc_marshal_err_resp(&resp);
             goto finally;
