@@ -169,6 +169,7 @@ int load_chans_from_db()
         Chan *chan = chan_create(cinfo);
         if (!chan) {
             deref(it);
+            deref(cinfo);
             return -1;
         }
 
@@ -2211,8 +2212,6 @@ void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base)
     NotifDest *nd = NULL;
     bool new_nd = false;
     bool new_as = false;
-    DBObjIt *it = NULL;
-    ChanInfo *cinfo;
     QryCriteria qc = {
         .by     = NONE,
         .upper  = 0,
@@ -2292,24 +2291,13 @@ void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    it = db_iter_sub_chans(uinfo->uid, &qc);
-    if (!it) {
-        vlogE("Getting subscribed channels from database failed.");
-        ErrResp resp = {
-            .tsx_id = req->tsx_id,
-            .ec     = ERR_INTERNAL_ERROR
-        };
-        resp_marshal = rpc_marshal_err_resp(&resp);
-        goto finally;
-    }
+    if (new_as) {
+        DBObjIt *it = NULL;
+        ChanInfo *cinfo;
 
-    foreach_db_obj(cinfo) {
-        Chan *chan = chan_get_by_id(cinfo->chan_id);
-        ActiveSuberPerChan *aspc = aspc_create(as, chan);
-        vlogD("Enabling notification of channel [%" PRIu64 "] for [%s]", chan->info.chan_id, uinfo->did);
-        deref(chan);
-        if (!aspc) {
-            vlogE("Creating channel active subscriber failed.");
+        it = db_iter_sub_chans(uinfo->uid, &qc);
+        if (!it) {
+            vlogE("Getting subscribed channels from database failed.");
             ErrResp resp = {
                 .tsx_id = req->tsx_id,
                 .ec     = ERR_INTERNAL_ERROR
@@ -2317,24 +2305,44 @@ void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base)
             resp_marshal = rpc_marshal_err_resp(&resp);
             goto finally;
         }
-        cvector_push_back(aspcs, aspc);
-    }
-    if (rc < 0) {
-        vlogE("Iterating subscribed channels failed.");
-        ErrResp resp = {
-            .tsx_id = req->tsx_id,
-            .ec     = ERR_INTERNAL_ERROR
-        };
-        resp_marshal = rpc_marshal_err_resp(&resp);
-        goto finally;
+
+        foreach_db_obj(cinfo) {
+            Chan *chan = chan_get_by_id(cinfo->chan_id);
+            ActiveSuberPerChan *aspc = aspc_create(as, chan);
+            vlogD("Enabling notification of channel [%" PRIu64 "] for [%s]", chan->info.chan_id, uinfo->did);
+            deref(chan);
+            if (!aspc) {
+                vlogE("Creating channel active subscriber failed.");
+                ErrResp resp = {
+                    .tsx_id = req->tsx_id,
+                    .ec     = ERR_INTERNAL_ERROR
+                };
+                resp_marshal = rpc_marshal_err_resp(&resp);
+                deref(cinfo);
+                deref(it);
+                goto finally;
+            }
+            cvector_push_back(aspcs, aspc);
+        }
+        deref(it);
+        if (rc < 0) {
+            vlogE("Iterating subscribed channels failed.");
+            ErrResp resp = {
+                .tsx_id = req->tsx_id,
+                .ec     = ERR_INTERNAL_ERROR
+            };
+            resp_marshal = rpc_marshal_err_resp(&resp);
+            goto finally;
+        }
     }
 
     ndpas_put(ndpas);
-    cvector_foreach(aspcs, i)
-        aspc_put(*i);
 
-    if (new_as)
+    if (new_as) {
+        cvector_foreach(aspcs, i)
+            aspc_put(*i);
         as_put(as);
+    }
     if (new_nd)
         nd_put(nd);
 
@@ -2358,7 +2366,6 @@ finally:
     deref(nd);
     deref(as);
     deref(uinfo);
-    deref(it);
 }
 
 void feeds_deactivate_suber(const char *node_id)
