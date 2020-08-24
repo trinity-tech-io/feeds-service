@@ -800,7 +800,7 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
     vlogD("Received issue_credential request from [%s]: "
           "{credential: %s}", from, req->params.vc);
 
-    if (state != DID_IMPED) {
+    if (state != DID_IMPED && state != VC_ISSED) {
         vlogE("Issuing credential in a wrong state. Current state: %s", state_str());
         return;
     }
@@ -877,6 +877,19 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
+    if (state == VC_ISSED &&
+        Credential_GetIssuanceDate(vc) <= Credential_GetIssuanceDate(feeds_vc)) {
+        vlogE("New credential issued before the current one. Current: %" PRIu64 ", new: %" PRIu64,
+              (uint64_t)Credential_GetIssuanceDate(feeds_vc),
+              (uint64_t)Credential_GetIssuanceDate(vc));
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INVALID_PARAMS
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
     if (DIDStore_StoreCredential(feeds_didstore, vc) < 0) {
         vlogE("Storing credential failed: %s", DIDError_GetMessage());
         ErrResp resp = {
@@ -887,11 +900,16 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
+    if (state == VC_ISSED)
+        Credential_Destroy(feeds_vc);
     feeds_vc = vc;
     vc = NULL;
 
-    vlogI("Credential issued, ready to serve.");
-    state_set(VC_ISSED);
+    if (state == DID_IMPED) {
+        vlogI("Credential issued, ready to serve.");
+        state_set(VC_ISSED);
+    } else
+        vlogI("Credential updated.");
 
     {
         IssVCResp resp = {

@@ -296,6 +296,7 @@ bool chal_resp_is_valid(JWS *chan_resp, Login **l)
     return true;
 }
 
+#define ACCESS_TOKEN_VALIDITY_PERIOD (3600 * 24 * 60)
 static
 char *gen_access_token(UserInfo *uinfo)
 {
@@ -314,7 +315,7 @@ char *gen_access_token(UserInfo *uinfo)
         return NULL;
     }
 
-    if (!JWTBuilder_SetExpiration(token, time(NULL) + 3600 * 24 * 60)) {
+    if (!JWTBuilder_SetExpiration(token, time(NULL) + ACCESS_TOKEN_VALIDITY_PERIOD)) {
         vlogE("Setting access token expiration failed: %s", DIDError_GetMessage());
         JWTBuilder_Destroy(token);
         return NULL;
@@ -573,6 +574,12 @@ void atuinfo_dtor(void *obj)
     JWS_Destroy(usr->token);
 }
 
+static inline
+time_t access_token_get_iss_time(JWS *token)
+{
+    return JWS_GetExpiration(token) - ACCESS_TOKEN_VALIDITY_PERIOD;
+}
+
 static
 bool access_token_is_valid(JWS *token)
 {
@@ -590,6 +597,11 @@ bool access_token_is_valid(JWS *token)
     if (!DIDURL_Equals(keyurl, feeeds_auth_key_url)) {
         vlogE("Getting access token signing key URL mismatch: expected: [%s], actual: [%s].",
               DIDURL_ToString(feeeds_auth_key_url, auth_key, sizeof(auth_key), true), JWS_GetKeyId(token));
+        goto finally;
+    }
+
+    if (access_token_get_iss_time(token) < Credential_GetIssuanceDate(feeds_vc)) {
+        vlogE("Credential is updated since last check.");
         goto finally;
     }
 
