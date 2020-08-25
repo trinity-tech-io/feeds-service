@@ -412,20 +412,11 @@ int db_add_post(const PostInfo *pi)
 
     /* ================================= stmt-sep ================================= */
     sql = "UPDATE channels "
-          "  SET next_post_id = next_post_id + 1, updated_at = :ts "
+          "  SET next_post_id = next_post_id + 1"
           "  WHERE channel_id = :channel_id";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc) {
         vlogE("sqlite3_prepare_v2() failed");
-        goto rollback;
-    }
-
-    rc = sqlite3_bind_int64(stmt,
-                            sqlite3_bind_parameter_index(stmt, ":ts"),
-                            pi->created_at);
-    if (rc) {
-        vlogE("Binding parameter ts failed");
-        sqlite3_finalize(stmt);
         goto rollback;
     }
 
@@ -637,20 +628,11 @@ int db_add_cmt(CmtInfo *ci, uint64_t *id)
 
     /* ================================= stmt-sep ================================= */
     sql = "UPDATE posts "
-          "  SET updated_at = :ts, next_comment_id = next_comment_id + 1 "
+          "  SET next_comment_id = next_comment_id + 1 "
           "  WHERE channel_id = :channel_id AND post_id = :post_id";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc) {
         vlogE("sqlite3_prepare_v2() failed");
-        goto rollback;
-    }
-
-    rc = sqlite3_bind_int64(stmt,
-                            sqlite3_bind_parameter_index(stmt, ":ts"),
-                            ci->created_at);
-    if (rc) {
-        vlogE("Binding parameter ts failed");
-        sqlite3_finalize(stmt);
         goto rollback;
     }
 
@@ -668,41 +650,6 @@ int db_add_cmt(CmtInfo *ci, uint64_t *id)
                             ci->post_id);
     if (rc) {
         vlogE("Binding parameter post_id failed");
-        sqlite3_finalize(stmt);
-        goto rollback;
-    }
-
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE) {
-        vlogE("Executing UPDATE failed");
-        goto rollback;
-    }
-
-    /* ================================= stmt-sep ================================= */
-    sql = "UPDATE channels "
-          "  SET updated_at = :ts "
-          "  WHERE channel_id = :channel_id";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc) {
-        vlogE("sqlite3_prepare_v2() failed");
-        goto rollback;
-    }
-
-    rc = sqlite3_bind_int64(stmt,
-                            sqlite3_bind_parameter_index(stmt, ":ts"),
-                            ci->created_at);
-    if (rc) {
-        vlogE("Binding parameter ts failed");
-        sqlite3_finalize(stmt);
-        goto rollback;
-    }
-
-    rc = sqlite3_bind_int64(stmt,
-                            sqlite3_bind_parameter_index(stmt, ":channel_id"),
-                            ci->chan_id);
-    if (rc) {
-        vlogE("Binding parameter channel_id failed");
         sqlite3_finalize(stmt);
         goto rollback;
     }
