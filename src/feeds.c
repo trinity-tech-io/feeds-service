@@ -2438,12 +2438,7 @@ void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base)
     as = as_get(uinfo->uid);
     if (as && ndpas_exist(as, from)) {
         vlogE("Already enabled notification");
-        ErrResp resp = {
-            .tsx_id = req->tsx_id,
-            .ec     = ERR_WRONG_STATE
-        };
-        resp_marshal = rpc_marshal_err_resp(&resp);
-        goto finally;
+        goto success_resp;
     } else if (!as) {
         as = as_create(uinfo->uid);
         if (!as) {
@@ -2542,6 +2537,7 @@ void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base)
     if (new_nd)
         nd_put(nd);
 
+success_resp:
     {
         EnblNotifResp resp = {
             .tsx_id = req->tsx_id,
