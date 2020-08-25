@@ -34,6 +34,7 @@ int feeds_init(FeedsConfig *cfg);
 void feeds_deinit();
 void feeds_deactivate_suber(const char *node_id);
 void hdl_create_chan_req(ElaCarrier *c, const char *from, Req *base);
+void hdl_upd_chan_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_pub_post_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_post_cmt_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base);

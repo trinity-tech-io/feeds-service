@@ -93,6 +93,27 @@ Chan *chan_put(Chan *chan)
     return hashtable_put(chans_by_id, &chan->he_id_key);
 }
 
+static inline
+Chan *chan_rm(Chan *chan)
+{
+    deref(hashtable_remove(chans_by_name, chan->info.name, strlen(chan->info.name)));
+    return hashtable_remove(chans_by_id, &chan->info.chan_id, sizeof(chan->info.chan_id));
+}
+
+static inline
+Chan *chan_sub(Chan *upd, Chan *old)
+{
+    ActiveSuberPerChan *aspc;
+    list_iterator_t it;
+
+    deref(chan_rm(old));
+
+    list_foreach(upd->aspcs, aspc)
+        aspc->chan = upd;
+    hashtable_put(chans_by_name, &upd->he_name_key);
+    return hashtable_put(chans_by_id, &upd->he_id_key);
+}
+
 static
 int u64_cmp(const void *key1, size_t len1, const void *key2, size_t len2)
 {
@@ -126,6 +147,38 @@ Chan *chan_create(const ChanInfo *ci)
         deref(chan);
         return NULL;
     }
+
+    buf = chan + 1;
+    chan->info        = *ci;
+    chan->info.name   = strcpy(buf, ci->name);
+    buf += strlen(ci->name) + 1;
+    chan->info.intro  = strcpy(buf, ci->intro);
+    buf += strlen(ci->intro) + 1;
+    chan->info.avatar = memcpy(buf, ci->avatar, ci->len);
+
+    chan->he_name_key.data   = chan;
+    chan->he_name_key.key    = chan->info.name;
+    chan->he_name_key.keylen = strlen(chan->info.name);
+
+    chan->he_id_key.data   = chan;
+    chan->he_id_key.key    = &chan->info.chan_id;
+    chan->he_id_key.keylen = sizeof(chan->info.chan_id);
+
+    return chan;
+}
+
+static
+Chan *chan_create_upd(const Chan *from, const ChanInfo *ci)
+{
+    Chan *chan;
+    void *buf;
+
+    chan = rc_zalloc(sizeof(Chan) + strlen(ci->name) +
+                     strlen(ci->intro) + 2 + ci->len, chan_dtor);
+    if (!chan)
+        return NULL;
+
+    chan->aspcs = ref(from->aspcs);
 
     buf = chan + 1;
     chan->info        = *ci;
@@ -229,6 +282,26 @@ void feeds_deinit()
     deref(chans_by_id);
     deref(ass);
     deref(nds);
+}
+
+static
+void notify_of_chan_upd(const char *peer, const ChanInfo *ci)
+{
+    ChanUpdNotif notif = {
+        .method = "feedinfo_update",
+        .params = {
+            .cinfo = (ChanInfo *)ci
+        }
+    };
+    Marshalled *notif_marshal;
+
+    notif_marshal = rpc_marshal_chan_upd_notif(&notif);
+    if (!notif_marshal)
+        return;
+
+    vlogD("Sending channel update notification to [%s]: "
+          "{channel_id: %" PRIu64 "}", peer, ci->chan_id);
+    msgq_enq(peer, notif_marshal);
 }
 
 static
@@ -576,6 +649,129 @@ finally:
         msgq_enq(from, resp_marshal);
     deref(uinfo);
     deref(chan);
+}
+
+void hdl_upd_chan_req(ElaCarrier *c, const char *from, Req *base)
+{
+    UpdChanReq *req = (UpdChanReq *)base;
+    Marshalled *resp_marshal = NULL;
+    ActiveSuberPerChan *aspc;
+    UserInfo *uinfo = NULL;
+    Chan *chan_upd = NULL;
+    list_iterator_t it;
+    Chan *chan = NULL;
+    ChanInfo ci;
+    int rc;
+
+    vlogD("Received update_feedinfo request from [%s]: "
+          "{access_token: %s, channel_id: %" PRIu64 ", name: %s, introduction: %s, avatar_length: %zu}",
+          from, req->params.tk, req->params.chan_id, req->params.name, req->params.intro, req->params.sz);
+
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
+        return;
+    }
+
+    uinfo = create_uinfo_from_access_token(req->params.tk);
+    if (!uinfo) {
+        vlogE("Invalid access token.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_ACCESS_TOKEN_EXP
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if (!user_id_is_owner(uinfo->uid)) {
+        vlogE("Creating channel while not being owner.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_AUTHORIZED
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    chan = chan_get_by_id(req->params.chan_id);
+    if (!chan) {
+        vlogE("Channel to update does not exist.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if (strcmp(chan->info.name, req->params.name) &&
+        chan_exist_by_name(req->params.name)) {
+        vlogE("Channel name to update already exists.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_ALREADY_EXISTS
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    ci.chan_id      = req->params.chan_id;
+    ci.name         = req->params.name;
+    ci.intro        = req->params.intro;
+    ci.owner        = chan->info.owner;
+    ci.created_at   = chan->info.created_at;
+    ci.upd_at       = time(NULL);
+    ci.subs         = chan->info.subs;
+    ci.next_post_id = chan->info.next_post_id;
+    ci.avatar       = req->params.avatar;
+    ci.len          = req->params.sz;
+    chan_upd = chan_create_upd(chan, &ci);
+    if (!chan_upd) {
+        vlogE("Creating updated channel failed.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    rc = db_upd_chan(&ci);
+    if (rc < 0) {
+        vlogE("Updating channel to database failed.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    chan_sub(chan_upd, chan);
+    vlogI("Channel [%" PRIu64 "] updated.", ci.chan_id);
+
+    {
+        UpdChanResp resp = {
+            .tsx_id = req->tsx_id,
+        };
+        resp_marshal = rpc_marshal_upd_chan_resp(&resp);
+        vlogD("Sending update_feedinfo response.");
+    }
+
+    list_foreach(chan->aspcs, aspc) {
+        NotifDestPerActiveSuber *ndpas;
+        hashtable_iterator_t it;
+
+        hashtable_foreach(aspc->as->ndpass, ndpas)
+            notify_of_chan_upd(ndpas->nd->node_id, &ci);
+    }
+
+finally:
+    if (resp_marshal)
+        msgq_enq(from, resp_marshal);
+    deref(uinfo);
+    deref(chan);
+    deref(chan_upd);
 }
 
 void hdl_pub_post_req(ElaCarrier *c, const char *from, Req *base)

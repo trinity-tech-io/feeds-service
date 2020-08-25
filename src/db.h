@@ -35,6 +35,7 @@ typedef struct DBObjIt DBObjIt;
 int db_init(const char *db_file);
 void db_deinit();
 int db_create_chan(const ChanInfo *ci);
+int db_upd_chan(const ChanInfo *ci);
 int db_add_post(const PostInfo *pi);
 int db_cmt_exists(uint64_t channel_id, uint64_t post_id, uint64_t comment_id);
 int db_add_cmt(CmtInfo *ci, uint64_t *id);

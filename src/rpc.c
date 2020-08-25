@@ -425,6 +425,63 @@ int unmarshal_create_chan_req(const msgpack_object *req, Req **req_unmarshal)
 }
 
 static
+int unmarshal_upd_chan_req(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *tk;
+    const msgpack_object *chan_id;
+    const msgpack_object *name;
+    const msgpack_object *intro;
+    const msgpack_object *avatar;
+    UpdChanReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        (void)map_val_str("version");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            tk      = map_val_str("access_token");
+            chan_id = map_val_u64("id");
+            name    = map_val_str("name");
+            intro   = map_val_str("introduction");
+            avatar  = map_val_bin("avatar");
+        });
+    });
+
+    if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
+        !name || !name->str_sz || !intro || !intro->str_sz || !avatar || !avatar->bin_sz) {
+        vlogE("Invalid update_feedinfo request.");
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(UpdChanReq) + str_reserve_spc(method) +
+                    str_reserve_spc(tk) + str_reserve_spc(name) +
+                    str_reserve_spc(intro), NULL);
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method         = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->tsx_id         = tsx_id->u64_val;
+    tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
+    buf += str_reserve_spc(tk);
+    tmp->params.chan_id = chan_id->u64_val;
+    tmp->params.name    = strncpy(buf, name->str_val, name->str_sz);
+    buf += str_reserve_spc(name);
+    tmp->params.intro   = strncpy(buf, intro->str_val, intro->str_sz);
+    tmp->params.avatar  = (void *)avatar->bin_val;
+    tmp->params.sz      = avatar->bin_sz;
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
+
+static
 int unmarshal_pub_post_req(const msgpack_object *req, Req **req_unmarshal)
 {
     const msgpack_object *method;
@@ -1208,6 +1265,7 @@ static struct {
     {"signin_request_challenge", unmarshal_signin_req_chal_req  },
     {"signin_confirm_challenge", unmarshal_signin_conf_chal_req },
     {"create_channel"          , unmarshal_create_chan_req      },
+    {"update_feedinfo"         , unmarshal_upd_chan_req         },
     {"publish_post"            , unmarshal_pub_post_req         },
     {"post_comment"            , unmarshal_post_cmt_req         },
     {"post_like"               , unmarshal_post_like_req        },
@@ -3468,6 +3526,34 @@ Marshalled *rpc_marshal_new_sub_notif(const NewSubNotif *notif)
     return &m->m;
 }
 
+Marshalled *rpc_marshal_chan_upd_notif(const ChanUpdNotif *notif)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_str(pk, "method", "feedinfo_update");
+        pack_kv_map(pk, "params", 6, {
+            pack_kv_u64(pk, "id", notif->params.cinfo->chan_id);
+            pack_kv_str(pk, "name", notif->params.cinfo->name);
+            pack_kv_str(pk, "introduction", notif->params.cinfo->intro);
+            pack_kv_u64(pk, "subscribers", notif->params.cinfo->subs);
+            pack_kv_u64(pk, "last_update", notif->params.cinfo->upd_at);
+            pack_kv_bin(pk, "avatar", notif->params.cinfo->avatar, notif->params.cinfo->len);
+        });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
 Marshalled *rpc_marshal_err_resp(const ErrResp *resp)
 {
     msgpack_sbuffer *buf = msgpack_sbuffer_new();
@@ -3531,6 +3617,27 @@ Marshalled *rpc_marshal_create_chan_resp(const CreateChanResp *resp)
         pack_kv_map(pk, "result", 1, {
             pack_kv_u64(pk, "id", resp->result.id);
         });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_upd_chan_resp(const UpdChanResp *resp)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_u64(pk, "id", resp->tsx_id);
+        pack_kv_nil(pk, "result");
     });
 
     m->m.data = buf->data;
