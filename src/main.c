@@ -71,6 +71,7 @@ static struct {
     {"signin_request_challenge", hdl_signin_req_chal_req  },
     {"signin_confirm_challenge", hdl_signin_conf_chal_req },
     {"create_channel"          , hdl_create_chan_req      },
+    {"update_feedinfo"         , hdl_upd_chan_req         },
     {"publish_post"            , hdl_pub_post_req         },
     {"post_comment"            , hdl_post_cmt_req         },
     {"post_like"               , hdl_post_like_req        },

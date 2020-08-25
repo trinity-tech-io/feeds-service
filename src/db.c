@@ -266,6 +266,77 @@ int db_create_chan(const ChanInfo *ci)
     return 0;
 }
 
+int db_upd_chan(const ChanInfo *ci)
+{
+    sqlite3_stmt *stmt;
+    const char *sql;
+    int rc;
+
+    /* ================================= stmt-sep ================================= */
+    sql = "UPDATE channels"
+          "  SET updated_at = :upd_at, name = :name, intro = :intro, avatar = :avatar"
+          "  WHERE channel_id = :channel_id";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        return -1;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":upd_at"),
+                            ci->upd_at);
+    if (rc) {
+        vlogE("Binding parameter upd_at failed");
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_bind_text(stmt,
+                           sqlite3_bind_parameter_index(stmt, ":name"),
+                           ci->name, -1, NULL);
+    if (rc) {
+        vlogE("Binding parameter name failed");
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_bind_text(stmt,
+                           sqlite3_bind_parameter_index(stmt, ":intro"),
+                           ci->intro, -1, NULL);
+    if (rc) {
+        vlogE("Binding parameter intro failed");
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_bind_blob(stmt,
+                           sqlite3_bind_parameter_index(stmt, ":avatar"),
+                           ci->avatar, ci->len, NULL);
+    if (rc) {
+        vlogE("Binding parameter avatar failed");
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":channel_id"),
+                            ci->chan_id);
+    if (rc) {
+        vlogE("Binding parameter channel_id failed");
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE) {
+        vlogE("Updating new channel failed");
+        return -1;
+    }
+
+    return 0;
+}
+
 int db_add_post(const PostInfo *pi)
 {
     sqlite3_stmt *stmt;

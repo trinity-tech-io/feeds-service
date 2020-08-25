@@ -151,6 +151,23 @@ typedef struct {
     struct {
         AccessToken tk;
         uint64_t    chan_id;
+        char       *name;
+        char       *intro;
+        void       *avatar;
+        size_t      sz;
+    } params;
+} UpdChanReq;
+
+typedef struct {
+    uint64_t tsx_id;
+} UpdChanResp;
+
+typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        AccessToken tk;
+        uint64_t    chan_id;
         void       *content;
         size_t      sz;
     } params;
@@ -433,10 +450,17 @@ typedef struct {
 typedef struct {
     char *method;
     struct {
-        uint64_t chan_id;
+        uint64_t  chan_id;
         UserInfo *uinfo;
     } params;
 } NewSubNotif;
+
+typedef struct {
+    char *method;
+    struct {
+        ChanInfo *cinfo;
+    } params;
+} ChanUpdNotif;
 
 typedef struct {
     void  *data;
@@ -481,9 +505,11 @@ Marshalled *rpc_marshal_new_post_notif(const NewPostNotif *notif);
 Marshalled *rpc_marshal_new_cmt_notif(const NewCmtNotif *notif);
 Marshalled *rpc_marshal_new_like_notif(const NewLikeNotif *notif);
 Marshalled *rpc_marshal_new_sub_notif(const NewSubNotif *notif);
+Marshalled *rpc_marshal_chan_upd_notif(const ChanUpdNotif *notif);
 Marshalled *rpc_marshal_err_resp(const ErrResp *resp);
 Marshalled *rpc_marshal_create_chan_req(const CreateChanReq *req);
 Marshalled *rpc_marshal_create_chan_resp(const CreateChanResp *resp);
+Marshalled *rpc_marshal_upd_chan_resp(const UpdChanResp *resp);
 Marshalled *rpc_marshal_pub_post_req(const PubPostReq *req);
 Marshalled *rpc_marshal_pub_post_resp(const PubPostResp *resp);
 Marshalled *rpc_marshal_post_cmt_req(const PostCmtReq *req);
