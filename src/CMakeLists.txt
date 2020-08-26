@@ -91,16 +91,11 @@ target_link_libraries(feedsd
     dl
     m)
 
+set(FEEDSD_LISTEN_IP 0.0.0.0)
 if(CMAKE_SYSTEM_NAME STREQUAL Linux)
-    if(RASPBERRYPI)
-        set(FEEDSD_LISTEN_IP 0.0.0.0)
-    else()
-        set(FEEDSD_LISTEN_IP localhost)
-    endif()
     set(FEEDSD_LOG_DIR /var/log/feedsd)
     set(FEEDSD_DATA_DIR /var/lib/feedsd)
 else()
-    set(FEEDSD_LISTEN_IP localhost)
     set(FEEDSD_LOG_DIR ~/.feedsd)
     set(FEEDSD_DATA_DIR ~/.feedsd)
 endif()
