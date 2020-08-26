@@ -103,8 +103,13 @@ void on_receiving_message(ElaCarrier *c, const char *from,
     (void)context;
 
     rc = rpc_unmarshal_req(msg, len, &req);
-    if (rc < 0)
+    if (rc == -1)
         return;
+    else if (rc == -2) {
+        hdl_unknown_req(c, from, req);
+        deref(req);
+        return;
+    }
 
     for (i = 0; i < sizeof(method_hdlrs) / sizeof(method_hdlrs[0]); ++i) {
         if (!strcmp(req->method, method_hdlrs[i].method)) {

@@ -32,6 +32,7 @@
 #define ERR_INVALID_PARAMS (-7)
 #define ERR_INVALID_CHAL_RESP (-8)
 #define ERR_INVALID_VC (-9)
+#define ERR_UNKNOWN_METHOD (-10)
 
 const char *err_strerror(int rc);
 
