@@ -434,9 +434,14 @@ int main(int argc, char *argv[])
     signal(SIGTERM, shutdown_proc);
 
     printf("Carrier node identities:\n");
-    printf("  Node ID: %s\n", ela_get_nodeid(carrier, buf, sizeof(buf)));
-    printf("  User ID: %s\n", ela_get_userid(carrier, buf, sizeof(buf)));
-    printf("  Address: %s\n", ela_get_address(carrier, buf, sizeof(buf)));
+    printf("  Node ID  : %s\n", ela_get_nodeid(carrier, buf, sizeof(buf)));
+    printf("  User ID  : %s\n", ela_get_userid(carrier, buf, sizeof(buf)));
+    printf("  Address  : %s\n", ela_get_address(carrier, buf, sizeof(buf)));
+    if (feeds_owner_info.did && feeds_owner_info.did[0])
+        printf("  Owner DID: %s\n", feeds_owner_info.did);
+    if (feeds_did_str[0])
+        printf("  Feeds DID: %s\n", feeds_did_str);
+
     if (!did_is_ready())
         printf("Visit http://YOUR-IP-ADDRESS:%s using your browser to start binding process."
                "Verification code:[%s]\n", cfg.http_port, did_get_nonce());
