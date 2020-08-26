@@ -302,6 +302,7 @@ void notify_of_chan_upd(const char *peer, const ChanInfo *ci)
     vlogD("Sending channel update notification to [%s]: "
           "{channel_id: %" PRIu64 "}", peer, ci->chan_id);
     msgq_enq(peer, notif_marshal);
+    deref(notif_marshal);
 }
 
 static
@@ -323,6 +324,7 @@ void notify_of_new_post(const char *peer, const PostInfo *pi)
           "{channel_id: %" PRIu64 ", post_id: %" PRIu64 "}",
           peer, pi->chan_id, pi->post_id);
     msgq_enq(peer, notif_marshal);
+    deref(notif_marshal);
 }
 
 static
@@ -345,6 +347,7 @@ void notify_of_new_cmt(const char *peer, const CmtInfo *ci)
           ", comment_id: %" PRIu64 ", refcomment_id: %" PRIu64 "}",
           peer, ci->chan_id, ci->post_id, ci->cmt_id, ci->reply_to_cmt);
     msgq_enq(peer, notif_marshal);
+    deref(notif_marshal);
 }
 
 static
@@ -367,6 +370,7 @@ void notify_of_new_like(const char *peer, const LikeInfo *li)
           ", comment_id: %" PRIu64 ", user_name: %s, user_did: %s, total_count: %" PRIu64 "}",
           peer, li->chan_id, li->post_id, li->cmt_id, li->user.name, li->user.did, li->total_cnt);
     msgq_enq(peer, notif_marshal);
+    deref(notif_marshal);
 }
 
 static
@@ -389,6 +393,7 @@ void notify_of_new_sub(const char *peer, const uint64_t chan_id, const UserInfo 
           "{channel_id: %" PRIu64 ", user_name: %s, user_did: %s}",
           peer, chan_id, uinfo->name, uinfo->did);
     msgq_enq(peer, notif_marshal);
+    deref(notif_marshal);
 }
 
 static
@@ -645,8 +650,10 @@ void hdl_create_chan_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal)
+    if (resp_marshal) {
         msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
     deref(uinfo);
     deref(chan);
 }
@@ -767,8 +774,10 @@ void hdl_upd_chan_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal)
+    if (resp_marshal) {
         msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
     deref(uinfo);
     deref(chan);
     deref(chan_upd);
@@ -871,8 +880,10 @@ void hdl_pub_post_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal)
+    if (resp_marshal) {
         msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
     deref(uinfo);
     deref(chan);
 }
@@ -989,8 +1000,10 @@ void hdl_post_cmt_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal)
+    if (resp_marshal) {
         msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
     deref(uinfo);
     deref(chan);
 }
@@ -1109,8 +1122,10 @@ void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal)
+    if (resp_marshal) {
         msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
     deref(uinfo);
     deref(chan);
 }
@@ -1190,8 +1205,10 @@ void hdl_post_unlike_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal)
+    if (resp_marshal) {
         msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
     deref(uinfo);
     deref(chan);
 }
@@ -1303,6 +1320,7 @@ void hdl_get_my_chans_req(ElaCarrier *c, const char *from, Req *base)
             vlogD("Sending get_my_channels response.");
 
             rc = msgq_enq(from, resp_marshal);
+            deref(resp_marshal);
             resp_marshal = NULL;
             if (rc < 0)
                 break;
@@ -1315,8 +1333,10 @@ void hdl_get_my_chans_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal)
+    if (resp_marshal) {
         msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
     if (cinfos) {
         ChanInfo **i;
         cvector_foreach(cinfos, i)
@@ -1406,8 +1426,10 @@ void hdl_get_my_chans_meta_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal)
+    if (resp_marshal) {
         msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
     if (cinfos) {
         ChanInfo **i;
         cvector_foreach(cinfos, i)
@@ -1516,6 +1538,7 @@ void hdl_get_chans_req(ElaCarrier *c, const char *from, Req *base)
             vlogD("Sending get_channels response.");
 
             rc = msgq_enq(from, resp_marshal);
+            deref(resp_marshal);
             resp_marshal = NULL;
             if (rc < 0)
                 break;
@@ -1528,8 +1551,10 @@ void hdl_get_chans_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal)
+    if (resp_marshal) {
         msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
     if (cinfos) {
         ChanInfo **i;
         cvector_foreach(cinfos, i)
@@ -1593,8 +1618,10 @@ void hdl_get_chan_dtl_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal)
+    if (resp_marshal) {
         msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
     deref(uinfo);
     deref(chan);
 }
@@ -1696,6 +1723,7 @@ void hdl_get_sub_chans_req(ElaCarrier *c, const char *from, Req *base)
             vlogD("Sending get_subscribed_channels response.");
 
             rc = msgq_enq(from, resp_marshal);
+            deref(resp_marshal);
             resp_marshal = NULL;
             if (rc < 0)
                 break;
@@ -1708,8 +1736,10 @@ void hdl_get_sub_chans_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal)
+    if (resp_marshal) {
         msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
     if (cinfos) {
         ChanInfo **i;
         cvector_foreach(cinfos, i)
@@ -1827,6 +1857,7 @@ void hdl_get_posts_req(ElaCarrier *c, const char *from, Req *base)
             vlogD("Sending get_posts response.");
 
             rc = msgq_enq(from, resp_marshal);
+            deref(resp_marshal);
             resp_marshal = NULL;
             if (rc < 0)
                 break;
@@ -1839,8 +1870,10 @@ void hdl_get_posts_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal)
+    if (resp_marshal) {
         msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
     if (pinfos) {
         PostInfo **i;
         cvector_foreach(pinfos, i)
@@ -1947,6 +1980,7 @@ void hdl_get_liked_posts_req(ElaCarrier *c, const char *from, Req *base)
             vlogD("Sending get_liked_posts response.");
 
             rc = msgq_enq(from, resp_marshal);
+            deref(resp_marshal);
             resp_marshal = NULL;
             if (rc < 0)
                 break;
@@ -1959,8 +1993,10 @@ void hdl_get_liked_posts_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal)
+    if (resp_marshal) {
         msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
     if (pinfos) {
         PostInfo **i;
         cvector_foreach(pinfos, i)
@@ -2091,6 +2127,7 @@ void hdl_get_cmts_req(ElaCarrier *c, const char *from, Req *base)
             vlogD("Sending get_comments response.");
 
             rc = msgq_enq(from, resp_marshal);
+            deref(resp_marshal);
             resp_marshal = NULL;
             if (rc < 0)
                 break;
@@ -2103,8 +2140,10 @@ void hdl_get_cmts_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal)
+    if (resp_marshal) {
         msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
     if (cinfos) {
         CmtInfo **i;
         cvector_foreach(cinfos, i)
@@ -2155,8 +2194,10 @@ void hdl_get_stats_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal)
+    if (resp_marshal) {
         msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
     deref(uinfo);
 }
 
@@ -2259,8 +2300,10 @@ void hdl_sub_chan_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal)
+    if (resp_marshal) {
         msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
     deref(owner);
     deref(uinfo);
     deref(chan);
@@ -2340,8 +2383,10 @@ void hdl_unsub_chan_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal)
+    if (resp_marshal) {
         msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
     deref(chan);
     deref(uinfo);
 }
@@ -2547,8 +2592,10 @@ success_resp:
     }
 
 finally:
-    if (resp_marshal)
+    if (resp_marshal) {
         msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
     if (aspcs) {
         cvector_foreach(aspcs, i)
             deref(*i);
@@ -2571,8 +2618,10 @@ void hdl_unknown_req(ElaCarrier *c, const char *from, Req *base)
     vlogD("Received %s(unknown) request from [%s]", base->method, from);
 
     resp_marshal = rpc_marshal_err_resp(&resp);
-    if (resp_marshal)
+    if (resp_marshal) {
         msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
 }
 
 void feeds_deactivate_suber(const char *node_id)
