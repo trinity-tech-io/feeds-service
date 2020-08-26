@@ -177,7 +177,6 @@ int msgq_enq(const char *to, Marshalled *msg)
         goto finally;
     }
 
-
     q = msgq_create(to);
     if (!q) {
         vlogE("Creating message queue failed.");
@@ -198,7 +197,6 @@ int msgq_enq(const char *to, Marshalled *msg)
 finally:
     deref(q);
     deref(m);
-    deref(msg);
     return rc;
 }
 

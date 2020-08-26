@@ -221,8 +221,10 @@ void hdl_signin_req_chal_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal)
+    if (resp_marshal) {
         msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
     if (chal)
         free(chal);
     if (vc)
@@ -554,8 +556,10 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
     }
 
 finally:
-    if (resp_marshal)
+    if (resp_marshal) {
         msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
     if (access_token)
         free(access_token);
     if (vc)
