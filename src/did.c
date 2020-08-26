@@ -40,6 +40,7 @@
 
 extern ElaCarrier *carrier;
 
+char feeds_did_str[ELA_MAX_DID_LEN];
 DIDURL *feeeds_auth_key_url;
 UserInfo feeds_owner_info;
 DIDDocument *feeds_doc;
@@ -52,7 +53,6 @@ static bool http_is_running;
 static DID *feeds_did;
 static char nonce_str[NONCE_BYTES << 1];
 static char feeds_url[1024];
-static char feeds_did_str[ELA_MAX_DID_LEN];
 static enum {
     NO_OWNER,
     OWNER_DECLED,

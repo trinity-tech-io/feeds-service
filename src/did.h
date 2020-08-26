@@ -27,6 +27,7 @@
 #include "obj.h"
 #include "rpc.h"
 
+extern char feeds_did_str[ELA_MAX_DID_LEN];
 extern DIDURL *feeeds_auth_key_url;
 extern UserInfo feeds_owner_info;
 extern DIDDocument *feeds_doc;
