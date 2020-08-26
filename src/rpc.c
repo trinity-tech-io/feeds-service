@@ -1254,6 +1254,34 @@ int unmarshal_enbl_notif_req(const msgpack_object *req, Req **req_unmarshal)
     return 0;
 }
 
+static
+int unmarshal_unknown_req(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    void *buf;
+    Req *tmp;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        (void)map_val_str("version");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+    });
+
+    tmp = rc_zalloc(sizeof(Req) + str_reserve_spc(method), NULL);
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method = strncpy(buf, method->str_val, method->str_sz);
+    tmp->tsx_id = tsx_id->u64_val;
+
+    *req_unmarshal = tmp;
+    return 0;
+}
+
 typedef int ReqHdlr(const msgpack_object *req_map, Req **req_unmarshal);
 static struct {
     char *method;
@@ -1291,6 +1319,7 @@ int rpc_unmarshal_req(const void *rpc, size_t len, Req **req)
     const msgpack_object *tsx_id;
     char method_str[1024];
     msgpack_object obj;
+    int rc;
     int i;
 
     msgpack_unpacked_init(&msgpack);
@@ -1332,8 +1361,9 @@ int rpc_unmarshal_req(const void *rpc, size_t len, Req **req)
     }
 
     vlogE("Not a valid method.");
+    rc = unmarshal_unknown_req(&obj, req);
     msgpack_unpacked_destroy(&msgpack);
-    return -1;
+    return rc < 0 ? -1 : -2;
 }
 
 typedef struct {

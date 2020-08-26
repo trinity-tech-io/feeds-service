@@ -34,7 +34,8 @@ static struct {
     {ERR_INTERNAL_ERROR   , "Internal Error"               },
     {ERR_INVALID_PARAMS   , "Invalid Parameters"           },
     {ERR_INVALID_CHAL_RESP, "Invalid Challenge Response"   },
-    {ERR_INVALID_VC       , "Invalid Verifiable Credential"}
+    {ERR_INVALID_VC       , "Invalid Verifiable Credential"},
+    {ERR_UNKNOWN_METHOD   , "Unsupported Method"           }
 };
 
 const char *err_strerror(int rc)

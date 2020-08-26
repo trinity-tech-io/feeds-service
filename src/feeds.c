@@ -2560,6 +2560,21 @@ finally:
     deref(uinfo);
 }
 
+void hdl_unknown_req(ElaCarrier *c, const char *from, Req *base)
+{
+    Marshalled *resp_marshal;
+    ErrResp resp = {
+        .tsx_id = base->tsx_id,
+        .ec     = ERR_UNKNOWN_METHOD
+    };
+
+    vlogD("Received %s(unknown) request from [%s]", base->method, from);
+
+    resp_marshal = rpc_marshal_err_resp(&resp);
+    if (resp_marshal)
+        msgq_enq(from, resp_marshal);
+}
+
 void feeds_deactivate_suber(const char *node_id)
 {
     list_iterator_t it;
