@@ -2,10 +2,10 @@ Elastos.Net.Feeds.Node
 =====================
 ## 1. Introduction
 
-Feeds dApp is an update-to-date social dApp soultion with characteristics of access with DIDs, dentralized servers,  you-own-your-data and more. Where feeds service/node is backend service for front feeds dApp on mobile devices. 
-Anyone who is inetresting to feeds want to share his great ideas with his friends or even with public,  he is recommended to setup his  own feeds service/node and "speak" on your own feeds with comfortable name. And remember, you will own your all datum from your feeds.
+Feeds dApp is an update-to-date social dApp solution with characteristics of access with DIDs, decentralized servers,  you-own-your-data and more. Where feeds service/node is backend service for front feeds dApp on mobile devices.
+Anyone who is interesting to feeds want to share his great ideas with his friends or even with public,  he is recommended to setup his  own feeds service/node and "speak" on your own feeds with comfortable name. And remember, you will own your all datum from your feeds.
 
-## 3. Build from source
+## 2. Build from source
 
 We assumed that you already installed feeds dApp on your mobile device, and want built feeds service to experience the whole dApp in the next.
 
@@ -39,13 +39,13 @@ As finished building source, you can directly run feeds service in handy way:
 $ cd YOUR-PATH/bin
 $ ./feedsd
 ```
-Defaultly, all data generated from running would be cached in your $HOME/.feeds unless you update the configuration file with your preference.
+By default, all data generated from running would be cached in your $HOME/.feeds unless you update the configuration file with your preference.
 
 ### Paring/Binding service
 
 As feeds service started, open browser with address **http://localhost:10080**,  start to conduct the binding/paring procedure with feeds dApp on mobile device.
 
-## 4. Run from Docker
+## 3. Run from Docker
 - Build docker image[Optional]
 ```
 docker build -t elastos/feeds-node PROJECT_ROOT
@@ -55,11 +55,11 @@ docker build -t elastos/feeds-node PROJECT_ROOT
 docker run --name feeds-node -p 10080:10080 elastos/feeds-node:latest
 ```
 
-## 5. Acknowledgments
+## 4. Acknowledgments
 
 A sincere thank to the all team and projects we are relying on.
 
-## 6. License
+## 5. License
 
 This project is licensed under the term of **GPLv3**
 
