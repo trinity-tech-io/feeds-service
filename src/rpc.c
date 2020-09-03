@@ -529,6 +529,102 @@ int unmarshal_pub_post_req(const msgpack_object *req, Req **req_unmarshal)
 }
 
 static
+int unmarshal_edit_post_req(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *tk;
+    const msgpack_object *chan_id;
+    const msgpack_object *post_id;
+    const msgpack_object *content;
+    EditPostReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        (void)map_val_str("version");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            tk      = map_val_str("access_token");
+            chan_id = map_val_u64("channel_id");
+            post_id = map_val_u64("id");
+            content = map_val_bin("content");
+        });
+    });
+
+    if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
+        !post_id || !post_id_is_valid(post_id->u64_val) || !content || !content->bin_sz) {
+        vlogE("Invalid edit_post request.");
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(EditPostReq) + str_reserve_spc(method) + str_reserve_spc(tk), NULL);
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method         = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->tsx_id         = tsx_id->u64_val;
+    tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
+    tmp->params.chan_id = chan_id->u64_val;
+    tmp->params.post_id = post_id->u64_val;
+    tmp->params.content = (void *)content->bin_val;
+    tmp->params.sz      = content->bin_sz;
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
+
+static
+int unmarshal_del_post_req(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *tk;
+    const msgpack_object *chan_id;
+    const msgpack_object *post_id;
+    DelPostReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        (void)map_val_str("version");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            tk      = map_val_str("access_token");
+            chan_id = map_val_u64("channel_id");
+            post_id = map_val_u64("id");
+        });
+    });
+
+    if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
+        !post_id || !post_id_is_valid(post_id->u64_val)) {
+        vlogE("Invalid delete_post request.");
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(DelPostReq) + str_reserve_spc(method) + str_reserve_spc(tk), NULL);
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method         = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->tsx_id         = tsx_id->u64_val;
+    tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
+    tmp->params.chan_id = chan_id->u64_val;
+    tmp->params.post_id = post_id->u64_val;
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
+
+static
 int unmarshal_post_cmt_req(const msgpack_object *req, Req **req_unmarshal)
 {
     const msgpack_object *method;
@@ -982,6 +1078,61 @@ int unmarshal_get_posts_req(const msgpack_object *req, Req **req_unmarshal)
 }
 
 static
+int unmarshal_get_posts_lac_req(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *tk;
+    const msgpack_object *chan_id;
+    const msgpack_object *by;
+    const msgpack_object *upper;
+    const msgpack_object *lower;
+    const msgpack_object *maxcnt;
+    GetPostsLACReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        (void)map_val_str("version");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            tk      = map_val_str("access_token");
+            chan_id = map_val_u64("channel_id");
+            by      = map_val_u64("by");
+            upper   = map_val_u64("upper_bound");
+            lower   = map_val_u64("lower_bound");
+            maxcnt  = map_val_u64("max_count");
+        });
+    });
+
+    if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
+        !by || !qry_fld_is_valid(by->u64_val) || !upper || !lower || !maxcnt) {
+        vlogE("Invalid get_posts_likes_and_comments request.");
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(GetPostsLACReq) + str_reserve_spc(method) + str_reserve_spc(tk), NULL);
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method           = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->tsx_id           = tsx_id->u64_val;
+    tmp->params.tk        = strncpy(buf, tk->str_val, tk->str_sz);
+    tmp->params.chan_id   = chan_id->u64_val;
+    tmp->params.qc.by     = by->u64_val;
+    tmp->params.qc.upper  = upper->u64_val;
+    tmp->params.qc.lower  = lower->u64_val;
+    tmp->params.qc.maxcnt = maxcnt->u64_val;
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
+
+static
 int unmarshal_get_liked_posts_req(const msgpack_object *req, Req **req_unmarshal)
 {
     const msgpack_object *method;
@@ -1287,29 +1438,32 @@ static struct {
     char *method;
     ReqHdlr *parser;
 } req_parsers[] = {
-    {"declare_owner"           , unmarshal_decl_owner_req       },
-    {"import_did"              , unmarshal_imp_did_req          },
-    {"issue_credential"        , unmarshal_iss_vc_req           },
-    {"signin_request_challenge", unmarshal_signin_req_chal_req  },
-    {"signin_confirm_challenge", unmarshal_signin_conf_chal_req },
-    {"create_channel"          , unmarshal_create_chan_req      },
-    {"update_feedinfo"         , unmarshal_upd_chan_req         },
-    {"publish_post"            , unmarshal_pub_post_req         },
-    {"post_comment"            , unmarshal_post_cmt_req         },
-    {"post_like"               , unmarshal_post_like_req        },
-    {"post_unlike"             , unmarshal_post_unlike_req      },
-    {"get_my_channels"         , unmarshal_get_my_chans_req     },
-    {"get_my_channels_metadata", unmarshal_get_my_chans_meta_req},
-    {"get_channels"            , unmarshal_get_chans_req        },
-    {"get_channel_detail"      , unmarshal_get_chan_dtl_req     },
-    {"get_subscribed_channels" , unmarshal_get_sub_chans_req    },
-    {"get_posts"               , unmarshal_get_posts_req        },
-    {"get_liked_posts"         , unmarshal_get_liked_posts_req  },
-    {"get_comments"            , unmarshal_get_cmts_req         },
-    {"get_statistics"          , unmarshal_get_stats_req        },
-    {"subscribe_channel"       , unmarshal_sub_chan_req         },
-    {"unsubscribe_channel"     , unmarshal_unsub_chan_req       },
-    {"enable_notification"     , unmarshal_enbl_notif_req       },
+    {"declare_owner"               , unmarshal_decl_owner_req       },
+    {"import_did"                  , unmarshal_imp_did_req          },
+    {"issue_credential"            , unmarshal_iss_vc_req           },
+    {"signin_request_challenge"    , unmarshal_signin_req_chal_req  },
+    {"signin_confirm_challenge"    , unmarshal_signin_conf_chal_req },
+    {"create_channel"              , unmarshal_create_chan_req      },
+    {"update_feedinfo"             , unmarshal_upd_chan_req         },
+    {"publish_post"                , unmarshal_pub_post_req         },
+    {"edit_post"                   , unmarshal_edit_post_req        },
+    {"delete_post"                 , unmarshal_del_post_req         },
+    {"post_comment"                , unmarshal_post_cmt_req         },
+    {"post_like"                   , unmarshal_post_like_req        },
+    {"post_unlike"                 , unmarshal_post_unlike_req      },
+    {"get_my_channels"             , unmarshal_get_my_chans_req     },
+    {"get_my_channels_metadata"    , unmarshal_get_my_chans_meta_req},
+    {"get_channels"                , unmarshal_get_chans_req        },
+    {"get_channel_detail"          , unmarshal_get_chan_dtl_req     },
+    {"get_subscribed_channels"     , unmarshal_get_sub_chans_req    },
+    {"get_posts"                   , unmarshal_get_posts_req        },
+    {"get_posts_likes_and_comments", unmarshal_get_posts_lac_req    },
+    {"get_liked_posts"             , unmarshal_get_liked_posts_req  },
+    {"get_comments"                , unmarshal_get_cmts_req         },
+    {"get_statistics"              , unmarshal_get_stats_req        },
+    {"subscribe_channel"           , unmarshal_sub_chan_req         },
+    {"unsubscribe_channel"         , unmarshal_unsub_chan_req       },
+    {"enable_notification"         , unmarshal_enbl_notif_req       },
 };
 
 int rpc_unmarshal_req(const void *rpc, size_t len, Req **req)
@@ -3474,6 +3628,38 @@ Marshalled *rpc_marshal_new_post_notif(const NewPostNotif *notif)
     return &m->m;
 }
 
+Marshalled *rpc_marshal_post_upd_notif(const PostUpdNotif *notif)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_str(pk, "method", "post_update");
+        pack_kv_map(pk, "params", 8, {
+            pack_kv_u64(pk, "channel_id", notif->params.pinfo->chan_id);
+            pack_kv_u64(pk, "id", notif->params.pinfo->post_id);
+            pack_kv_u64(pk, "status", notif->params.pinfo->stat);
+            notif->params.pinfo->stat == POST_DELETED ? pack_kv_nil(pk, "content") :
+                                                        pack_kv_bin(pk, "content", notif->params.pinfo->content,
+                                                                    notif->params.pinfo->len);
+            pack_kv_u64(pk, "comments", notif->params.pinfo->cmts);
+            pack_kv_u64(pk, "likes", notif->params.pinfo->likes);
+            pack_kv_u64(pk, "created_at", notif->params.pinfo->created_at);
+            pack_kv_u64(pk, "updated_at", notif->params.pinfo->upd_at);
+        });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
 Marshalled *rpc_marshal_new_cmt_notif(const NewCmtNotif *notif)
 {
     msgpack_sbuffer *buf = msgpack_sbuffer_new();
@@ -3717,6 +3903,48 @@ Marshalled *rpc_marshal_pub_post_resp(const PubPostResp *resp)
         pack_kv_map(pk, "result", 1, {
             pack_kv_u64(pk, "id", resp->result.id);
         });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_edit_post_resp(const EditPostResp *resp)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_u64(pk, "id", resp->tsx_id);
+        pack_kv_nil(pk, "result");
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_del_post_resp(const DelPostResp *resp)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_u64(pk, "id", resp->tsx_id);
+        pack_kv_nil(pk, "result");
     });
 
     m->m.data = buf->data;
@@ -4225,13 +4453,49 @@ Marshalled *rpc_marshal_get_posts_resp(const GetPostsResp *resp)
             pack_kv_bool(pk, "is_last", resp->result.is_last);
             pack_kv_arr(pk, "posts", cvector_size(resp->result.pinfos), {
                 cvector_foreach(resp->result.pinfos, pinfo) {
-                    pack_map(pk, 6, {
+                    pack_map(pk, 8, {
                         pack_kv_u64(pk, "channel_id", (*pinfo)->chan_id);
                         pack_kv_u64(pk, "id", (*pinfo)->post_id);
-                        pack_kv_bin(pk, "content", (*pinfo)->content, (*pinfo)->len);
+                        pack_kv_u64(pk, "status", (*pinfo)->stat);
+                        (*pinfo)->stat == POST_DELETED ? pack_kv_nil(pk, "content") :
+                                                         pack_kv_bin(pk, "content", (*pinfo)->content, (*pinfo)->len);
                         pack_kv_u64(pk, "comments", (*pinfo)->cmts);
                         pack_kv_u64(pk, "likes", (*pinfo)->likes);
                         pack_kv_u64(pk, "created_at", (*pinfo)->created_at);
+                        pack_kv_u64(pk, "updated_at", (*pinfo)->upd_at);
+                    });
+                }
+            });
+        });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_get_posts_lac_resp(const GetPostsLACResp *resp)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+    PostInfo **pinfo;
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_u64(pk, "id", resp->tsx_id);
+        pack_kv_map(pk, "result", 1, {
+            pack_kv_arr(pk, "posts", cvector_size(resp->result.pinfos), {
+                cvector_foreach(resp->result.pinfos, pinfo) {
+                    pack_map(pk, 4, {
+                        pack_kv_u64(pk, "channel_id", (*pinfo)->chan_id);
+                        pack_kv_u64(pk, "post_id", (*pinfo)->post_id);
+                        pack_kv_u64(pk, "comments", (*pinfo)->cmts);
+                        pack_kv_u64(pk, "likes", (*pinfo)->likes);
                     });
                 }
             });
