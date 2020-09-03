@@ -299,8 +299,7 @@ void notify_of_chan_upd(const char *peer, const ChanInfo *ci)
     if (!notif_marshal)
         return;
 
-    vlogD("Sending channel update notification to [%s]: "
-          "{channel_id: %" PRIu64 "}", peer, ci->chan_id);
+    vlogD("Sending channel update notification to [%s]: {channel_id: %" PRIu64 "}", peer, ci->chan_id);
     msgq_enq(peer, notif_marshal);
     deref(notif_marshal);
 }
@@ -320,9 +319,33 @@ void notify_of_new_post(const char *peer, const PostInfo *pi)
     if (!notif_marshal)
         return;
 
-    vlogD("Sending new post notification to [%s]: "
-          "{channel_id: %" PRIu64 ", post_id: %" PRIu64 "}",
+    vlogD("Sending new post notification to [%s]: " "{channel_id: %" PRIu64 ", post_id: %" PRIu64 "}",
           peer, pi->chan_id, pi->post_id);
+    msgq_enq(peer, notif_marshal);
+    deref(notif_marshal);
+}
+
+static
+void notify_of_post_upd(const char *peer, const PostInfo *pi)
+{
+    PostUpdNotif notif = {
+        .method = "post_update",
+        .params = {
+            .pinfo = (PostInfo *)pi
+        }
+    };
+    Marshalled *notif_marshal;
+
+    notif_marshal = rpc_marshal_post_upd_notif(&notif);
+    if (!notif_marshal)
+        return;
+
+    vlogD("Sending post update notification to [%s]: "
+          "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", status: %s, content_len: %zu"
+          ", comments: %" PRIu64 ", likes: %" PRIu64 ", created_at: %" PRIu64
+          ", updated_at: %" PRIu64 "}",
+          peer, pi->chan_id, pi->post_id, post_stat_str(pi->stat), pi->len, pi->cmts,
+          pi->likes, pi->created_at, pi->upd_at);
     msgq_enq(peer, notif_marshal);
     deref(notif_marshal);
 }
@@ -876,6 +899,220 @@ void hdl_pub_post_req(ElaCarrier *c, const char *from, Req *base)
 
         hashtable_foreach(aspc->as->ndpass, ndpas)
             notify_of_new_post(ndpas->nd->node_id, &new_post);
+    }
+
+finally:
+    if (resp_marshal) {
+        msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
+    deref(uinfo);
+    deref(chan);
+}
+
+void hdl_edit_post_req(ElaCarrier *c, const char *from, Req *base)
+{
+    EditPostReq *req = (EditPostReq *)base;
+    Marshalled *resp_marshal = NULL;
+    ActiveSuberPerChan *aspc;
+    UserInfo *uinfo = NULL;
+    list_iterator_t it;
+    Chan *chan = NULL;
+    PostInfo post_mod;
+    int rc;
+
+    vlogD("Received edit_post request from [%s]: "
+          "{access_token: %s, channel_id: %" PRIu64 ", post_id: %" PRIu64 ", content_length: %zu}",
+          from, req->params.tk, req->params.chan_id, req->params.post_id, req->params.sz);
+
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
+        return;
+    }
+
+    uinfo = create_uinfo_from_access_token(req->params.tk);
+    if (!uinfo) {
+        vlogE("Invalid access token.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_ACCESS_TOKEN_EXP
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if (!user_id_is_owner(uinfo->uid)) {
+        vlogE("Editing post while not being owner.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_AUTHORIZED
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    chan = chan_get_by_id(req->params.chan_id);
+    if (!chan) {
+        vlogE("Editing non-existent post: invalid channel id.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if ((rc = db_post_is_avail(req->params.chan_id, req->params.post_id)) < 0 || !rc) {
+        vlogE("Editing non-existent post: invalid post id.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    memset(&post_mod, 0, sizeof(post_mod));
+    post_mod.chan_id    = req->params.chan_id;
+    post_mod.post_id    = req->params.post_id;
+    post_mod.stat       = POST_AVAILABLE;
+    post_mod.upd_at     = time(NULL);
+    post_mod.content    = req->params.content;
+    post_mod.len        = req->params.sz;
+
+    rc = db_upd_post(&post_mod);
+    if (rc < 0) {
+        vlogE("Updating post in database failed.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    vlogI("Post [%" PRIu64 "] on channel [%" PRIu64 "] updated.", post_mod.post_id, post_mod.chan_id);
+
+    {
+        EditPostResp resp = {
+            .tsx_id = req->tsx_id,
+        };
+        resp_marshal = rpc_marshal_edit_post_resp(&resp);
+        vlogD("Sending edit_post response");
+    }
+
+    list_foreach(chan->aspcs, aspc) {
+        NotifDestPerActiveSuber *ndpas;
+        hashtable_iterator_t it;
+
+        hashtable_foreach(aspc->as->ndpass, ndpas)
+            notify_of_post_upd(ndpas->nd->node_id, &post_mod);
+    }
+
+finally:
+    if (resp_marshal) {
+        msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
+    deref(uinfo);
+    deref(chan);
+}
+
+void hdl_del_post_req(ElaCarrier *c, const char *from, Req *base)
+{
+    DelPostReq *req = (DelPostReq *)base;
+    Marshalled *resp_marshal = NULL;
+    ActiveSuberPerChan *aspc;
+    UserInfo *uinfo = NULL;
+    list_iterator_t it;
+    Chan *chan = NULL;
+    PostInfo post_del;
+    int rc;
+
+    vlogD("Received delete_post request from [%s]: "
+          "{access_token: %s, channel_id: %" PRIu64 ", post_id: %" PRIu64 "}",
+          from, req->params.tk, req->params.chan_id, req->params.post_id);
+
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
+        return;
+    }
+
+    uinfo = create_uinfo_from_access_token(req->params.tk);
+    if (!uinfo) {
+        vlogE("Invalid access token.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_ACCESS_TOKEN_EXP
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if (!user_id_is_owner(uinfo->uid)) {
+        vlogE("Editing post while not being owner.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_AUTHORIZED
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    chan = chan_get_by_id(req->params.chan_id);
+    if (!chan) {
+        vlogE("Editing non-existent post: invalid channel id.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if ((rc = db_post_is_avail(req->params.chan_id, req->params.post_id)) < 0 || !rc) {
+        vlogE("Editing non-existent post: invalid post id.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    memset(&post_del, 0, sizeof(post_del));
+    post_del.chan_id = req->params.chan_id;
+    post_del.post_id = req->params.post_id;
+    post_del.stat    = POST_DELETED;
+    post_del.upd_at  = time(NULL);
+
+    rc = db_del_post(&post_del);
+    if (rc < 0) {
+        vlogE("Deleting post in database failed.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    vlogI("Post [%" PRIu64 "] on channel [%" PRIu64 "] updated.", post_del.post_id, post_del.chan_id);
+
+    {
+        DelPostResp resp = {
+            .tsx_id = req->tsx_id,
+        };
+        resp_marshal = rpc_marshal_del_post_resp(&resp);
+        vlogD("Sending delete_post response");
+    }
+
+    list_foreach(chan->aspcs, aspc) {
+        NotifDestPerActiveSuber *ndpas;
+        hashtable_iterator_t it;
+
+        hashtable_foreach(aspc->as->ndpass, ndpas)
+            notify_of_post_upd(ndpas->nd->node_id, &post_del);
     }
 
 finally:
@@ -1804,9 +2041,10 @@ void hdl_get_posts_req(ElaCarrier *c, const char *from, Req *base)
     foreach_db_obj(pinfo) {
         cvector_push_back(pinfos, ref(pinfo));
         vlogD("Retrieved post: "
-              "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", comments: %" PRIu64
-              ", likes: %" PRIu64 ", created_at: %" PRIu64 ", content_length: %zu}",
-              pinfo->chan_id, pinfo->post_id, pinfo->cmts, pinfo->likes, pinfo->created_at, pinfo->len);
+              "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", status: %s, comments: %" PRIu64
+              ", likes: %" PRIu64 ", created_at: %" PRIu64 ", updated_at: %" PRIu64 ", content_length: %zu}",
+              pinfo->chan_id, pinfo->post_id, post_stat_str(pinfo->stat), pinfo->cmts,
+              pinfo->likes, pinfo->created_at, pinfo->upd_at, pinfo->len);
     }
     if (rc < 0) {
         vlogE("Iterating posts failed.");
@@ -1865,6 +2103,102 @@ void hdl_get_posts_req(ElaCarrier *c, const char *from, Req *base)
         }
 
         cvector_free(pinfos_tmp);
+    }
+
+finally:
+    if (resp_marshal) {
+        msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
+    if (pinfos) {
+        PostInfo **i;
+        cvector_foreach(pinfos, i)
+            deref(*i);
+        cvector_free(pinfos);
+    }
+    deref(uinfo);
+    deref(it);
+}
+
+void hdl_get_posts_lac_req(ElaCarrier *c, const char *from, Req *base)
+{
+    GetPostsLACReq *req = (GetPostsLACReq *)base;
+    cvector_vector_type(PostInfo *) pinfos = NULL;
+    Marshalled *resp_marshal = NULL;
+    UserInfo *uinfo = NULL;
+    DBObjIt *it = NULL;
+    PostInfo *pinfo;
+    int rc;
+
+    vlogD("Received get_posts_likes_and_comments request from [%s]: "
+          "{access_token: %s, channel_id: %" PRIu64 ", by: %" PRIu64
+          ", upper_bound: %" PRIu64 ", lower_bound: %" PRIu64 ", max_count: %" PRIu64 "}",
+          from, req->params.tk, req->params.chan_id, req->params.qc.by,
+          req->params.qc.upper, req->params.qc.lower, req->params.qc.maxcnt);
+
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
+        return;
+    }
+
+    uinfo = create_uinfo_from_access_token(req->params.tk);
+    if (!uinfo) {
+        vlogE("Invalid access token.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_ACCESS_TOKEN_EXP
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if (!chan_exist_by_id(req->params.chan_id)) {
+        vlogE("Getting posts likes and comments from non-existent channel");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    it = db_iter_posts_lac(req->params.chan_id, &req->params.qc);
+    if (!it) {
+        vlogE("Getting posts likes and comments from database failed.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    foreach_db_obj(pinfo) {
+        cvector_push_back(pinfos, ref(pinfo));
+        vlogD("Retrieved post likes and comments: "
+              "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", comments: %" PRIu64 ", likes: %" PRIu64 "}",
+              pinfo->chan_id, pinfo->post_id, pinfo->cmts, pinfo->likes);
+    }
+    if (rc < 0) {
+        vlogE("Iterating posts likes and comments failed.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    {
+        GetPostsLACResp resp = {
+            .tsx_id = req->tsx_id,
+            .result = {
+                .pinfos  = pinfos
+            }
+        };
+        resp_marshal = rpc_marshal_get_posts_lac_resp(&resp);
+
+        vlogD("Sending get_posts_likes_and_comments response.");
     }
 
 finally:
