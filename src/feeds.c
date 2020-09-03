@@ -856,7 +856,6 @@ void hdl_pub_post_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     ++chan->info.next_post_id;
-    chan->info.upd_at = now;
     vlogI("Post [%" PRIu64 "] on channel [%" PRIu64 "] created.", new_post.post_id, new_post.chan_id);
 
     {
@@ -976,7 +975,6 @@ void hdl_post_cmt_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    chan->info.upd_at = now;
     vlogI("Comment [%" PRIu64 "] on channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] created.",
           new_cmt.cmt_id, new_cmt.chan_id, new_cmt.post_id, new_cmt.reply_to_cmt);
 
