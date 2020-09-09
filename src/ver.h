@@ -23,6 +23,6 @@
 #ifndef __VER_H__
 #define __VER_H__
 
-#define DB_VER 1U
+#define DB_VER 2U
 
 #endif //__VER_H__
