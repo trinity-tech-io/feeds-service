@@ -374,6 +374,29 @@ void notify_of_new_cmt(const char *peer, const CmtInfo *ci)
 }
 
 static
+void notify_of_cmt_upd(const char *peer, const CmtInfo *ci)
+{
+    CmtUpdNotif notif = {
+        .method = "comment_update",
+        .params = {
+            .cinfo = (CmtInfo *)ci
+        }
+    };
+    Marshalled *notif_marshal;
+
+    notif_marshal = rpc_marshal_cmt_upd_notif(&notif);
+    if (!notif_marshal)
+        return;
+
+    vlogD("Sending comment_update notification to [%s]: "
+          "{channel_id: %" PRIu64 ", post_id: %" PRIu64
+          ", comment_id: %" PRIu64 ", refcomment_id: %" PRIu64 ", status: %s}",
+          peer, ci->chan_id, ci->post_id, ci->cmt_id, ci->reply_to_cmt, cmt_stat_str(ci->stat));
+    msgq_enq(peer, notif_marshal);
+    deref(notif_marshal);
+}
+
+static
 void notify_of_new_like(const char *peer, const LikeInfo *li)
 {
     NewLikeNotif notif = {
@@ -1212,8 +1235,8 @@ void hdl_post_cmt_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    vlogI("Comment [%" PRIu64 "] on channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] created.",
-          new_cmt.cmt_id, new_cmt.chan_id, new_cmt.post_id, new_cmt.reply_to_cmt);
+    vlogI("Comment [%" PRIu64 "] on channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] created by [%s]",
+          new_cmt.cmt_id, new_cmt.chan_id, new_cmt.post_id, new_cmt.reply_to_cmt, new_cmt.user.did);
 
     {
         PostCmtResp resp = {
@@ -1232,6 +1255,274 @@ void hdl_post_cmt_req(ElaCarrier *c, const char *from, Req *base)
 
         hashtable_foreach(aspc->as->ndpass, ndpas)
             notify_of_new_cmt(ndpas->nd->node_id, &new_cmt);
+    }
+
+finally:
+    if (resp_marshal) {
+        msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
+    deref(uinfo);
+    deref(chan);
+}
+
+void hdl_edit_cmt_req(ElaCarrier *c, const char *from, Req *base)
+{
+    EditCmtReq *req = (EditCmtReq *)base;
+    Marshalled *resp_marshal = NULL;
+    ActiveSuberPerChan *aspc;
+    UserInfo *uinfo = NULL;
+    list_iterator_t it;
+    Chan *chan = NULL;
+    uint64_t cmt_uid;
+    CmtInfo cmt_mod;
+    int rc;
+
+    vlogD("Received edit_comment request from [%s]: "
+          "{access_token: %s, channel_id: %" PRIu64
+          ", post_id: %" PRIu64 ", id: %" PRIu64 ", comment_id: %" PRIu64 ", content_length: %zu}",
+          from, req->params.tk, req->params.chan_id, req->params.post_id, req->params.id,
+          req->params.cmt_id, req->params.sz);
+
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
+        return;
+    }
+
+    uinfo = create_uinfo_from_access_token(req->params.tk);
+    if (!uinfo) {
+        vlogE("Invalid access token.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_ACCESS_TOKEN_EXP
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    chan = chan_get_by_id(req->params.chan_id);
+    if (!chan) {
+        vlogE("Editing comment on non-existent channel");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if (req->params.post_id >= chan->info.next_post_id) {
+        vlogE("Editing comment on non-existent post");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if ((rc = db_cmt_is_avail(req->params.chan_id,
+                              req->params.post_id,
+                              req->params.id)) < 0 || !rc) {
+        vlogE("Editing unavailable comment");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if ((rc = db_cmt_uid(req->params.chan_id,
+                         req->params.post_id,
+                         req->params.id,
+                         &cmt_uid)) < 0 || cmt_uid != uinfo->uid) {
+        vlogE("Editing other's comment");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_AUTHORIZED
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if (req->params.cmt_id &&
+        ((rc = db_cmt_exists(req->params.chan_id,
+                             req->params.post_id,
+                             req->params.cmt_id)) < 0 || !rc)) {
+        vlogE("Editing comment to reply to non-existent comment");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    memset(&cmt_mod, 0, sizeof(cmt_mod));
+    cmt_mod.chan_id      = req->params.chan_id;
+    cmt_mod.post_id      = req->params.post_id;
+    cmt_mod.cmt_id       = req->params.id;
+    cmt_mod.stat         = CMT_AVAILABLE;
+    cmt_mod.user         = *uinfo;
+    cmt_mod.reply_to_cmt = req->params.cmt_id;
+    cmt_mod.content      = req->params.content;
+    cmt_mod.len          = req->params.sz;
+    cmt_mod.upd_at       = time(NULL);
+
+    rc = db_upd_cmt(&cmt_mod);
+    if (rc < 0) {
+        vlogE("Updating comment in database failed");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    vlogI("Comment [%" PRIu64 "] on channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] updated by [%s].",
+          cmt_mod.cmt_id, cmt_mod.chan_id, cmt_mod.post_id, cmt_mod.reply_to_cmt, cmt_mod.user.did);
+
+    {
+        EditCmtResp resp = {
+            .tsx_id = req->tsx_id,
+        };
+        resp_marshal = rpc_marshal_edit_cmt_resp(&resp);
+        vlogD("Sending edit_comment response");
+    }
+
+    list_foreach(chan->aspcs, aspc) {
+        NotifDestPerActiveSuber *ndpas;
+        hashtable_iterator_t it;
+
+        hashtable_foreach(aspc->as->ndpass, ndpas)
+            notify_of_cmt_upd(ndpas->nd->node_id, &cmt_mod);
+    }
+
+finally:
+    if (resp_marshal) {
+        msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
+    deref(uinfo);
+    deref(chan);
+}
+
+void hdl_del_cmt_req(ElaCarrier *c, const char *from, Req *base)
+{
+    DelCmtReq *req = (DelCmtReq *)base;
+    Marshalled *resp_marshal = NULL;
+    ActiveSuberPerChan *aspc;
+    UserInfo *uinfo = NULL;
+    list_iterator_t it;
+    Chan *chan = NULL;
+    uint64_t cmt_uid;
+    CmtInfo cmt_del;
+    int rc;
+
+    vlogD("Received delete_comment request from [%s]: {access_token: %s, channel_id: %" PRIu64
+          ", post_id: %" PRIu64 ", id: %" PRIu64 "}",
+          from, req->params.tk, req->params.chan_id, req->params.post_id, req->params.id);
+
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
+        return;
+    }
+
+    uinfo = create_uinfo_from_access_token(req->params.tk);
+    if (!uinfo) {
+        vlogE("Invalid access token.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_ACCESS_TOKEN_EXP
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    chan = chan_get_by_id(req->params.chan_id);
+    if (!chan) {
+        vlogE("Deleting comment on non-existent channel");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if (req->params.post_id >= chan->info.next_post_id) {
+        vlogE("Deleting comment on non-existent post");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if ((rc = db_cmt_is_avail(req->params.chan_id,
+                              req->params.post_id,
+                              req->params.id)) < 0 || !rc) {
+        vlogE("Deleting unavailable comment");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if ((rc = db_cmt_uid(req->params.chan_id,
+                         req->params.post_id,
+                         req->params.id,
+                         &cmt_uid)) < 0 || cmt_uid != uinfo->uid) {
+        vlogE("Deleting other's comment");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_AUTHORIZED
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    memset(&cmt_del, 0, sizeof(cmt_del));
+    cmt_del.chan_id = req->params.chan_id;
+    cmt_del.post_id = req->params.post_id;
+    cmt_del.cmt_id  = req->params.id;
+    cmt_del.stat    = CMT_DELETED;
+    cmt_del.user    = *uinfo;
+    cmt_del.upd_at  = time(NULL);
+
+    rc = db_del_cmt(&cmt_del);
+    if (rc < 0) {
+        vlogE("Deleting comment in database failed");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    vlogI("Channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] deleted by [%s].",
+          cmt_del.chan_id, cmt_del.post_id, cmt_del.cmt_id, cmt_del.user.did);
+
+    {
+        DelCmtResp resp = {
+            .tsx_id = req->tsx_id,
+        };
+        resp_marshal = rpc_marshal_del_cmt_resp(&resp);
+        vlogD("Sending delete_comment response");
+    }
+
+    list_foreach(chan->aspcs, aspc) {
+        NotifDestPerActiveSuber *ndpas;
+        hashtable_iterator_t it;
+
+        hashtable_foreach(aspc->as->ndpass, ndpas)
+            notify_of_cmt_upd(ndpas->nd->node_id, &cmt_del);
     }
 
 finally:
@@ -2197,7 +2488,6 @@ void hdl_get_posts_lac_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_get_posts_lac_resp(&resp);
-
         vlogD("Sending get_posts_likes_and_comments response.");
     }
 
@@ -2407,10 +2697,11 @@ void hdl_get_cmts_req(ElaCarrier *c, const char *from, Req *base)
         cvector_push_back(cinfos, ref(cinfo));
         vlogD("Retrieved comment: "
               "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", comment_id: %" PRIu64
-              ", refcomment_id: %" PRIu64 ", user_name: %s, likes: %" PRIu64
-              ", created_at: %" PRIu64 ", content_length: %zu}",
-              cinfo->chan_id, cinfo->post_id, cinfo->cmt_id, cinfo->reply_to_cmt,
-              cinfo->user.name, cinfo->likes, cinfo->created_at, cinfo->len);
+              ",status: %s, refcomment_id: %" PRIu64 ", user_name: %s, user_did: %s, likes: %"
+              PRIu64 ", created_at: %" PRIu64 "updated_at: %" PRIu64 ", content_length: %zu}",
+              cinfo->chan_id, cinfo->post_id, cinfo->cmt_id, cmt_stat_str(cinfo->stat),
+              cinfo->reply_to_cmt, cinfo->user.name, cinfo->user.did, cinfo->likes, cinfo->created_at,
+              cinfo->upd_at, cinfo->len);
     }
     if (rc < 0) {
         vlogE("Iterating comments failed.");
@@ -2469,6 +2760,113 @@ void hdl_get_cmts_req(ElaCarrier *c, const char *from, Req *base)
         }
 
         cvector_free(cinfos_tmp);
+    }
+
+finally:
+    if (resp_marshal) {
+        msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
+    if (cinfos) {
+        CmtInfo **i;
+        cvector_foreach(cinfos, i)
+            deref(*i);
+        cvector_free(cinfos);
+    }
+    deref(uinfo);
+    deref(chan);
+    deref(it);
+}
+
+void hdl_get_cmts_likes_req(ElaCarrier *c, const char *from, Req *base)
+{
+    GetCmtsLikesReq *req = (GetCmtsLikesReq *)base;
+    cvector_vector_type(CmtInfo *) cinfos = NULL;
+    Marshalled *resp_marshal = NULL;
+    UserInfo *uinfo = NULL;
+    DBObjIt *it = NULL;
+    Chan *chan = NULL;
+    CmtInfo *cinfo;
+    int rc;
+
+    vlogD("Received get_comments_likes request from [%s]: "
+          "{access_token: %s, channel_id: %" PRIu64 ", post_id: %" PRIu64 ", by: %" PRIu64
+              ", upper_bound: %" PRIu64 ", lower_bound: %" PRIu64 ", max_count: %" PRIu64 "}",
+          from, req->params.tk, req->params.chan_id, req->params.post_id,
+          req->params.qc.by, req->params.qc.upper, req->params.qc.lower, req->params.qc.maxcnt);
+
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
+        return;
+    }
+
+    uinfo = create_uinfo_from_access_token(req->params.tk);
+    if (!uinfo) {
+        vlogE("Invalid access token.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_ACCESS_TOKEN_EXP
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if (!(chan = chan_get_by_id(req->params.chan_id))) {
+        vlogE("Getting comments likes from non-existent channel");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if (req->params.post_id >= chan->info.next_post_id) {
+        vlogE("Getting comment likes from non-existent post");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    it = db_iter_cmts_likes(req->params.chan_id, req->params.post_id, &req->params.qc);
+    if (!it) {
+        vlogE("Getting comments likes from database failed.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    foreach_db_obj(cinfo) {
+        cvector_push_back(cinfos, ref(cinfo));
+        vlogD("Retrieved comment: "
+              "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", comment_id: %" PRIu64 "likes: %" PRIu64 "}",
+              cinfo->chan_id, cinfo->post_id, cinfo->cmt_id, cinfo->likes);
+    }
+    if (rc < 0) {
+        vlogE("Iterating comments likes failed.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    {
+        GetCmtsLikesResp resp = {
+            .tsx_id = req->tsx_id,
+            .result = {
+                .cinfos  = cinfos
+            }
+        };
+        resp_marshal = rpc_marshal_get_cmts_likes_resp(&resp);
+        vlogD("Sending get_comments_likes response.");
     }
 
 finally:

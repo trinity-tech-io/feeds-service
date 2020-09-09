@@ -45,61 +45,26 @@ struct DBObjIt {
 
 static sqlite3 *db;
 
-int db_init(const char *db_file)
+static
+int upg_from_zero_to_one()
 {
     sqlite3_stmt *stmt;
     const char *sql;
-    char buf[128];
-    uint64_t ver;
     int rc;
-
-    sqlite3_initialize();
-
-    rc = sqlite3_open_v2(db_file, &db,
-                         SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,
-                         NULL);
-    if (rc) {
-        vlogE("sqlite3_open_v2() failed");
-        goto failure;
-    }
-
-    /* ================================= stmt-sep ================================= */
-    sql = "PRAGMA user_version";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc) {
-        vlogE("sqlite3_prepare_v2() failed");
-        goto failure;
-    }
-
-    rc = sqlite3_step(stmt);
-    if (rc != SQLITE_ROW) {
-        vlogE("PRAGMA user_version failed");
-        sqlite3_finalize(stmt);
-        goto failure;
-    }
-
-    ver = sqlite3_column_int64(stmt, 0);
-    sqlite3_finalize(stmt);
-
-    if (ver > DB_VER) {
-        vlogE("DB version too high, please upgrade feedsd");
-        goto failure;
-    } else if (ver == DB_VER)
-        return 0;
 
     /* ================================= stmt-sep ================================= */
     sql = "BEGIN";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc) {
         vlogE("sqlite3_prepare_v2() failed");
-        goto failure;
+        return -1;
     }
 
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
     if (rc != SQLITE_DONE) {
         vlogE("BEGIN failed");
-        goto failure;
+        return -1;
     }
 
     /* ================================= stmt-sep ================================= */
@@ -372,8 +337,7 @@ int db_init(const char *db_file)
     }
 
     /* ================================= stmt-sep ================================= */
-    sprintf(buf, "PRAGMA user_version = %u", DB_VER);
-    sql = buf;
+    sql = "PRAGMA user_version = 1";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc) {
         vlogE("sqlite3_prepare_v2() failed");
@@ -409,11 +373,145 @@ rollback:
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc) {
         vlogE("sqlite3_prepare_v2() failed");
-        goto failure;
+        return -1;
     }
 
     sqlite3_step(stmt);
     sqlite3_finalize(stmt);
+    return -1;
+}
+
+static
+int upg_from_one_to_two()
+{
+    sqlite3_stmt *stmt;
+    const char *sql;
+    int rc;
+
+    /* ================================= stmt-sep ================================= */
+    sql = "BEGIN";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE) {
+        vlogE("BEGIN failed");
+        return -1;
+    }
+
+    /* ================================= stmt-sep ================================= */
+    sql = "ALTER TABLE comments ADD COLUMN status INTEGER NOT NULL DEFAULT 0";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        goto rollback;
+    }
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE ) {
+        vlogE("Adding status column to posts table failed");
+        goto rollback;
+    }
+
+    /* ================================= stmt-sep ================================= */
+    sql = "PRAGMA user_version = 2";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        goto rollback;
+    }
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE) {
+        vlogE("Changing user_version failed");
+        goto rollback;
+    }
+
+    /* ================================= stmt-sep ================================= */
+    sql = "END";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        goto rollback;
+    }
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE) {
+        vlogE("Executing END failed");
+        goto rollback;
+    }
+
+    return 0;
+
+rollback:
+    sql = "ROLLBACK";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        return -1;
+    }
+
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    return -1;
+}
+
+int db_init(const char *db_file)
+{
+    sqlite3_stmt *stmt;
+    const char *sql;
+    uint64_t ver;
+    int rc;
+
+    sqlite3_initialize();
+
+    rc = sqlite3_open_v2(db_file, &db,
+                         SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,
+                         NULL);
+    if (rc) {
+        vlogE("sqlite3_open_v2() failed");
+        goto failure;
+    }
+
+    /* ================================= stmt-sep ================================= */
+    sql = "PRAGMA user_version";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        goto failure;
+    }
+
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_ROW) {
+        vlogE("PRAGMA user_version failed");
+        sqlite3_finalize(stmt);
+        goto failure;
+    }
+
+    ver = sqlite3_column_int64(stmt, 0);
+    sqlite3_finalize(stmt);
+    switch (ver) {
+    case 0:
+        rc = upg_from_zero_to_one();
+        if (rc < 0)
+            goto failure;
+    case 1:
+        rc = upg_from_one_to_two();
+        if (rc < 0)
+            goto failure;
+    case DB_VER:
+        return 0;
+    default:
+        vlogE("DB version too high, please upgrade feedsd");
+        break;
+    }
 
 failure:
     db_deinit();
@@ -1087,6 +1185,132 @@ int db_cmt_exists(uint64_t channel_id, uint64_t post_id, uint64_t comment_id)
     return rc ? 1 : 0;
 }
 
+int db_cmt_is_avail(uint64_t channel_id, uint64_t post_id, uint64_t comment_id)
+{
+    sqlite3_stmt *stmt;
+    const char *sql;
+    int rc;
+
+    /* ================================= stmt-sep ================================= */
+    sql = "SELECT EXISTS(SELECT *"
+          "                FROM comments"
+          "                WHERE channel_id = :channel_id AND"
+          "                      post_id = :post_id AND"
+          "                      comment_id = :comment_id AND"
+          "                      status = :avail)";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        return -1;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":channel_id"),
+                            channel_id);
+    if (rc) {
+        vlogE("Binding parameter channel_id failed");
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":post_id"),
+                            post_id);
+    if (rc) {
+        vlogE("Binding parameter post_id failed");
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":comment_id"),
+                            comment_id);
+    if (rc) {
+        vlogE("Binding parameter comment_id failed");
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":avail"),
+                            CMT_AVAILABLE);
+    if (rc) {
+        vlogE("Binding parameter avail failed");
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_ROW) {
+        vlogE("Executing SELECT failed");
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
+
+    return rc ? 1 : 0;
+}
+
+int db_cmt_uid(uint64_t channel_id, uint64_t post_id, uint64_t comment_id, uint64_t *uid)
+{
+    sqlite3_stmt *stmt;
+    const char *sql;
+    int rc;
+
+    /* ================================= stmt-sep ================================= */
+    sql = "SELECT user_id"
+          "  FROM comments"
+          "  WHERE channel_id = :channel_id AND"
+          "        post_id = :post_id AND"
+          "        comment_id = :comment_id";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        return -1;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":channel_id"),
+                            channel_id);
+    if (rc) {
+        vlogE("Binding parameter channel_id failed");
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":post_id"),
+                            post_id);
+    if (rc) {
+        vlogE("Binding parameter post_id failed");
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":comment_id"),
+                            comment_id);
+    if (rc) {
+        vlogE("Binding parameter comment_id failed");
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_ROW) {
+        vlogE("Executing SELECT failed");
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    *uid = sqlite3_column_int64(stmt, 0);
+    sqlite3_finalize(stmt);
+
+    return 0;
+}
+
 int db_add_cmt(CmtInfo *ci, uint64_t *id)
 {
     sqlite3_stmt *stmt;
@@ -1258,6 +1482,338 @@ int db_add_cmt(CmtInfo *ci, uint64_t *id)
     }
 
     *id = sqlite3_column_int64(stmt, 0);
+    sqlite3_finalize(stmt);
+
+    /* ================================= stmt-sep ================================= */
+    sql = "END";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        goto rollback;
+    }
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE) {
+        vlogE("Executing END failed");
+        goto rollback;
+    }
+
+    return 0;
+
+rollback:
+    sql = "ROLLBACK";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        return -1;
+    }
+
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    return -1;
+}
+
+int db_upd_cmt(CmtInfo *ci)
+{
+    sqlite3_stmt *stmt;
+    const char *sql;
+    int rc;
+
+    /* ================================= stmt-sep ================================= */
+    sql = "BEGIN";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE) {
+        vlogE("Executing BEGIN failed");
+        return -1;
+    }
+
+    /* ================================= stmt-sep ================================= */
+    sql = "UPDATE comments"
+          "  SET updated_at = :upd_at, content = :content, refcomment_id = :ref_cmt_id"
+          "  WHERE channel_id = :channel_id AND post_id = :post_id AND comment_id = :comment_id";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":upd_at"),
+                            ci->upd_at);
+    if (rc) {
+        vlogE("Binding parameter upd_at failed");
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_blob(stmt,
+                           sqlite3_bind_parameter_index(stmt, ":content"),
+                           ci->content, ci->len, NULL);
+    if (rc) {
+        vlogE("Binding parameter content failed");
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":ref_cmt_id"),
+                            ci->reply_to_cmt);
+    if (rc) {
+        vlogE("Binding parameter ref_cmt_id failed");
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":channel_id"),
+                            ci->chan_id);
+    if (rc) {
+        vlogE("Binding parameter channel_id failed");
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":post_id"),
+                            ci->post_id);
+    if (rc) {
+        vlogE("Binding parameter post_id failed");
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":comment_id"),
+                            ci->cmt_id);
+    if (rc) {
+        vlogE("Binding parameter comment_id failed");
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE) {
+        vlogE("Executing UPDATE failed");
+        goto rollback;
+    }
+
+    /* ================================= stmt-sep ================================= */
+    sql = "SELECT likes, created_at"
+          "  FROM comments"
+          "  WHERE channel_id = :channel_id AND post_id = :post_id AND comment_id = :comment_id";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":channel_id"),
+                            ci->chan_id);
+    if (rc) {
+        vlogE("Binding parameter channel_id failed");
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":post_id"),
+                            ci->post_id);
+    if (rc) {
+        vlogE("Binding parameter post_id failed");
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":comment_id"),
+                            ci->cmt_id);
+    if (rc) {
+        vlogE("Binding parameter comment_id failed");
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_ROW) {
+        vlogE("Executing SELECT failed");
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    ci->likes      = sqlite3_column_int64(stmt, 0);
+    ci->created_at = sqlite3_column_int64(stmt, 1);
+    sqlite3_finalize(stmt);
+
+    /* ================================= stmt-sep ================================= */
+    sql = "END";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        goto rollback;
+    }
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE) {
+        vlogE("Executing END failed");
+        goto rollback;
+    }
+
+    return 0;
+
+rollback:
+    sql = "ROLLBACK";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        return -1;
+    }
+
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    return -1;
+}
+
+int db_del_cmt(CmtInfo *ci)
+{
+    sqlite3_stmt *stmt;
+    const char *sql;
+    int rc;
+
+    /* ================================= stmt-sep ================================= */
+    sql = "BEGIN";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE) {
+        vlogE("Executing BEGIN failed");
+        return -1;
+    }
+
+    /* ================================= stmt-sep ================================= */
+    sql = "UPDATE comments"
+          "  SET updated_at = :upd_at, status = :deleted"
+          "  WHERE channel_id = :channel_id AND post_id = :post_id AND comment_id = :comment_id";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":upd_at"),
+                            ci->upd_at);
+    if (rc) {
+        vlogE("Binding parameter upd_at failed");
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":deleted"),
+                            CMT_DELETED);
+    if (rc) {
+        vlogE("Binding parameter deleted failed");
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":channel_id"),
+                            ci->chan_id);
+    if (rc) {
+        vlogE("Binding parameter channel_id failed");
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":post_id"),
+                            ci->post_id);
+    if (rc) {
+        vlogE("Binding parameter post_id failed");
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":comment_id"),
+                            ci->cmt_id);
+    if (rc) {
+        vlogE("Binding parameter comment_id failed");
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE) {
+        vlogE("Executing UPDATE failed");
+        goto rollback;
+    }
+
+    /* ================================= stmt-sep ================================= */
+    sql = "SELECT refcomment_id, likes, created_at"
+          "  FROM comments"
+          "  WHERE channel_id = :channel_id AND post_id = :post_id AND comment_id = :comment_id";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":channel_id"),
+                            ci->chan_id);
+    if (rc) {
+        vlogE("Binding parameter channel_id failed");
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":post_id"),
+                            ci->post_id);
+    if (rc) {
+        vlogE("Binding parameter post_id failed");
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":comment_id"),
+                            ci->cmt_id);
+    if (rc) {
+        vlogE("Binding parameter comment_id failed");
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_ROW) {
+        vlogE("Executing SELECT failed");
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    ci->reply_to_cmt = sqlite3_column_int64(stmt, 0);
+    ci->likes        = sqlite3_column_int64(stmt, 1);
+    ci->created_at   = sqlite3_column_int64(stmt, 2);
     sqlite3_finalize(stmt);
 
     /* ================================= stmt-sep ================================= */
@@ -2632,9 +3188,12 @@ DBObjIt *db_iter_liked_posts(uint64_t uid, const QryCriteria *qc)
 static
 void *row2cmt(sqlite3_stmt *stmt)
 {
-    size_t content_len = sqlite3_column_int64(stmt, 6);
-    const char *name = (const char *)sqlite3_column_text(stmt, 4);
-    CmtInfo *ci = rc_zalloc(sizeof(CmtInfo) + content_len + strlen(name) + 1, NULL);
+    CmtStat stat = sqlite3_column_int64(stmt, 3);
+    size_t content_len = stat == CMT_AVAILABLE ? sqlite3_column_int64(stmt, 8) : 0;
+    const char *name = (const char *)sqlite3_column_text(stmt, 5);
+    const char *did = (const char *)sqlite3_column_text(stmt, 6);
+    CmtInfo *ci = rc_zalloc(sizeof(CmtInfo) + content_len +
+                            strlen(name) + strlen(did) + 2, NULL);
     void *buf;
 
     if (!ci) {
@@ -2647,13 +3206,19 @@ void *row2cmt(sqlite3_stmt *stmt)
     ci->chan_id      = sqlite3_column_int64(stmt, 0);
     ci->post_id      = sqlite3_column_int64(stmt, 1);
     ci->cmt_id       = sqlite3_column_int64(stmt, 2);
-    ci->reply_to_cmt = sqlite3_column_int64(stmt, 3);
+    ci->stat         = stat;
+    ci->reply_to_cmt = sqlite3_column_int64(stmt, 4);
     ci->user.name    = strcpy(buf, name);
     buf += strlen(name) + 1;
-    ci->content      = memcpy(buf, sqlite3_column_blob(stmt, 5), content_len);
-    ci->len          = content_len;
-    ci->likes        = sqlite3_column_int64(stmt, 7);
-    ci->created_at   = sqlite3_column_int64(stmt, 8);
+    ci->user.did     = strcpy(buf, did);
+    if (stat == CMT_AVAILABLE) {
+        buf += strlen(did) + 1;
+        ci->content  = memcpy(buf, sqlite3_column_blob(stmt, 7), content_len);
+        ci->len      = content_len;
+    }
+    ci->likes        = sqlite3_column_int64(stmt, 9);
+    ci->created_at   = sqlite3_column_int64(stmt, 10);
+    ci->upd_at       = sqlite3_column_int64(stmt, 11);
 
     return ci;
 }
@@ -2668,8 +3233,8 @@ DBObjIt *db_iter_cmts(uint64_t chan_id, uint64_t post_id, const QryCriteria *qc)
 
     /* ================================= stmt-sep ================================= */
     rc = sprintf(sql,
-                 "SELECT channel_id, post_id, comment_id, refcomment_id, "
-                 "       name, content, length(content), likes, created_at "
+                 "SELECT channel_id, post_id, comment_id, status, refcomment_id, "
+                 "       name, did, content, length(content), likes, created_at, updated_at "
                  "  FROM comments JOIN users USING (user_id) "
                  "  WHERE channel_id = :channel_id AND post_id = :post_id");
     if (qc->by) {
@@ -2736,6 +3301,112 @@ DBObjIt *db_iter_cmts(uint64_t chan_id, uint64_t post_id, const QryCriteria *qc)
     }
 
     it = it_create(stmt, row2cmt);
+    if (!it) {
+        sqlite3_finalize(stmt);
+        return NULL;
+    }
+
+    return it;
+}
+
+static
+void *row2cmtlikes(sqlite3_stmt *stmt)
+{
+    CmtInfo *ci = rc_zalloc(sizeof(CmtInfo), NULL);
+    if (!ci) {
+        vlogE("OOM");
+        return NULL;
+    }
+
+    ci->chan_id = sqlite3_column_int64(stmt, 0);
+    ci->post_id = sqlite3_column_int64(stmt, 1);
+    ci->cmt_id  = sqlite3_column_int64(stmt, 2);
+    ci->likes   = sqlite3_column_int64(stmt, 3);
+
+    return ci;
+}
+
+DBObjIt *db_iter_cmts_likes(uint64_t chan_id, uint64_t post_id, const QryCriteria *qc)
+{
+    sqlite3_stmt *stmt;
+    const char *qcol;
+    char sql[1024];
+    DBObjIt *it;
+    int rc;
+
+    /* ================================= stmt-sep ================================= */
+    rc = sprintf(sql,
+                 "SELECT channel_id, post_id, comment_id, likes"
+                 "  FROM comments"
+                 "  WHERE channel_id = :channel_id AND post_id = :post_id");
+    if (qc->by) {
+        qcol = query_column(COMMENT, qc->by);
+        if (qc->lower)
+            rc += sprintf(sql + rc, " AND %s >= :lower", qcol);
+        if (qc->upper)
+            rc += sprintf(sql + rc, " AND %s <= :upper", qcol);
+        rc += sprintf(sql + rc, " ORDER BY %s %s", qcol, qc->by == ID ? "ASC" : "DESC");
+    }
+    if (qc->maxcnt)
+        rc += sprintf(sql + rc, " LIMIT :maxcnt");
+
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        return NULL;
+    }
+
+    rc = sqlite3_bind_int64(stmt, sqlite3_bind_parameter_index(stmt, ":channel_id"),
+                            chan_id);
+    if (rc) {
+        vlogE("Binding parameter channel_id failed");
+        sqlite3_finalize(stmt);
+        return NULL;
+    }
+
+    rc = sqlite3_bind_int64(stmt, sqlite3_bind_parameter_index(stmt, ":post_id"),
+                            post_id);
+    if (rc) {
+        vlogE("Binding parameter post_id failed");
+        sqlite3_finalize(stmt);
+        return NULL;
+    }
+
+    if (qc->lower) {
+        rc = sqlite3_bind_int64(stmt, sqlite3_bind_parameter_index(stmt, ":lower"),
+                                qc->lower);
+        if (rc) {
+            vlogE("Binding parameter lower failed");
+            sqlite3_finalize(stmt);
+            return NULL;
+        }
+    }
+
+    if (qc->upper) {
+        rc = sqlite3_bind_int64(stmt, sqlite3_bind_parameter_index(stmt, ":upper"),
+                                qc->upper);
+        if (rc) {
+            vlogE("Binding parameter upper failed");
+            sqlite3_finalize(stmt);
+            return NULL;
+        }
+    }
+
+    if (qc->maxcnt) {
+        rc = sqlite3_bind_int64(stmt, sqlite3_bind_parameter_index(stmt, ":maxcnt"),
+                                qc->maxcnt);
+        if (rc) {
+            vlogE("Binding parameter maxcnt failed");
+            sqlite3_finalize(stmt);
+            return NULL;
+        }
+    }
+
+    it = it_create(stmt, row2cmtlikes);
+    if (!it) {
+        sqlite3_finalize(stmt);
+        return NULL;
+    }
 
     return it;
 }
