@@ -8,3 +8,7 @@ include(AddSubModule)
 
 add_subdirectory(deps)
 add_subdirectory(src)
+
+if(DEFINED WITH_TEST)
+	add_subdirectory(test)
+endif()
