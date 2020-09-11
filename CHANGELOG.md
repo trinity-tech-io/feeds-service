@@ -1,10 +1,10 @@
-08/16/2020 Fenxiang Li lifenxiang@trinity-tech.io
+09/11/2020 Fenxiang Li lifenxiang@trinity-tech.io
 
-**version 1.0.1**, main changes to previous version:
-- Add README.
-- Add Disclaimer.
-- Add Dockerfile.
-- Minor fix.
+**version 1.2.0**, main changes to previous version:
+- Update README.md.
+- Not update upd_at field of channel when including posts and comments changed.
+- Support post edit and deletion.
+- Support comment edit and deletion.
 
 08/27/2020 Fenxiang Li lifenxiang@trinity-tech.io
 
@@ -23,3 +23,11 @@
 - Set http server listen ip to 0.0.0.0.
 - Print owner did and feeds did on startup.
 - Clarify the responsibility of releasing marshalled data.
+
+08/16/2020 Fenxiang Li lifenxiang@trinity-tech.io
+
+**version 1.0.1**, main changes to previous version:
+- Add README.
+- Add Disclaimer.
+- Add Dockerfile.
+- Minor fix.
