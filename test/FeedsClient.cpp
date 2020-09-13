@@ -1,4 +1,4 @@
-#include <FeedsClient.hpp>
+#include "FeedsClient.hpp"
 
 #include <fstream>
 #include <iostream>
@@ -46,6 +46,8 @@ std::shared_ptr<FeedsClient> FeedsClient::FeedsClientInstance;
 /* =========================================== */
 std::shared_ptr<FeedsClient> FeedsClient::GetInstance()
 {
+    // ignore thread-safty, no needed
+
     if(FeedsClientInstance != nullptr) {
         return FeedsClientInstance;
     }

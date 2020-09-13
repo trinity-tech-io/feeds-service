@@ -45,6 +45,11 @@
 #include <getopt.h>
 #endif
 
+#include <memory>
+#include "MassDataManager.hpp"
+
+extern "C" {
+#define new fix_cpp_keyword_new
 #include <ela_carrier.h>
 #include <crystal.h>
 
@@ -55,14 +60,17 @@
 #include "did.h"
 #include "rpc.h"
 #include "db.h"
+#undef new
+}
 
 static const char *resolver = "http://api.elastos.io:20606";
 size_t connecting_clients;
+std::shared_ptr<ElaCarrier> carrier_instance;
 ElaCarrier *carrier;
 static bool stop;
 
 static struct {
-    char *method;
+    const char *method;
     void (*hdlr)(ElaCarrier *c, const char *from, Req *base);
 } method_hdlrs[] = {
     {"declare_owner"           , hdl_decl_owner_req       },
@@ -128,12 +136,21 @@ void idle_callback(ElaCarrier *c, void *context)
     (void)context;
 
     if (stop) {
-        ela_kill(carrier);
+        elastos::MassDataManager::GetInstance()->cleanup();
         carrier = NULL;
+        carrier_instance.reset();
         return;
     }
 
     auth_expire_login();
+}
+
+static
+void on_connection_status(ElaCarrier *carrier,
+                          ElaConnectionStatus status, void *context)
+{
+    vlogI("carrier %s", status == ElaConnectionStatus_Connected ?
+                                "connected" : "disconnected");
 }
 
 static
@@ -205,10 +222,10 @@ void usage(void)
 
 #define CONFIG_NAME "feedsd.conf"
 static const char *default_cfg_files[] = {
-    "./"CONFIG_NAME,
-    "../etc/feedsd/"CONFIG_NAME,
-    "/usr/local/etc/feedsd/"CONFIG_NAME,
-    "/etc/feedsd/"CONFIG_NAME,
+    "./" CONFIG_NAME,
+    "../etc/feedsd/" CONFIG_NAME,
+    "/usr/local/etc/feedsd/" CONFIG_NAME,
+    "/etc/feedsd/" CONFIG_NAME,
     NULL
 };
 
@@ -274,26 +291,47 @@ int daemonize()
 static
 void transport_deinit()
 {
-    if (carrier)
-        ela_kill(carrier);
+    elastos::MassDataManager::GetInstance()->cleanup();
+    carrier = NULL;
+    carrier_instance.reset();
 }
 
 static
 int transport_init(FeedsConfig *cfg)
 {
+    int rc;
     ElaCallbacks callbacks;
 
     memset(&callbacks, 0, sizeof(callbacks));
     callbacks.idle = idle_callback;
+    callbacks.connection_status = on_connection_status;
     callbacks.friend_connection = friend_connection_callback;
     callbacks.friend_request = friend_request_callback;
     callbacks.friend_message = on_receiving_message;
 
     DIDBackend_InitializeDefault(resolver, cfg->didcache_dir);
 
-    carrier = ela_new(&cfg->carrier_opts, &callbacks, NULL);
+        auto creater = [&]() -> ElaCarrier* {
+        vlogD("Create carrier instance.");
+        auto ptr = ela_new(&cfg->carrier_opts, &callbacks, NULL);
+        return ptr;
+    };
+    auto deleter = [=](ElaCarrier* ptr) -> void {
+        vlogD("Kill carrier instance.");
+        if(ptr != nullptr) {
+            ela_kill(ptr);
+        }
+    };
+    carrier_instance = std::shared_ptr<ElaCarrier>(creater(), deleter);
+    carrier = carrier_instance.get();
     if (!carrier) {
         vlogE("Creating carrier instance failed");
+        goto failure;
+    }
+
+    rc = elastos::MassDataManager::GetInstance()->config(carrier_instance);
+    if(rc < 0) {
+        vlogE("Carrier session init failed");
         goto failure;
     }
 

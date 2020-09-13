@@ -59,7 +59,7 @@ add_executable(feedsd
     rpc.c
     err.c
     auth.c
-    main.c
+    main.cpp
     msgq.c
     did.c
     feeds.c)
@@ -161,3 +161,9 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
 
     include(CPack)
 endif()
+
+add_subdirectory(common)
+add_subdirectory(massdata)
+target_link_libraries(feedsd
+    common
+    massdata)

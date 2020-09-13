@@ -25,7 +25,8 @@ ExternalProject_Add(
 )
 
 export_shared_library(elacarrier)
+export_shared_library(elasession)
 
 add_library(libelacarrier-shared INTERFACE)
-target_link_libraries(libelacarrier-shared INTERFACE elacarrier libcrystal-shared)
+target_link_libraries(libelacarrier-shared INTERFACE elacarrier elasession libcrystal-shared)
 target_include_directories(libelacarrier-shared INTERFACE ${FEEDS_INT_DIST_DIR}/include)

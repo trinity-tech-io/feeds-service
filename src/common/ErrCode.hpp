@@ -4,6 +4,8 @@
 #include <string>
 #include <functional>
 
+#include "err.h"
+
 namespace elastos {
 
 class ErrCode {
@@ -23,6 +25,11 @@ public:
 		APPEND_SRCLINE(errRet); \
 		Log::E(Log::TAG, "Failed to call %s in line %d, return %d.", FORMAT_METHOD, __LINE__, errRet); \
         return; \
+	}
+
+#define CHECK_ASSERT(expr, errCode) \
+	if(!(expr)) { \
+        CHECK_ERROR(errCode); \
 	}
 
 #define CHECK_AND_RETDEF(errCode, def) \
@@ -50,7 +57,7 @@ public:
     CHECK_RETVAL(errCode) \
 
 #define APPEND_SRCLINE(errRet) \
-	if(errRet > elastos::ErrCode::SourceLineSection) {              \
+	if(errRet < elastos::ErrCode::SourceLineSection) {              \
 		errRet += (__LINE__ * elastos::ErrCode::SourceLineSection); \
 	}                                                               \
 
@@ -58,21 +65,30 @@ public:
 	(errRet - errRet / elastos::ErrCode::SourceLineSection * elastos::ErrCode::SourceLineSection)
 
     /*** static function and variable ***/
-    constexpr static const int UnknownError = -1;
-    constexpr static const int UnimplementedError = -2;
-    constexpr static const int NotFoundError = -3;
-    constexpr static const int InvalidArgument = -5;
-    constexpr static const int IOSystemException = -6;
-    constexpr static const int NetworkException = -7;
-    constexpr static const int PointerReleasedError = -8;
-    constexpr static const int DevUUIDError = -9;
-    constexpr static const int FileNotExistsError = -10;
-    constexpr static const int ConflictWithExpectedError = -12;
-	constexpr static const int CreateDirectoryError = -18;
-	constexpr static const int SizeOverflowError = -21;
+    constexpr static const int UnknownError = -100;
+    constexpr static const int UnimplementedError = -101;
+    constexpr static const int OutOfMemoryError = -102;
+    constexpr static const int NotFoundError = -103;
+    constexpr static const int InvalidArgument = -104;
+    constexpr static const int IOSystemException = -105;
+    constexpr static const int NetworkException = -106;
+    constexpr static const int PointerReleasedError = -107;
+    constexpr static const int DevUUIDError = -108;
+    constexpr static const int FileNotExistsError = -109;
+    constexpr static const int ConflictWithExpectedError = -110;
+	constexpr static const int CreateDirectoryError = -111;
+	constexpr static const int SizeOverflowError = -112;
 
-	constexpr static const int AdditivityIndex = -1000;
-	constexpr static const int StdSystemErrorIndex = -1000;
+	constexpr static const int CarrierSessionInitFailed = -120;
+	constexpr static const int CarrierSessionCreateFailed = -121;
+	constexpr static const int CarrierSessionAddStreamFailed = -122;
+	constexpr static const int CarrierSessionTimeoutError = -123;
+	constexpr static const int CarrierSessionReplyFailed = -124;
+	constexpr static const int CarrierSessionStartFailed = -125;
+	constexpr static const int CarrierSessionBadStatus = -126;
+
+	// constexpr static const int CarrierIndex = -1000;
+	constexpr static const int StdSystemErrorIndex = -2000;
 
 	constexpr static const int SourceLineSection = -1000000;
 

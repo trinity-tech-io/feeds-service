@@ -2,6 +2,8 @@
 # message(STATUS "openssl include path: ${pkg-openssl_INCLUDE_DIRS}")
 # message(STATUS "openssl library path: ${pkg-openssl_STATIC_LDFLAGS}")
 
+add_subdirectory(platform)
+
 file( GLOB COMMON_SOURCES "*.cpp" )
 
 if(${CMAKE_VERSION} VERSION_LESS "3.12")
@@ -17,7 +19,7 @@ target_link_libraries(common PUBLIC
     platform)
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Android")
     target_link_libraries(common PUBLIC
-        log)
+    log)
 endif()
 
 

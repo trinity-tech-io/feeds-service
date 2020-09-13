@@ -34,6 +34,8 @@
 #define ERR_INVALID_VC (-9)
 #define ERR_UNKNOWN_METHOD (-10)
 
+#define ERR_LAST_INDEX (-100)
+
 const char *err_strerror(int rc);
 
 #endif // __ERR_H__
