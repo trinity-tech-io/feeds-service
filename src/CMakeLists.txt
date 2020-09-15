@@ -166,4 +166,5 @@ add_subdirectory(common)
 add_subdirectory(massdata)
 target_link_libraries(feedsd
     common
+    platform
     massdata)

@@ -78,9 +78,9 @@ void CarrierSession::setSdp(const std::string& sdp)
 }
 
 // NOT TEST
-int CarrierSession::requestConnect(const std::string& peerid)
+int CarrierSession::requestConnect(const std::string& peerId)
 {
-    int ret = makeSessionAndStream(peerid);
+    int ret = makeSessionAndStream(peerId);
     CHECK_ERROR(ret);
     bool timeout = state.waitFor(ElaStreamState_initialized, 1000);
     CHECK_ASSERT(timeout == false, ErrCode::CarrierSessionTimeoutError);
@@ -120,12 +120,13 @@ int CarrierSession::requestConnect(const std::string& peerid)
     return 0;
 }
 
-int CarrierSession::allowConnect(const std::string& peerid, std::shared_ptr<ConnectListener> listener)
+int CarrierSession::allowConnect(const std::string& peerId, std::shared_ptr<ConnectListener> listener)
 {
     Log::D(Log::TAG, "%s start", __PRETTY_FUNCTION__);
+    sessionPeerId = peerId;
     connectListener = listener;
 
-    int ret = makeSessionAndStream(peerid);
+    int ret = makeSessionAndStream(peerId);
     CHECK_ERROR(ret);
     ret = state.waitFor(ElaStreamState_initialized, 5000);
     CHECK_ERROR(ret);
@@ -168,13 +169,15 @@ void CarrierSession::disconnect()
 
     sessionStreamId = -1;
     sessionSdp.clear();
-    sessionThread = nullptr;
+    // sessionThread.reset();
 
     state.notify(ElaStreamState_closed);
     state.reset();
 
     connectNotify(ConnectListener::Notify::Closed, 0);
     connectListener = nullptr;
+
+    sessionPeerId.clear();
 }
 
 /* =========================================== */
@@ -200,7 +203,7 @@ CarrierSession::CarrierSession() noexcept
     : sessionHandler()
     , sessionStreamId(-1)
     , sessionSdp()
-    , sessionThread()
+    // , sessionThread()
     , state()
     , connectListener()
 {
@@ -210,18 +213,19 @@ CarrierSession::CarrierSession() noexcept
 CarrierSession::~CarrierSession() noexcept
 {
     Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
+    connectListener = nullptr; // fix dead loop issue.
     disconnect();
     Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
 }
 
-int CarrierSession::makeSessionAndStream(const std::string& peerid)
+int CarrierSession::makeSessionAndStream(const std::string& peerId)
 {
     Log::D(Log::TAG, "%s start", __PRETTY_FUNCTION__);
     auto carrier = SAFE_GET_PTR(Factory::CarrierHandler);
 
     auto creater = [&]() -> ElaSession* {
-        Log::I(Log::TAG, "CarrierSession::makeSessionAndStream() create ela carrier session");
-        auto ptr = ela_session_new(carrier.get(), peerid.c_str());
+        Log::I(Log::TAG, "Create ela carrier session");
+        auto ptr = ela_session_new(carrier.get(), peerId.c_str());
         return ptr;
     };
     auto deleter = [=](ElaSession* ptr) -> void {
@@ -293,9 +297,11 @@ int CarrierSession::makeSessionAndStream(const std::string& peerid)
 
 void CarrierSession::connectNotify(ConnectListener::Notify notify, int errCode)
 {
-    if(connectListener != nullptr) {
-        connectListener->onNotify(notify, errCode);
+    if(connectListener == nullptr) {
+        return;
     }
+
+    connectListener->onNotify(sessionPeerId, notify, errCode);
 }
 
 int CarrierSession::State::waitFor(int state, int timeout)

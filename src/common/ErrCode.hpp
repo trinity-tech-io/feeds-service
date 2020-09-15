@@ -86,6 +86,8 @@ public:
 	constexpr static const int CarrierSessionReplyFailed = -124;
 	constexpr static const int CarrierSessionStartFailed = -125;
 	constexpr static const int CarrierSessionBadStatus = -126;
+	constexpr static const int CarrierSessionDataNotEnough = -127;
+	constexpr static const int CarrierSessionUnsuppertedVersion = -128;
 
 	// constexpr static const int CarrierIndex = -1000;
 	constexpr static const int StdSystemErrorIndex = -2000;

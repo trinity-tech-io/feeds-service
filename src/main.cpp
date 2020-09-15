@@ -46,7 +46,9 @@
 #endif
 
 #include <memory>
+#include <iostream>
 #include "MassDataManager.hpp"
+#include "Platform.hpp"
 
 extern "C" {
 #define new fix_cpp_keyword_new
@@ -235,6 +237,16 @@ void shutdown_proc(int signum)
     (void)signum;
 
     stop = true;
+}
+
+static
+void print_backtrace(int sig) {
+    std::cerr << "Error: signal " << sig << std::endl;
+
+    std::string backtrace = elastos::Platform::GetBacktrace();
+    std::cerr << backtrace << std::endl;
+
+    exit(sig);
 }
 
 static
@@ -470,6 +482,9 @@ int main(int argc, char *argv[])
 
     signal(SIGINT, shutdown_proc);
     signal(SIGTERM, shutdown_proc);
+
+    signal(SIGSEGV, print_backtrace);
+    signal(SIGABRT, print_backtrace);
 
     printf("Carrier node identities:\n");
     printf("  Node ID  : %s\n", ela_get_nodeid(carrier, buf, sizeof(buf)));

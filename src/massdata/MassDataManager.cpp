@@ -5,6 +5,7 @@
 #include <functional>
 #include <SafePtr.hpp>
 #include "CarrierSession.hpp"
+#include "MassDataProcessor.hpp"
 
 namespace elastos {
 
@@ -77,27 +78,32 @@ void MassDataManager::onSessionRequest(std::weak_ptr<ElaCarrier> carrier,
             this->mgr = mgr;
         }
 
-        virtual void onNotify(Notify notify, int errCode) override {
+        virtual void onNotify(const std::string& peerId, Notify notify, int errCode) override {
             Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
 
-            if(notify == Notify::Closed) {
+            if(notify == Notify::Closed
+            || notify == Notify::Error) {
                 auto ptr = SAFE_GET_PTR_NO_RETVAL(mgr);
-                ptr->carrierSessionMap.erase(this);
+                ptr->carrierSessionMap.erase(peerId);
             }
         };
         virtual void onReceivedData(const std::vector<uint8_t>& data) override {
             Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
+
+            int ret = processor.dispose(data);
+            CHECK_RETVAL(ret);
         }
 
     private:
         std::weak_ptr<MassDataManager> mgr;
+        MassDataProcessor processor;
     };
     auto impl = std::make_shared<Impl>(weak_from_this());
 
     int ret = session->allowConnect(from, impl);
     CHECK_RETVAL(ret);
 
-    carrierSessionMap.emplace(impl.get(), session);
+    carrierSessionMap.emplace(from, session);
 }
 
 } // namespace elastos

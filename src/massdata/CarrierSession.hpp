@@ -42,14 +42,14 @@ public:
             Error,
         };
 
-        virtual void onNotify(Notify notify, int errCode) = 0;
+        virtual void onNotify(const std::string& peerId, Notify notify, int errCode) = 0;
         virtual void onReceivedData(const std::vector<uint8_t>& data) = 0;
     };
     /*** static function and variable ***/
 
     /*** class function and variable ***/
-    int requestConnect(const std::string& peerid);
-    int allowConnect(const std::string& peerid, std::shared_ptr<ConnectListener> listener);
+    int requestConnect(const std::string& peerId);
+    int allowConnect(const std::string& peerId, std::shared_ptr<ConnectListener> listener);
 
     void disconnect();
 
@@ -80,13 +80,14 @@ private:
     explicit CarrierSession() noexcept;
     virtual ~CarrierSession() noexcept;
 
-    int makeSessionAndStream(const std::string& peerid);
+    int makeSessionAndStream(const std::string& peerId);
     void connectNotify(ConnectListener::Notify notify, int errCode);
 
+    std::string sessionPeerId;
     std::shared_ptr<ElaSession> sessionHandler;
     int sessionStreamId;
     std::string sessionSdp;
-    std::shared_ptr<ThreadPool> sessionThread;
+    // std::shared_ptr<ThreadPool> sessionThread;
     State state;
     std::shared_ptr<ConnectListener> connectListener;
 };

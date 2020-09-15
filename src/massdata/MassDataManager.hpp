@@ -44,7 +44,7 @@ private:
     void onSessionRequest(std::weak_ptr<ElaCarrier> carrier,
                           const std::string& from, const std::string& sdp);
 
-    std::map<CarrierSession::ConnectListener*, std::shared_ptr<CarrierSession>> carrierSessionMap;
+    std::map<std::string, std::shared_ptr<CarrierSession>> carrierSessionMap;
 };
 
 /***********************************************/
