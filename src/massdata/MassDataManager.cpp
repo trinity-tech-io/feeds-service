@@ -82,12 +82,50 @@ void MassDataManager::onSessionRequest(std::weak_ptr<ElaCarrier> carrier,
     dataPipe->processor = std::make_shared<MassDataProcessor>();
 
     // config session.
-    dataPipe->session->setSdp(sdp);
+    auto unpackedListener = makeUnpackedListener(from);
+    auto connectListener = makeConnectListener(from, unpackedListener);
 
-    struct Impl: CarrierSession::ConnectListener {
-        explicit Impl(std::shared_ptr<MassDataManager> mgr, const std::string& peerId) {
+    dataPipe->session->setSdp(sdp);
+    int ret = dataPipe->session->allowConnect(from, connectListener);
+    CHECK_RETVAL(ret);
+
+    // config parser.
+    dataPipe->parser->config(massDataDir / MassDataCacheDirName);
+    dataPipe->processor->config(massDataDir);
+
+    append(from, dataPipe);
+}
+
+void MassDataManager::append(const std::string& key, std::shared_ptr<MassDataManager::DataPipe> value)
+{
+    dataPipeMap.emplace(key, value);
+}
+
+void MassDataManager::remove(const std::string& key)
+{
+    dataPipeMap.erase(key);
+}
+
+std::shared_ptr<MassDataManager::DataPipe> MassDataManager::find(const std::string& key)
+{
+    auto dataPipeIt = dataPipeMap.find(key);
+    if(dataPipeIt == dataPipeMap.end()) {
+        CHECK_AND_RETDEF(ErrCode::CarrierSessionReleasedError, nullptr);
+    }
+    auto dataPipe = dataPipeIt->second;
+
+    return dataPipe; 
+}
+
+std::shared_ptr<CarrierSession::ConnectListener> MassDataManager::makeConnectListener(const std::string& peerId,
+                                                                                      std::shared_ptr<SessionParser::OnUnpackedListener> unpackedListener) {
+    struct SessionListener: CarrierSession::ConnectListener {
+        explicit SessionListener(std::shared_ptr<MassDataManager> mgr,
+                                 const std::string& peerId,
+                                 std::shared_ptr<SessionParser::OnUnpackedListener> unpackedListener) {
             this->mgr = mgr;
             this->peerId = peerId;
+            this->unpackedListener = unpackedListener;
         }
 
         virtual void onNotify(Notify notify, int errCode) override {
@@ -96,36 +134,67 @@ void MassDataManager::onSessionRequest(std::weak_ptr<ElaCarrier> carrier,
             if(notify == Notify::Closed
             || notify == Notify::Error) {
                 auto mgrPtr = SAFE_GET_PTR_NO_RETVAL(mgr);
-                mgrPtr->dataPipeMap.erase(peerId);
+                mgrPtr->remove(peerId);
             }
         };
         virtual void onReceivedData(const std::vector<uint8_t>& data) override {
             Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
 
             auto mgrPtr = SAFE_GET_PTR_NO_RETVAL(mgr);
-            auto dataPipeIt = mgrPtr->dataPipeMap.find(peerId);
-            if(dataPipeIt == mgrPtr->dataPipeMap.end()) {
-                CHECK_RETVAL(ErrCode::CarrierSessionReleasedError);
-            }
-            auto dataPipe = dataPipeIt->second;
+            auto dataPipe = mgrPtr->find(peerId);
             assert(dataPipe->parser != nullptr);
 
-            int ret = dataPipe->parser->dispose(data);
+            int ret = dataPipe->parser->unpack(data, unpackedListener);
             CHECK_RETVAL(ret);
         }
 
     private:
         std::weak_ptr<MassDataManager> mgr;
         std::string peerId;
+        std::shared_ptr<SessionParser::OnUnpackedListener> unpackedListener;
     };
-    auto impl = std::make_shared<Impl>(shared_from_this(), from);
-    int ret = dataPipe->session->allowConnect(from, impl);
-    CHECK_RETVAL(ret);
+    auto sessionListener = std::make_shared<SessionListener>(shared_from_this(), peerId, unpackedListener);
 
-    // config parser.
-    dataPipe->parser->config(massDataDir, nullptr);
+    return sessionListener;
+}
 
-    dataPipeMap.emplace(from, dataPipe);
+std::shared_ptr<SessionParser::OnUnpackedListener> MassDataManager::makeUnpackedListener(const std::string& peerId)
+{
+    auto unpackedListener = std::make_shared<SessionParser::OnUnpackedListener>(
+        [=](const std::vector<uint8_t>& headData,
+            const std::filesystem::path& bodyPath) -> void {
+            auto mgrPtr = shared_from_this();
+            auto dataPipe = mgrPtr->find(peerId);
+            assert(dataPipe->processor != nullptr);
+
+            int ret = dataPipe->processor->dispose(headData, bodyPath);
+            CHECK_RETVAL(ret);
+
+            std::vector<uint8_t> resultHeadData;
+            std::filesystem::path resultBodyPath;
+            ret = dataPipe->processor->getResult(resultHeadData, resultBodyPath);
+            CHECK_RETVAL(ret);
+
+            std::vector<uint8_t> sessionProtocolData;
+            ret = dataPipe->parser->pack(sessionProtocolData, resultHeadData, resultBodyPath);                                                                            
+            CHECK_RETVAL(ret);
+
+            ret = dataPipe->session->sendData(sessionProtocolData);
+            CHECK_RETVAL(ret);
+            ret = dataPipe->session->sendData(resultHeadData);
+            CHECK_RETVAL(ret);
+
+            if(std::filesystem::exists(resultBodyPath) == true) {
+                std::fstream bodyStream;
+                bodyStream.open(resultBodyPath, std::ios::binary);
+                ret = dataPipe->session->sendData(bodyStream);
+                bodyStream.close();
+                CHECK_RETVAL(ret);
+            }
+        }
+    );
+
+    return unpackedListener;
 }
 
 } // namespace elastos

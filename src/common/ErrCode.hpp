@@ -79,16 +79,26 @@ public:
 	constexpr static const int CreateDirectoryError = -111;
 	constexpr static const int SizeOverflowError = -112;
 
-	constexpr static const int CarrierSessionInitFailed = -120;
-	constexpr static const int CarrierSessionCreateFailed = -121;
-	constexpr static const int CarrierSessionAddStreamFailed = -122;
-	constexpr static const int CarrierSessionTimeoutError = -123;
-	constexpr static const int CarrierSessionReplyFailed = -124;
-	constexpr static const int CarrierSessionStartFailed = -125;
-	constexpr static const int CarrierSessionBadStatus = -126;
-	constexpr static const int CarrierSessionDataNotEnough = -127;
-	constexpr static const int CarrierSessionUnsuppertedVersion = -128;
-	constexpr static const int CarrierSessionReleasedError = -129;
+	constexpr static const int DidNotReady = -120;
+	constexpr static const int InvalidAccessToken = -121;
+	constexpr static const int NotAuthorizedError = -122;
+
+	constexpr static const int CarrierSessionInitFailed = -130;
+	constexpr static const int CarrierSessionCreateFailed = -131;
+	constexpr static const int CarrierSessionAddStreamFailed = -132;
+	constexpr static const int CarrierSessionTimeoutError = -133;
+	constexpr static const int CarrierSessionReplyFailed = -134;
+	constexpr static const int CarrierSessionStartFailed = -135;
+	constexpr static const int CarrierSessionBadStatus = -136;
+	constexpr static const int CarrierSessionDataNotEnough = -137;
+	constexpr static const int CarrierSessionUnsuppertedVersion = -138;
+	constexpr static const int CarrierSessionReleasedError = -139;
+	constexpr static const int CarrierSessionSendFailed = -140;
+
+	constexpr static const int MassDataUnknownReqFailed = -150;
+	constexpr static const int MassDataUnmarshalReqFailed = -151;
+	constexpr static const int MassDataMarshalRespFailed = -152;
+	constexpr static const int MassDataUnsupportedAlgo = -153;
 
 	// constexpr static const int CarrierIndex = -1000;
 	constexpr static const int StdSystemErrorIndex = -2000;

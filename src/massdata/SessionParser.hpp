@@ -11,8 +11,8 @@ namespace elastos {
 class SessionParser : public std::enable_shared_from_this<SessionParser> {
 public:
     /*** type define ***/
- using OnSectionListener = std::function<int(const std::vector<uint8_t>& headData,
-                                             const std::filesystem::path& bodyPath)>;
+ using OnUnpackedListener = std::function<void(const std::vector<uint8_t>& headData,
+                                               const std::filesystem::path& bodyPath)>;
 
  /*** static function and variable ***/
 
@@ -20,9 +20,13 @@ public:
  explicit SessionParser() = default;
  virtual ~SessionParser() = default;
 
- void config(const std::filesystem::path& cacheDir,
-             std::shared_ptr<OnSectionListener> listener);
- int dispose(const std::vector<uint8_t>& data);
+ void config(const std::filesystem::path& cacheDir);
+
+ int unpack(const std::vector<uint8_t>& data,
+            std::shared_ptr<OnUnpackedListener> listener);
+ int pack(std::vector<uint8_t>& data,
+          const std::vector<uint8_t>& headData,
+          const std::filesystem::path& bodyPath);
 
 protected:
     /*** type define ***/
@@ -41,11 +45,11 @@ private:
             uint64_t bodySize;
         };
         struct Payload {
-            explicit Payload(const std::filesystem::path& bodyCacheDir);
+            explicit Payload(const std::filesystem::path& bodyPath);
             virtual ~Payload();
             std::vector<uint8_t> headData;
             struct {
-                std::filesystem::path cacheName;
+                std::filesystem::path filepath;
                 std::fstream stream;
                 uint64_t receivedBodySize;
             } bodyData;
@@ -57,16 +61,17 @@ private:
     private:
         static constexpr const uint64_t MagicNumber = 0xA5A5202008275A5A;
         static constexpr const uint64_t Version_01_00_00 = 10000;
-        static constexpr const char* CacheName = "session-bodydata-";
 
         friend SessionParser;
     };
 
     /*** static function and variable ***/
+    static constexpr const char* BodyCacheName = "session-bodydata-";
 
     /*** class function and variable ***/
-    int parseProtocol(const std::vector<uint8_t>& data, int offset);
-    int savePayload(const std::vector<uint8_t>& data, int offset);
+    int unpackProtocol(const std::vector<uint8_t>& data, int offset);
+    int unpackBodyData(const std::vector<uint8_t>& data, int offset,
+                       std::shared_ptr<OnUnpackedListener> listener);
     uint64_t ntoh(uint64_t value) const;
     uint64_t hton(uint64_t value) const;
     uint32_t ntoh(uint32_t value) const;
@@ -76,7 +81,6 @@ private:
     // uint16_t hton(uint16_t value) const;
 
     std::filesystem::path bodyCacheDir;
-    std::shared_ptr<OnSectionListener> onSectionListener;
 
     std::unique_ptr<Protocol> protocol;
     std::vector<uint8_t> cachingData;

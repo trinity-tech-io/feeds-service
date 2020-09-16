@@ -2,6 +2,7 @@
 #define _CARRIER_SESSION_HPP_
 
 #include <future> 
+#include <iostream>
 #include <memory>
 #include <set>
 #include <string>
@@ -54,6 +55,10 @@ public:
     void disconnect();
 
     void setSdp(const std::string& sdp);
+
+    int64_t sendData(const std::vector<uint8_t>& data);
+    int64_t sendData(std::iostream& data);
+
 protected:
     /*** type define ***/
 

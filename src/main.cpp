@@ -139,8 +139,8 @@ void idle_callback(ElaCarrier *c, void *context)
 
     if (stop) {
         elastos::MassDataManager::GetInstance()->cleanup();
-        carrier = NULL;
         carrier_instance.reset();
+        carrier = NULL;
         return;
     }
 
@@ -304,8 +304,8 @@ static
 void transport_deinit()
 {
     elastos::MassDataManager::GetInstance()->cleanup();
-    carrier = NULL;
     carrier_instance.reset();
+    carrier = NULL;
 }
 
 static
@@ -323,7 +323,7 @@ int transport_init(FeedsConfig *cfg)
 
     DIDBackend_InitializeDefault(resolver, cfg->didcache_dir);
 
-        auto creater = [&]() -> ElaCarrier* {
+    auto creater = [&]() -> ElaCarrier* {
         vlogD("Create carrier instance.");
         auto ptr = ela_new(&cfg->carrier_opts, &callbacks, NULL);
         return ptr;
@@ -338,9 +338,7 @@ int transport_init(FeedsConfig *cfg)
     carrier = carrier_instance.get();
     if (!carrier) {
         vlogE("Creating carrier instance failed");
-        // goto failure;
-        transport_deinit();
-        return -1;
+        goto failure;
     }
 
     rc = elastos::MassDataManager::GetInstance()->config(cfg->data_dir, carrier_instance);

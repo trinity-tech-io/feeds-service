@@ -8,6 +8,9 @@
 #include <vector>
 #include <CarrierSession.hpp>
 #include <SessionParser.hpp>
+extern "C" {
+#include <rpc.h>
+}
 
 struct ElaCarrier;
 struct ElaSession;
@@ -21,8 +24,16 @@ public:
     /*** static function and variable ***/
 
     /*** class function and variable ***/
-    explicit MassDataProcessor() = default;
-    virtual ~MassDataProcessor() = default;
+    explicit MassDataProcessor();
+    virtual ~MassDataProcessor();
+
+    void config(const std::filesystem::path& massDataDir);
+
+    int dispose(const std::vector<uint8_t>& headData,
+                const std::filesystem::path& bodyPath);
+
+    int getResult(std::vector<uint8_t>& headData,
+                  std::filesystem::path& bodyPath);
 
 protected:
     /*** type define ***/
@@ -33,10 +44,27 @@ protected:
 
 private:
     /*** type define ***/
+    struct Method {
+        static constexpr const char* SetBinary = "set_binary";
+        static constexpr const char* GetBinary = "get_binary";
+    };
+    using Handler = std::function<int(std::shared_ptr<Req>,
+                                  const std::filesystem::path&,
+                                  std::shared_ptr<Resp>&)>;
 
     /*** static function and variable ***/
 
     /*** class function and variable ***/
+    int isOwner(const std::string& accessToken);
+
+    int onSetBinary(std::shared_ptr<Req> req, const std::filesystem::path& bodyPath, std::shared_ptr<Resp>& resp);
+    int onGetBinary(std::shared_ptr<Req> req, const std::filesystem::path& bodyPath, std::shared_ptr<Resp>& resp);
+
+    std::filesystem::path massDataDir;
+    std::map<const char*, Handler> mothodHandleMap;
+
+    std::vector<uint8_t> resultHeadData;
+    std::filesystem::path resultBodyPath;
 };
 
 /***********************************************/

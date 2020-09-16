@@ -9,11 +9,21 @@ if(${CMAKE_VERSION} VERSION_LESS "3.12")
 else()
     add_library(massdata OBJECT ${MASSDATA_SOURCES})
 endif()
+add_dependencies(massdata
+    cvector
+    libcrystal
+    msgpack-c)
+
 target_include_directories(massdata PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(massdata PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
 target_link_libraries(massdata PUBLIC
     common
-    libelacarrier-shared)
+    cvector
+    libcrystal-shared
+    libelacarrier-shared
+    msgpackc)
 
 set(CMAKE_INCLUDE_CURRENT_DIR TRUE)

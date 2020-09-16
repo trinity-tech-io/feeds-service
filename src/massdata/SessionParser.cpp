@@ -17,34 +17,71 @@ namespace elastos {
 /* =========================================== */
 /* === class public function implement  ====== */
 /* =========================================== */
-void SessionParser::config(const std::filesystem::path& cacheDir,
-                           std::shared_ptr<OnSectionListener> listener)
+void SessionParser::config(const std::filesystem::path& cacheDir)
 {
     this->bodyCacheDir = cacheDir;
-    this->onSectionListener = listener;
 }
 
-int SessionParser::dispose(const std::vector<uint8_t>& data)
+int SessionParser::unpack(const std::vector<uint8_t>& data,
+                          std::shared_ptr<OnUnpackedListener> listener)
 {
     Log::W(Log::TAG, "%s datasize=%d", __PRETTY_FUNCTION__, data.size());
 
     auto dataPos = 0;
 
     do {
-        int ret = parseProtocol(data, dataPos);
+        int ret = unpackProtocol(data, dataPos);
         if(ret == ErrCode::CarrierSessionDataNotEnough) {
             return 0; // Ignore to dump backtrace
         }
         CHECK_ERROR(ret);
         dataPos += ret;
 
-        ret = savePayload(data, dataPos);
+        ret = unpackBodyData(data, dataPos, listener);
         CHECK_ERROR(ret);
         dataPos += ret;
         Log::D(Log::TAG, "%s datapos=%d", __PRETTY_FUNCTION__, dataPos);
     } while(dataPos < data.size());
 
     return 0;
+}
+
+ int SessionParser::pack(std::vector<uint8_t>& data,
+                         const std::vector<uint8_t>& headData,
+                         const std::filesystem::path& bodyPath)
+{
+    data.clear();
+
+    uint64_t bodySize = 0;
+    if(std::filesystem::exists(bodyPath) == true) {
+        bodySize = std::filesystem::file_size(bodyPath);
+    }
+
+    auto result = std::make_unique<Protocol>();
+    result->info.magicNumber = Protocol::MagicNumber;
+    result->info.version = Protocol::Version_01_00_00;
+    result->info.headSize = headData.size();
+    result->info.bodySize = bodySize;
+
+    uint8_t* dataPtr = nullptr;
+
+    auto netOrderMagicNum = hton(result->info.magicNumber);
+    dataPtr = reinterpret_cast<uint8_t*>(&netOrderMagicNum);
+    data.insert(data.end(), dataPtr, dataPtr + sizeof(result->info.magicNumber));
+
+    auto netOrderVersion = hton(result->info.version);
+    dataPtr = reinterpret_cast<uint8_t*>(&netOrderVersion);
+    data.insert(data.end(), dataPtr, dataPtr + sizeof(result->info.version));
+
+    auto netOrderHeadSize = hton(result->info.headSize);
+    dataPtr = reinterpret_cast<uint8_t*>(&netOrderHeadSize);
+    data.insert(data.end(), dataPtr, dataPtr + sizeof(result->info.headSize));
+
+    auto netOrderBodySize = hton(result->info.bodySize);
+    dataPtr = reinterpret_cast<uint8_t*>(&netOrderBodySize);
+    data.insert(data.end(), dataPtr, dataPtr + sizeof(result->info.bodySize));
+
+    return data.size();
 }
 
 /* =========================================== */
@@ -55,7 +92,7 @@ int SessionParser::dispose(const std::vector<uint8_t>& data)
 /* =========================================== */
 /* === class private function implement  ===== */
 /* =========================================== */
-int SessionParser::parseProtocol(const std::vector<uint8_t>& data, int offset)
+int SessionParser::unpackProtocol(const std::vector<uint8_t>& data, int offset)
 {
      // protocal info has been parsed, value data is body payload, return directly.
     if(protocol != nullptr
@@ -88,8 +125,9 @@ int SessionParser::parseProtocol(const std::vector<uint8_t>& data, int offset)
             return ErrCode::CarrierSessionDataNotEnough;
         }
 
+        auto bodyPath = bodyCacheDir / (BodyCacheName + std::to_string(Random::Gen<uint32_t>()));
         protocol = std::make_unique<Protocol>();
-        protocol->payload = std::make_unique<Protocol::Payload>(bodyCacheDir);
+        protocol->payload = std::make_unique<Protocol::Payload>(bodyPath);
 
         auto dataPtr = cachingData.data();
 
@@ -131,8 +169,8 @@ int SessionParser::parseProtocol(const std::vector<uint8_t>& data, int offset)
     return bodyStartIdx;
 }
 
-int SessionParser::savePayload(const std::vector<uint8_t>& data, int offset)
-{
+int SessionParser::unpackBodyData(const std::vector<uint8_t>& data, int offset,
+                                  std::shared_ptr<OnUnpackedListener> listener) {
     auto neededData = protocol->info.bodySize - protocol->payload->bodyData.receivedBodySize;
     auto realSize = (neededData < (data.size() - offset)
                   ? neededData : (data.size() - offset));
@@ -143,11 +181,11 @@ int SessionParser::savePayload(const std::vector<uint8_t>& data, int offset)
     protocol->payload->bodyData.receivedBodySize += realSize;
 
     if(protocol->payload->bodyData.receivedBodySize == protocol->info.bodySize) {
-        if(onSectionListener != nullptr) {
+        if(listener != nullptr) {
             protocol->payload->bodyData.stream.flush();
             protocol->payload->bodyData.stream.close();
 
-            (*onSectionListener)(protocol->payload->headData, protocol->payload->bodyData.cacheName);
+            (*listener)(protocol->payload->headData, protocol->payload->bodyData.filepath);
         }
         protocol.reset();
     }
@@ -199,20 +237,21 @@ uint32_t SessionParser::hton(uint32_t value) const
     return htonl(value);
 }
 
-SessionParser::Protocol::Payload::Payload(const std::filesystem::path& bodyCacheDir)
+SessionParser::Protocol::Payload::Payload(const std::filesystem::path& bodyPath)
     : headData()
     , bodyData()
 {
-    bodyData.cacheName = bodyCacheDir / (CacheName + std::to_string(Random::Gen<uint32_t>()));
-    bodyData.stream.open(bodyData.cacheName, std::ios::binary);
+    bodyData.filepath = bodyPath;
+    bodyData.stream.open(bodyData.filepath,
+                         std::ios::binary | std::ios::in | std::ios::out | std::ios::app);
     bodyData.receivedBodySize = 0;
-    Log::W(Log::TAG, "%s body data cache: %s", __PRETTY_FUNCTION__, bodyData.cacheName.c_str());
+    Log::W(Log::TAG, "%s body data cache: %s", __PRETTY_FUNCTION__, bodyData.filepath.c_str());
 }
 
 SessionParser::Protocol::Payload::~Payload()
 {
     bodyData.stream.close();
-    // std::filesystem::remove(bodyData.cacheName); // TODO
+    // std::filesystem::remove(bodyData.filepath); // TODO
     Log::W(Log::TAG, "%s", __PRETTY_FUNCTION__);
 }
 

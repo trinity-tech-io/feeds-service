@@ -180,6 +180,47 @@ void CarrierSession::disconnect()
     // sessionPeerId.clear();
 }
 
+int64_t CarrierSession::sendData(const std::vector<uint8_t>& data)
+{
+    const int step = 1024;
+    for(int idx = 0; idx < data.size(); idx+=step) {
+        int sendSize = step < (data.size() - idx) ? step : (data.size() - idx);
+        int ret = ela_stream_write(sessionHandler.get(), sessionStreamId,
+                                   data.data() + idx, sendSize);
+        if (ret < 0) {
+            PrintElaCarrierError("Failed to send vector data through carrier session!");
+            ret = ErrCode::CarrierSessionSendFailed;
+        }
+        CHECK_ERROR(ret);
+    }
+
+    return data.size();
+}
+
+int64_t CarrierSession::sendData(std::iostream& data)
+{
+    data.seekg(0, data.end);
+    int dataSize = data.tellg();
+    data.seekg(0, data.beg);
+
+    const int step = 1024;
+    uint8_t buf[step];
+    for(int idx = 0; idx < dataSize; idx+=step) {
+        int sendSize = step < (dataSize - idx) ? step : (dataSize - idx);
+        data.read(reinterpret_cast<char*>(buf), sendSize);
+
+        int ret = ela_stream_write(sessionHandler.get(), sessionStreamId,
+                                   buf, sendSize);
+        if (ret < 0) {
+            PrintElaCarrierError("Failed to send stream data through carrier session!");
+            ret = ErrCode::CarrierSessionSendFailed;
+        }
+        CHECK_ERROR(ret);
+    }
+
+    return dataSize;
+}
+
 /* =========================================== */
 /* === class protected function implement  === */
 /* =========================================== */
@@ -290,6 +331,7 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
         ret = ErrCode::CarrierSessionAddStreamFailed;
     }
     CHECK_ERROR(ret);
+    sessionStreamId = ret;
 
     Log::D(Log::TAG, "%s end", __PRETTY_FUNCTION__);
     return 0;
