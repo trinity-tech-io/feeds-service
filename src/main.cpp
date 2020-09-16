@@ -338,10 +338,12 @@ int transport_init(FeedsConfig *cfg)
     carrier = carrier_instance.get();
     if (!carrier) {
         vlogE("Creating carrier instance failed");
-        goto failure;
+        // goto failure;
+        transport_deinit();
+        return -1;
     }
 
-    rc = elastos::MassDataManager::GetInstance()->config(carrier_instance);
+    rc = elastos::MassDataManager::GetInstance()->config(cfg->data_dir, carrier_instance);
     if(rc < 0) {
         vlogE("Carrier session init failed");
         goto failure;

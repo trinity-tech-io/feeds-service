@@ -42,7 +42,7 @@ public:
             Error,
         };
 
-        virtual void onNotify(const std::string& peerId, Notify notify, int errCode) = 0;
+        virtual void onNotify(Notify notify, int errCode) = 0;
         virtual void onReceivedData(const std::vector<uint8_t>& data) = 0;
     };
     /*** static function and variable ***/
@@ -83,7 +83,7 @@ private:
     int makeSessionAndStream(const std::string& peerId);
     void connectNotify(ConnectListener::Notify notify, int errCode);
 
-    std::string sessionPeerId;
+    // std::string sessionPeerId;
     std::shared_ptr<ElaSession> sessionHandler;
     int sessionStreamId;
     std::string sessionSdp;

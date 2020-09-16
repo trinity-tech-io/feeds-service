@@ -463,6 +463,44 @@ typedef struct {
 } ChanUpdNotif;
 
 typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        AccessToken  tk;
+        char        *key;
+        char        *algo;
+        char        *checksum;
+    } params;
+} SetBinaryReq;
+
+typedef struct {
+    uint64_t tsx_id;
+    struct {
+        char        *key;
+        int64_t      errcode;
+    } result;
+} SetBinaryResp;
+
+typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        AccessToken  tk;
+        char        *key;
+    } params;
+} GetBinaryReq;
+
+typedef struct {
+    uint64_t tsx_id;
+    struct {
+        char        *key;
+        char        *algo;
+        char        *checksum;
+        int64_t      errcode;
+    } result;
+} GetBinaryResp;
+
+typedef struct {
     void  *data;
     size_t sz;
 } Marshalled;

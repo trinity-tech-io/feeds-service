@@ -1255,6 +1255,107 @@ int unmarshal_enbl_notif_req(const msgpack_object *req, Req **req_unmarshal)
 }
 
 static
+int unmarshal_set_binary_req(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *tk;
+    const msgpack_object *key;
+    const msgpack_object *algo;
+    const msgpack_object *checksum;
+    SetBinaryReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        (void)map_val_str("version");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            tk       = map_val_str("access_token");
+            key      = map_val_str("key");
+            algo     = map_val_str("algo");
+            checksum = map_val_str("checksum");
+        });
+    });
+
+    if (!tk || !tk->str_sz || !key || !key->str_sz) {
+        vlogE("Invalid set_binary request.");
+        return -1;
+    }
+
+    int str_size = str_reserve_spc(method)
+                 + str_reserve_spc(tk) + str_reserve_spc(key)
+                 + str_reserve_spc(algo) + str_reserve_spc(checksum);
+    tmp = rc_zalloc(sizeof(*tmp) + str_size, NULL);
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method          = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->tsx_id          = tsx_id->u64_val;
+    tmp->params.tk       = strncpy(buf, tk->str_val, tk->str_sz);
+    buf += str_reserve_spc(tk);
+    tmp->params.key      = strncpy(buf, key->str_val, key->str_sz);
+    buf += str_reserve_spc(key);
+    tmp->params.algo     = strncpy(buf, algo->str_val, algo->str_sz);
+    buf += str_reserve_spc(algo);
+    tmp->params.checksum = strncpy(buf, checksum->str_val, checksum->str_sz);
+    buf += str_reserve_spc(checksum);
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
+
+static
+int unmarshal_get_binary_req(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *tk;
+    const msgpack_object *key;
+    GetBinaryReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        (void)map_val_str("version");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            tk       = map_val_str("access_token");
+            key      = map_val_str("key");
+        });
+    });
+
+    if (!tk || !tk->str_sz || !key || !key->str_sz) {
+        vlogE("Invalid get_binary request.");
+        return -1;
+    }
+
+    int str_size = str_reserve_spc(method)
+                 + str_reserve_spc(tk) + str_reserve_spc(key);
+    tmp = rc_zalloc(sizeof(*tmp) + str_size, NULL);
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method          = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->tsx_id          = tsx_id->u64_val;
+    tmp->params.tk       = strncpy(buf, tk->str_val, tk->str_sz);
+    buf += str_reserve_spc(tk);
+    tmp->params.key      = strncpy(buf, key->str_val, key->str_sz);
+    buf += str_reserve_spc(key);
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
+
+static
 int unmarshal_unknown_req(const msgpack_object *req, Req **req_unmarshal)
 {
     const msgpack_object *method;
@@ -1310,6 +1411,8 @@ static struct {
     {"subscribe_channel"       , unmarshal_sub_chan_req         },
     {"unsubscribe_channel"     , unmarshal_unsub_chan_req       },
     {"enable_notification"     , unmarshal_enbl_notif_req       },
+    {"set_binary"              , unmarshal_set_binary_req       },
+    {"get_binary"              , unmarshal_get_binary_req       },
 };
 
 int rpc_unmarshal_req(const void *rpc, size_t len, Req **req)

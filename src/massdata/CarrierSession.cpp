@@ -123,7 +123,7 @@ int CarrierSession::requestConnect(const std::string& peerId)
 int CarrierSession::allowConnect(const std::string& peerId, std::shared_ptr<ConnectListener> listener)
 {
     Log::D(Log::TAG, "%s start", __PRETTY_FUNCTION__);
-    sessionPeerId = peerId;
+    // sessionPeerId = peerId;
     connectListener = listener;
 
     int ret = makeSessionAndStream(peerId);
@@ -177,7 +177,7 @@ void CarrierSession::disconnect()
     connectNotify(ConnectListener::Notify::Closed, 0);
     connectListener = nullptr;
 
-    sessionPeerId.clear();
+    // sessionPeerId.clear();
 }
 
 /* =========================================== */
@@ -301,7 +301,7 @@ void CarrierSession::connectNotify(ConnectListener::Notify notify, int errCode)
         return;
     }
 
-    connectListener->onNotify(sessionPeerId, notify, errCode);
+    connectListener->onNotify(notify, errCode);
 }
 
 int CarrierSession::State::waitFor(int state, int timeout)

@@ -6,6 +6,7 @@
 #include <SafePtr.hpp>
 #include "CarrierSession.hpp"
 #include "MassDataProcessor.hpp"
+#include "SessionParser.hpp"
 
 namespace elastos {
 
@@ -35,10 +36,19 @@ std::shared_ptr<MassDataManager> MassDataManager::GetInstance()
 /* =========================================== */
 /* === class public function implement  ====== */
 /* =========================================== */
-int MassDataManager::config(std::weak_ptr<ElaCarrier> carrier)
+int MassDataManager::config(const std::filesystem::path& dataDir,
+                            std::weak_ptr<ElaCarrier> carrier)
 {
-    using namespace std::placeholders;
+    massDataDir = dataDir / MassDataDirName;
 
+    Log::I(Log::TAG, "Mass data saved to: %s", massDataDir.c_str());
+    auto dirExists = std::filesystem::exists(massDataDir / MassDataCacheDirName);
+    if(dirExists == false) {
+        auto dirExists = std::filesystem::create_directories(massDataDir / MassDataCacheDirName);
+        CHECK_ASSERT(dirExists, ErrCode::FileNotExistsError);
+    }
+
+    using namespace std::placeholders;
     int ret = CarrierSession::Factory::Init(carrier,
                                             std::bind(&MassDataManager::onSessionRequest, this, _1, _2, _3));
     CHECK_ERROR(ret);
@@ -66,44 +76,56 @@ void MassDataManager::onSessionRequest(std::weak_ptr<ElaCarrier> carrier,
 {
     Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
 
-    auto session = CarrierSession::Factory::Create();
-    if(session == nullptr) {
-        CHECK_RETVAL(ErrCode::OutOfMemoryError);
-    }
+    auto dataPipe = std::make_shared<DataPipe>();
+    dataPipe->session = CarrierSession::Factory::Create();
+    dataPipe->parser = std::make_shared<SessionParser>();
+    dataPipe->processor = std::make_shared<MassDataProcessor>();
 
-    session->setSdp(sdp);
+    // config session.
+    dataPipe->session->setSdp(sdp);
 
     struct Impl: CarrierSession::ConnectListener {
-        explicit Impl(std::weak_ptr<MassDataManager> mgr) {
+        explicit Impl(std::shared_ptr<MassDataManager> mgr, const std::string& peerId) {
             this->mgr = mgr;
+            this->peerId = peerId;
         }
 
-        virtual void onNotify(const std::string& peerId, Notify notify, int errCode) override {
+        virtual void onNotify(Notify notify, int errCode) override {
             Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
 
             if(notify == Notify::Closed
             || notify == Notify::Error) {
-                auto ptr = SAFE_GET_PTR_NO_RETVAL(mgr);
-                ptr->carrierSessionMap.erase(peerId);
+                auto mgrPtr = SAFE_GET_PTR_NO_RETVAL(mgr);
+                mgrPtr->dataPipeMap.erase(peerId);
             }
         };
         virtual void onReceivedData(const std::vector<uint8_t>& data) override {
             Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
 
-            int ret = processor.dispose(data);
+            auto mgrPtr = SAFE_GET_PTR_NO_RETVAL(mgr);
+            auto dataPipeIt = mgrPtr->dataPipeMap.find(peerId);
+            if(dataPipeIt == mgrPtr->dataPipeMap.end()) {
+                CHECK_RETVAL(ErrCode::CarrierSessionReleasedError);
+            }
+            auto dataPipe = dataPipeIt->second;
+            assert(dataPipe->parser != nullptr);
+
+            int ret = dataPipe->parser->dispose(data);
             CHECK_RETVAL(ret);
         }
 
     private:
         std::weak_ptr<MassDataManager> mgr;
-        MassDataProcessor processor;
+        std::string peerId;
     };
-    auto impl = std::make_shared<Impl>(weak_from_this());
-
-    int ret = session->allowConnect(from, impl);
+    auto impl = std::make_shared<Impl>(shared_from_this(), from);
+    int ret = dataPipe->session->allowConnect(from, impl);
     CHECK_RETVAL(ret);
 
-    carrierSessionMap.emplace(from, session);
+    // config parser.
+    dataPipe->parser->config(massDataDir, nullptr);
+
+    dataPipeMap.emplace(from, dataPipe);
 }
 
 } // namespace elastos
