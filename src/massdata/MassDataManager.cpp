@@ -42,9 +42,9 @@ int MassDataManager::config(const std::filesystem::path& dataDir,
     massDataDir = dataDir / MassDataDirName;
 
     Log::I(Log::TAG, "Mass data saved to: %s", massDataDir.c_str());
-    auto dirExists = std::filesystem::exists(massDataDir / MassDataCacheDirName);
+    auto dirExists = std::filesystem::exists(massDataDir);
     if(dirExists == false) {
-        auto dirExists = std::filesystem::create_directories(massDataDir / MassDataCacheDirName);
+        auto dirExists = std::filesystem::create_directories(massDataDir);
         CHECK_ASSERT(dirExists, ErrCode::FileNotExistsError);
     }
 
@@ -75,6 +75,7 @@ void MassDataManager::onSessionRequest(std::weak_ptr<ElaCarrier> carrier,
                                        const std::string& from, const std::string& sdp)
 {
     Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
+    remove(from); // remove previous datapipe session if exists, bugfix:clickup:#4dp49p
 
     auto dataPipe = std::make_shared<DataPipe>();
     dataPipe->session = CarrierSession::Factory::Create();
@@ -98,11 +99,13 @@ void MassDataManager::onSessionRequest(std::weak_ptr<ElaCarrier> carrier,
 
 void MassDataManager::append(const std::string& key, std::shared_ptr<MassDataManager::DataPipe> value)
 {
+    Log::V(Log::TAG, "MassDataManager::append() key=%s,val=%p", key.c_str(), value->session.get());
     dataPipeMap.emplace(key, value);
 }
 
 void MassDataManager::remove(const std::string& key)
 {
+    Log::V(Log::TAG, "MassDataManager::remove() key=%s", key.c_str());
     dataPipeMap.erase(key);
 }
 
@@ -112,15 +115,16 @@ std::shared_ptr<MassDataManager::DataPipe> MassDataManager::find(const std::stri
     if(dataPipeIt == dataPipeMap.end()) {
         CHECK_AND_RETDEF(ErrCode::CarrierSessionReleasedError, nullptr);
     }
-    auto dataPipe = dataPipeIt->second;
+    auto value = dataPipeIt->second;
+    Log::V(Log::TAG, "MassDataManager::append() key=%s,val=%p", key.c_str(), value->session.get());
 
-    return dataPipe; 
+    return value; 
 }
 
 std::shared_ptr<CarrierSession::ConnectListener> MassDataManager::makeConnectListener(const std::string& peerId,
                                                                                       std::shared_ptr<SessionParser::OnUnpackedListener> unpackedListener) {
     struct SessionListener: CarrierSession::ConnectListener {
-        explicit SessionListener(std::shared_ptr<MassDataManager> mgr,
+        explicit SessionListener(std::weak_ptr<MassDataManager> mgr,
                                  const std::string& peerId,
                                  std::shared_ptr<SessionParser::OnUnpackedListener> unpackedListener) {
             this->mgr = mgr;
@@ -153,7 +157,7 @@ std::shared_ptr<CarrierSession::ConnectListener> MassDataManager::makeConnectLis
         std::string peerId;
         std::shared_ptr<SessionParser::OnUnpackedListener> unpackedListener;
     };
-    auto sessionListener = std::make_shared<SessionListener>(shared_from_this(), peerId, unpackedListener);
+    auto sessionListener = std::make_shared<SessionListener>(weak_from_this(), peerId, unpackedListener);
 
     return sessionListener;
 }
@@ -163,7 +167,9 @@ std::shared_ptr<SessionParser::OnUnpackedListener> MassDataManager::makeUnpacked
     auto unpackedListener = std::make_shared<SessionParser::OnUnpackedListener>(
         [=](const std::vector<uint8_t>& headData,
             const std::filesystem::path& bodyPath) -> void {
-            auto mgrPtr = shared_from_this();
+            auto weakPtr = this->weak_from_this();
+            auto mgrPtr = SAFE_GET_PTR_NO_RETVAL(weakPtr);
+
             auto dataPipe = mgrPtr->find(peerId);
             assert(dataPipe->processor != nullptr);
 
@@ -172,7 +178,7 @@ std::shared_ptr<SessionParser::OnUnpackedListener> MassDataManager::makeUnpacked
 
             std::vector<uint8_t> resultHeadData;
             std::filesystem::path resultBodyPath;
-            ret = dataPipe->processor->getResult(resultHeadData, resultBodyPath);
+            ret = dataPipe->processor->getResultAndReset(resultHeadData, resultBodyPath);
             CHECK_RETVAL(ret);
 
             std::vector<uint8_t> sessionProtocolData;
@@ -184,9 +190,10 @@ std::shared_ptr<SessionParser::OnUnpackedListener> MassDataManager::makeUnpacked
             ret = dataPipe->session->sendData(resultHeadData);
             CHECK_RETVAL(ret);
 
-            if(std::filesystem::exists(resultBodyPath) == true) {
+            if(resultBodyPath.empty() == false
+            && std::filesystem::exists(resultBodyPath) == true) {
                 std::fstream bodyStream;
-                bodyStream.open(resultBodyPath, std::ios::binary);
+                bodyStream.open(resultBodyPath, std::ios::binary | std::ios::in | std::ios::out);
                 ret = dataPipe->session->sendData(bodyStream);
                 bodyStream.close();
                 CHECK_RETVAL(ret);

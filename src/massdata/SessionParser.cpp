@@ -53,7 +53,8 @@ int SessionParser::unpack(const std::vector<uint8_t>& data,
     data.clear();
 
     uint64_t bodySize = 0;
-    if(std::filesystem::exists(bodyPath) == true) {
+    if(bodyPath.empty() == false
+    && std::filesystem::exists(bodyPath) == true) {
         bodySize = std::filesystem::file_size(bodyPath);
     }
 
@@ -81,6 +82,7 @@ int SessionParser::unpack(const std::vector<uint8_t>& data,
     dataPtr = reinterpret_cast<uint8_t*>(&netOrderBodySize);
     data.insert(data.end(), dataPtr, dataPtr + sizeof(result->info.bodySize));
 
+    Log::W(Log::TAG, "%s datasize=%d", __PRETTY_FUNCTION__, data.size());
     return data.size();
 }
 
@@ -125,6 +127,10 @@ int SessionParser::unpackProtocol(const std::vector<uint8_t>& data, int offset)
             return ErrCode::CarrierSessionDataNotEnough;
         }
 
+        if(std::filesystem::exists(bodyCacheDir) == false) {
+            bool created = std::filesystem::create_directories(bodyCacheDir);
+            CHECK_ASSERT(created, ErrCode::FileNotExistsError);
+        }
         auto bodyPath = bodyCacheDir / (BodyCacheName + std::to_string(Random::Gen<uint32_t>()));
         protocol = std::make_unique<Protocol>();
         protocol->payload = std::make_unique<Protocol::Payload>(bodyPath);

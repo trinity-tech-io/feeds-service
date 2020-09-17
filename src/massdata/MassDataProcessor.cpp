@@ -58,7 +58,7 @@ int MassDataProcessor::dispose(const std::vector<uint8_t>& headData,
     Req *reqBuf = nullptr;
     int ret = rpc_unmarshal_req(headData.data(), headData.size(), &reqBuf);
     auto deleter = [=](Req* ptr) -> void {
-        vlogD("Destroy req buffer.");
+        Log::V(Log::TAG, "Destroy req buffer.");
         deref(ptr);
     };
     auto req = std::shared_ptr<Req>(reqBuf, deleter); // workaround: declear for auto release req pointer
@@ -88,11 +88,14 @@ int MassDataProcessor::dispose(const std::vector<uint8_t>& headData,
     return 0;
 }
 
-int MassDataProcessor::getResult(std::vector<uint8_t>& headData,
-                                 std::filesystem::path& bodyPath)
+int MassDataProcessor::getResultAndReset(std::vector<uint8_t>& headData,
+                                         std::filesystem::path& bodyPath)
 {
     headData = std::move(resultHeadData);
-    bodyPath = resultBodyPath;
+    bodyPath = std::move(resultBodyPath);
+
+    resultHeadData.clear();
+    resultBodyPath.clear();
 
     return 0;
 }
@@ -107,20 +110,47 @@ int MassDataProcessor::getResult(std::vector<uint8_t>& headData,
 /* =========================================== */
 int MassDataProcessor::isOwner(const std::string& accessToken)
 {
+    std::shared_ptr<UserInfo> userInfo;
+    int ret = getUserInfo(accessToken, userInfo);
+    CHECK_ERROR(ret);
+
+    if (user_id_is_owner(userInfo->uid) == false) {
+        Log::E(Log::TAG, "Mass data processor: request access while not being owner.");
+        CHECK_ERROR(ErrCode::NotAuthorizedError);
+    }
+
+    return 0;
+}
+
+int MassDataProcessor::isMember(const std::string& accessToken)
+{
+    std::shared_ptr<UserInfo> userInfo;
+    int ret = getUserInfo(accessToken, userInfo);
+    CHECK_ERROR(ret);
+
+    return 0;
+}
+
+int MassDataProcessor::getUserInfo(const std::string& accessToken, std::shared_ptr<UserInfo>& userInfo)
+{
     if (did_is_ready() == false) {
         Log::E(Log::TAG, "Mass data processor: Feeds DID is not ready.");
         CHECK_ERROR(ErrCode::DidNotReady);
     }
 
-    UserInfo* uinfo = create_uinfo_from_access_token(accessToken.c_str());
-    if (uinfo == nullptr) {
+    auto creater = [&]() -> UserInfo* {
+        Log::I(Log::TAG, "Create user info.");
+        auto ptr = create_uinfo_from_access_token(accessToken.c_str());
+        return ptr;
+    };
+    auto deleter = [=](UserInfo* ptr) -> void {
+        Log::I(Log::TAG, "Destroy user info.");
+        deref(ptr);
+    };
+    userInfo = std::shared_ptr<UserInfo>(creater(), deleter);
+    if (userInfo == nullptr) {
         Log::E(Log::TAG, "Mass data processor: Invalid access token.");
         CHECK_ERROR(ErrCode::InvalidAccessToken);
-    }
-
-    if (user_id_is_owner(uinfo->uid) == false) {
-        Log::E(Log::TAG, "Mass data processor: Set binary while not being owner.");
-        CHECK_ERROR(ErrCode::NotAuthorizedError);
     }
 
     return 0;
@@ -132,6 +162,8 @@ int MassDataProcessor::onSetBinary(std::shared_ptr<Req> req,
 {
     auto setBinReq = reinterpret_pointer_cast<SetBinaryReq>(req);
     auto setBinResp = std::make_shared<SetBinaryResp>();
+    resp = reinterpret_pointer_cast<Resp>(setBinResp);
+
     setBinResp->tsx_id = setBinReq->tsx_id;
     setBinResp->result.key = setBinReq->params.key;
 
@@ -140,7 +172,7 @@ int MassDataProcessor::onSetBinary(std::shared_ptr<Req> req,
     Log::D(Log::TAG, "    algo: %s", setBinReq->params.algo);
     Log::D(Log::TAG, "    checksum: %s", setBinReq->params.checksum);
 
-    // TODO: For Test
+    // TODO: Comment For Test
     // int ret = isOwner(setBinReq->params.tk);
     // CHECK_ERROR(ret);
 
@@ -151,20 +183,47 @@ int MassDataProcessor::onSetBinary(std::shared_ptr<Req> req,
 
     auto keyPath = massDataDir / setBinReq->params.key;
     Log::V(Log::TAG, "Resave %s to %s.", bodyPath.c_str(), keyPath.c_str());
-    std::filesystem::rename(bodyPath, keyPath);
+    std::error_code ec;
+    std::filesystem::rename(bodyPath, keyPath, ec); // noexcept
+    if(ec.value() != 0) {
+        auto errcode = ErrCode::StdSystemErrorIndex + (-ec.value());
+        setBinResp->result.errcode = errcode;
+        CHECK_ERROR(errcode);
+    }
 
-    resp = reinterpret_pointer_cast<Resp>(setBinResp);
-
+    setBinResp->result.errcode = 0;
     return 0;
 }
 
-int MassDataProcessor::onGetBinary(std::shared_ptr<Req> head,
+int MassDataProcessor::onGetBinary(std::shared_ptr<Req> req,
                                    const std::filesystem::path& bodyPath,
                                    std::shared_ptr<Resp>& resp)
 {
-    Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
+    auto getBinReq = reinterpret_pointer_cast<GetBinaryReq>(req);
+    auto getBinResp = std::make_shared<GetBinaryResp>();
+    resp = reinterpret_pointer_cast<Resp>(getBinResp);
 
-    return -1;
+    getBinResp->tsx_id = getBinReq->tsx_id;
+    getBinResp->result.key = getBinReq->params.key;
+
+    Log::D(Log::TAG, "    access_token: %s", getBinReq->params.tk);
+    Log::D(Log::TAG, "    key: %s", getBinReq->params.key);
+
+    // TODO: Comment For Test
+    // int ret = isMember(getBinReq->params.tk);
+    // CHECK_ERROR(ret);
+
+    auto keyPath = massDataDir / getBinReq->params.key;
+    Log::V(Log::TAG, "Try to load %s.", keyPath.c_str());
+    if(std::filesystem::exists(keyPath) == false) {
+        getBinResp->result.errcode = ErrCode::FileNotExistsError;
+        CHECK_ERROR(ErrCode::FileNotExistsError);
+    }
+
+    resultBodyPath = keyPath;
+
+    getBinResp->result.errcode = 0;
+    return 0;
 }
 
 } // namespace elastos

@@ -9,6 +9,7 @@
 #include <CarrierSession.hpp>
 #include <SessionParser.hpp>
 extern "C" {
+#include <obj.h>
 #include <rpc.h>
 }
 
@@ -32,8 +33,8 @@ public:
     int dispose(const std::vector<uint8_t>& headData,
                 const std::filesystem::path& bodyPath);
 
-    int getResult(std::vector<uint8_t>& headData,
-                  std::filesystem::path& bodyPath);
+    int getResultAndReset(std::vector<uint8_t>& headData,
+                          std::filesystem::path& bodyPath);
 
 protected:
     /*** type define ***/
@@ -56,6 +57,8 @@ private:
 
     /*** class function and variable ***/
     int isOwner(const std::string& accessToken);
+    int isMember(const std::string& accessToken);
+    int getUserInfo(const std::string& accessToken, std::shared_ptr<UserInfo>& userInfo);
 
     int onSetBinary(std::shared_ptr<Req> req, const std::filesystem::path& bodyPath, std::shared_ptr<Resp>& resp);
     int onGetBinary(std::shared_ptr<Req> req, const std::filesystem::path& bodyPath, std::shared_ptr<Resp>& resp);

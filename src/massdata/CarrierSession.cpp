@@ -90,17 +90,16 @@ int CarrierSession::requestConnect(const std::string& peerId)
                                   const char *bundle, int status, const char *reason,
                                   const char *sdp, size_t len, void *context) {
                                     Log::D(Log::TAG, "Carrier Session request completed");
-                                    auto ptr = reinterpret_cast<CarrierSession*>(context);
-                                    auto thiz = ptr->shared_from_this();
-                                    if(thiz == nullptr) {
-                                        Log::E(Log::TAG, "Carrier Session has been released");
-                                    }
-                                    thiz->setSdp(sdp);
+                                    auto thiz = reinterpret_cast<CarrierSession*>(context);
+                                    auto weakPtr = thiz->weak_from_this();
+                                    auto carrierSession = SAFE_GET_PTR_NO_RETVAL(weakPtr);
+
+                                    carrierSession->setSdp(sdp);
 
                                     ElaStreamState state;
-                                    ela_stream_get_state(thiz->sessionHandler.get(), thiz->sessionStreamId, &state);
+                                    ela_stream_get_state(carrierSession->sessionHandler.get(), carrierSession->sessionStreamId, &state);
                                     if (state == ElaStreamState_transport_ready) {
-                                        thiz->state.notify( ElaStreamState_transport_ready);
+                                        carrierSession->state.notify( ElaStreamState_transport_ready);
                                     }
                                 } , nullptr);
     timeout = state.waitFor(ElaStreamState_transport_ready, 10000);
@@ -182,6 +181,8 @@ void CarrierSession::disconnect()
 
 int64_t CarrierSession::sendData(const std::vector<uint8_t>& data)
 {
+    Log::D(Log::TAG, "Carrier Session send vector data, len: %d", data.size());
+
     const int step = 1024;
     for(int idx = 0; idx < data.size(); idx+=step) {
         int sendSize = step < (data.size() - idx) ? step : (data.size() - idx);
@@ -202,6 +203,7 @@ int64_t CarrierSession::sendData(std::iostream& data)
     data.seekg(0, data.end);
     int dataSize = data.tellg();
     data.seekg(0, data.beg);
+    Log::D(Log::TAG, "Carrier Session send stream data, len: %d", dataSize);
 
     const int step = 1024;
     uint8_t buf[step];
@@ -248,15 +250,14 @@ CarrierSession::CarrierSession() noexcept
     , state()
     , connectListener()
 {
-    Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
+    Log::D(Log::TAG, "%s %p", __PRETTY_FUNCTION__, this);
 }
 
 CarrierSession::~CarrierSession() noexcept
 {
-    Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
     connectListener = nullptr; // fix dead loop issue.
     disconnect();
-    Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
+    Log::D(Log::TAG, "%s %p", __PRETTY_FUNCTION__, this);
 }
 
 int CarrierSession::makeSessionAndStream(const std::string& peerId)
@@ -265,12 +266,12 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
     auto carrier = SAFE_GET_PTR(Factory::CarrierHandler);
 
     auto creater = [&]() -> ElaSession* {
-        Log::I(Log::TAG, "Create ela carrier session");
+        Log::I(Log::TAG, "Create ela carrier session at %p", this);
         auto ptr = ela_session_new(carrier.get(), peerId.c_str());
         return ptr;
     };
     auto deleter = [=](ElaSession* ptr) -> void {
-        Log::I(Log::TAG, "CarrierSession::makeSessionAndStream() destroy ela carrier session");
+        Log::I(Log::TAG, "CarrierSession::makeSessionAndStream() destroy ela carrier session at %p", this);
         if(ptr != nullptr) {
             ela_session_close(ptr);
         }
@@ -285,40 +286,38 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
         .state_changed = [] (ElaSession *session, int stream,
                              ElaStreamState state,
                              void *context) {
-            Log::D(Log::TAG, "Carrier Session state change to %d", state);
-            auto ptr = reinterpret_cast<CarrierSession*>(context);
-            auto thiz = ptr->shared_from_this();
-            if(thiz == nullptr) {
-                Log::E(Log::TAG, "Carrier Session has been released");
-                return;
-            }
+            auto thiz = reinterpret_cast<CarrierSession*>(context);
+            Log::D(Log::TAG, "Carrier Session %p state change to %d", thiz, state);
+            auto weakPtr = thiz->weak_from_this();
+            auto carrierSession = weakPtr.lock();                                                                      \
+            if(carrierSession == nullptr) {                                                                      \
+                Log::D(Log::TAG, "Carrier Session has been released");
+                return;                                                                                     \
+            }                                                                                               \
 
-            if (state == ElaStreamState_transport_ready && thiz->sessionSdp.empty()) { // notify at request completed
+            if (state == ElaStreamState_transport_ready && carrierSession->sessionSdp.empty()) { // notify at request completed
                 return;
             }
-            thiz->state.notify(state);
+            carrierSession->state.notify(state);
 
             if(state == ElaStreamState_closed) {
-                thiz->connectNotify(ConnectListener::Notify::Closed, 0);
+                carrierSession->connectNotify(ConnectListener::Notify::Closed, 0);
             } else if(state == ElaStreamState_failed) {
-                thiz->connectNotify(ConnectListener::Notify::Error, -1); // TODO: err code
+                carrierSession->connectNotify(ConnectListener::Notify::Error, -1); // TODO: err code
             }
         },
         .stream_data = [] (ElaSession *session, int stream,
                            const void *data, size_t len,
                            void *context) {
             Log::D(Log::TAG, "Carrier Session received data, len: %d", len);
-            auto ptr = reinterpret_cast<CarrierSession*>(context);
-            auto thiz = ptr->shared_from_this();
-            if(thiz == nullptr) {
-                Log::E(Log::TAG, "Carrier Session has been released");
-                return;
-            }
+            auto thiz = reinterpret_cast<CarrierSession*>(context);
+            auto weakPtr = thiz->weak_from_this();
+            auto carrierSession = SAFE_GET_PTR_NO_RETVAL(weakPtr);
 
-            if(thiz->connectListener != nullptr) {
+            if(carrierSession->connectListener != nullptr) {
                 auto dataCast = reinterpret_cast<const uint8_t*>(data);
                 auto dataPtr = std::vector<uint8_t>(dataCast, dataCast + len);
-                thiz->connectListener->onReceivedData(dataPtr);
+                carrierSession->connectListener->onReceivedData(dataPtr);
             }
         },
     };
