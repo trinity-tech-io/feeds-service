@@ -28,6 +28,7 @@
 #include <limits.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -138,7 +139,7 @@ void idle_callback(ElaCarrier *c, void *context)
     (void)context;
 
     if (stop) {
-        elastos::MassDataManager::GetInstance()->cleanup();
+        // elastos::MassDataManager::GetInstance()->cleanup();
         carrier_instance.reset();
         carrier = NULL;
         return;

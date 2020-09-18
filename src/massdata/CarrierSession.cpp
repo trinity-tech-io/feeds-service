@@ -164,6 +164,7 @@ void CarrierSession::disconnect()
         return;
     }
 
+    ela_session_remove_stream(sessionHandler.get(), sessionStreamId);
     sessionHandler.reset();
 
     sessionStreamId = -1;
