@@ -7,6 +7,7 @@
 #include "CarrierSession.hpp"
 #include "MassDataProcessor.hpp"
 #include "SessionParser.hpp"
+#include "DateTime.hpp"
 
 namespace elastos {
 
@@ -75,7 +76,6 @@ void MassDataManager::onSessionRequest(std::weak_ptr<ElaCarrier> carrier,
                                        const std::string& from, const std::string& sdp)
 {
     Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
-    remove(from); // remove previous datapipe session if exists, bugfix:clickup:#4dp49p
 
     auto dataPipe = std::make_shared<DataPipe>();
     dataPipe->session = CarrierSession::Factory::Create();
@@ -100,7 +100,7 @@ void MassDataManager::onSessionRequest(std::weak_ptr<ElaCarrier> carrier,
 void MassDataManager::append(const std::string& key, std::shared_ptr<MassDataManager::DataPipe> value)
 {
     Log::V(Log::TAG, "MassDataManager::append() key=%s,val=%p", key.c_str(), value->session.get());
-    dataPipeMap.emplace(key, value);
+    dataPipeMap[key] = value;
 }
 
 void MassDataManager::remove(const std::string& key)
@@ -116,7 +116,7 @@ std::shared_ptr<MassDataManager::DataPipe> MassDataManager::find(const std::stri
         CHECK_AND_RETDEF(ErrCode::CarrierSessionReleasedError, nullptr);
     }
     auto value = dataPipeIt->second;
-    Log::V(Log::TAG, "MassDataManager::append() key=%s,val=%p", key.c_str(), value->session.get());
+    // Log::V(Log::TAG, "MassDataManager::find() key=%s,val=%p", key.c_str(), value->session.get());
 
     return value; 
 }
@@ -142,7 +142,7 @@ std::shared_ptr<CarrierSession::ConnectListener> MassDataManager::makeConnectLis
             }
         };
         virtual void onReceivedData(const std::vector<uint8_t>& data) override {
-            Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
+            // Log::D(Log::TAG, "%s timestamp=%lld", __PRETTY_FUNCTION__, DateTime::CurrentMS());
 
             auto mgrPtr = SAFE_GET_PTR_NO_RETVAL(mgr);
             auto dataPipe = mgrPtr->find(peerId);

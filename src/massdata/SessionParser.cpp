@@ -3,6 +3,8 @@
 #include <functional>
 #include <Random.hpp>
 #include <SafePtr.hpp>
+#include <DateTime.hpp>
+
 
 namespace elastos {
 
@@ -25,7 +27,7 @@ void SessionParser::config(const std::filesystem::path& cacheDir)
 int SessionParser::unpack(const std::vector<uint8_t>& data,
                           std::shared_ptr<OnUnpackedListener> listener)
 {
-    Log::W(Log::TAG, "%s datasize=%d", __PRETTY_FUNCTION__, data.size());
+    // Log::W(Log::TAG, "%s datasize=%d", __PRETTY_FUNCTION__, data.size());
 
     auto dataPos = 0;
 
@@ -40,7 +42,7 @@ int SessionParser::unpack(const std::vector<uint8_t>& data,
         ret = unpackBodyData(data, dataPos, listener);
         CHECK_ERROR(ret);
         dataPos += ret;
-        Log::D(Log::TAG, "%s datapos=%d", __PRETTY_FUNCTION__, dataPos);
+        // Log::D(Log::TAG, "%s datapos=%d", __PRETTY_FUNCTION__, dataPos);
     } while(dataPos < data.size());
 
     return 0;
@@ -99,7 +101,7 @@ int SessionParser::unpackProtocol(const std::vector<uint8_t>& data, int offset)
      // protocal info has been parsed, value data is body payload, return directly.
     if(protocol != nullptr
     && protocol->info.headSize == protocol->payload->headData.size()) {
-        Log::D(Log::TAG, "Protocol has been parsed.");
+        // Log::D(Log::TAG, "Protocol has been parsed.");
         return 0;
     }
 
@@ -156,6 +158,9 @@ int SessionParser::unpackProtocol(const std::vector<uint8_t>& data, int offset)
         auto netOrderBodySize = *((typeof(protocol->info.bodySize)*)(dataPtr));
         protocol->info.bodySize = ntoh(netOrderBodySize);
         dataPtr += sizeof(protocol->info.bodySize);
+
+
+        Log::W(Log::TAG, "Transfer start. timestamp=%lld", DateTime::CurrentMS());
     }
 
     // return and parse next time if data is not enough to save as head data.
@@ -187,11 +192,14 @@ int SessionParser::unpackBodyData(const std::vector<uint8_t>& data, int offset,
     protocol->payload->bodyData.receivedBodySize += realSize;
 
     if(protocol->payload->bodyData.receivedBodySize == protocol->info.bodySize) {
+        Log::W(Log::TAG, "Transfer finished. timestamp=%lld", DateTime::CurrentMS());
+
         if(listener != nullptr) {
             protocol->payload->bodyData.stream.flush();
             protocol->payload->bodyData.stream.close();
 
             (*listener)(protocol->payload->headData, protocol->payload->bodyData.filepath);
+
         }
         protocol.reset();
     }

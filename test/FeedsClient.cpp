@@ -23,7 +23,7 @@ int main(int argc, char **argv)
     signal(SIGABRT, signalHandler);
 
     Log::I(Log::TAG, "Feeds client start.");
-    Log::I(Log::TAG, "%s\n", (argc > 1 ? argv[1]:""));
+    Log::I(Log::TAG, "%s", (argc > 1 ? argv[1]:""));
 
     const char* fifoFilePath = (argc > 1 ? argv[1] : "");
 

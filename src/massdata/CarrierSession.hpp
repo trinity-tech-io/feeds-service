@@ -11,6 +11,7 @@
 
 struct ElaCarrier;
 struct ElaSession;
+struct ElaStreamCallbacks;
 
 namespace elastos {
 
@@ -91,6 +92,7 @@ private:
     // std::string sessionPeerId;
     std::shared_ptr<ElaSession> sessionHandler;
     int sessionStreamId;
+    std::shared_ptr<ElaStreamCallbacks> sessionStreamCallbacks;
     std::string sessionSdp;
     // std::shared_ptr<ThreadPool> sessionThread;
     State state;

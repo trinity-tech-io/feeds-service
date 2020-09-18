@@ -282,49 +282,48 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
     }
     CHECK_ASSERT(sessionHandler, ErrCode::CarrierSessionCreateFailed);
 
-    ElaStreamCallbacks streamCallbacks = {
-        .state_changed = [] (ElaSession *session, int stream,
-                             ElaStreamState state,
-                             void *context) {
-            auto thiz = reinterpret_cast<CarrierSession*>(context);
-            Log::D(Log::TAG, "Carrier Session %p state change to %d", thiz, state);
-            auto weakPtr = thiz->weak_from_this();
-            auto carrierSession = weakPtr.lock();                                                                      \
-            if(carrierSession == nullptr) {                                                                      \
-                Log::D(Log::TAG, "Carrier Session has been released");
-                return;                                                                                     \
-            }                                                                                               \
+    sessionStreamCallbacks = std::make_shared<ElaStreamCallbacks>();
+    sessionStreamCallbacks->state_changed = [] (ElaSession *session, int stream,
+                                                ElaStreamState state,
+                                                void *context) {
+        auto thiz = reinterpret_cast<CarrierSession*>(context);
+        Log::D(Log::TAG, "Carrier Session state change to %d, session=%p,stream=%d", state, session, stream);
+        auto weakPtr = thiz->weak_from_this();
+        auto carrierSession = weakPtr.lock();
+        if(carrierSession == nullptr) {
+            Log::D(Log::TAG, "Carrier Session has been released");
+            return;
+        }
 
-            if (state == ElaStreamState_transport_ready && carrierSession->sessionSdp.empty()) { // notify at request completed
-                return;
-            }
-            carrierSession->state.notify(state);
+        if (state == ElaStreamState_transport_ready && carrierSession->sessionSdp.empty()) { // notify at request completed
+            return;
+        }
+        carrierSession->state.notify(state);
 
-            if(state == ElaStreamState_closed) {
-                carrierSession->connectNotify(ConnectListener::Notify::Closed, 0);
-            } else if(state == ElaStreamState_failed) {
-                carrierSession->connectNotify(ConnectListener::Notify::Error, -1); // TODO: err code
-            }
-        },
-        .stream_data = [] (ElaSession *session, int stream,
-                           const void *data, size_t len,
-                           void *context) {
-            Log::D(Log::TAG, "Carrier Session received data, len: %d", len);
-            auto thiz = reinterpret_cast<CarrierSession*>(context);
-            auto weakPtr = thiz->weak_from_this();
-            auto carrierSession = SAFE_GET_PTR_NO_RETVAL(weakPtr);
-
-            if(carrierSession->connectListener != nullptr) {
-                auto dataCast = reinterpret_cast<const uint8_t*>(data);
-                auto dataPtr = std::vector<uint8_t>(dataCast, dataCast + len);
-                carrierSession->connectListener->onReceivedData(dataPtr);
-            }
-        },
+        if(state == ElaStreamState_closed) {
+            carrierSession->connectNotify(ConnectListener::Notify::Closed, 0);
+        } else if(state == ElaStreamState_failed) {
+            carrierSession->connectNotify(ConnectListener::Notify::Error, -1); // TODO: err code
+        }
     };
+    sessionStreamCallbacks->stream_data = [] (ElaSession *session, int stream,
+                                                const void *data, size_t len,
+                                                void *context) {
+        // Log::D(Log::TAG, "Carrier Session received data, len: %d", len);
+        auto thiz = reinterpret_cast<CarrierSession*>(context);
+        auto weakPtr = thiz->weak_from_this();
+        auto carrierSession = SAFE_GET_PTR_NO_RETVAL(weakPtr);
 
+        if(carrierSession->connectListener != nullptr) {
+            auto dataCast = reinterpret_cast<const uint8_t*>(data);
+            auto dataPtr = std::vector<uint8_t>(dataCast, dataCast + len);
+            carrierSession->connectListener->onReceivedData(dataPtr);
+        }
+    };
     int ret = ela_session_add_stream(sessionHandler.get(),
                                      ElaStreamType_application, ELA_STREAM_RELIABLE,
-                                     &streamCallbacks, this);
+                                     sessionStreamCallbacks.get(), this);
+    Log::D(Log::TAG, "Carrier Session add stream session=%p,stream=%d", sessionHandler.get(), ret);
     if (ret < 0) {
         PrintElaCarrierError("Failed to add stream!");
         ret = ErrCode::CarrierSessionAddStreamFailed;
