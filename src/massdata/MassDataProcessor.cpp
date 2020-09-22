@@ -167,6 +167,7 @@ int MassDataProcessor::onSetBinary(std::shared_ptr<Req> req,
     setBinResp->tsx_id = setBinReq->tsx_id;
     setBinResp->result.key = setBinReq->params.key;
 
+    Log::D(Log::TAG, "Request params:");
     Log::D(Log::TAG, "    access_token: %s", setBinReq->params.tk);
     Log::D(Log::TAG, "    key: %s", setBinReq->params.key);
     Log::D(Log::TAG, "    algo: %s", setBinReq->params.algo);
@@ -192,6 +193,10 @@ int MassDataProcessor::onSetBinary(std::shared_ptr<Req> req,
     }
 
     setBinResp->result.errcode = 0;
+    Log::D(Log::TAG, "Response result:");
+    Log::D(Log::TAG, "    key: %s", setBinResp->result.key);
+    Log::D(Log::TAG, "    errcode: %d", setBinResp->result.errcode);
+
     return 0;
 }
 
@@ -222,7 +227,14 @@ int MassDataProcessor::onGetBinary(std::shared_ptr<Req> req,
 
     resultBodyPath = keyPath;
 
+    getBinResp->result.algo = const_cast<char*>("None");
+    getBinResp->result.checksum = const_cast<char*>("");
     getBinResp->result.errcode = 0;
+    Log::D(Log::TAG, "Response result:");
+    Log::D(Log::TAG, "    key: %s", getBinResp->result.key);
+    Log::D(Log::TAG, "    algo: %s", getBinResp->result.algo);
+    Log::D(Log::TAG, "    checksum: %s", getBinResp->result.checksum);
+    Log::D(Log::TAG, "    errcode: %d", getBinResp->result.errcode);
     return 0;
 }
 

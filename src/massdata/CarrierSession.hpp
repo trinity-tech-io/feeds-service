@@ -7,13 +7,14 @@
 #include <set>
 #include <string>
 #include <vector>
-#include <Semaphore.hpp>
 
 struct ElaCarrier;
 struct ElaSession;
 struct ElaStreamCallbacks;
 
 namespace elastos {
+
+class ThreadPool;
 
 class CarrierSession : public std::enable_shared_from_this<CarrierSession> {
 public:
@@ -87,6 +88,7 @@ private:
     int sessionStreamId;
     std::shared_ptr<ElaStreamCallbacks> sessionStreamCallbacks;
     std::string sessionSdp;
+    std::shared_ptr<ThreadPool> threadPool; // avoid session thread pending when send mass data.
     std::shared_ptr<ConnectListener> connectListener;
 
     bool acitveRequest;

@@ -166,6 +166,7 @@ std::shared_ptr<SessionParser::OnUnpackedListener> MassDataManager::makeUnpacked
     auto unpackedListener = std::make_shared<SessionParser::OnUnpackedListener>(
         [=](const std::vector<uint8_t>& headData,
             const std::filesystem::path& bodyPath) -> void {
+            Log::I(Log::TAG, "MassData: start to process unpacked data.");
             auto weakPtr = this->weak_from_this();
             auto mgrPtr = SAFE_GET_PTR_NO_RETVAL(weakPtr);
 
@@ -191,12 +192,17 @@ std::shared_ptr<SessionParser::OnUnpackedListener> MassDataManager::makeUnpacked
 
             if(resultBodyPath.empty() == false
             && std::filesystem::exists(resultBodyPath) == true) {
-                std::fstream bodyStream;
-                bodyStream.open(resultBodyPath, std::ios::binary | std::ios::in | std::ios::out);
-                ret = dataPipe->session->sendData(bodyStream);
-                bodyStream.close();
-                CHECK_RETVAL(ret);
+                auto future = std::async(std::launch::async, [=] {
+                    std::fstream bodyStream;
+                    bodyStream.open(resultBodyPath, std::ios::binary | std::ios::in | std::ios::out);
+                    int ret = dataPipe->session->sendData(bodyStream);
+                    bodyStream.close();
+                    CHECK_RETVAL(ret);
+                });
+                future.get();
             }
+
+            Log::I(Log::TAG, "MassData: finish to process unpacked data.");
         }
     );
 
