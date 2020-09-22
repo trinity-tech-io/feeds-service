@@ -87,7 +87,7 @@ void MassDataManager::onSessionRequest(std::weak_ptr<ElaCarrier> carrier,
     auto connectListener = makeConnectListener(from, unpackedListener);
 
     dataPipe->session->setSdp(sdp);
-    int ret = dataPipe->session->allowConnect(from, connectListener);
+    int ret = dataPipe->session->allowConnectAsync(from, connectListener);
     CHECK_RETVAL(ret);
 
     // config parser.

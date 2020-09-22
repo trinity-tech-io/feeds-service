@@ -15,8 +15,6 @@ struct ElaStreamCallbacks;
 
 namespace elastos {
 
-class ThreadPool;
-
 class CarrierSession : public std::enable_shared_from_this<CarrierSession> {
 public:
     /*** type define ***/
@@ -38,8 +36,8 @@ public:
 
     class ConnectListener {
     public:
-        enum Notify {
-            Connected,
+        enum Notify : int8_t {
+            Connected = 0,
             Closed,
             Error,
         };
@@ -50,8 +48,8 @@ public:
     /*** static function and variable ***/
 
     /*** class function and variable ***/
-    int requestConnect(const std::string& peerId);
-    int allowConnect(const std::string& peerId, std::shared_ptr<ConnectListener> listener);
+    int requestConnectAsync(const std::string& peerId, std::shared_ptr<ConnectListener> listener);
+    int allowConnectAsync(const std::string& peerId, std::shared_ptr<ConnectListener> listener);
 
     void disconnect();
 
@@ -69,15 +67,6 @@ protected:
 
 private:
     /*** type define ***/
-    struct State {
-        int waitFor(int state, int timeout);
-        void notify(int state);
-        int get();
-        void reset();
-    private:
-        int state;
-        Semaphore semaphore;
-    };
 
     /*** static function and variable ***/
     static void PrintElaCarrierError(const std::string& errReason);
@@ -87,16 +76,18 @@ private:
     virtual ~CarrierSession() noexcept;
 
     int makeSessionAndStream(const std::string& peerId);
+    int requestOrReplySession();
+    int startSession();
+
     void connectNotify(ConnectListener::Notify notify, int errCode);
 
-    // std::string sessionPeerId;
     std::shared_ptr<ElaSession> sessionHandler;
     int sessionStreamId;
     std::shared_ptr<ElaStreamCallbacks> sessionStreamCallbacks;
     std::string sessionSdp;
-    // std::shared_ptr<ThreadPool> sessionThread;
-    State state;
     std::shared_ptr<ConnectListener> connectListener;
+
+    bool acitveRequest;
 };
 
 /***********************************************/

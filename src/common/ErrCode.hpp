@@ -84,16 +84,18 @@ public:
 	constexpr static const int NotAuthorizedError = -122;
 
 	constexpr static const int CarrierSessionInitFailed = -130;
-	constexpr static const int CarrierSessionCreateFailed = -131;
-	constexpr static const int CarrierSessionAddStreamFailed = -132;
-	constexpr static const int CarrierSessionTimeoutError = -133;
-	constexpr static const int CarrierSessionReplyFailed = -134;
-	constexpr static const int CarrierSessionStartFailed = -135;
-	constexpr static const int CarrierSessionBadStatus = -136;
-	constexpr static const int CarrierSessionDataNotEnough = -137;
-	constexpr static const int CarrierSessionUnsuppertedVersion = -138;
-	constexpr static const int CarrierSessionReleasedError = -139;
-	constexpr static const int CarrierSessionSendFailed = -140;
+	constexpr static const int CarrierSessionConnectFailed = -131;
+	constexpr static const int CarrierSessionCreateFailed = -132;
+	constexpr static const int CarrierSessionAddStreamFailed = -133;
+	constexpr static const int CarrierSessionTimeoutError = -134;
+	constexpr static const int CarrierSessionReplyFailed = -135;
+	constexpr static const int CarrierSessionStartFailed = -136;
+	constexpr static const int CarrierSessionBadStatus = -137;
+	constexpr static const int CarrierSessionDataNotEnough = -138;
+	constexpr static const int CarrierSessionUnsuppertedVersion = -139;
+	constexpr static const int CarrierSessionReleasedError = -140;
+	constexpr static const int CarrierSessionSendFailed = -141;
+	constexpr static const int CarrierSessionErrorExists = -142;
 
 	constexpr static const int MassDataUnknownReqFailed = -150;
 	constexpr static const int MassDataUnmarshalReqFailed = -151;

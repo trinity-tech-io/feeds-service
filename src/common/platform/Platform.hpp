@@ -11,6 +11,8 @@
 #ifndef _ELASTOS_PLATFORM_HPP_
 #define _ELASTOS_PLATFORM_HPP_
 
+#include "Log.hpp"
+
 #if defined(__APPLE__)
 #include "TargetConditionals.h"
 #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR

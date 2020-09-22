@@ -48,8 +48,9 @@
 
 #include <memory>
 #include <iostream>
-#include "MassDataManager.hpp"
-#include "Platform.hpp"
+
+#include <MassDataManager.hpp>
+#include <Platform.hpp>
 
 extern "C" {
 #define new fix_cpp_keyword_new
