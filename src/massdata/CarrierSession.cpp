@@ -36,13 +36,13 @@ int CarrierSession::Factory::Init(
     CarrierHandler = carrier;
     OnRequestListener = listener;
 
-    ret = ela_session_set_callback(ptr.get(), nullptr,
+    auto onSessionRequest = 
         [](ElaCarrier *carrier, const char *from,
             const char *bundle, const char *sdp, size_t len, void *context) {
             Log::D(Log::TAG, "Carrier session request callback!");
             OnRequestListener(CarrierHandler, from, sdp);            
-        },
-        nullptr);
+        };
+    ret = ela_session_set_callback(ptr.get(), nullptr, onSessionRequest, nullptr);
     if (ret < 0) {
         PrintElaCarrierError("Failed to set carrier session callback!");
         ret = ErrCode::CarrierSessionInitFailed;
@@ -238,69 +238,70 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
     }
     CHECK_ASSERT(sessionHandler, ErrCode::CarrierSessionCreateFailed);
 
-    auto onStateChanged = [] (ElaSession *session, int stream,
-                              ElaStreamState state,
-                              void *context) {
-        auto thiz = reinterpret_cast<CarrierSession*>(context);
-        Log::V(Log::TAG, "Carrier Session state change to %d, session=%p,stream=%d", state, session, stream);
-        auto weakPtr = thiz->weak_from_this();
-        auto carrierSession = weakPtr.lock();
-        if(carrierSession == nullptr) {
-            Log::D(Log::TAG, "Carrier Session has been released");
-            return;
-        }
-
-        ConnectListener::Notify notify = static_cast<ConnectListener::Notify>(-1);
-        int ret = 0;
-        switch (state) {
-        case ElaStreamState_initialized:
-            ret = carrierSession->requestOrReplySession();
-            if(ret < 0) {
-                notify = ConnectListener::Notify::Error;
+    auto onStateChanged =
+        [](ElaSession *session, int stream,
+           ElaStreamState state, void *context) {
+            auto thiz = reinterpret_cast<CarrierSession*>(context);
+            Log::V(Log::TAG, "Carrier Session state change to %d, session=%p,stream=%d", state, session, stream);
+            auto weakPtr = thiz->weak_from_this();
+            auto carrierSession = weakPtr.lock();
+            if(carrierSession == nullptr) {
+                Log::D(Log::TAG, "Carrier Session has been released");
+                return;
             }
-            break;
-        case ElaStreamState_transport_ready:
-            // wait for request complete if sdp is not set.
-            if(carrierSession->sessionSdp.empty() == true) {
+
+            ConnectListener::Notify notify = static_cast<ConnectListener::Notify>(-1);
+            int ret = 0;
+            switch (state) {
+            case ElaStreamState_initialized:
+                ret = carrierSession->requestOrReplySession();
+                if(ret < 0) {
+                    notify = ConnectListener::Notify::Error;
+                }
+                break;
+            case ElaStreamState_transport_ready:
+                // wait for request complete if sdp is not set.
+                if(carrierSession->sessionSdp.empty() == true) {
+                    break;
+                }
+                ret = carrierSession->startSession();
+                if(ret < 0) {
+                    notify = ConnectListener::Notify::Error;
+                }
+                break;
+            case ElaStreamState_connected:
+                notify = ConnectListener::Notify::Connected;
+                break;
+            case ElaStreamState_closed:
+                notify = ConnectListener::Notify::Closed;
+                break;
+            case ElaStreamState_failed:
+                notify = ConnectListener::Notify::Error;
+                ret = ErrCode::CarrierSessionErrorExists;
+                break;
+            default:
                 break;
             }
-            ret = carrierSession->startSession();
-            if(ret < 0) {
-                notify = ConnectListener::Notify::Error;
+
+            if(notify >= 0) {
+                carrierSession->connectNotify(notify, ret);
             }
-            break;
-        case ElaStreamState_connected:
-            notify = ConnectListener::Notify::Connected;
-            break;
-        case ElaStreamState_closed:
-            notify = ConnectListener::Notify::Closed;
-            break;
-        case ElaStreamState_failed:
-            notify = ConnectListener::Notify::Error;
-            ret = ErrCode::CarrierSessionErrorExists;
-            break;
-        default:
-            break;
-        }
+        };
+    auto onReceivedData =
+        [](ElaSession *session, int stream,
+           const void *data, size_t len,
+           void *context) {
+            // Log::D(Log::TAG, "Carrier Session received data, len: %d", len);
+            auto thiz = reinterpret_cast<CarrierSession*>(context);
+            auto weakPtr = thiz->weak_from_this();
+            auto carrierSession = SAFE_GET_PTR_NO_RETVAL(weakPtr);
 
-        if(notify >= 0) {
-            carrierSession->connectNotify(notify, ret);
-        }
-    };
-    auto onReceivedData = [] (ElaSession *session, int stream,
-                              const void *data, size_t len,
-                              void *context) {
-        // Log::D(Log::TAG, "Carrier Session received data, len: %d", len);
-        auto thiz = reinterpret_cast<CarrierSession*>(context);
-        auto weakPtr = thiz->weak_from_this();
-        auto carrierSession = SAFE_GET_PTR_NO_RETVAL(weakPtr);
-
-        if(carrierSession->connectListener != nullptr) {
-            auto dataCast = reinterpret_cast<const uint8_t*>(data);
-            auto dataPtr = std::vector<uint8_t>(dataCast, dataCast + len);
-            carrierSession->connectListener->onReceivedData(dataPtr);
-        }
-    };
+            if(carrierSession->connectListener != nullptr) {
+                auto dataCast = reinterpret_cast<const uint8_t*>(data);
+                auto dataPtr = std::vector<uint8_t>(dataCast, dataCast + len);
+                carrierSession->connectListener->onReceivedData(dataPtr);
+            }
+        };
     sessionStreamCallbacks = std::make_shared<ElaStreamCallbacks>();
     sessionStreamCallbacks->state_changed = onStateChanged;
     sessionStreamCallbacks->stream_data = onReceivedData;
@@ -324,11 +325,10 @@ int CarrierSession::requestOrReplySession()
     int ret;
 
     if(acitveRequest == true) { // TODO: not test
-        auto onRequestComplete = [] (
-            ElaSession *session,
-            const char *bundle, int status, const char *reason,
-            const char *sdp, size_t len, void *context)
-        {
+        auto onRequestComplete =
+            [](ElaSession *session, const char *bundle,
+               int status, const char *reason,
+               const char *sdp, size_t len, void *context) {
                 Log::D(Log::TAG, "Carrier Session request completed");
                 auto thiz = reinterpret_cast<CarrierSession*>(context);
                 auto weakPtr = thiz->weak_from_this();

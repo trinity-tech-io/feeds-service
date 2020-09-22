@@ -208,45 +208,21 @@ int SessionParser::unpackBodyData(const std::vector<uint8_t>& data, int offset,
 
 uint64_t SessionParser::ntoh(uint64_t value) const 
 {
-    // uint64_t rval;
-    // uint8_t *data = (uint8_t*)&rval;
-
-    // data[0] = value >> 56;
-    // data[1] = value >> 48;
-    // data[2] = value >> 40;
-    // data[3] = value >> 32;
-    // data[4] = value >> 24;
-    // data[5] = value >> 16;
-    // data[6] = value >> 8;
-    // data[7] = value >> 0;
-
-    // return rval;
     return ntohll(value);
 }
 
 uint64_t SessionParser::hton(uint64_t value) const 
 {
-    // return ntoh(value);
     return htonll(value);
 }
 
 uint32_t SessionParser::ntoh(uint32_t value) const
 {
-    // uint32_t rval;
-    // uint8_t *data = (uint8_t*)&rval;
-
-    // data[0] = value >> 24;
-    // data[1] = value >> 16;
-    // data[2] = value >> 8;
-    // data[3] = value >> 0;
-
-    // return rval;
     return ntohl(value);
 }
 
 uint32_t SessionParser::hton(uint32_t value) const 
 {
-    // return ntoh(value);
     return htonl(value);
 }
 
@@ -264,7 +240,7 @@ SessionParser::Protocol::Payload::Payload(const std::filesystem::path& bodyPath)
 SessionParser::Protocol::Payload::~Payload()
 {
     bodyData.stream.close();
-    // std::filesystem::remove(bodyData.filepath); // TODO
+    // std::filesystem::remove(bodyData.filepath); // TODO: Comment for test
     Log::V(Log::TAG, "%s", __PRETTY_FUNCTION__);
 }
 

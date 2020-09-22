@@ -21,7 +21,7 @@ std::shared_ptr<MassDataManager> MassDataManager::MassDataMgrInstance;
 /* =========================================== */
 std::shared_ptr<MassDataManager> MassDataManager::GetInstance()
 {
-    // ignore thread-safty, no needed
+    // ignore check thread-safty, no needed
 
     if(MassDataMgrInstance != nullptr) {
         return MassDataMgrInstance;
@@ -42,7 +42,7 @@ int MassDataManager::config(const std::filesystem::path& dataDir,
 {
     massDataDir = dataDir / MassDataDirName;
 
-    Log::I(Log::TAG, "Mass data saved to: %s", massDataDir.c_str());
+    Log::D(Log::TAG, "Mass data saved to: %s", massDataDir.c_str());
     auto dirExists = std::filesystem::exists(massDataDir);
     if(dirExists == false) {
         auto dirExists = std::filesystem::create_directories(massDataDir);
@@ -143,8 +143,6 @@ std::shared_ptr<CarrierSession::ConnectListener> MassDataManager::makeConnectLis
             // TODO: deal with Error
         };
         virtual void onReceivedData(const std::vector<uint8_t>& data) override {
-            // Log::D(Log::TAG, "%s timestamp=%lld", __PRETTY_FUNCTION__, DateTime::CurrentMS());
-
             auto mgrPtr = SAFE_GET_PTR_NO_RETVAL(mgr);
             auto dataPipe = mgrPtr->find(peerId);
             assert(dataPipe->parser != nullptr);
