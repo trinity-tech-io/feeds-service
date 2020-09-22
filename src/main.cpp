@@ -139,6 +139,7 @@ void idle_callback(ElaCarrier *c, void *context)
     (void)context;
 
     if (stop) {
+        // avoid clean session in idle thread, it will crash.
         // elastos::MassDataManager::GetInstance()->cleanup();
         carrier_instance.reset();
         carrier = NULL;
