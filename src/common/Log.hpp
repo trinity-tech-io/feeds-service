@@ -5,17 +5,22 @@
 #include <mutex>
 #include <chrono>
 
+namespace elastos {
+
 class Log {
 public:
   /*** type define ***/
 #define FORMAT_METHOD Log::GetFormatMethod(__PRETTY_FUNCTION__).c_str()
 
   enum Level {
-    Warn = 0,
-    Info,
-    Debug,
-    Verbose,
-    Trace,
+    None = 0,
+    Fatal = 1,
+    Error = 2,
+    Warn = 3,
+    Info = 4,
+    Debug = 5,
+    Trace = 6,
+    Verbose = 7,
   };
 
   /*** static function and variable ***/
@@ -57,5 +62,7 @@ private:
   explicit Log() = delete;
   virtual ~Log() = delete;
 };
+
+} // namespace elastos
 
 #endif /* _ELASOTS_LOG_HPP_ */

@@ -75,7 +75,7 @@ void MassDataManager::cleanup()
 void MassDataManager::onSessionRequest(std::weak_ptr<ElaCarrier> carrier,
                                        const std::string& from, const std::string& sdp)
 {
-    Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
+    Log::V(Log::TAG, "%s", __PRETTY_FUNCTION__);
 
     auto dataPipe = std::make_shared<DataPipe>();
     dataPipe->session = CarrierSession::Factory::Create();
@@ -133,13 +133,14 @@ std::shared_ptr<CarrierSession::ConnectListener> MassDataManager::makeConnectLis
         }
 
         virtual void onNotify(Notify notify, int errCode) override {
-            Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
+            Log::I(Log::TAG, "Session nofify: notify:%s, errCode:%d", toString(notify), errCode);
 
             if(notify == Notify::Closed
             || notify == Notify::Error) {
                 auto mgrPtr = SAFE_GET_PTR_NO_RETVAL(mgr);
                 mgrPtr->remove(peerId);
             }
+            // TODO: deal with Error
         };
         virtual void onReceivedData(const std::vector<uint8_t>& data) override {
             // Log::D(Log::TAG, "%s timestamp=%lld", __PRETTY_FUNCTION__, DateTime::CurrentMS());

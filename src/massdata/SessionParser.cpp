@@ -84,7 +84,7 @@ int SessionParser::unpack(const std::vector<uint8_t>& data,
     dataPtr = reinterpret_cast<uint8_t*>(&netOrderBodySize);
     data.insert(data.end(), dataPtr, dataPtr + sizeof(result->info.bodySize));
 
-    Log::W(Log::TAG, "%s datasize=%d", __PRETTY_FUNCTION__, data.size());
+    Log::V(Log::TAG, "%s datasize=%d", __PRETTY_FUNCTION__, data.size());
     return data.size();
 }
 
@@ -159,8 +159,7 @@ int SessionParser::unpackProtocol(const std::vector<uint8_t>& data, int offset)
         protocol->info.bodySize = ntoh(netOrderBodySize);
         dataPtr += sizeof(protocol->info.bodySize);
 
-
-        Log::W(Log::TAG, "Transfer start. timestamp=%lld", DateTime::CurrentMS());
+        Log::D(Log::TAG, "Transfer start. timestamp=%lld", DateTime::CurrentMS());
     }
 
     // return and parse next time if data is not enough to save as head data.
@@ -192,7 +191,7 @@ int SessionParser::unpackBodyData(const std::vector<uint8_t>& data, int offset,
     protocol->payload->bodyData.receivedBodySize += realSize;
 
     if(protocol->payload->bodyData.receivedBodySize == protocol->info.bodySize) {
-        Log::W(Log::TAG, "Transfer finished. timestamp=%lld", DateTime::CurrentMS());
+        Log::D(Log::TAG, "Transfer finished. timestamp=%lld", DateTime::CurrentMS());
 
         if(listener != nullptr) {
             protocol->payload->bodyData.stream.flush();
@@ -259,14 +258,14 @@ SessionParser::Protocol::Payload::Payload(const std::filesystem::path& bodyPath)
     bodyData.stream.open(bodyData.filepath,
                          std::ios::binary | std::ios::in | std::ios::out | std::ios::app);
     bodyData.receivedBodySize = 0;
-    Log::W(Log::TAG, "%s body data cache: %s", __PRETTY_FUNCTION__, bodyData.filepath.c_str());
+    Log::V(Log::TAG, "%s body data cache: %s", __PRETTY_FUNCTION__, bodyData.filepath.c_str());
 }
 
 SessionParser::Protocol::Payload::~Payload()
 {
     bodyData.stream.close();
     // std::filesystem::remove(bodyData.filepath); // TODO
-    Log::W(Log::TAG, "%s", __PRETTY_FUNCTION__);
+    Log::V(Log::TAG, "%s", __PRETTY_FUNCTION__);
 }
 
 

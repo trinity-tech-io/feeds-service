@@ -44,6 +44,8 @@ public:
 
         virtual void onNotify(Notify notify, int errCode) = 0;
         virtual void onReceivedData(const std::vector<uint8_t>& data) = 0;
+
+        static const char* toString(Notify notify);
     };
     /*** static function and variable ***/
 

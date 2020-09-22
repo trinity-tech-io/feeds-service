@@ -344,6 +344,7 @@ int transport_init(FeedsConfig *cfg)
         goto failure;
     }
 
+    elastos::Log::SetLevel(static_cast<elastos::Log::Level>(cfg->carrier_opts.log_level));
     rc = elastos::MassDataManager::GetInstance()->config(cfg->data_dir, carrier_instance);
     if(rc < 0) {
         vlogE("Carrier session init failed");

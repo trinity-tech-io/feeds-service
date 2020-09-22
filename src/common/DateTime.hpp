@@ -31,7 +31,7 @@ public:
         struct tm *timeinfo  = std::localtime(&raw_time);
 
         char buf[24] = {0};
-        strftime(buf, 24, "%Y-%m-%d %H:%M:%S,", timeinfo);
+        strftime(buf, 24, "%Y-%m-%d %H:%M:%S.", timeinfo);
 
         std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(tp.time_since_epoch());
         std::string milliseconds_str =  std::to_string(ms.count() % 1000);
