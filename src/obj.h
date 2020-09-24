@@ -72,9 +72,31 @@ typedef struct {
     size_t      len;
 } ChanInfo;
 
+typedef enum {
+    POST_AVAILABLE,
+    POST_DELETED,
+    POST_WRONG_STAT
+} PostStat;
+
+static inline
+const char *post_stat_str(PostStat stat)
+{
+    assert(stat < POST_WRONG_STAT);
+
+    switch (stat) {
+    case POST_AVAILABLE:
+        return "available";
+    case POST_DELETED:
+        return "deleted";
+    default:
+        abort();
+    }
+}
+
 typedef struct {
     uint64_t    chan_id;
     uint64_t    post_id;
+    PostStat    stat;
     uint64_t    created_at;
     uint64_t    upd_at;
     uint64_t    cmts;
@@ -83,10 +105,32 @@ typedef struct {
     size_t      len;
 } PostInfo;
 
+typedef enum {
+    CMT_AVAILABLE,
+    CMT_DELETED,
+    CMT_WRONG_STAT
+} CmtStat;
+
+static inline
+const char *cmt_stat_str(CmtStat stat)
+{
+    assert(stat < CMT_WRONG_STAT);
+
+    switch (stat) {
+    case CMT_AVAILABLE:
+        return "available";
+    case CMT_DELETED:
+        return "deleted";
+    default:
+        abort();
+    }
+}
+
 typedef struct {
     uint64_t    chan_id;
     uint64_t    post_id;
     uint64_t    cmt_id;
+    CmtStat     stat;
     UserInfo    user;
     uint64_t    reply_to_cmt;
     const void *content;

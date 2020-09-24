@@ -187,6 +187,36 @@ typedef struct {
         AccessToken tk;
         uint64_t    chan_id;
         uint64_t    post_id;
+        void       *content;
+        size_t      sz;
+    } params;
+} EditPostReq;
+
+typedef struct {
+    uint64_t tsx_id;
+} EditPostResp;
+
+typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        AccessToken tk;
+        uint64_t    chan_id;
+        uint64_t    post_id;
+    } params;
+} DelPostReq;
+
+typedef struct {
+    uint64_t tsx_id;
+} DelPostResp;
+
+typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        AccessToken tk;
+        uint64_t    chan_id;
+        uint64_t    post_id;
         uint64_t    cmt_id;
         void       *content;
         size_t      sz;
@@ -199,6 +229,39 @@ typedef struct {
         uint64_t id;
     } result;
 } PostCmtResp;
+
+typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        AccessToken tk;
+        uint64_t    chan_id;
+        uint64_t    post_id;
+        uint64_t    id;
+        uint64_t    cmt_id;
+        void       *content;
+        size_t      sz;
+    } params;
+} EditCmtReq;
+
+typedef struct {
+    uint64_t tsx_id;
+} EditCmtResp;
+
+typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        AccessToken tk;
+        uint64_t    chan_id;
+        uint64_t    post_id;
+        uint64_t    id;
+    } params;
+} DelCmtReq;
+
+typedef struct {
+    uint64_t tsx_id;
+} DelCmtResp;
 
 typedef struct {
     char    *method;
@@ -336,6 +399,23 @@ typedef struct {
     uint64_t tsx_id;
     struct {
         AccessToken tk;
+        uint64_t    chan_id;
+        QryCriteria qc;
+    } params;
+} GetPostsLACReq;
+
+typedef struct {
+    uint64_t tsx_id;
+    struct {
+        cvector_vector_type(PostInfo *) pinfos;
+    } result;
+} GetPostsLACResp;
+
+typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        AccessToken tk;
         QryCriteria qc;
     } params;
 } GetLikedPostsReq;
@@ -366,6 +446,24 @@ typedef struct {
         cvector_vector_type(CmtInfo *) cinfos;
     } result;
 } GetCmtsResp;
+
+typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        AccessToken tk;
+        uint64_t    chan_id;
+        uint64_t    post_id;
+        QryCriteria qc;
+    } params;
+} GetCmtsLikesReq;
+
+typedef struct {
+    uint64_t tsx_id;
+    struct {
+        cvector_vector_type(CmtInfo *) cinfos;
+    } result;
+} GetCmtsLikesResp;
 
 typedef struct {
     char    *method;
@@ -436,9 +534,23 @@ typedef struct {
 typedef struct {
     char *method;
     struct {
+        PostInfo *pinfo;
+    } params;
+} PostUpdNotif;
+
+typedef struct {
+    char *method;
+    struct {
         CmtInfo *cinfo;
     } params;
 } NewCmtNotif;
+
+typedef struct {
+    char *method;
+    struct {
+        CmtInfo *cinfo;
+    } params;
+} CmtUpdNotif;
 
 typedef struct {
     char *method;
@@ -543,7 +655,9 @@ Marshalled *rpc_marshal_signin_req_chal_resp(const SigninReqChalResp *resp);
 Marshalled *rpc_marshal_signin_conf_chal_req(const SigninConfChalReq *req);
 Marshalled *rpc_marshal_signin_conf_chal_resp(const SigninConfChalResp *resp);
 Marshalled *rpc_marshal_new_post_notif(const NewPostNotif *notif);
+Marshalled *rpc_marshal_post_upd_notif(const PostUpdNotif *notif);
 Marshalled *rpc_marshal_new_cmt_notif(const NewCmtNotif *notif);
+Marshalled *rpc_marshal_cmt_upd_notif(const CmtUpdNotif *notif);
 Marshalled *rpc_marshal_new_like_notif(const NewLikeNotif *notif);
 Marshalled *rpc_marshal_new_sub_notif(const NewSubNotif *notif);
 Marshalled *rpc_marshal_chan_upd_notif(const ChanUpdNotif *notif);
@@ -553,8 +667,12 @@ Marshalled *rpc_marshal_create_chan_resp(const CreateChanResp *resp);
 Marshalled *rpc_marshal_upd_chan_resp(const UpdChanResp *resp);
 Marshalled *rpc_marshal_pub_post_req(const PubPostReq *req);
 Marshalled *rpc_marshal_pub_post_resp(const PubPostResp *resp);
+Marshalled *rpc_marshal_edit_post_resp(const EditPostResp *resp);
+Marshalled *rpc_marshal_del_post_resp(const DelPostResp *resp);
 Marshalled *rpc_marshal_post_cmt_req(const PostCmtReq *req);
 Marshalled *rpc_marshal_post_cmt_resp(const PostCmtResp *resp);
+Marshalled *rpc_marshal_edit_cmt_resp(const EditCmtResp *resp);
+Marshalled *rpc_marshal_del_cmt_resp(const DelCmtResp *resp);
 Marshalled *rpc_marshal_post_like_req(const PostLikeReq *req);
 Marshalled *rpc_marshal_post_like_resp(const PostLikeResp *resp);
 Marshalled *rpc_marshal_post_unlike_req(const PostUnlikeReq *req);
@@ -571,10 +689,12 @@ Marshalled *rpc_marshal_get_sub_chans_req(const GetSubChansReq *req);
 Marshalled *rpc_marshal_get_sub_chans_resp(const GetSubChansResp *resp);
 Marshalled *rpc_marshal_get_posts_req(const GetPostsReq *req);
 Marshalled *rpc_marshal_get_posts_resp(const GetPostsResp *resp);
+Marshalled *rpc_marshal_get_posts_lac_resp(const GetPostsLACResp *resp);
 Marshalled *rpc_marshal_get_liked_posts_req(const GetLikedPostsReq *req);
 Marshalled *rpc_marshal_get_liked_posts_resp(const GetLikedPostsResp *resp);
 Marshalled *rpc_marshal_get_cmts_req(const GetCmtsReq *req);
 Marshalled *rpc_marshal_get_cmts_resp(const GetCmtsResp *resp);
+Marshalled *rpc_marshal_get_cmts_likes_resp(const GetCmtsLikesResp *resp);
 Marshalled *rpc_marshal_get_stats_req(const GetStatsReq *req);
 Marshalled *rpc_marshal_get_stats_resp(const GetStatsResp *resp);
 Marshalled *rpc_marshal_sub_chan_req(const SubChanReq *req);
