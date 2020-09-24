@@ -64,6 +64,7 @@ extern "C" {
 #include "did.h"
 #include "rpc.h"
 #include "db.h"
+#include "ver.h"
 #undef new
 }
 
@@ -105,7 +106,8 @@ static struct {
     {"get_statistics"              , hdl_get_stats_req        },
     {"subscribe_channel"           , hdl_sub_chan_req         },
     {"unsubscribe_channel"         , hdl_unsub_chan_req       },
-    {"enable_notification"         , hdl_enbl_notif_req       }
+    {"enable_notification"         , hdl_enbl_notif_req       },
+    {"get_service_version"         , hdl_get_srv_ver_req      },
 };
 
 static
@@ -496,6 +498,7 @@ int main(int argc, char *argv[])
     signal(SIGSEGV, print_backtrace);
     signal(SIGABRT, print_backtrace);
 
+    printf("Feedsd version: %s\n", FEEDSD_VER);
     printf("Carrier node identities:\n");
     printf("  Node ID  : %s\n", ela_get_nodeid(carrier, buf, sizeof(buf)));
     printf("  User ID  : %s\n", ela_get_userid(carrier, buf, sizeof(buf)));

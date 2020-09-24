@@ -51,6 +51,10 @@ if(HAVE_SIGACTION)
     add_definitions(-DHAVE_SIGACTION=1)
 endif()
 
+message(STATUS "Configuring ver.h")
+configure_file(ver.h.in ${CMAKE_CURRENT_BINARY_DIR}/gen/ver.h)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/gen)
+
 link_directories(${FEEDS_INT_DIST_DIR}/lib)
 
 add_executable(feedsd

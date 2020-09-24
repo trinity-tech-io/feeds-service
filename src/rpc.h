@@ -520,6 +520,21 @@ typedef struct {
 } EnblNotifResp;
 
 typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        AccessToken tk;
+    } params;
+} GetSrvVerReq;
+
+typedef struct {
+    uint64_t tsx_id;
+    struct {
+        char* version;
+    } result;
+} GetSrvVerResp;
+
+typedef struct {
     char *method;
     char params[0];
 } Notif;
@@ -703,6 +718,8 @@ Marshalled *rpc_marshal_unsub_chan_req(const UnsubChanReq *req);
 Marshalled *rpc_marshal_unsub_chan_resp(const UnsubChanResp *resp);
 Marshalled *rpc_marshal_enbl_notif_req(const EnblNotifReq *req);
 Marshalled *rpc_marshal_enbl_notif_resp(const EnblNotifResp *resp);
+Marshalled *rpc_marshal_get_srv_ver_req(const GetSrvVerReq *req);
+Marshalled *rpc_marshal_get_srv_ver_resp(const GetSrvVerResp *resp);
 Marshalled *rpc_marshal_resp(const char* method, const Resp *resp);
 Marshalled *rpc_marshal_err(uint64_t tsx_id, int64_t errcode, const char *errdesp);
 
