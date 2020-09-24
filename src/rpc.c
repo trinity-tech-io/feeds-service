@@ -1673,6 +1673,49 @@ int unmarshal_get_binary_req(const msgpack_object *req, Req **req_unmarshal)
 }
 
 static
+int unmarshal_get_srv_ver_req(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *tk;
+    const msgpack_object *key;
+    GetSrvVerReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        (void)map_val_str("version");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            tk       = map_val_str("access_token");
+        });
+    });
+
+    if (!tk || !tk->str_sz || !key || !key->str_sz) {
+        vlogE("Invalid get_service_version request.");
+        return -1;
+    }
+
+    int str_size = str_reserve_spc(method)
+                 + str_reserve_spc(tk);
+    tmp = rc_zalloc(sizeof(*tmp) + str_size, NULL);
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method          = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->tsx_id          = tsx_id->u64_val;
+    tmp->params.tk       = strncpy(buf, tk->str_val, tk->str_sz);
+    buf += str_reserve_spc(tk);
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
+
+static
 int unmarshal_unknown_req(const msgpack_object *req, Req **req_unmarshal)
 {
     const msgpack_object *method;
@@ -1737,6 +1780,7 @@ static struct RepParser req_parsers_1_0[] = {
     {"enable_notification"         , unmarshal_enbl_notif_req       },
     {"set_binary"                  , unmarshal_set_binary_req       },
     {"get_binary"                  , unmarshal_get_binary_req       },
+    {"get_service_version"         , unmarshal_get_srv_ver_req      },
 };
 
 int rpc_unmarshal_req(const void *rpc, size_t len, Req **req)
@@ -5198,6 +5242,53 @@ Marshalled *rpc_marshal_enbl_notif_resp(const EnblNotifResp *resp)
         pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_nil(pk, "result");
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_get_srv_ver_req(const GetSrvVerReq *req)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 4, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_str(pk, "method", "enable_notification");
+        pack_kv_u64(pk, "id", req->tsx_id);
+        pack_kv_map(pk, "params", 1, {
+            pack_kv_str(pk, "access_token", req->params.tk);
+        });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_get_srv_ver_resp(const GetSrvVerResp *resp)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_u64(pk, "id", resp->tsx_id);
+        pack_kv_map(pk, "result", 1, {
+            pack_kv_str(pk, "version", resp->result.version);
+        });
     });
 
     m->m.data = buf->data;

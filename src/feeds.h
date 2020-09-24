@@ -57,6 +57,7 @@ void hdl_get_stats_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_sub_chan_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_unsub_chan_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base);
+void hdl_get_srv_ver_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_unknown_req(ElaCarrier *c, const char *from, Req *base);
 
 #endif //__FEEDS_H__
