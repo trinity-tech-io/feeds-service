@@ -482,7 +482,6 @@ typedef struct {
     uint64_t tsx_id;
     struct {
         char        *key;
-        int64_t      errcode;
     } result;
 } SetBinaryResp;
 
@@ -501,7 +500,6 @@ typedef struct {
         char        *key;
         char        *algo;
         char        *checksum;
-        int64_t      errcode;
     } result;
 } GetBinaryResp;
 
@@ -586,5 +584,6 @@ Marshalled *rpc_marshal_unsub_chan_resp(const UnsubChanResp *resp);
 Marshalled *rpc_marshal_enbl_notif_req(const EnblNotifReq *req);
 Marshalled *rpc_marshal_enbl_notif_resp(const EnblNotifResp *resp);
 Marshalled *rpc_marshal_resp(const char* method, const Resp *resp);
+Marshalled *rpc_marshal_err(uint64_t tsx_id, int64_t errcode, const char *errdesp);
 
 #endif //__RPC_H__

@@ -36,7 +36,7 @@ ThreadPool::ThreadPool(const std::string& threadName, size_t threadCnt)
     Log::D(Log::TAG, "%s name:%s count:%d", FORMAT_METHOD, threadName.c_str(), threadCnt);
 
 	for(size_t idx = 0; idx < mThreadPool.size(); idx++) {
-		mThreadPool[idx] = std::thread(&ThreadPool::processTaskQueue, this);
+		mThreadPool[idx] = std::thread(std::bind(&ThreadPool::processTaskQueue, this));
 	}
 }
 
@@ -52,11 +52,16 @@ ThreadPool::~ThreadPool()
 	// Wait for threads to finish before we exit
 	for(size_t idx = 0; idx < mThreadPool.size(); idx++) {
 		auto& it = mThreadPool[idx];
-		if(it.joinable()) {
+		if(it.joinable() && it.get_id() != std::this_thread::get_id()) {
             Log::D(Log::TAG, "%s Joining thread %d until completion. tid=%d:%d",
             		         FORMAT_METHOD, idx, it.get_id(), std::this_thread::get_id());
 			it.join();
-			Log::D(Log::TAG, "%s Joined thread.", FORMAT_METHOD);
+            Log::D(Log::TAG, "%s Joined thread %d until completion. tid=%d:%d",
+            		         FORMAT_METHOD, idx, it.get_id(), std::this_thread::get_id());
+		} else {
+            Log::D(Log::TAG, "%s Ignore to Join thread %d until completion. tid=%d:%d",
+            		         FORMAT_METHOD, idx, it.get_id(), std::this_thread::get_id());
+			it.detach();
 		}
 	}
     mThreadPool.clear();
@@ -140,7 +145,11 @@ void ThreadPool::processTaskQueue(void)
 			//unlock now that we're done messing with the queue
 			lock.unlock();
 
+			auto ptr = shared_from_this(); // hold this ptr to ignore release when task is processing
 			task();
+			if(ptr.use_count() == 1) { // only hold in this task, exit it.
+				break;
+			}
 
 			lock.lock();
 		}

@@ -1388,7 +1388,7 @@ struct RepParser {
     char *method;
     ReqHdlr *parser;
 };
-static struct RepParser req_parsers_1_0_0[] = {
+static struct RepParser req_parsers_1_0[] = {
     {"declare_owner"           , unmarshal_decl_owner_req       },
     {"import_did"              , unmarshal_imp_did_req          },
     {"issue_credential"        , unmarshal_iss_vc_req           },
@@ -1412,9 +1412,6 @@ static struct RepParser req_parsers_1_0_0[] = {
     {"subscribe_channel"       , unmarshal_sub_chan_req         },
     {"unsubscribe_channel"     , unmarshal_unsub_chan_req       },
     {"enable_notification"     , unmarshal_enbl_notif_req       },
-};
-
-static struct RepParser req_parsers_1_1_3[] = {
     {"set_binary"              , unmarshal_set_binary_req       },
     {"get_binary"              , unmarshal_get_binary_req       },
 };
@@ -1462,15 +1459,13 @@ int rpc_unmarshal_req(const void *rpc, size_t len, Req **req)
     strncpy(method_str, method->str_val, method->str_sz);
 
     if(memcmp(version->str_val, "1.0", version->str_sz) == 0) {
-        req_parsers = req_parsers_1_0_0;
-        req_parsers_size = sizeof(req_parsers_1_0_0) / sizeof(req_parsers_1_0_0[0]);
-    } else if(memcmp(version->str_val, "1.1.3", version->str_sz) == 0) {
-        req_parsers = req_parsers_1_1_3;
-        req_parsers_size = sizeof(req_parsers_1_1_3) / sizeof(req_parsers_1_1_3[0]);
+        req_parsers = req_parsers_1_0;
+        req_parsers_size = sizeof(req_parsers_1_0) / sizeof(*req_parsers_1_0);
     } else {
         vlogE("Unsupported version field.");
+        rc = unmarshal_unknown_req(&obj, req);
         msgpack_unpacked_destroy(&msgpack);
-        return -1;
+        return -3;
     }
 
     for (i = 0; i < req_parsers_size; ++i) {
@@ -3707,26 +3702,7 @@ Marshalled *rpc_marshal_chan_upd_notif(const ChanUpdNotif *notif)
 
 Marshalled *rpc_marshal_err_resp(const ErrResp *resp)
 {
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 3, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_u64(pk, "id", resp->tsx_id);
-        pack_kv_map(pk, "error", 2, {
-            pack_kv_i64(pk, "code", resp->ec);
-            pack_kv_str(pk, "message", err_strerror(resp->ec));
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
+    return rpc_marshal_err(resp->tsx_id, resp->ec, err_strerror(resp->ec));
 }
 
 Marshalled *rpc_marshal_create_chan_req(const CreateChanReq *req)
@@ -4698,7 +4674,6 @@ Marshalled *marshal_set_binary_resp(const Resp *resp)
         pack_kv_u64(pk, "id", wrap_resp->tsx_id);
         pack_kv_map(pk, "result", 2, {
             pack_kv_str(pk, "key", wrap_resp->result.key);
-            pack_kv_i64(pk, "errcode", wrap_resp->result.errcode);
         });
     });
 
@@ -4724,7 +4699,6 @@ Marshalled *marshal_get_binary_resp(const Resp *resp)
         pack_kv_u64(pk, "id", wrap_resp->tsx_id);
         pack_kv_map(pk, "result", 4, {
             pack_kv_str(pk, "key", wrap_resp->result.key);
-            pack_kv_i64(pk, "errcode", wrap_resp->result.errcode);
             pack_kv_str(pk, "algo", wrap_resp->result.algo);
             pack_kv_str(pk, "checksum", wrap_resp->result.checksum);
         });
@@ -4744,7 +4718,7 @@ struct RespSerializer {
     char *method;
     RespHdlr *serializer;
 };
-static struct RespSerializer resp_serializers_1_1_3[] = {
+static struct RespSerializer resp_serializers_1_0[] = {
     {"set_binary"              , marshal_set_binary_resp       },
     {"get_binary"              , marshal_get_binary_resp       },
 };
@@ -4756,8 +4730,8 @@ Marshalled *rpc_marshal_resp(const char* method, const Resp *resp)
     Marshalled *marshalled_data;
     int i;
 
-    resp_serializers = resp_serializers_1_1_3;
-    resp_serializers_size = sizeof(resp_serializers_1_1_3) / sizeof(resp_serializers_1_1_3[0]);
+    resp_serializers = resp_serializers_1_0;
+    resp_serializers_size = sizeof(resp_serializers_1_0) / sizeof(*resp_serializers_1_0);
     for (i = 0; i < resp_serializers_size; ++i) {
         if (!strcmp(method, resp_serializers[i].method)) {
             return resp_serializers[i].serializer(resp);
@@ -4766,4 +4740,28 @@ Marshalled *rpc_marshal_resp(const char* method, const Resp *resp)
 
     vlogE("RespSerializer: not a valid method.");
     return NULL;
+}
+
+Marshalled *rpc_marshal_err(uint64_t tsx_id, int64_t errcode, const char *errdesp)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_u64(pk, "id", tsx_id);
+        pack_kv_map(pk, "error", 2, {
+            pack_kv_i64(pk, "code", errcode);
+            pack_kv_str(pk, "message", errdesp);
+        });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
 }

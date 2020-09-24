@@ -21,7 +21,7 @@
 
 namespace elastos {
 
-class ThreadPool {
+class ThreadPool : public std::enable_shared_from_this<ThreadPool> {
 public:
     /*** type define ***/
     //using Task = std::bind<F, Args...>;

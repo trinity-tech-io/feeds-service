@@ -55,31 +55,48 @@ int MassDataProcessor::dispose(const std::vector<uint8_t>& headData,
 {
     Log::V(Log::TAG, "%s", __PRETTY_FUNCTION__);
 
-    Req *reqBuf = nullptr;
-    int ret = rpc_unmarshal_req(headData.data(), headData.size(), &reqBuf);
-    auto deleter = [=](Req* ptr) -> void {
-        Log::V(Log::TAG, "Destroy req buffer.");
+    auto deleter = [](void* ptr) -> void {
         deref(ptr);
     };
-    auto req = std::shared_ptr<Req>(reqBuf, deleter); // workaround: declear for auto release req pointer
-    if (ret == -1) {
-        CHECK_ERROR(ErrCode::MassDataUnmarshalReqFailed);
-    } else if (ret == -2) {
-        CHECK_ERROR(ErrCode::MassDataUnknownReqFailed);
-    }
-    auto resp = std::shared_ptr<Resp>();
 
-    Log::D(Log::TAG, "Mass data processor: dispose method [%s]", req->method);
-    ret = ErrCode::UnimplementedError;
-    for(const auto& it: mothodHandleMap) {
-        if(std::strcmp(it.first, req->method) == 0) {
-            ret = it.second(req, bodyPath, resp);
-            break;
+    Req *reqBuf = nullptr;
+    int ret = rpc_unmarshal_req(headData.data(), headData.size(), &reqBuf);
+    auto req = std::shared_ptr<Req>(reqBuf, deleter); // workaround: declear for auto release Req pointer
+    auto resp = std::make_shared<Resp>();
+    if (ret >= 0) {
+        Log::D(Log::TAG, "Mass data processor: dispose method [%s]", req->method);
+        ret = ErrCode::UnimplementedError;
+        for (const auto& it : mothodHandleMap) {
+            if (std::strcmp(it.first, req->method) == 0) {
+                ret = it.second(req, bodyPath, resp);
+                break;
+            }
         }
+    } else if (ret == -1) {
+        ret = ErrCode::MassDataUnmarshalReqFailed;
+    } else if (ret == -2) {
+        ret = ErrCode::MassDataUnknownReqFailed;
+    } else if (ret == -3) {
+        ret = ErrCode::MassDataUnsupportedVersion;
+    } else {
+        ret = ErrCode::UnknownError;
     }
-    CHECK_ERROR(ret);
+    if(ret < ErrCode::StdSystemErrorIndex) {
+        ret = ErrCode::StdSystemError;
+    }
 
-    Marshalled* marshalData = rpc_marshal_resp(req->method, resp.get());
+    Marshalled* marshalBuf = nullptr;
+    if(ret >= 0) {
+        marshalBuf = rpc_marshal_resp(req->method, resp.get());
+    } else {
+        CHECK_ASSERT(req, ret);
+        auto errDesp = ErrCode::ToString(ret);
+        marshalBuf = rpc_marshal_err(req->tsx_id, ret, errDesp.c_str());
+        Log::D(Log::TAG, "Response error:");
+        Log::D(Log::TAG, "    code: %d", ret);
+        Log::D(Log::TAG, "    message: %s", errDesp.c_str());
+    }
+    auto marshalData = std::shared_ptr<Marshalled>(marshalBuf, deleter); // workaround: declear for auto release Marshalled pointer
     CHECK_ASSERT(marshalData, ErrCode::MassDataMarshalRespFailed);
 
     auto marshalDataPtr = reinterpret_cast<uint8_t*>(marshalData->data);
@@ -161,24 +178,20 @@ int MassDataProcessor::onSetBinary(std::shared_ptr<Req> req,
                                    std::shared_ptr<Resp>& resp)
 {
     auto setBinReq = reinterpret_pointer_cast<SetBinaryReq>(req);
-    auto setBinResp = std::make_shared<SetBinaryResp>();
-    resp = reinterpret_pointer_cast<Resp>(setBinResp);
-
-    setBinResp->tsx_id = setBinReq->tsx_id;
-    setBinResp->result.key = setBinReq->params.key;
-
     Log::D(Log::TAG, "Request params:");
     Log::D(Log::TAG, "    access_token: %s", setBinReq->params.tk);
     Log::D(Log::TAG, "    key: %s", setBinReq->params.key);
     Log::D(Log::TAG, "    algo: %s", setBinReq->params.algo);
     Log::D(Log::TAG, "    checksum: %s", setBinReq->params.checksum);
 
+    auto setBinResp = std::make_shared<SetBinaryResp>();
+    setBinResp->tsx_id = setBinReq->tsx_id;
+
     // TODO: Comment For Test
     // int ret = isOwner(setBinReq->params.tk);
     // CHECK_ERROR(ret);
 
     if(std::strcmp(setBinReq->params.algo, "None") != 0) {
-        setBinResp->result.errcode = ErrCode::MassDataUnsupportedAlgo;
         CHECK_ERROR(ErrCode::MassDataUnsupportedAlgo);
     }
 
@@ -187,15 +200,14 @@ int MassDataProcessor::onSetBinary(std::shared_ptr<Req> req,
     std::error_code ec;
     std::filesystem::rename(bodyPath, keyPath, ec); // noexcept
     if(ec.value() != 0) {
-        auto errcode = ErrCode::StdSystemErrorIndex + (-ec.value());
-        setBinResp->result.errcode = errcode;
-        CHECK_ERROR(errcode);
+        CHECK_ERROR(ErrCode::StdSystemErrorIndex + (-ec.value()));
     }
 
-    setBinResp->result.errcode = 0;
+    setBinResp->result.key = setBinReq->params.key;
     Log::D(Log::TAG, "Response result:");
     Log::D(Log::TAG, "    key: %s", setBinResp->result.key);
-    Log::D(Log::TAG, "    errcode: %d", setBinResp->result.errcode);
+
+    resp = reinterpret_pointer_cast<Resp>(setBinResp);
 
     return 0;
 }
@@ -205,14 +217,11 @@ int MassDataProcessor::onGetBinary(std::shared_ptr<Req> req,
                                    std::shared_ptr<Resp>& resp)
 {
     auto getBinReq = reinterpret_pointer_cast<GetBinaryReq>(req);
-    auto getBinResp = std::make_shared<GetBinaryResp>();
-    resp = reinterpret_pointer_cast<Resp>(getBinResp);
-
-    getBinResp->tsx_id = getBinReq->tsx_id;
-    getBinResp->result.key = getBinReq->params.key;
-
     Log::D(Log::TAG, "    access_token: %s", getBinReq->params.tk);
     Log::D(Log::TAG, "    key: %s", getBinReq->params.key);
+
+    auto getBinResp = std::make_shared<GetBinaryResp>();
+    getBinResp->tsx_id = getBinReq->tsx_id;
 
     // TODO: Comment For Test
     // int ret = isMember(getBinReq->params.tk);
@@ -221,20 +230,21 @@ int MassDataProcessor::onGetBinary(std::shared_ptr<Req> req,
     auto keyPath = massDataDir / getBinReq->params.key;
     Log::V(Log::TAG, "Try to load %s.", keyPath.c_str());
     if(std::filesystem::exists(keyPath) == false) {
-        getBinResp->result.errcode = ErrCode::FileNotExistsError;
         CHECK_ERROR(ErrCode::FileNotExistsError);
     }
 
     resultBodyPath = keyPath;
 
+    getBinResp->result.key = getBinReq->params.key;
     getBinResp->result.algo = const_cast<char*>("None");
     getBinResp->result.checksum = const_cast<char*>("");
-    getBinResp->result.errcode = 0;
     Log::D(Log::TAG, "Response result:");
     Log::D(Log::TAG, "    key: %s", getBinResp->result.key);
     Log::D(Log::TAG, "    algo: %s", getBinResp->result.algo);
     Log::D(Log::TAG, "    checksum: %s", getBinResp->result.checksum);
-    Log::D(Log::TAG, "    errcode: %d", getBinResp->result.errcode);
+
+    resp = reinterpret_pointer_cast<Resp>(getBinResp);
+
     return 0;
 }
 
