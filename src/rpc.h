@@ -478,6 +478,7 @@ typedef struct {
     struct {
         char    *did;
         uint64_t conn_cs;
+        uint64_t total_cs;
     } result;
 } GetStatsResp;
 

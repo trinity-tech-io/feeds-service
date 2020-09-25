@@ -3636,3 +3636,30 @@ int db_get_user(const char *did, UserInfo **ui)
 
     return 0;
 }
+
+int db_get_user_count()
+{
+    sqlite3_stmt *stmt;
+    const char *sql;
+    int rc;
+
+    /* ================================= stmt-sep ================================= */
+    sql = "SELECT count(*) FROM users;";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_ROW) {
+        vlogE("Executing SELECT failed");
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
+
+    return rc;
+}
