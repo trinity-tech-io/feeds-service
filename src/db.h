@@ -64,5 +64,6 @@ int db_is_suber(uint64_t uid, uint64_t chan_id);
 int db_get_owner(UserInfo **ui);
 int db_need_upsert_user(const char *did);
 int db_get_user(const char *did, UserInfo **ui);
+int db_get_user_count();
 
 #endif // __DB_H__
