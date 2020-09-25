@@ -591,6 +591,13 @@ typedef struct {
 } ChanUpdNotif;
 
 typedef struct {
+    char *method;
+    struct {
+        uint64_t total_cs;
+    } params;
+} StatsChangedNotif;
+
+typedef struct {
     uint64_t tsx_id;
     char     result[0];
 } Resp;
@@ -677,6 +684,7 @@ Marshalled *rpc_marshal_cmt_upd_notif(const CmtUpdNotif *notif);
 Marshalled *rpc_marshal_new_like_notif(const NewLikeNotif *notif);
 Marshalled *rpc_marshal_new_sub_notif(const NewSubNotif *notif);
 Marshalled *rpc_marshal_chan_upd_notif(const ChanUpdNotif *notif);
+Marshalled *rpc_marshal_stats_changed_notif(const StatsChangedNotif *notif);
 Marshalled *rpc_marshal_err_resp(const ErrResp *resp);
 Marshalled *rpc_marshal_create_chan_req(const CreateChanReq *req);
 Marshalled *rpc_marshal_create_chan_resp(const CreateChanResp *resp);
