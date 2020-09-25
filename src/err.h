@@ -33,6 +33,7 @@
 #define ERR_INVALID_CHAL_RESP (-8)
 #define ERR_INVALID_VC (-9)
 #define ERR_UNKNOWN_METHOD (-10)
+#define ERR_DB_ERROR (-11)
 
 #define ERR_LAST_INDEX (-100)
 

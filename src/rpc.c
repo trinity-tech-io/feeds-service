@@ -3418,6 +3418,7 @@ int rpc_unmarshal_get_stats_resp(GetStatsResp **resp, ErrResp **err)
     const msgpack_object *tsx_id;
     const msgpack_object *did;
     const msgpack_object *conn_cs;
+    const msgpack_object *total_cs;
     GetStatsResp *tmp;
     void *buf;
 
@@ -3432,10 +3433,11 @@ int rpc_unmarshal_get_stats_resp(GetStatsResp **resp, ErrResp **err)
         map_iter_kvs(map_val_map("result"), {
             did     = map_val_str("did");
             conn_cs = map_val_u64("connecting_clients");
+            total_cs = map_val_u64("total_clients");
         });
     });
 
-    if (!did || !did->str_sz || !conn_cs) {
+    if (!did || !did->str_sz || !conn_cs || !total_cs) {
         vlogE("Invalid get_statistics response.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
@@ -3451,6 +3453,7 @@ int rpc_unmarshal_get_stats_resp(GetStatsResp **resp, ErrResp **err)
     tmp->tsx_id         = tsx_id->u64_val;
     tmp->result.did     = strncpy(buf, did->str_val, did->str_sz);
     tmp->result.conn_cs = conn_cs->u64_val;
+    tmp->result.total_cs = total_cs->u64_val;
 
     *resp = tmp;
 
@@ -5101,9 +5104,10 @@ Marshalled *rpc_marshal_get_stats_resp(const GetStatsResp *resp)
     pack_map(pk, 3, {
         pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
-        pack_kv_map(pk, "result", 2, {
+        pack_kv_map(pk, "result", 3, {
             pack_kv_str(pk, "did", resp->result.did);
             pack_kv_u64(pk, "connecting_clients", resp->result.conn_cs);
+            pack_kv_u64(pk, "total_clients", resp->result.total_cs);
         });
     });
 

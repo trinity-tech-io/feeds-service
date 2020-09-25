@@ -110,6 +110,7 @@ static struct {
     {"get_service_version"         , hdl_get_srv_ver_req      },
 };
 
+
 static
 void on_receiving_message(ElaCarrier *c, const char *from,
                           const void *msg, size_t len, int64_t timestamp,

@@ -2891,6 +2891,7 @@ void hdl_get_stats_req(ElaCarrier *c, const char *from, Req *base)
     GetStatsReq *req = (GetStatsReq *)base;
     Marshalled *resp_marshal = NULL;
     UserInfo *uinfo = NULL;
+    int total_clients;
 
     vlogD("Received get_statistics request from [%s]: "
           "{access_token: %s}", from, req->params.tk);
@@ -2911,17 +2912,30 @@ void hdl_get_stats_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
+    total_clients = db_get_user_count();
+    if(total_clients < 0) {
+        vlogE("DB get user count failed.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_DB_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
     {
         GetStatsResp resp = {
             .tsx_id = req->tsx_id,
             .result = {
                 .did     = feeds_owner_info.did,
-                .conn_cs = connecting_clients
+                .conn_cs = connecting_clients,
+                .total_cs = total_clients,
             }
         };
         resp_marshal = rpc_marshal_get_stats_resp(&resp);
         vlogD("Sending get_statistics response: "
-              "{did: %s, connecting_clients: %zu}", feeds_owner_info.did, connecting_clients);
+              "{did: %s, connecting_clients: %zu, total_clients: %zu}",
+              feeds_owner_info.did, connecting_clients, total_clients);
     }
 
 finally:
