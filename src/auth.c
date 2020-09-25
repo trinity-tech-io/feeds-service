@@ -516,6 +516,8 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
             resp_marshal = rpc_marshal_err_resp(&resp);
             goto finally;
         }
+
+        hdl_stats_changed_notify();
     } else {
         rc = db_get_user(login->sub, &uinfo);
         if (rc < 0) {
