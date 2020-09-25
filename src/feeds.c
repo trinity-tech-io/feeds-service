@@ -444,6 +444,27 @@ void notify_of_new_sub(const char *peer, const uint64_t chan_id, const UserInfo 
 }
 
 static
+void notify_of_stats_changed(const char *peer, uint64_t total_clients)
+{
+    StatsChangedNotif notif = {
+        .method = "statistics_changed",
+        .params = {
+            .total_cs = total_clients
+        }
+    };
+    Marshalled *notif_marshal;
+
+    notif_marshal = rpc_marshal_stats_changed_notif(&notif);
+    if (!notif_marshal)
+        return;
+
+    vlogD("Sending statistics changed notification to [%s]: " "{total_clients: %" PRIu64 "}",
+          peer, total_clients);
+    msgq_enq(peer, notif_marshal);
+    deref(notif_marshal);
+}
+
+static
 void as_dtor(void *obj)
 {
     ActiveSuber *as = obj;
@@ -3438,4 +3459,20 @@ void feeds_deactivate_suber(const char *node_id)
     }
 
     deref(nd);
+}
+
+void hdl_stats_changed_notify()
+{
+    hashtable_iterator_t it;
+    NotifDest *nd;
+    NotifDestPerActiveSuber *ndpas;
+    int total_clients = db_get_user_count();
+
+    hashtable_foreach(nds, nd) {
+        list_iterator_t it;
+        list_foreach(nd->ndpass, ndpas) {
+            ActiveSuber *as = ndpas->as;
+            notify_of_stats_changed(ndpas->nd->node_id, total_clients);
+        }
+    }
 }

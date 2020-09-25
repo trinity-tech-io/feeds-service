@@ -4138,6 +4138,29 @@ Marshalled *rpc_marshal_chan_upd_notif(const ChanUpdNotif *notif)
     return &m->m;
 }
 
+Marshalled *rpc_marshal_stats_changed_notif(const StatsChangedNotif *notif)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_str(pk, "method", "statistics_changed");
+        pack_kv_map(pk, "params", 1, {
+            pack_kv_u64(pk, "total_clients", notif->params.total_cs);
+        });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
 Marshalled *rpc_marshal_err_resp(const ErrResp *resp)
 {
     return rpc_marshal_err(resp->tsx_id, resp->ec, err_strerror(resp->ec));

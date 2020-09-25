@@ -60,4 +60,6 @@ void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_get_srv_ver_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_unknown_req(ElaCarrier *c, const char *from, Req *base);
 
+void hdl_stats_changed_notify();
+
 #endif //__FEEDS_H__
