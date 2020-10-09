@@ -81,6 +81,7 @@ static struct {
     {"declare_owner"               , hdl_decl_owner_req       },
     {"import_did"                  , hdl_imp_did_req          },
     {"issue_credential"            , hdl_iss_vc_req           },
+    {"update_credential"           , hdl_update_vc_req           },
     {"signin_request_challenge"    , hdl_signin_req_chal_req  },
     {"signin_confirm_challenge"    , hdl_signin_conf_chal_req },
     {"create_channel"              , hdl_create_chan_req      },

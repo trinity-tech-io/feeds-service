@@ -29,6 +29,7 @@
 #include <qrencode.h>
 #include <png.h>
 
+#include "auth.h"
 #include "sandbird.h"
 #include "msgq.h"
 #include "err.h"
@@ -793,20 +794,22 @@ finally:
         Mnemonic_Free(mnemo_gen);
 }
 
-void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
+static
+Marshalled *process_vc_req(const char *from, IssVCReq *req)
 {
-    IssVCReq *req = (IssVCReq *)base;
     Marshalled *resp_marshal = NULL;
     char iss_did[ELA_MAX_DID_LEN];
     DIDURL *vc_url = NULL;
     Credential *vc = NULL;
 
-    vlogD("Received issue_credential request from [%s]: "
-          "{credential: %s}", from, req->params.vc);
-
     if (state != DID_IMPED && state != VC_ISSED) {
-        vlogE("Issuing credential in a wrong state. Current state: %s", state_str());
-        return;
+        vlogE("Process credential in a wrong state. Current state: %s", state_str());
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_WRONG_STATE
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
     }
 
     vc_url = DIDURL_NewByDid(feeds_did, VC_FRAG);
@@ -915,6 +918,27 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
     } else
         vlogI("Credential updated.");
 
+finally:
+    if (vc)
+        Credential_Destroy(vc);
+    if (vc_url)
+        DIDURL_Destroy(vc_url);
+
+    return resp_marshal;
+}
+
+void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
+{
+    IssVCReq *req = (IssVCReq *)base;
+    Marshalled *resp_marshal = NULL;
+
+    vlogD("Received issue_credential request from [%s]: "
+          "{credential: %s}", from, req->params.vc);
+
+    resp_marshal = process_vc_req(from, req);
+    if(resp_marshal)
+        goto finally;
+
     {
         IssVCResp resp = {
             .tsx_id = req->tsx_id,
@@ -928,8 +952,63 @@ finally:
         msgq_enq(from, resp_marshal);
         deref(resp_marshal);
     }
-    if (vc)
-        Credential_Destroy(vc);
-    if (vc_url)
-        DIDURL_Destroy(vc_url);
+}
+
+void hdl_update_vc_req(ElaCarrier *c, const char *from, Req *base)
+{
+    UserInfo *uinfo = NULL;
+    UpdateVCReq *req = (UpdateVCReq *)base;
+    Marshalled *resp_marshal = NULL;
+
+    vlogD("Received update_credential request from [%s]: "
+          "{credential: %s}", from, req->params.vc);
+
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
+        return;
+    }
+
+    uinfo = create_uinfo_from_access_token(req->params.tk);
+    if (!uinfo) {
+        vlogE("Invalid access token.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_ACCESS_TOKEN_EXP
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if (!user_id_is_owner(uinfo->uid)) {
+        vlogE("Update credential while not being owner.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_AUTHORIZED
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    IssVCReq iss_req = {
+        .method = req->method,
+        .tsx_id = req->tsx_id,
+        .params.vc = req->params.vc,
+    };
+    resp_marshal = process_vc_req(from, &iss_req);
+    if(resp_marshal)
+        goto finally;
+
+    {
+        UpdateVCResp resp = {
+            .tsx_id = req->tsx_id,
+        };
+        resp_marshal = rpc_marshal_update_vc_resp(&resp);
+        vlogD("Sending update_credential response.");
+    }
+
+finally:
+    if (resp_marshal) {
+        msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
 }

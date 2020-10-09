@@ -283,6 +283,49 @@ int unmarshal_iss_vc_req(const msgpack_object *req, Req **req_unmarshal)
 }
 
 static
+int unmarshal_update_vc_req(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *vc;
+    const msgpack_object *tk;
+    UpdateVCReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        (void)map_val_str("version");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            tk = map_val_str("access_token");
+            vc = map_val_str("credential");
+        });
+    });
+
+    if (!tk || !tk->str_sz || !vc || !vc->str_sz) {
+        vlogE("Invalid update_credential request.");
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(UpdateVCReq) + str_reserve_spc(method) +
+                    str_reserve_spc(tk) + str_reserve_spc(vc), NULL);
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method    = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->tsx_id    = tsx_id->u64_val;
+    tmp->params.tk = strncpy(buf, tk->str_val, tk->str_sz);
+    tmp->params.vc = strncpy(buf, vc->str_val, vc->str_sz);
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
+
+static
 int unmarshal_signin_req_chal_req(const msgpack_object *req, Req **req_unmarshal)
 {
     const msgpack_object *method;
@@ -1752,6 +1795,7 @@ static struct RepParser req_parsers_1_0[] = {
     {"declare_owner"               , unmarshal_decl_owner_req       },
     {"import_did"                  , unmarshal_imp_did_req          },
     {"issue_credential"            , unmarshal_iss_vc_req           },
+    {"update_credential"           , unmarshal_update_vc_req        },
     {"signin_request_challenge"    , unmarshal_signin_req_chal_req  },
     {"signin_confirm_challenge"    , unmarshal_signin_conf_chal_req },
     {"create_channel"              , unmarshal_create_chan_req      },
@@ -2300,6 +2344,35 @@ int rpc_unmarshal_iss_vc_resp(IssVCResp **resp, ErrResp **err)
     });
 
     tmp = rc_zalloc(sizeof(IssVCResp), NULL);
+    if (!tmp) {
+        msgpack_unpacked_destroy(&msgpack);
+        return -1;
+    }
+
+    tmp->tsx_id = tsx_id->u64_val;
+
+    *resp = tmp;
+
+    msgpack_unpacked_destroy(&msgpack);
+    return 0;
+}
+
+int rpc_unmarshal_update_vc_resp(UpdateVCResp **resp, ErrResp **err)
+{
+    const msgpack_object *tsx_id;
+    UpdateVCResp *tmp;
+
+    if (!rpc_unmarshal_err_resp(err)) {
+        msgpack_unpacked_destroy(&msgpack);
+        return 0;
+    }
+
+    map_iter_kvs(&msgpack.data, {
+        (void)map_val_str("version");
+        tsx_id  = map_val_u64("id");
+    });
+
+    tmp = rc_zalloc(sizeof(UpdateVCResp), NULL);
     if (!tmp) {
         msgpack_unpacked_destroy(&msgpack);
         return -1;
@@ -3815,6 +3888,52 @@ Marshalled *rpc_marshal_iss_vc_req(const IssVCReq *req)
 }
 
 Marshalled *rpc_marshal_iss_vc_resp(const IssVCResp *resp)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_u64(pk, "id", resp->tsx_id);
+        pack_kv_nil(pk, "result");
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_update_vc_req(const UpdateVCReq *req)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 4, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_str(pk, "method", "update_credential");
+        pack_kv_u64(pk, "id", req->tsx_id);
+        pack_kv_map(pk, "params", 1, {
+            pack_kv_str(pk, "access_token", req->params.tk);
+            pack_kv_str(pk, "credential", req->params.vc);
+        });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_update_vc_resp(const UpdateVCResp *resp)
 {
     msgpack_sbuffer *buf = msgpack_sbuffer_new();
     msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);

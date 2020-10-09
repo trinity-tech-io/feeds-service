@@ -95,6 +95,19 @@ typedef struct {
     char    *method;
     uint64_t tsx_id;
     struct {
+        AccessToken tk;
+        char *vc;
+    } params;
+} UpdateVCReq;
+
+typedef struct {
+    uint64_t tsx_id;
+} UpdateVCResp;
+
+typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
         char *iss;
         bool  vc_req;
     } params;
@@ -648,6 +661,7 @@ int rpc_unmarshal_notif_or_resp_id(const void *rpc, size_t len, Notif **notif, u
 int rpc_unmarshal_decl_owner_resp(DeclOwnerResp **resp, ErrResp **err);
 int rpc_unmarshal_imp_did_resp(ImpDIDResp **resp, ErrResp **err);
 int rpc_unmarshal_iss_vc_resp(IssVCResp **resp, ErrResp **err);
+int rpc_unmarshal_update_vc_resp(UpdateVCResp **resp, ErrResp **err);
 int rpc_unmarshal_signin_req_chal_resp(SigninReqChalResp **resp, ErrResp **err);
 int rpc_unmarshal_signin_conf_chal_resp(SigninConfChalResp **resp, ErrResp **err);
 int rpc_unmarshal_create_chan_resp(CreateChanResp **resp, ErrResp **err);
@@ -673,6 +687,8 @@ Marshalled *rpc_marshal_imp_did_req(const ImpDIDReq *req);
 Marshalled *rpc_marshal_imp_did_resp(const ImpDIDResp *resp);
 Marshalled *rpc_marshal_iss_vc_req(const IssVCReq *req);
 Marshalled *rpc_marshal_iss_vc_resp(const IssVCResp *resp);
+Marshalled *rpc_marshal_update_vc_req(const UpdateVCReq *req);
+Marshalled *rpc_marshal_update_vc_resp(const UpdateVCResp *resp);
 Marshalled *rpc_marshal_signin_req_chal_req(const SigninReqChalReq *req);
 Marshalled *rpc_marshal_signin_req_chal_resp(const SigninReqChalResp *resp);
 Marshalled *rpc_marshal_signin_conf_chal_req(const SigninConfChalReq *req);
