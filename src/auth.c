@@ -32,6 +32,7 @@
 #include "err.h"
 #include "did.h"
 #include "db.h"
+#include "feeds.h"
 
 typedef struct {
     UserInfo info;
