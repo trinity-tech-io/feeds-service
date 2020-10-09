@@ -42,5 +42,6 @@ int oinfo_upd(const UserInfo *ui);
 void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_imp_did_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base);
+void hdl_update_vc_req(ElaCarrier *c, const char *from, Req *base);
 
 #endif //__DID_H__
