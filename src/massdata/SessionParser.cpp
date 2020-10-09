@@ -1,10 +1,19 @@
 #include "SessionParser.hpp"
 
-#include <functional>
 #include <Random.hpp>
 #include <SafePtr.hpp>
 #include <DateTime.hpp>
 
+#if defined(__linux__) and not defined(__ANDROID__)
+#include <arpa/inet.h>
+#if __BIG_ENDIAN__
+# define htonll(x) (x)
+# define ntohll(x) (x)
+#else
+# define htonll(x) ((uint64_t)htonl((x) & 0xFFFFFFFF) << 32) | htonl((x) >> 32)
+# define ntohll(x) ((uint64_t)ntohl((x) & 0xFFFFFFFF) << 32) | ntohl((x) >> 32)
+#endif
+#endif
 
 namespace elastos {
 

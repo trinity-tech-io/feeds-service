@@ -11,14 +11,15 @@
 #include "Log.hpp"
 #include "DateTime.hpp"
 
-#if defined(__APPLE__)
-#include <unistd.h>
 #include <thread>
+#include <unistd.h>
+#if defined(__APPLE__)
 #include <pthread.h>
-#define LOG_HEAD_FMT ("%s%s - %c/%s(%u/%d): ")
 #elif defined(__ANDROID__)
 #include <android/log.h>
 #endif
+
+#define LOG_HEAD_FMT ("%s%s - %c/%s(%u/%u): ")
 
 namespace elastos {
 
@@ -171,6 +172,8 @@ inline void Log::log(const char head, const char* tag, const char* format, ...)
   va_end(ap);
 }
 
+#include <sys/types.h>
+
 inline void Log::log(const char head, const char* tag, const char* format, va_list ap)
 {
   //std::lock_guard<std::recursive_mutex> lg(m_mutex); // JSI是单线程的，所以不需要加锁。
@@ -178,21 +181,18 @@ inline void Log::log(const char head, const char* tag, const char* format, va_li
   const char* color = convColor(head);
   auto time = DateTime::Current();
 
-#if defined(__APPLE__)
-  mach_port_t tid = pthread_mach_thread_np(pthread_self());
-  printf(LOG_HEAD_FMT, color, time.c_str(), head, tag, getpid(), tid);
-
-  vprintf(format, ap);
-
-  color = convColor(' ');
-  printf("%s\n", color);
-#elif defined(__ANDROID__)
+#if defined(__ANDROID__)
   int prio = convPrio(head);
   __android_log_vprint(prio, tag, format, ap);
 #else
-  printf("%s - %c/%s ", time.c_str(), head, tag);
+
+#if defined(__APPLE__)
+#define gettid() pthread_mach_thread_np(pthread_self())
+#endif
+  printf(LOG_HEAD_FMT, color, time.c_str(), head, tag, getpid(), gettid());
   vprintf(format, ap);
-  printf("\n");
+  color = convColor(' ');
+  printf("%s\n", color);
 #endif
 }
 

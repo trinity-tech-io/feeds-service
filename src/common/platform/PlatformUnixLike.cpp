@@ -13,7 +13,6 @@
 #include <sstream>
 #include <sys/utsname.h>
 #include <unistd.h>
-#include <uuid/uuid.h>
 #include "ErrCode.hpp"
 #include "Log.hpp"
 
@@ -44,36 +43,6 @@ std::string PlatformUnixLike::GetBacktrace() {
     return sstream.str();
 }
 
-int PlatformUnixLike::GetCurrentDevId(std::string& devId)
-{
-    int ret = ErrCode::UnknownError;
-
-    devId = "";
-
-	long hostId = gethostid();
-	std::stringstream hostIdStream;
-	hostIdStream << std::hex << hostId;
-
-    devId = hostIdStream.str();
-
-    return 0;
-}
-
-int PlatformUnixLike::GetCurrentDevName(std::string& devName)
-{
-    devName = "";
-
-    std::string uuidName;
-    struct utsname utsName;
-    int ret = uname(&utsName);
-    if(ret < 0) {
-        ret = ErrCode::DevUUIDError;
-    }
-    CHECK_ERROR(ret);
-    devName = utsName.sysname;
-
-    return 0;
-}
 
 /***********************************************/
 /***** class public function implement  ********/
