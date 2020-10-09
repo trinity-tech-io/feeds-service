@@ -1,5 +1,6 @@
 #include "MassDataManager.hpp"
 
+#include <cassert>
 #include <ela_carrier.h>
 #include <ela_session.h>
 #include <functional>
