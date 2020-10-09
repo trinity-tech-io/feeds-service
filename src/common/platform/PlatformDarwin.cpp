@@ -46,43 +46,6 @@ std::string PlatformDarwin::GetBacktrace() {
     return sstream.str();
 }
 
-int PlatformDarwin::GetCurrentDevId(std::string& devId)
-{
-    int ret = ErrCode::UnknownError;
-
-    devId = "";
-
-    uuid_t uuid = {};
-    struct timespec ts = { .tv_sec = 5, .tv_nsec = 0 };
-   ret = gethostuuid(uuid, &ts);
-    if(ret < 0) {
-        return ErrCode::DevUUIDError;
-    }
-
-    uuid_string_t uuidStr;
-    uuid_unparse_upper(uuid, uuidStr);
-    devId = uuidStr;
-    // devId += "aaa";
-
-    return 0;
-}
-
-int PlatformDarwin::GetCurrentDevName(std::string& devName)
-{
-    int ret = ErrCode::UnknownError;
-
-    devName = "";
-
-    struct utsname utsName;
-    ret = uname(&utsName);
-    if(ret < 0) {
-        return ErrCode::DevUUIDError;
-    }
-    devName = utsName.sysname;
-
-    return 0;
-}
-
 /***********************************************/
 /***** class public function implement  ********/
 /***********************************************/

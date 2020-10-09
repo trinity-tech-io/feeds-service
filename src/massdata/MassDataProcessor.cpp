@@ -1,10 +1,12 @@
 #include "MassDataProcessor.hpp"
 
-#include <crystal.h>
+#include <cstring>
 #include <ela_carrier.h>
 #include <ela_session.h>
 #include <functional>
 #include <SafePtr.hpp>
+
+#include <crystal.h>
 extern "C" {
 #define new fix_cpp_keyword_new
 #include <auth.h>
@@ -27,6 +29,8 @@ static std::shared_ptr<T> reinterpret_pointer_cast(const std::shared_ptr<U> &r) 
     auto p = reinterpret_cast<typename std::shared_ptr<T>::element_type *>(r.get());
     return std::shared_ptr<T>(r, p);
 }
+#else
+using std::reinterpret_pointer_cast;
 #endif
 
 /* =========================================== */

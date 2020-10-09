@@ -1,6 +1,7 @@
 #ifndef _MASSDATA_PROCESSOR_HPP_
 #define _MASSDATA_PROCESSOR_HPP_
 
+#include <cassert>
 #include <filesystem>
 #include <memory>
 #include <map>

@@ -23,10 +23,10 @@ public:
 
     /*** static function and variable ***/
     static std::string GetBacktrace();
-    static int GetCurrentDevId(std::string& devId);
-    static int GetCurrentDevName(std::string& devName);
+    // static int GetCurrentDevId(std::string& devId);
+    // static int GetCurrentDevName(std::string& devName);
 
-    static void SetCurrentDevId(const std::string& devId) { /* NOUSE */ }
+    // static void SetCurrentDevId(const std::string& devId) { /* NOUSE */ }
     /*** class function and variable ***/
 
 private:
