@@ -319,6 +319,7 @@ int unmarshal_update_vc_req(const msgpack_object *req, Req **req_unmarshal)
     buf += str_reserve_spc(method);
     tmp->tsx_id    = tsx_id->u64_val;
     tmp->params.tk = strncpy(buf, tk->str_val, tk->str_sz);
+    buf += str_reserve_spc(tk);
     tmp->params.vc = strncpy(buf, vc->str_val, vc->str_sz);
 
     *req_unmarshal = (Req *)tmp;
