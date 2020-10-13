@@ -14,6 +14,17 @@ extern "C" {
 #undef new
 }
 
+#if defined(__APPLE__)
+namespace std {
+template <class T, class U>
+static std::shared_ptr<T> reinterpret_pointer_cast(const std::shared_ptr<U> &r) noexcept
+{
+    auto p = reinterpret_cast<typename std::shared_ptr<T>::element_type *>(r.get());
+    return std::shared_ptr<T>(r, p);
+}
+} // namespace std
+#endif // defined(__APPLE__)
+
 namespace elastos {
 
 /* =========================================== */
@@ -23,15 +34,6 @@ namespace elastos {
 /* =========================================== */
 /* === static function implement ============= */
 /* =========================================== */
-#if __cpp_lib_shared_ptr_arrays < 201611
-template <class T, class U>
-static std::shared_ptr<T> reinterpret_pointer_cast(const std::shared_ptr<U> &r) noexcept {
-    auto p = reinterpret_cast<typename std::shared_ptr<T>::element_type *>(r.get());
-    return std::shared_ptr<T>(r, p);
-}
-#else
-using std::reinterpret_pointer_cast;
-#endif
 
 /* =========================================== */
 /* === class public function implement  ====== */
@@ -181,7 +183,7 @@ int MassDataProcessor::onSetBinary(std::shared_ptr<Req> req,
                                    const std::filesystem::path& bodyPath,
                                    std::shared_ptr<Resp>& resp)
 {
-    auto setBinReq = reinterpret_pointer_cast<SetBinaryReq>(req);
+    auto setBinReq = std::reinterpret_pointer_cast<SetBinaryReq>(req);
     Log::D(Log::TAG, "Request params:");
     Log::D(Log::TAG, "    access_token: %s", setBinReq->params.tk);
     Log::D(Log::TAG, "    key: %s", setBinReq->params.key);
@@ -211,7 +213,7 @@ int MassDataProcessor::onSetBinary(std::shared_ptr<Req> req,
     Log::D(Log::TAG, "Response result:");
     Log::D(Log::TAG, "    key: %s", setBinResp->result.key);
 
-    resp = reinterpret_pointer_cast<Resp>(setBinResp);
+    resp = std::reinterpret_pointer_cast<Resp>(setBinResp);
 
     return 0;
 }
@@ -220,7 +222,7 @@ int MassDataProcessor::onGetBinary(std::shared_ptr<Req> req,
                                    const std::filesystem::path& bodyPath,
                                    std::shared_ptr<Resp>& resp)
 {
-    auto getBinReq = reinterpret_pointer_cast<GetBinaryReq>(req);
+    auto getBinReq = std::reinterpret_pointer_cast<GetBinaryReq>(req);
     Log::D(Log::TAG, "    access_token: %s", getBinReq->params.tk);
     Log::D(Log::TAG, "    key: %s", getBinReq->params.key);
 
@@ -247,7 +249,7 @@ int MassDataProcessor::onGetBinary(std::shared_ptr<Req> req,
     Log::D(Log::TAG, "    algo: %s", getBinResp->result.algo);
     Log::D(Log::TAG, "    checksum: %s", getBinResp->result.checksum);
 
-    resp = reinterpret_pointer_cast<Resp>(getBinResp);
+    resp = std::reinterpret_pointer_cast<Resp>(getBinResp);
 
     return 0;
 }
