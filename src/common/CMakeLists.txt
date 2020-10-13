@@ -17,7 +17,10 @@ target_include_directories(common PUBLIC
 
 target_link_libraries(common PUBLIC
     platform)
-if("${CMAKE_SYSTEM_NAME}" STREQUAL "Android")
+if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
+    target_link_libraries(common PUBLIC
+    stdc++fs)
+elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "Android")
     target_link_libraries(common PUBLIC
     log)
 endif()

@@ -21,6 +21,13 @@
 
 #define LOG_HEAD_FMT ("%s%s - %c/%s(%u/%u): ")
 
+#if defined(__APPLE__)
+#define gettid() pthread_mach_thread_np(pthread_self())
+#else
+#include <sys/syscall.h>
+#define gettid() (unsigned int)syscall(SYS_gettid)
+#endif
+
 namespace elastos {
 
 /***********************************************/
@@ -186,9 +193,6 @@ inline void Log::log(const char head, const char* tag, const char* format, va_li
   __android_log_vprint(prio, tag, format, ap);
 #else
 
-#if defined(__APPLE__)
-#define gettid() pthread_mach_thread_np(pthread_self())
-#endif
   printf(LOG_HEAD_FMT, color, time.c_str(), head, tag, getpid(), gettid());
   vprintf(format, ap);
   color = convColor(' ');
