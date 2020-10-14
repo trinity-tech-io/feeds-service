@@ -131,6 +131,7 @@ endif()
 if(CMAKE_SYSTEM_NAME STREQUAL Linux)
     set(CPACK_GENERATOR DEB)
 
+    set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
     set(CPACK_PACKAGE_DESCRIPTION "Feeds Service Distribution Packages")
     set(CPACK_PACKAGE_VENDOR trinity-tech.io)
     set(CPACK_PACKAGE_CONTACT lifayi@trinity-tech.io)
