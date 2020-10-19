@@ -41,10 +41,10 @@ private:
     /*** type define ***/
     struct Protocol {
         struct Info {
-            uint64_t magicNumber;
+            int64_t magicNumber;
             uint32_t version;
-            uint32_t headSize;
-            uint64_t bodySize;
+            int32_t headSize;
+            int64_t bodySize;
         };
         struct Payload {
             explicit Payload(const std::filesystem::path& bodyPath);
@@ -53,7 +53,7 @@ private:
             struct {
                 std::filesystem::path filepath;
                 std::fstream stream;
-                uint64_t receivedBodySize;
+                int64_t receivedBodySize;
             } bodyData;
         };
 
@@ -61,8 +61,8 @@ private:
         std::unique_ptr<Payload> payload;
 
     private:
-        static constexpr const uint64_t MagicNumber = 0xA5A5202008275A5A;
-        static constexpr const uint64_t Version_01_00_00 = 10000;
+        static constexpr const int64_t MagicNumber = 0x00A5202008275A;
+        static constexpr const uint32_t Version_01_00_00 = 10000;
 
         friend SessionParser;
     };
@@ -74,8 +74,10 @@ private:
     int unpackProtocol(const std::vector<uint8_t>& data, int offset);
     int unpackBodyData(const std::vector<uint8_t>& data, int offset,
                        std::shared_ptr<OnUnpackedListener> listener);
-    uint64_t ntoh(uint64_t value) const;
-    uint64_t hton(uint64_t value) const;
+    int64_t ntoh(int64_t value) const;
+    int64_t hton(int64_t value) const;
+    int32_t ntoh(int32_t value) const;
+    int32_t hton(int32_t value) const;
     uint32_t ntoh(uint32_t value) const;
     uint32_t hton(uint32_t value) const;
     // reserved
