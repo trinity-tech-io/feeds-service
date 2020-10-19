@@ -215,14 +215,24 @@ int SessionParser::unpackBodyData(const std::vector<uint8_t>& data, int offset,
     return realSize;
 }
 
-uint64_t SessionParser::ntoh(uint64_t value) const 
+int64_t SessionParser::ntoh(int64_t value) const 
 {
     return ntohll(value);
 }
 
-uint64_t SessionParser::hton(uint64_t value) const 
+int64_t SessionParser::hton(int64_t value) const 
 {
     return htonll(value);
+}
+
+int32_t SessionParser::ntoh(int32_t value) const
+{
+    return ntohl(value);
+}
+
+int32_t SessionParser::hton(int32_t value) const 
+{
+    return htonl(value);
 }
 
 uint32_t SessionParser::ntoh(uint32_t value) const
