@@ -1722,7 +1722,6 @@ int unmarshal_get_srv_ver_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *method;
     const msgpack_object *tsx_id;
     const msgpack_object *tk;
-    const msgpack_object *key;
     GetSrvVerReq *tmp;
     void *buf;
 
@@ -1737,7 +1736,7 @@ int unmarshal_get_srv_ver_req(const msgpack_object *req, Req **req_unmarshal)
         });
     });
 
-    if (!tk || !tk->str_sz || !key || !key->str_sz) {
+    if (!tk || !tk->str_sz) {
         vlogE("Invalid get_service_version request.");
         return -1;
     }
@@ -1758,6 +1757,61 @@ int unmarshal_get_srv_ver_req(const msgpack_object *req, Req **req_unmarshal)
     *req_unmarshal = (Req *)tmp;
     return 0;
 }
+
+static
+int unmarshal_report_illegal_cmt_req(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *tk;
+    const msgpack_object *chan_id;
+    const msgpack_object *post_id;
+    const msgpack_object *cmt_id;
+    const msgpack_object *reasons;
+    ReportIllegalCmtReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        (void)map_val_str("version");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            tk      = map_val_str("access_token");
+            chan_id = map_val_u64("channel_id");
+            post_id = map_val_u64("post_id");
+            cmt_id  = map_val_u64("comment_id");
+            reasons = map_val_str("reasons");
+        });
+    });
+
+    if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
+        !post_id || !post_id_is_valid(post_id->u64_val) || !cmt_id ||
+        !reasons || !reasons->str_sz) {
+        vlogE("Invalid report_illegal_cmt request.");
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(ReportIllegalCmtReq) + str_reserve_spc(method) + str_reserve_spc(tk) + str_reserve_spc(reasons), NULL);
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method         = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->tsx_id         = tsx_id->u64_val;
+    tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
+    buf += str_reserve_spc(tk);
+    tmp->params.chan_id = chan_id->u64_val;
+    tmp->params.post_id = post_id->u64_val;
+    tmp->params.cmt_id  = cmt_id->u64_val;
+    tmp->params.reasons      = strncpy(buf, reasons->str_val, reasons->str_sz);
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
+
 
 static
 int unmarshal_unknown_req(const msgpack_object *req, Req **req_unmarshal)
@@ -1793,39 +1847,40 @@ struct RepParser {
     ReqHdlr *parser;
 };
 static struct RepParser req_parsers_1_0[] = {
-    {"declare_owner"               , unmarshal_decl_owner_req       },
-    {"import_did"                  , unmarshal_imp_did_req          },
-    {"issue_credential"            , unmarshal_iss_vc_req           },
-    {"update_credential"           , unmarshal_update_vc_req        },
-    {"signin_request_challenge"    , unmarshal_signin_req_chal_req  },
-    {"signin_confirm_challenge"    , unmarshal_signin_conf_chal_req },
-    {"create_channel"              , unmarshal_create_chan_req      },
-    {"update_feedinfo"             , unmarshal_upd_chan_req         },
-    {"publish_post"                , unmarshal_pub_post_req         },
-    {"edit_post"                   , unmarshal_edit_post_req        },
-    {"delete_post"                 , unmarshal_del_post_req         },
-    {"post_comment"                , unmarshal_post_cmt_req         },
-    {"edit_comment"                , unmarshal_edit_cmt_req         },
-    {"delete_comment"              , unmarshal_del_cmt_req          },
-    {"post_like"                   , unmarshal_post_like_req        },
-    {"post_unlike"                 , unmarshal_post_unlike_req      },
-    {"get_my_channels"             , unmarshal_get_my_chans_req     },
-    {"get_my_channels_metadata"    , unmarshal_get_my_chans_meta_req},
-    {"get_channels"                , unmarshal_get_chans_req        },
-    {"get_channel_detail"          , unmarshal_get_chan_dtl_req     },
-    {"get_subscribed_channels"     , unmarshal_get_sub_chans_req    },
-    {"get_posts"                   , unmarshal_get_posts_req        },
-    {"get_posts_likes_and_comments", unmarshal_get_posts_lac_req    },
-    {"get_liked_posts"             , unmarshal_get_liked_posts_req  },
-    {"get_comments"                , unmarshal_get_cmts_req         },
-    {"get_comments_likes"          , unmarshal_get_cmts_likes_req   },
-    {"get_statistics"              , unmarshal_get_stats_req        },
-    {"subscribe_channel"           , unmarshal_sub_chan_req         },
-    {"unsubscribe_channel"         , unmarshal_unsub_chan_req       },
-    {"enable_notification"         , unmarshal_enbl_notif_req       },
-    {"set_binary"                  , unmarshal_set_binary_req       },
-    {"get_binary"                  , unmarshal_get_binary_req       },
-    {"get_service_version"         , unmarshal_get_srv_ver_req      },
+    {"declare_owner"               , unmarshal_decl_owner_req         },
+    {"import_did"                  , unmarshal_imp_did_req            },
+    {"issue_credential"            , unmarshal_iss_vc_req             },
+    {"update_credential"           , unmarshal_update_vc_req          },
+    {"signin_request_challenge"    , unmarshal_signin_req_chal_req    },
+    {"signin_confirm_challenge"    , unmarshal_signin_conf_chal_req   },
+    {"create_channel"              , unmarshal_create_chan_req        },
+    {"update_feedinfo"             , unmarshal_upd_chan_req           },
+    {"publish_post"                , unmarshal_pub_post_req           },
+    {"edit_post"                   , unmarshal_edit_post_req          },
+    {"delete_post"                 , unmarshal_del_post_req           },
+    {"post_comment"                , unmarshal_post_cmt_req           },
+    {"edit_comment"                , unmarshal_edit_cmt_req           },
+    {"delete_comment"              , unmarshal_del_cmt_req            },
+    {"post_like"                   , unmarshal_post_like_req          },
+    {"post_unlike"                 , unmarshal_post_unlike_req        },
+    {"get_my_channels"             , unmarshal_get_my_chans_req       },
+    {"get_my_channels_metadata"    , unmarshal_get_my_chans_meta_req  },
+    {"get_channels"                , unmarshal_get_chans_req          },
+    {"get_channel_detail"          , unmarshal_get_chan_dtl_req       },
+    {"get_subscribed_channels"     , unmarshal_get_sub_chans_req      },
+    {"get_posts"                   , unmarshal_get_posts_req          },
+    {"get_posts_likes_and_comments", unmarshal_get_posts_lac_req      },
+    {"get_liked_posts"             , unmarshal_get_liked_posts_req    },
+    {"get_comments"                , unmarshal_get_cmts_req           },
+    {"get_comments_likes"          , unmarshal_get_cmts_likes_req     },
+    {"get_statistics"              , unmarshal_get_stats_req          },
+    {"subscribe_channel"           , unmarshal_sub_chan_req           },
+    {"unsubscribe_channel"         , unmarshal_unsub_chan_req         },
+    {"enable_notification"         , unmarshal_enbl_notif_req         },
+    {"set_binary"                  , unmarshal_set_binary_req         },
+    {"get_binary"                  , unmarshal_get_binary_req         },
+    {"get_service_version"         , unmarshal_get_srv_ver_req        },
+    {"report_illegal_comment"      , unmarshal_report_illegal_cmt_req },
 };
 
 int rpc_unmarshal_req(const void *rpc, size_t len, Req **req)
@@ -5436,6 +5491,55 @@ Marshalled *rpc_marshal_get_srv_ver_resp(const GetSrvVerResp *resp)
         pack_kv_map(pk, "result", 1, {
             pack_kv_str(pk, "version", resp->result.version);
         });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_report_illegal_cmt_req(const ReportIllegalCmtReq *req)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 4, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_str(pk, "method", "report_illegal_comment");
+        pack_kv_u64(pk, "id", req->tsx_id);
+        pack_kv_map(pk, "params", 5, {
+            pack_kv_str(pk, "access_token", req->params.tk);
+            pack_kv_u64(pk, "channel_id", req->params.chan_id);
+            pack_kv_u64(pk, "post_id", req->params.post_id);
+            pack_kv_u64(pk, "comment_id", req->params.cmt_id);
+            pack_kv_str(pk, "reasons", req->params.reasons);
+        });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_report_illegal_cmt_resp(const ReportIllegalCmtResp *resp)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_u64(pk, "id", resp->tsx_id);
+        pack_kv_nil(pk, "result");
     });
 
     m->m.data = buf->data;

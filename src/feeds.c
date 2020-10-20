@@ -3418,6 +3418,131 @@ finally:
     deref(uinfo);
 }
 
+void hdl_report_illegal_cmt_req(ElaCarrier *c, const char *from, Req *base)
+{
+    ReportIllegalCmtReq *req = (ReportIllegalCmtReq *)base;
+    Marshalled *resp_marshal = NULL;
+    UserInfo *uinfo = NULL;
+    ActiveSuberPerChan *aspc;
+    list_iterator_t it;
+    Chan *chan = NULL;
+    LikeInfo li;
+    int rc;
+
+    vlogD("Received report_illegal_cmt request from [%s]: "
+          "{access_token: %s, channel_id: %" PRIu64
+          ", post_id: %" PRIu64 ", comment_id: %" PRIu64 "}"
+          ", reasons: %s",
+          from, req->params.tk, req->params.chan_id, req->params.post_id, req->params.cmt_id, req->params.reasons);
+
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
+        return;
+    }
+
+    uinfo = create_uinfo_from_access_token(req->params.tk);
+    if (!uinfo) {
+        vlogE("Invalid access token.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_ACCESS_TOKEN_EXP
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    chan = chan_get_by_id(req->params.chan_id);
+    if (!chan) {
+        vlogE("Reporting illegal comment on non-existent channel");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if (req->params.post_id >= chan->info.next_post_id) {
+        vlogE("Reporting illegal comment on non-existent post");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if (req->params.cmt_id &&
+        ((rc = db_cmt_exists(req->params.chan_id,
+                             req->params.post_id,
+                             req->params.cmt_id)) < 0 || !rc)) {
+        vlogE("Reporting illegal comment on non-existent comment");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if ((rc = db_like_exists(uinfo->uid, req->params.chan_id,
+                             req->params.post_id, req->params.cmt_id)) < 0 ||
+        rc > 0) {
+        vlogE("Reporting illegal comment on liked subject");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_WRONG_STATE
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    rc = db_add_reported_cmts(req->params.chan_id, req->params.post_id, req->params.cmt_id,
+                              uinfo->uid, req->params.reasons);
+    if (rc < 0) {
+        vlogE("Adding reported_comment to database failed");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    vlogI("Reported illegal on channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] by [%s], reasons: %s.",
+          req->params.chan_id, req->params.post_id, req->params.cmt_id, uinfo->did, req->params.reasons);
+
+    {
+        ReportIllegalCmtResp resp = {
+            .tsx_id = req->tsx_id
+        };
+        resp_marshal = rpc_marshal_report_illegal_cmt_resp(&resp);
+        vlogD("Sending report_illegal_cmt response.");
+    }
+
+    // TODO
+    // li.chan_id = req->params.chan_id;
+    // li.post_id = req->params.post_id;
+    // li.cmt_id  = req->params.cmt_id;
+    // li.user    = *uinfo;
+
+    // list_foreach(chan->aspcs, aspc) {
+    //     NotifDestPerActiveSuber *ndpas;
+    //     hashtable_iterator_t it;
+
+    //     hashtable_foreach(aspc->as->ndpass, ndpas)
+    //         notify_of_new_like(ndpas->nd->node_id, &li);
+    // }
+
+finally:
+    if (resp_marshal) {
+        msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
+    deref(uinfo);
+    deref(chan);
+}
+
 void hdl_unknown_req(ElaCarrier *c, const char *from, Req *base)
 {
     Marshalled *resp_marshal;

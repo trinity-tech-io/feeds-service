@@ -493,7 +493,7 @@ int upg_from_two_to_three()
           "  reporter_id   INTEGER NOT NULL REFERENCES users(user_id),"
           "  reported_at   REAL    NOT NULL,"
           "  reasons       TEXT NOT NULL DEFAULT 'NA',"
-          "  PRIMARY KEY(channel_id, post_id, comment_id)"
+          "  PRIMARY KEY(channel_id, post_id, comment_id, reporter_id)"
           "  FOREIGN KEY(channel_id, post_id) REFERENCES posts(channel_id, post_id)"
           ")";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
@@ -3767,7 +3767,7 @@ int db_add_reported_cmts(uint64_t channel_id, uint64_t post_id, uint64_t comment
     }
 
     /* ================================= stmt-sep ================================= */
-    sql = "INSERT INTO reported_comments (channel_id, post_id, comment_id, reporter_id, reported_at, reasons) "
+    sql = "INSERT OR REPLACE INTO reported_comments (channel_id, post_id, comment_id, reporter_id, reported_at, reasons) "
           "  VALUES (:channel_id, :post_id, :comment_id, :reporter_id, :reported_at, :reasons)";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc) {

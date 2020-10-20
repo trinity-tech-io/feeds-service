@@ -549,6 +549,22 @@ typedef struct {
 } GetSrvVerResp;
 
 typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        AccessToken tk;
+        uint64_t    chan_id;
+        uint64_t    post_id;
+        uint64_t    cmt_id;
+        char* reasons;
+    } params;
+} ReportIllegalCmtReq;
+
+typedef struct {
+    uint64_t tsx_id;
+} ReportIllegalCmtResp;
+
+typedef struct {
     char *method;
     char params[0];
 } Notif;
@@ -681,6 +697,7 @@ int rpc_unmarshal_get_stats_resp(GetStatsResp **resp, ErrResp **err);
 int rpc_unmarshal_sub_chan_resp(SubChanResp **resp, ErrResp **err);
 int rpc_unmarshal_unsub_chan_resp(UnsubChanResp **resp, ErrResp **err);
 int rpc_unmarshal_enbl_notif_resp(EnblNotifResp **resp, ErrResp **err);
+int rpc_unmarshal_report_illegal_cmt_resp(ReportIllegalCmtResp **resp, ErrResp **err);
 Marshalled *rpc_marshal_decl_owner_req(const DeclOwnerReq *req);
 Marshalled *rpc_marshal_decl_owner_resp(const DeclOwnerResp *resp);
 Marshalled *rpc_marshal_imp_did_req(const ImpDIDReq *req);
@@ -745,6 +762,8 @@ Marshalled *rpc_marshal_enbl_notif_req(const EnblNotifReq *req);
 Marshalled *rpc_marshal_enbl_notif_resp(const EnblNotifResp *resp);
 Marshalled *rpc_marshal_get_srv_ver_req(const GetSrvVerReq *req);
 Marshalled *rpc_marshal_get_srv_ver_resp(const GetSrvVerResp *resp);
+Marshalled *rpc_marshal_report_illegal_cmt_req(const ReportIllegalCmtReq *req);
+Marshalled *rpc_marshal_report_illegal_cmt_resp(const ReportIllegalCmtResp *resp);
 Marshalled *rpc_marshal_resp(const char* method, const Resp *resp);
 Marshalled *rpc_marshal_err(uint64_t tsx_id, int64_t errcode, const char *errdesp);
 
