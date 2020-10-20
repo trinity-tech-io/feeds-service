@@ -65,5 +65,7 @@ int db_get_owner(UserInfo **ui);
 int db_need_upsert_user(const char *did);
 int db_get_user(const char *did, UserInfo **ui);
 int db_get_user_count();
+int db_add_reported_cmts(uint64_t channel_id, uint64_t post_id, uint64_t comment_id,
+                         uint64_t reporter_id, const char *reason);
 
 #endif // __DB_H__

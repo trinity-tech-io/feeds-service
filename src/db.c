@@ -463,6 +463,82 @@ rollback:
     return -1;
 }
 
+static
+int upg_from_two_to_three()
+{
+    sqlite3_stmt *stmt;
+    const char *sql;
+    int rc;
+
+    /* ================================= stmt-sep ================================= */
+    sql = "BEGIN";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE) {
+        vlogE("BEGIN failed");
+        return -1;
+    }
+
+    /* ================================= stmt-sep ================================= */
+    sql = "CREATE TABLE IF NOT EXISTS reported_comments ("
+          "  channel_id    INTEGER NOT NULL,"
+          "  post_id       INTEGER NOT NULL,"
+          "  comment_id    INTEGER NOT NULL,"
+          "  reporter_id   INTEGER NOT NULL REFERENCES users(user_id),"
+          "  reported_at   REAL    NOT NULL,"
+          "  reasons       TEXT NOT NULL DEFAULT 'NA',"
+          "  PRIMARY KEY(channel_id, post_id, comment_id)"
+          "  FOREIGN KEY(channel_id, post_id) REFERENCES posts(channel_id, post_id)"
+          ")";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        goto rollback;
+    }
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE) {
+        vlogE("Creating reported_comments table failed");
+        goto rollback;
+    }
+
+    /* ================================= stmt-sep ================================= */
+    sql = "END";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        goto rollback;
+    }
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE) {
+        vlogE("Executing END failed");
+        goto rollback;
+    }
+
+    return 0;
+
+rollback:
+    sql = "ROLLBACK";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        return -1;
+    }
+
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    return -1;
+}
+
 int db_init(const char *db_file)
 {
     sqlite3_stmt *stmt;
@@ -504,6 +580,10 @@ int db_init(const char *db_file)
             goto failure;
     case 1:
         rc = upg_from_one_to_two();
+        if (rc < 0)
+            goto failure;
+    case 2:
+        rc = upg_from_two_to_three();
         if (rc < 0)
             goto failure;
     case DB_VER:
@@ -3662,4 +3742,126 @@ int db_get_user_count()
     sqlite3_finalize(stmt);
 
     return rc;
+}
+
+int db_add_reported_cmts(uint64_t channel_id, uint64_t post_id, uint64_t comment_id,
+                         uint64_t reporter_id, const char *reason)
+{
+    sqlite3_stmt *stmt;
+    const char *sql;
+    int rc;
+
+    /* ================================= stmt-sep ================================= */
+    sql = "BEGIN";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE) {
+        vlogE("Exectuing BEGIN failed");
+        return -1;
+    }
+
+    /* ================================= stmt-sep ================================= */
+    sql = "INSERT INTO reported_comments (channel_id, post_id, comment_id, reporter_id, reported_at, reasons) "
+          "  VALUES (:channel_id, :post_id, :comment_id, :reporter_id, :reported_at, :reasons)";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":channel_id"),
+                            channel_id);
+    if (rc) {
+        vlogE("Binding parameter channel_id failed");
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":post_id"),
+                            post_id);
+    if (rc) {
+        vlogE("Binding paramter post_id failed");
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":comment_id"),
+                            comment_id);
+    if (rc) {
+        vlogE("Binding parameter comment_id failed");
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":reporter_id"),
+                            reporter_id);
+    if (rc) {
+        vlogE("Binding parameter reporter_id failed");
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_int64(stmt,
+                            sqlite3_bind_parameter_index(stmt, ":reported_at"),
+                            time(NULL));
+    if (rc) {
+        vlogE("Binding parameter ts failed");
+        sqlite3_finalize(stmt);
+        goto rollback;
+    }
+
+    rc = sqlite3_bind_text(stmt,
+                           sqlite3_bind_parameter_index(stmt, ":reasons"),
+                           reason, -1, NULL);
+    if (rc) {
+        vlogE("Binding parameter reasons failed");
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE) {
+        vlogE("Executing INSERT failed");
+        goto rollback;
+    }
+
+    /* ================================= stmt-sep ================================= */
+    sql = "END";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        goto rollback;
+    }
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE) {
+        vlogE("Executing END failed");
+        goto rollback;
+    }
+
+    return 0;
+
+rollback:
+    sql = "ROLLBACK";
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        return -1;
+    }
+
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    return -1;
 }
