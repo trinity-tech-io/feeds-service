@@ -5560,9 +5560,9 @@ Marshalled *marshal_set_binary_resp(const Resp *resp)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "version", "1.1.3");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", wrap_resp->tsx_id);
-        pack_kv_map(pk, "result", 2, {
+        pack_kv_map(pk, "result", 1, {
             pack_kv_str(pk, "key", wrap_resp->result.key);
         });
     });
@@ -5585,9 +5585,9 @@ Marshalled *marshal_get_binary_resp(const Resp *resp)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "version", "1.1.3");
+        pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", wrap_resp->tsx_id);
-        pack_kv_map(pk, "result", 4, {
+        pack_kv_map(pk, "result", 3, {
             pack_kv_str(pk, "key", wrap_resp->result.key);
             pack_kv_str(pk, "algo", wrap_resp->result.algo);
             pack_kv_str(pk, "checksum", wrap_resp->result.checksum);
