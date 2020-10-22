@@ -581,6 +581,23 @@ typedef struct {
 } ReportIllegalCmtResp;
 
 typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        AccessToken tk;
+        QryCriteria qc;
+    } params;
+} GetReportedCmtsReq;
+
+typedef struct {
+    uint64_t tsx_id;
+    struct {
+        bool is_last;
+        cvector_vector_type(ReportedCmtInfo *) rcinfos;
+    } result;
+} GetReportedCmtsResp;
+
+typedef struct {
     char *method;
     char params[0];
 } Notif;
@@ -781,6 +798,8 @@ Marshalled *rpc_marshal_get_srv_ver_req(const GetSrvVerReq *req);
 Marshalled *rpc_marshal_get_srv_ver_resp(const GetSrvVerResp *resp);
 Marshalled *rpc_marshal_report_illegal_cmt_req(const ReportIllegalCmtReq *req);
 Marshalled *rpc_marshal_report_illegal_cmt_resp(const ReportIllegalCmtResp *resp);
+Marshalled *rpc_marshal_get_reported_cmts_req(const GetReportedCmtsReq *req);
+Marshalled *rpc_marshal_get_reported_cmts_resp(const GetReportedCmtsResp *resp);
 Marshalled *rpc_marshal_resp(const char* method, const Resp *resp);
 Marshalled *rpc_marshal_err(uint64_t tsx_id, int64_t errcode, const char *errdesp);
 

@@ -491,7 +491,7 @@ int upg_from_two_to_three()
           "  post_id       INTEGER NOT NULL,"
           "  comment_id    INTEGER NOT NULL,"
           "  reporter_id   INTEGER NOT NULL REFERENCES users(user_id),"
-          "  reported_at   REAL    NOT NULL,"
+          "  created_at   REAL    NOT NULL,"
           "  reasons       TEXT NOT NULL DEFAULT 'NA',"
           "  PRIMARY KEY(channel_id, post_id, comment_id, reporter_id)"
           "  FOREIGN KEY(channel_id, post_id) REFERENCES posts(channel_id, post_id)"
@@ -3303,6 +3303,36 @@ void *row2cmt(sqlite3_stmt *stmt)
     return ci;
 }
 
+static
+void *row2reportedcmt(sqlite3_stmt *stmt)
+{
+    const char *name = (const char *)sqlite3_column_text(stmt, 3);
+    const char *did = (const char *)sqlite3_column_text(stmt, 4);
+    const char *reasons = (const char *)sqlite3_column_text(stmt, 5);
+    ReportedCmtInfo *rci = rc_zalloc(sizeof(CmtInfo) +
+                            strlen(name) + strlen(did) + strlen(reasons) + 3, NULL);
+    void *buf;
+
+    if (!rci) {
+        vlogE("OOM");
+        return NULL;
+    }
+
+    buf = rci + 1;
+
+    rci->chan_id      = sqlite3_column_int64(stmt, 0);
+    rci->post_id      = sqlite3_column_int64(stmt, 1);
+    rci->cmt_id       = sqlite3_column_int64(stmt, 2);
+    rci->reporter.name    = strcpy(buf, name);
+    buf += strlen(name) + 1;
+    rci->reporter.did     = strcpy(buf, did);
+    buf += strlen(did) + 1;
+    rci->reasons     = strcpy(buf, reasons);
+    rci->created_at   = sqlite3_column_int64(stmt, 6);
+
+    return rci;
+}
+
 DBObjIt *db_iter_cmts(uint64_t chan_id, uint64_t post_id, const QryCriteria *qc)
 {
     sqlite3_stmt *stmt;
@@ -3767,8 +3797,8 @@ int db_add_reported_cmts(uint64_t channel_id, uint64_t post_id, uint64_t comment
     }
 
     /* ================================= stmt-sep ================================= */
-    sql = "INSERT OR REPLACE INTO reported_comments (channel_id, post_id, comment_id, reporter_id, reported_at, reasons) "
-          "  VALUES (:channel_id, :post_id, :comment_id, :reporter_id, :reported_at, :reasons)";
+    sql = "INSERT OR REPLACE INTO reported_comments (channel_id, post_id, comment_id, reporter_id, created_at, reasons) "
+          "  VALUES (:channel_id, :post_id, :comment_id, :reporter_id, :created_at, :reasons)";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc) {
         vlogE("sqlite3_prepare_v2() failed");
@@ -3812,7 +3842,7 @@ int db_add_reported_cmts(uint64_t channel_id, uint64_t post_id, uint64_t comment
     }
 
     rc = sqlite3_bind_int64(stmt,
-                            sqlite3_bind_parameter_index(stmt, ":reported_at"),
+                            sqlite3_bind_parameter_index(stmt, ":created_at"),
                             time(NULL));
     if (rc) {
         vlogE("Binding parameter ts failed");
@@ -3864,4 +3894,79 @@ rollback:
     sqlite3_step(stmt);
     sqlite3_finalize(stmt);
     return -1;
+}
+
+DBObjIt *db_iter_reported_cmts(const QryCriteria *qc)
+{
+    sqlite3_stmt *stmt;
+    const char *qcol;
+    char sql[1024];
+    DBObjIt *it;
+    int rc;
+
+    /* ================================= stmt-sep ================================= */
+    rc = sprintf(sql,
+                 "SELECT channel_id, post_id, comment_id, name, did, reasons, created_at"
+                 " FROM reported_comments"
+                 " JOIN users ON reported_comments.reporter_id = users.user_id"
+                 " WHERE true");
+    if (qc->by) {
+        qcol = query_column(COMMENT, qc->by);
+        if (qc->lower)
+            rc += sprintf(sql + rc, " AND %s >= :lower", qcol);
+        if (qc->upper)
+            rc += sprintf(sql + rc, " AND %s <= :upper", qcol);
+        rc += sprintf(sql + rc, " ORDER BY %s %s", qcol, qc->by == ID ? "ASC" : "DESC");
+    }
+    if (qc->maxcnt)
+        rc += sprintf(sql + rc, " LIMIT :maxcnt");
+    // vlogI("db_iter_reported_cmts() origin sql: %s", sql);
+
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc) {
+        vlogE("sqlite3_prepare_v2() failed");
+        return NULL;
+    }
+
+    if (qc->lower) {
+        rc = sqlite3_bind_int64(stmt, sqlite3_bind_parameter_index(stmt, ":lower"),
+                                qc->lower);
+        if (rc) {
+            vlogE("Binding parameter lower failed");
+            sqlite3_finalize(stmt);
+            return NULL;
+        }
+    }
+
+    if (qc->upper) {
+        rc = sqlite3_bind_int64(stmt, sqlite3_bind_parameter_index(stmt, ":upper"),
+                                qc->upper);
+        if (rc) {
+            vlogE("Binding parameter upper failed");
+            sqlite3_finalize(stmt);
+            return NULL;
+        }
+    }
+
+    if (qc->maxcnt) {
+        rc = sqlite3_bind_int64(stmt, sqlite3_bind_parameter_index(stmt, ":maxcnt"),
+                                qc->maxcnt);
+        if (rc) {
+            vlogE("Binding parameter maxcnt failed");
+            sqlite3_finalize(stmt);
+            return NULL;
+        }
+    }
+
+    // char* expanded_sql = sqlite3_expanded_sql(stmt);
+    // vlogI("db_iter_reported_cmts() expanded sql: %s", expanded_sql);
+    // sqlite3_free(expanded_sql);
+
+    it = it_create(stmt, row2reportedcmt);
+    if (!it) {
+        sqlite3_finalize(stmt);
+        return NULL;
+    }
+
+    return it;
 }

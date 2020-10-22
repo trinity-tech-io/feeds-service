@@ -851,13 +851,13 @@ int unmarshal_block_cmt_req(const msgpack_object *req, Req **req_unmarshal)
             tk      = map_val_str("access_token");
             chan_id = map_val_u64("channel_id");
             post_id = map_val_u64("post_id");
-            cmt_id      = map_val_u64("comment_id");
+            cmt_id  = map_val_u64("comment_id");
         });
     });
 
     if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
         !post_id || !post_id_is_valid(post_id->u64_val) || !cmt_id || !cmt_id_is_valid(cmt_id->u64_val)) {
-        vlogE("Invalid blockete_comment request.");
+        vlogE("Invalid block_comment request.");
         return -1;
     }
 
@@ -1861,6 +1861,58 @@ int unmarshal_report_illegal_cmt_req(const msgpack_object *req, Req **req_unmars
     return 0;
 }
 
+static
+int unmarshal_get_reported_cmts_req(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *tk;
+    const msgpack_object *by;
+    const msgpack_object *upper;
+    const msgpack_object *lower;
+    const msgpack_object *maxcnt;
+    GetReportedCmtsReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        (void)map_val_str("version");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            tk      = map_val_str("access_token");
+            by      = map_val_u64("by");
+            upper   = map_val_u64("upper_bound");
+            lower   = map_val_u64("lower_bound");
+            maxcnt  = map_val_u64("max_count");
+        });
+    });
+
+    if (!tk || !tk->str_sz ||
+        !by || !qry_fld_is_valid(by->u64_val) || !upper || !lower || !maxcnt) {
+        vlogE("Invalid get_comments request.");
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(GetReportedCmtsReq) + str_reserve_spc(method) + str_reserve_spc(tk), NULL);
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method           = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->tsx_id           = tsx_id->u64_val;
+    tmp->params.tk        = strncpy(buf, tk->str_val, tk->str_sz);
+    tmp->params.qc.by     = by->u64_val;
+    tmp->params.qc.upper  = upper->u64_val;
+    tmp->params.qc.lower  = lower->u64_val;
+    tmp->params.qc.maxcnt = maxcnt->u64_val;
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
+
 
 static
 int unmarshal_unknown_req(const msgpack_object *req, Req **req_unmarshal)
@@ -1931,6 +1983,7 @@ static struct RepParser req_parsers_1_0[] = {
     {"get_binary"                  , unmarshal_get_binary_req         },
     {"get_service_version"         , unmarshal_get_srv_ver_req        },
     {"report_illegal_comment"      , unmarshal_report_illegal_cmt_req },
+    {"get_reported_comments"       , unmarshal_get_reported_cmts_req  },
 };
 
 int rpc_unmarshal_req(const void *rpc, size_t len, Req **req)
@@ -5611,6 +5664,71 @@ Marshalled *rpc_marshal_report_illegal_cmt_resp(const ReportIllegalCmtResp *resp
         pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_nil(pk, "result");
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_get_reported_cmts_req(const GetReportedCmtsReq *req)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 4, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_str(pk, "method", "get_comments");
+        pack_kv_u64(pk, "id", req->tsx_id);
+        pack_kv_map(pk, "params", 5, {
+            pack_kv_str(pk, "access_token", req->params.tk);
+            pack_kv_u64(pk, "by", req->params.qc.by);
+            pack_kv_u64(pk, "upper_bound", req->params.qc.upper);
+            pack_kv_u64(pk, "lower_bound", req->params.qc.lower);
+            pack_kv_u64(pk, "max_count", req->params.qc.maxcnt);
+        });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_get_reported_cmts_resp(const GetReportedCmtsResp *resp)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+    ReportedCmtInfo **rcinfo;
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_u64(pk, "id", resp->tsx_id);
+        pack_kv_map(pk, "result", 2, {
+            pack_kv_bool(pk, "is_last", resp->result.is_last);
+            pack_kv_arr(pk, "comments", cvector_size(resp->result.rcinfos), {
+                cvector_foreach(resp->result.rcinfos, rcinfo) {
+                    pack_map(pk, 11, {
+                        pack_kv_u64(pk, "channel_id", (*rcinfo)->chan_id);
+                        pack_kv_u64(pk, "post_id", (*rcinfo)->post_id);
+                        pack_kv_u64(pk, "comment_id", (*rcinfo)->cmt_id);
+                        pack_kv_str(pk, "reporter_name", (*rcinfo)->reporter.name);
+                        pack_kv_str(pk, "reporter_did", (*rcinfo)->reporter.did);
+                        pack_kv_str(pk, "reasons", (*rcinfo)->reasons);
+                        pack_kv_u64(pk, "created_at", (*rcinfo)->created_at);
+                    });
+                }
+            });
+        });
     });
 
     m->m.data = buf->data;

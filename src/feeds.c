@@ -3668,6 +3668,145 @@ finally:
     deref(chan);
 }
 
+void hdl_get_reported_cmts_req(ElaCarrier *c, const char *from, Req *base)
+{
+    GetReportedCmtsReq *req = (GetReportedCmtsReq *)base;
+    cvector_vector_type(ReportedCmtInfo *) rcinfos = NULL;
+    Marshalled *resp_marshal = NULL;
+    UserInfo *uinfo = NULL;
+    DBObjIt *it = NULL;
+    Chan *chan = NULL;
+    ReportedCmtInfo *rcinfo;
+    int rc;
+
+    vlogD("Received get_comments request from [%s]: "
+          "{access_token: %s, by: %" PRIu64
+          ", upper_bound: %" PRIu64 ", lower_bound: %" PRIu64 ", max_count: %" PRIu64 "}",
+          from, req->params.tk, req->params.qc.by,
+          req->params.qc.upper, req->params.qc.lower, req->params.qc.maxcnt);
+
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
+        return;
+    }
+
+    uinfo = create_uinfo_from_access_token(req->params.tk);
+    if (!uinfo) {
+        vlogE("Invalid access token.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_ACCESS_TOKEN_EXP
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if (!user_id_is_owner(uinfo->uid)) {
+        vlogE("Get reported owner while not being owner.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_AUTHORIZED
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    it = db_iter_reported_cmts(&req->params.qc);
+    if (!it) {
+        vlogE("Getting reported_comments from database failed.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    foreach_db_obj(rcinfo) {
+        cvector_push_back(rcinfos, ref(rcinfo));
+        vlogD("Retrieved comment: "
+              "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", comment_id: %" PRIu64
+              ", reporter_name: %s, reporter_did: %s, reasons:%s"
+              ", created_at: %" PRIu64 "}",
+              rcinfo->chan_id, rcinfo->post_id, rcinfo->cmt_id,
+              rcinfo->reporter.name, rcinfo->reporter.did, rcinfo->reasons,
+              rcinfo->created_at);
+    }
+    if (rc < 0) {
+        vlogE("Iterating comments failed.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    {
+        // size_t left = MAX_CONTENT_LEN;
+        cvector_vector_type(ReportedCmtInfo *) rcinfos_tmp = NULL;
+        int i;
+
+        if (!cvector_size(rcinfos)) {
+            GetReportedCmtsResp resp = {
+                .tsx_id = req->tsx_id,
+                .result = {
+                    .is_last = true,
+                    .rcinfos  = rcinfos
+                }
+            };
+            resp_marshal = rpc_marshal_get_reported_cmts_resp(&resp);
+            vlogD("Sending get_reported_comments empty response.");
+            goto finally;
+        }
+
+        for (i = 0; i < cvector_size(rcinfos); ++i) {
+            // left -= rcinfos[i]->len;
+            cvector_push_back(rcinfos_tmp, rcinfos[i]);
+
+            // if (!(!left || i == cvector_size(rcinfos) - 1 || rcinfos[i + 1]->len > left))
+            //     continue;
+
+            GetReportedCmtsResp resp = {
+                .tsx_id = req->tsx_id,
+                .result = {
+                    .is_last = i == cvector_size(rcinfos) - 1,
+                    .rcinfos  = rcinfos_tmp
+                }
+            };
+            resp_marshal = rpc_marshal_get_reported_cmts_resp(&resp);
+
+            vlogD("Sending get_reported_comments response.");
+
+            rc = msgq_enq(from, resp_marshal);
+            deref(resp_marshal);
+            resp_marshal = NULL;
+            if (rc < 0)
+                break;
+
+            cvector_set_size(rcinfos_tmp, 0);
+            // left = MAX_CONTENT_LEN;
+        }
+
+        cvector_free(rcinfos_tmp);
+    }
+
+finally:
+    if (resp_marshal) {
+        msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
+    if (rcinfos) {
+        ReportedCmtInfo **i;
+        cvector_foreach(rcinfos, i)
+            deref(*i);
+        cvector_free(rcinfos);
+    }
+    deref(uinfo);
+    deref(chan);
+    deref(it);
+}
+
 void hdl_unknown_req(ElaCarrier *c, const char *from, Req *base)
 {
     Marshalled *resp_marshal;
