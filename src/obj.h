@@ -108,6 +108,7 @@ typedef struct {
 typedef enum {
     CMT_AVAILABLE,
     CMT_DELETED,
+    CMT_BLOCKED,
     CMT_WRONG_STAT
 } CmtStat;
 

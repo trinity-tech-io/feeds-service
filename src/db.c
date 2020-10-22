@@ -1764,7 +1764,7 @@ rollback:
     return -1;
 }
 
-int db_del_cmt(CmtInfo *ci)
+int db_set_cmt_status(CmtInfo *ci)
 {
     sqlite3_stmt *stmt;
     const char *sql;
@@ -1806,7 +1806,7 @@ int db_del_cmt(CmtInfo *ci)
 
     rc = sqlite3_bind_int64(stmt,
                             sqlite3_bind_parameter_index(stmt, ":deleted"),
-                            CMT_DELETED);
+                            ci->stat);
     if (rc) {
         vlogE("Binding parameter deleted failed");
         sqlite3_finalize(stmt);

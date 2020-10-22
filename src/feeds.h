@@ -41,6 +41,7 @@ void hdl_del_post_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_post_cmt_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_edit_cmt_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_del_cmt_req(ElaCarrier *c, const char *from, Req *base);
+void hdl_block_cmt_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_post_unlike_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_get_my_chans_req(ElaCarrier *c, const char *from, Req *base);

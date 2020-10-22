@@ -830,6 +830,55 @@ int unmarshal_del_cmt_req(const msgpack_object *req, Req **req_unmarshal)
 }
 
 static
+int unmarshal_block_cmt_req(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *tk;
+    const msgpack_object *chan_id;
+    const msgpack_object *post_id;
+    const msgpack_object *cmt_id;
+    BlockCmtReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        (void)map_val_str("version");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            tk      = map_val_str("access_token");
+            chan_id = map_val_u64("channel_id");
+            post_id = map_val_u64("post_id");
+            cmt_id      = map_val_u64("comment_id");
+        });
+    });
+
+    if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
+        !post_id || !post_id_is_valid(post_id->u64_val) || !cmt_id || !cmt_id_is_valid(cmt_id->u64_val)) {
+        vlogE("Invalid blockete_comment request.");
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(BlockCmtReq) + str_reserve_spc(method) + str_reserve_spc(tk), NULL);
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method         = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->tsx_id         = tsx_id->u64_val;
+    tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
+    tmp->params.chan_id = chan_id->u64_val;
+    tmp->params.post_id = post_id->u64_val;
+    tmp->params.cmt_id  = cmt_id->u64_val;
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
+
+static
 int unmarshal_post_like_req(const msgpack_object *req, Req **req_unmarshal)
 {
     const msgpack_object *method;
@@ -1861,6 +1910,7 @@ static struct RepParser req_parsers_1_0[] = {
     {"post_comment"                , unmarshal_post_cmt_req           },
     {"edit_comment"                , unmarshal_edit_cmt_req           },
     {"delete_comment"              , unmarshal_del_cmt_req            },
+    {"block_comment"               , unmarshal_block_cmt_req          },
     {"post_like"                   , unmarshal_post_like_req          },
     {"post_unlike"                 , unmarshal_post_unlike_req        },
     {"get_my_channels"             , unmarshal_get_my_chans_req       },
@@ -4576,6 +4626,27 @@ Marshalled *rpc_marshal_edit_cmt_resp(const EditCmtResp *resp)
 }
 
 Marshalled *rpc_marshal_del_cmt_resp(const DelCmtResp *resp)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_u64(pk, "id", resp->tsx_id);
+        pack_kv_nil(pk, "result");
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_block_cmt_resp(const BlockCmtResp *resp)
 {
     msgpack_sbuffer *buf = msgpack_sbuffer_new();
     msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
