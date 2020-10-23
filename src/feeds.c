@@ -1590,7 +1590,7 @@ void hdl_block_cmt_req(ElaCarrier *c, const char *from, Req *base)
 
     chan = chan_get_by_id(req->params.chan_id);
     if (!chan) {
-        vlogE("Blocketing comment on non-existent channel");
+        vlogE("Blocking comment on non-existent channel");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -1600,7 +1600,7 @@ void hdl_block_cmt_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (req->params.post_id >= chan->info.next_post_id) {
-        vlogE("Blocketing comment on non-existent post");
+        vlogE("Blocking comment on non-existent post");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -1609,9 +1609,9 @@ void hdl_block_cmt_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    if ((rc = db_cmt_is_avail(req->params.chan_id,
-                              req->params.post_id,
-                              req->params.cmt_id)) < 0 || !rc) {
+    if ((rc = db_cmt_exists(req->params.chan_id,
+                            req->params.post_id,
+                            req->params.cmt_id)) < 0 || !rc) {
         vlogE("Blocking unavailable comment");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
@@ -1644,7 +1644,7 @@ void hdl_block_cmt_req(ElaCarrier *c, const char *from, Req *base)
 
     rc = db_set_cmt_status(&cmt_block);
     if (rc < 0) {
-        vlogE("Blocketing comment in database failed");
+        vlogE("Blocking comment in database failed");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -1653,7 +1653,7 @@ void hdl_block_cmt_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    vlogI("Channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] blocketed by [%s].",
+    vlogI("Channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] blocked by [%s].",
           cmt_block.chan_id, cmt_block.post_id, cmt_block.cmt_id, cmt_block.user.did);
 
     {
@@ -1670,6 +1670,131 @@ void hdl_block_cmt_req(ElaCarrier *c, const char *from, Req *base)
 
         hashtable_foreach(aspc->as->ndpass, ndpas)
             notify_of_cmt_upd(ndpas->nd->node_id, &cmt_block);
+    }
+
+finally:
+    if (resp_marshal) {
+        msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
+    deref(uinfo);
+    deref(chan);
+}
+
+void hdl_unblock_cmt_req(ElaCarrier *c, const char *from, Req *base)
+{
+    UnblockCmtReq *req = (UnblockCmtReq *)base;
+    Marshalled *resp_marshal = NULL;
+    ActiveSuberPerChan *aspc;
+    UserInfo *uinfo = NULL;
+    list_iterator_t it;
+    Chan *chan = NULL;
+    uint64_t cmt_uid;
+    CmtInfo cmt_unblock;
+    int rc;
+
+    vlogD("Received unblock_comment request from [%s]: {access_token: %s, channel_id: %" PRIu64
+          ", post_id: %" PRIu64 ", comment_id: %" PRIu64 "}",
+          from, req->params.tk, req->params.chan_id, req->params.post_id, req->params.cmt_id);
+
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
+        return;
+    }
+
+    uinfo = create_uinfo_from_access_token(req->params.tk);
+    if (!uinfo) {
+        vlogE("Invalid access token.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_ACCESS_TOKEN_EXP
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    chan = chan_get_by_id(req->params.chan_id);
+    if (!chan) {
+        vlogE("Unblocking comment on non-existent channel");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if (req->params.post_id >= chan->info.next_post_id) {
+        vlogE("Unblocking comment on non-existent post");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if ((rc = db_cmt_exists(req->params.chan_id,
+                            req->params.post_id,
+                            req->params.cmt_id)) < 0 || !rc) {
+        vlogE("Unblocking unavailable comment");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if ((rc = db_cmt_uid(req->params.chan_id,
+                         req->params.post_id,
+                         req->params.cmt_id,
+                         &cmt_uid)) < 0 || cmt_uid != uinfo->uid) {
+        vlogE("Unblocking other's comment");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_AUTHORIZED
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    memset(&cmt_unblock, 0, sizeof(cmt_unblock));
+    cmt_unblock.chan_id = req->params.chan_id;
+    cmt_unblock.post_id = req->params.post_id;
+    cmt_unblock.cmt_id  = req->params.cmt_id;
+    cmt_unblock.stat    = CMT_AVAILABLE;
+    cmt_unblock.user    = *uinfo;
+    cmt_unblock.upd_at  = time(NULL);
+
+    rc = db_set_cmt_status(&cmt_unblock);
+    if (rc < 0) {
+        vlogE("Unblocking comment in database failed");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    vlogI("Channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] unblocked by [%s].",
+          cmt_unblock.chan_id, cmt_unblock.post_id, cmt_unblock.cmt_id, cmt_unblock.user.did);
+
+    {
+        UnblockCmtResp resp = {
+            .tsx_id = req->tsx_id,
+        };
+        resp_marshal = rpc_marshal_unblock_cmt_resp(&resp);
+        vlogD("Sending unblock_comment response");
+    }
+
+    list_foreach(chan->aspcs, aspc) {
+        NotifDestPerActiveSuber *ndpas;
+        hashtable_iterator_t it;
+
+        hashtable_foreach(aspc->as->ndpass, ndpas)
+            notify_of_cmt_upd(ndpas->nd->node_id, &cmt_unblock);
     }
 
 finally:

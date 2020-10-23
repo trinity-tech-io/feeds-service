@@ -291,6 +291,20 @@ typedef struct {
     uint64_t tsx_id;
 } BlockCmtResp;
 
+typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        AccessToken tk;
+        uint64_t    chan_id;
+        uint64_t    post_id;
+        uint64_t    cmt_id;
+    } params;
+} UnblockCmtReq;
+
+typedef struct {
+    uint64_t tsx_id;
+} UnblockCmtResp;
 
 typedef struct {
     char    *method;
@@ -764,6 +778,7 @@ Marshalled *rpc_marshal_post_cmt_resp(const PostCmtResp *resp);
 Marshalled *rpc_marshal_edit_cmt_resp(const EditCmtResp *resp);
 Marshalled *rpc_marshal_del_cmt_resp(const DelCmtResp *resp);
 Marshalled *rpc_marshal_block_cmt_resp(const BlockCmtResp *resp);
+Marshalled *rpc_marshal_unblock_cmt_resp(const UnblockCmtResp *resp);
 Marshalled *rpc_marshal_post_like_req(const PostLikeReq *req);
 Marshalled *rpc_marshal_post_like_resp(const PostLikeResp *resp);
 Marshalled *rpc_marshal_post_unlike_req(const PostUnlikeReq *req);

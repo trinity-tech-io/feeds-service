@@ -93,6 +93,7 @@ static struct {
     {"edit_comment"                , hdl_edit_cmt_req           },
     {"delete_comment"              , hdl_del_cmt_req            },
     {"block_comment"               , hdl_block_cmt_req          },
+    {"unblock_comment"             , hdl_unblock_cmt_req        },
     {"post_like"                   , hdl_post_like_req          },
     {"post_unlike"                 , hdl_post_unlike_req        },
     {"get_my_channels"             , hdl_get_my_chans_req       },
