@@ -465,6 +465,30 @@ void notify_of_stats_changed(const char *peer, uint64_t total_clients)
 }
 
 static
+void notify_of_report_cmt(const char *peer, const ReportedCmtInfo *li)
+{
+    ReportCmtNotif notif = {
+        .method = "report_illegal_comment",
+        .params = {
+            .li = (ReportedCmtInfo *)li
+        }
+    };
+    Marshalled *notif_marshal;
+
+    notif_marshal = rpc_marshal_report_cmt_notif(&notif);
+    if (!notif_marshal)
+        return;
+
+    vlogD("Sending new like notification to [%s]: "
+          "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", comment_id: %" PRIu64
+          ", reporter_name: %s, reporter_did: %s, reasons: %s created_at: %" PRIu64 "}",
+          peer, li->chan_id, li->post_id, li->cmt_id,
+          li->reporter.name, li->reporter.did, li->reasons, li->created_at);
+    msgq_enq(peer, notif_marshal);
+    deref(notif_marshal);
+}
+
+static
 void as_dtor(void *obj)
 {
     ActiveSuber *as = obj;
@@ -3676,7 +3700,8 @@ void hdl_report_illegal_cmt_req(ElaCarrier *c, const char *from, Req *base)
     ActiveSuberPerChan *aspc;
     list_iterator_t it;
     Chan *chan = NULL;
-    LikeInfo li;
+    ActiveSuber *owner = NULL;
+    ReportedCmtInfo li;
     int rc;
 
     vlogD("Received report_illegal_cmt request from [%s]: "
@@ -3770,19 +3795,18 @@ void hdl_report_illegal_cmt_req(ElaCarrier *c, const char *from, Req *base)
         vlogD("Sending report_illegal_cmt response.");
     }
 
-    // TODO
-    // li.chan_id = req->params.chan_id;
-    // li.post_id = req->params.post_id;
-    // li.cmt_id  = req->params.cmt_id;
-    // li.user    = *uinfo;
+    li.chan_id = req->params.chan_id;
+    li.post_id = req->params.post_id;
+    li.cmt_id  = req->params.cmt_id;
+    li.reporter    = *uinfo;
 
-    // list_foreach(chan->aspcs, aspc) {
-    //     NotifDestPerActiveSuber *ndpas;
-    //     hashtable_iterator_t it;
+    if ((owner = as_get(OWNER_USER_ID))) {
+        hashtable_iterator_t it;
+        NotifDestPerActiveSuber *ndpas;
 
-    //     hashtable_foreach(aspc->as->ndpass, ndpas)
-    //         notify_of_new_like(ndpas->nd->node_id, &li);
-    // }
+        hashtable_foreach(owner->ndpass, ndpas)
+            notify_of_report_cmt(ndpas->nd->node_id, &li);
+    }
 
 finally:
     if (resp_marshal) {
@@ -3791,6 +3815,7 @@ finally:
     }
     deref(uinfo);
     deref(chan);
+    deref(owner);
 }
 
 void hdl_get_reported_cmts_req(ElaCarrier *c, const char *from, Req *base)

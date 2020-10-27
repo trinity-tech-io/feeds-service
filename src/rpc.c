@@ -4489,6 +4489,35 @@ Marshalled *rpc_marshal_stats_changed_notif(const StatsChangedNotif *notif)
     return &m->m;
 }
 
+Marshalled *rpc_marshal_report_cmt_notif(const ReportCmtNotif *notif)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_str(pk, "method", "report_illegal_comment");
+        pack_kv_map(pk, "params", 6, {
+            pack_kv_u64(pk, "channel_id", notif->params.li->chan_id);
+            pack_kv_u64(pk, "post_id", notif->params.li->post_id);
+            pack_kv_u64(pk, "comment_id", notif->params.li->cmt_id);
+            pack_kv_str(pk, "reporter_name", notif->params.li->reporter.name);
+            pack_kv_str(pk, "reporter_did", notif->params.li->reporter.did);
+            pack_kv_str(pk, "reasons", notif->params.li->reasons);
+            pack_kv_u64(pk, "created_at", notif->params.li->created_at);
+        });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
 Marshalled *rpc_marshal_err_resp(const ErrResp *resp)
 {
     return rpc_marshal_err(resp->tsx_id, resp->ec, err_strerror(resp->ec));
