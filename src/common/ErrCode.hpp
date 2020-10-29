@@ -1,5 +1,5 @@
-#ifndef _ELASTOS_ERRCODE_HPP_
-#define _ELASTOS_ERRCODE_HPP_
+#ifndef _FEEDS_ERRCODE_HPP_
+#define _FEEDS_ERRCODE_HPP_
 
 #include <string>
 #include <functional>
@@ -125,4 +125,4 @@ private:
 
 } // namespace elastos
 
-#endif /* _ELASTOS_ERRCODE_HPP_ */
+#endif /* _FEEDS_ERRCODE_HPP_ */

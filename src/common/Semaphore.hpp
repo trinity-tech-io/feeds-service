@@ -1,5 +1,5 @@
-#ifndef _ELASTOS_SEMAPHORE_HPP_
-#define _ELASTOS_SEMAPHORE_HPP_
+#ifndef _FEEDS_SEMAPHORE_HPP_
+#define _FEEDS_SEMAPHORE_HPP_
 
 #include <mutex>
 #include <condition_variable>
@@ -52,4 +52,4 @@ public:
 
 } // namespace elastos
 
-#endif /* _ELASTOS_SEMAPHORE_HPP_ */
+#endif /* _FEEDS_SEMAPHORE_HPP_ */
