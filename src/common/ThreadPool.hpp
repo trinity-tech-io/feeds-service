@@ -9,7 +9,7 @@
 #include <thread>
 #include <vector>
 
-namespace elastos {
+namespace trinity {
 
 class ThreadPool : public std::enable_shared_from_this<ThreadPool> {
 public:
@@ -47,6 +47,6 @@ protected:
 
 }; // class ThreadPool
 
-} // namespace elastos
+} // namespace trinity
 
 #endif /* _FEEDS_THREAD_POOL_HPP_ */

@@ -17,7 +17,7 @@ extern "C" {
 struct ElaCarrier;
 struct ElaSession;
 
-namespace elastos {
+namespace trinity {
 
 class MassDataProcessor : public std::enable_shared_from_this<MassDataProcessor> {
 public:
@@ -79,7 +79,7 @@ private:
 /***** macro definition ************************/
 /***********************************************/
 
-} // namespace elastos
+} // namespace trinity
 
 #endif /* _MASSDATA_PROCESSOR_HPP_ */
 

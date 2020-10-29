@@ -8,7 +8,7 @@
 #include <vector>
 #include <StdFileSystem.hpp>
 
-namespace elastos {
+namespace trinity {
 
 class SessionParser : public std::enable_shared_from_this<SessionParser> {
 public:
@@ -98,7 +98,7 @@ private:
 /***** macro definition ************************/
 /***********************************************/
 
-} // namespace elastos
+} // namespace trinity
 
 #endif /* _SESSION_PARSER_HPP_ */
 

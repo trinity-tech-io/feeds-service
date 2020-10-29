@@ -12,7 +12,7 @@ struct ElaCarrier;
 struct ElaSession;
 struct ElaStreamCallbacks;
 
-namespace elastos {
+namespace trinity {
 
 class ThreadPool;
 
@@ -102,7 +102,7 @@ private:
 /***** macro definition ************************/
 /***********************************************/
 
-} // namespace elastos
+} // namespace trinity
 
 #endif /* _CARRIER_SESSION_HPP_ */
 

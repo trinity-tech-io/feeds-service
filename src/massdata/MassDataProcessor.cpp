@@ -25,7 +25,7 @@ static std::shared_ptr<T> reinterpret_pointer_cast(const std::shared_ptr<U> &r) 
 } // namespace std
 #endif // defined(__APPLE__)
 
-namespace elastos {
+namespace trinity {
 
 /* =========================================== */
 /* === static variables initialize =========== */
@@ -254,4 +254,4 @@ int MassDataProcessor::onGetBinary(std::shared_ptr<Req> req,
     return 0;
 }
 
-} // namespace elastos
+} // namespace trinity

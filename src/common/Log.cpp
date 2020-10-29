@@ -20,7 +20,7 @@
 #define gettid() (unsigned int)syscall(SYS_gettid)
 #endif
 
-namespace elastos {
+namespace trinity {
 
 /***********************************************/
 /***** static variables initialize *************/
@@ -261,4 +261,4 @@ inline int Log::convPrio(const char head)
 }
 #endif
 
-} // namespace elastos
+} // namespace trinity

@@ -4,7 +4,7 @@
 #include <mutex>
 #include <condition_variable>
 
-namespace elastos {
+namespace trinity {
 
 class Semaphore
 {
@@ -50,6 +50,6 @@ public:
     }
 };
 
-} // namespace elastos
+} // namespace trinity
 
 #endif /* _FEEDS_SEMAPHORE_HPP_ */

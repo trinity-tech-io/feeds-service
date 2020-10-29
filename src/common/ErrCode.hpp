@@ -6,7 +6,7 @@
 
 #include "err.h"
 
-namespace elastos {
+namespace trinity {
 
 class ErrCode {
 public:
@@ -44,7 +44,7 @@ public:
 	if(errCode < 0) { \
 	    int errRet = errCode; \
 		APPEND_SRCLINE(errRet); \
-		elastos::ErrCode::SetError(errRet, std::string(FORMAT_METHOD) + " line:" + std::to_string(__LINE__)); \
+		trinity::ErrCode::SetError(errRet, std::string(FORMAT_METHOD) + " line:" + std::to_string(__LINE__)); \
 	} \
     CHECK_ERROR(errCode) \
 
@@ -52,17 +52,17 @@ public:
 	if(errCode < 0) { \
 	    int errRet = errCode; \
 		APPEND_SRCLINE(errRet); \
-		elastos::ErrCode::SetError(errRet, std::string(FORMAT_METHOD) + " line:" + std::to_string(__LINE__)); \
+		trinity::ErrCode::SetError(errRet, std::string(FORMAT_METHOD) + " line:" + std::to_string(__LINE__)); \
 	} \
     CHECK_RETVAL(errCode) \
 
 #define APPEND_SRCLINE(errRet) \
-	if(errRet < elastos::ErrCode::SourceLineSection) {              \
-		errRet += (__LINE__ * elastos::ErrCode::SourceLineSection); \
+	if(errRet < trinity::ErrCode::SourceLineSection) {              \
+		errRet += (__LINE__ * trinity::ErrCode::SourceLineSection); \
 	}                                                               \
 
 #define GET_ERRCODE(errRet) \
-	(errRet - errRet / elastos::ErrCode::SourceLineSection * elastos::ErrCode::SourceLineSection)
+	(errRet - errRet / trinity::ErrCode::SourceLineSection * trinity::ErrCode::SourceLineSection)
 
     /*** static function and variable ***/
     constexpr static const int UnknownError                     = -101;
@@ -123,6 +123,6 @@ private:
 
 }; // class ErrCode
 
-} // namespace elastos
+} // namespace trinity
 
 #endif /* _FEEDS_ERRCODE_HPP_ */

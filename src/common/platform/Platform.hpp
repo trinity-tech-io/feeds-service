@@ -8,8 +8,8 @@
  * @copyright	(c) 2012 xxx All rights reserved.
  **/
 
-#ifndef _ELASTOS_PLATFORM_HPP_
-#define _ELASTOS_PLATFORM_HPP_
+#ifndef _TRINITY_PLATFORM_HPP_
+#define _TRINITY_PLATFORM_HPP_
 
 #include "Log.hpp"
 
@@ -31,7 +31,7 @@
 #error "Unsupport Platform"
 #endif
 
-namespace elastos {
+namespace trinity {
 
 #if defined(__APPLE__)
 #if TARGET_OS_OSX
@@ -58,6 +58,6 @@ private:
 
 }; // class PlatformDarwin
 
-} // namespace elastos
+} // namespace trinity
 
-#endif /* _ELASTOS_PLATFORM_HPP_ */
+#endif /* _TRINITY_PLATFORM_HPP_ */

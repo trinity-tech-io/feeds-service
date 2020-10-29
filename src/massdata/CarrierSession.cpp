@@ -8,7 +8,7 @@
 #include <Semaphore.hpp>
 #include <ThreadPool.hpp>
 
-namespace elastos {
+namespace trinity {
 
 /* =========================================== */
 /* === static variables initialize =========== */
@@ -407,4 +407,4 @@ const char* CarrierSession::ConnectListener::toString(ConnectListener::Notify no
 }
 
 
-} // namespace elastos
+} // namespace trinity

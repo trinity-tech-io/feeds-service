@@ -8,14 +8,14 @@
  * @copyright	(c) 2012 xxx All rights reserved.
  **/
 
-#ifndef _ELASTOS_PLATFORM_UNIXLIKE_HPP_
-#define _ELASTOS_PLATFORM_UNIXLIKE_HPP_
+#ifndef _TRINITY_PLATFORM_UNIXLIKE_HPP_
+#define _TRINITY_PLATFORM_UNIXLIKE_HPP_
 
 #if defined(__linux__) and not defined(__ANDROID__)
 
 #include <string>
 
-namespace elastos {
+namespace trinity {
 
 class PlatformUnixLike {
 public:
@@ -40,9 +40,9 @@ private:
 
 }; // class PlatformUnixLike
 
-} // namespace elastos
+} // namespace trinity
 
 #endif /* __linux__ */
 
-#endif /* _ELASTOS_PLATFORM_UNIXLIKE_HPP_ */
+#endif /* _TRINITY_PLATFORM_UNIXLIKE_HPP_ */
 
