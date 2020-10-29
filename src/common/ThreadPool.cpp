@@ -1,10 +1,3 @@
-//
-//  ThreadPool.cpp
-//
-//  Created by mengxk on 19/03/16.
-//  Copyright © 2016 mengxk. All rights reserved.
-//
-
 #include "ThreadPool.hpp"
 
 #include "Log.hpp"

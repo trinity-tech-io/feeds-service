@@ -1,15 +1,5 @@
-/**
- * @file	ThreadPool.hpp
- * @brief	ThreadPool
- * @details	
- *
- * @author	xxx
- * @author	<xxx@xxx.com>
- * @copyright	(c) 2012 xxx All rights reserved.
- **/
-
-#ifndef _ELASTOS_THREAD_POOL_HPP_
-#define _ELASTOS_THREAD_POOL_HPP_
+#ifndef _FEEDS_THREAD_POOL_HPP_
+#define _FEEDS_THREAD_POOL_HPP_
 
 #include <condition_variable>
 #include <functional>
@@ -59,4 +49,4 @@ protected:
 
 } // namespace elastos
 
-#endif /* _ELASTOS_THREAD_POOL_HPP_ */
+#endif /* _FEEDS_THREAD_POOL_HPP_ */

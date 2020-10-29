@@ -1,15 +1,5 @@
-/**
- * @file	Random.hpp
- * @brief	Random
- * @details	
- *
- * @author	xxx
- * @author	<xxx@xxx.com>
- * @copyright	(c) 2012 xxx All rights reserved.
- **/
-
-#ifndef _ELASTOS_RANDOM_HPP_
-#define _ELASTOS_RANDOM_HPP_
+#ifndef _FEEDS_RANDOM_HPP_
+#define _FEEDS_RANDOM_HPP_
 
 #include <random>
 
@@ -54,4 +44,4 @@ protected:
 
 } // namespace elastos
 
-#endif /* _ELASTOS_RANDOM_HPP_ */
+#endif /* _FEEDS_RANDOM_HPP_ */

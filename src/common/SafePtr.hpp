@@ -1,5 +1,5 @@
-#ifndef _ELASOTS_SAFE_PTR_HPP_
-#define _ELASOTS_SAFE_PTR_HPP_
+#ifndef _FEEDS_SAFE_PTR_HPP_
+#define _FEEDS_SAFE_PTR_HPP_
 
 #include "ErrCode.hpp"
 #include "Log.hpp"
@@ -44,4 +44,4 @@
     ptr;                                                                                            \
 })
 
-#endif /* _ELASOTS_SAFE_PTR_HPP_ */
+#endif /* _FEEDS_SAFE_PTR_HPP_ */

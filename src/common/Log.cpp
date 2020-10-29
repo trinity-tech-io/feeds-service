@@ -1,11 +1,3 @@
-//
-//  Log.cpp
-//  Forge
-//
-//  Created by mengxk on 9/12/16.
-//  Copyright © 2016 mengxk. All rights reserved.
-//
-
 #include <iostream>
 
 #include "Log.hpp"

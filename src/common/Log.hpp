@@ -1,5 +1,5 @@
-#ifndef _ELASOTS_LOG_HPP_
-#define _ELASOTS_LOG_HPP_
+#ifndef _FEEDS_LOG_HPP_
+#define _FEEDS_LOG_HPP_
 
 #include <cstdarg>
 #include <mutex>
@@ -65,4 +65,4 @@ private:
 
 } // namespace elastos
 
-#endif /* _ELASOTS_LOG_HPP_ */
+#endif /* _FEEDS_LOG_HPP_ */

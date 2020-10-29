@@ -1,15 +1,5 @@
-/**
- * @file	DateTime.hpp
- * @brief	DateTime
- * @details	
- *
- * @author	xxx
- * @author	<xxx@xxx.com>
- * @copyright	(c) 2012 xxx All rights reserved.
- **/
-
-#ifndef _ELASTOS_DATETIME_HPP_
-#define _ELASTOS_DATETIME_HPP_
+#ifndef _FEEDS_DATETIME_HPP_
+#define _FEEDS_DATETIME_HPP_
 
 #include <chrono>
 #include <string>
@@ -64,4 +54,4 @@ protected:
 
 } // namespace elastos
 
-#endif /* _ELASTOS_DATETIME_HPP_ */
+#endif /* _FEEDS_DATETIME_HPP_ */

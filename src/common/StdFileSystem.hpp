@@ -1,13 +1,3 @@
-/**
- * @file	StdFileSystem.hpp
- * @brief	StdFileSystem
- * @details	
- *
- * @author	xxx
- * @author	<xxx@xxx.com>
- * @copyright	(c) 2012 xxx All rights reserved.
- **/
-
 #ifndef _STD_FILESYSTEM_HPP_
 #define _STD_FILESYSTEM_HPP_
 
