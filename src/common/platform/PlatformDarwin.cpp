@@ -19,7 +19,7 @@
 #include "ErrCode.hpp"
 #include "Log.hpp"
 
-namespace elastos {
+namespace trinity {
 
 /***********************************************/
 /***** static variables initialize *************/
@@ -59,7 +59,7 @@ std::string PlatformDarwin::GetBacktrace() {
 /***** class private function implement  *******/
 /***********************************************/
 
-} // namespace elastos
+} // namespace trinity
 
 #endif // !defined(TARGET_OS_IOS)
 #endif // defined(__APPLE__)

@@ -3,7 +3,7 @@
 #include "Log.hpp"
 #include "Platform.hpp"
 
-namespace elastos {
+namespace trinity {
 
 /***********************************************/
 /***** static variables initialize *************/
@@ -152,4 +152,4 @@ void ThreadPool::processTaskQueue(void)
 	Log::D(Log::TAG, "%s name:%s exit.", FORMAT_METHOD, mThreadName.c_str());
 }
 
-} // namespace elastos
+} // namespace trinity

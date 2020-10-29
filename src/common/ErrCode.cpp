@@ -2,7 +2,7 @@
 
 #include <system_error>
 
-namespace elastos {
+namespace trinity {
 
 /***********************************************/
 /***** static variables initialize *************/
@@ -153,4 +153,4 @@ std::string ErrCode::ToString(int errCode)
 /***** class private function implement  *******/
 /***********************************************/
 
-} // namespace elastos
+} // namespace trinity

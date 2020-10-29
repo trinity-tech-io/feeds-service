@@ -15,7 +15,7 @@
 #endif
 #endif
 
-namespace elastos {
+namespace trinity {
 
 /* =========================================== */
 /* === static variables initialize =========== */
@@ -264,4 +264,4 @@ SessionParser::Protocol::Payload::~Payload()
 }
 
 
-} // namespace elastos
+} // namespace trinity

@@ -10,7 +10,7 @@
 #include "SessionParser.hpp"
 #include "DateTime.hpp"
 
-namespace elastos {
+namespace trinity {
 
 /* =========================================== */
 /* === static variables initialize =========== */
@@ -76,7 +76,7 @@ void MassDataManager::cleanup()
 void MassDataManager::onSessionRequest(std::weak_ptr<ElaCarrier> carrier,
                                        const std::string& from, const std::string& sdp)
 {
-    Log::V(Log::TAG, "%s", __PRETTY_FUNCTION__);
+    Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
 
     auto dataPipe = std::make_shared<DataPipe>();
     dataPipe->session = CarrierSession::Factory::Create();
@@ -210,4 +210,4 @@ std::shared_ptr<SessionParser::OnUnpackedListener> MassDataManager::makeUnpacked
     return unpackedListener;
 }
 
-} // namespace elastos
+} // namespace trinity

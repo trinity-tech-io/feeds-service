@@ -3,7 +3,7 @@
 
 #include <random>
 
-namespace elastos {
+namespace trinity {
 
 class Random final {
 public:
@@ -42,6 +42,6 @@ protected:
 
 }; // class Random
 
-} // namespace elastos
+} // namespace trinity
 
 #endif /* _FEEDS_RANDOM_HPP_ */

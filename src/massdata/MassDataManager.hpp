@@ -12,7 +12,7 @@
 struct ElaCarrier;
 struct ElaSession;
 
-namespace elastos {
+namespace trinity {
 
 class MassDataProcessor;
 
@@ -75,7 +75,7 @@ private:
 /***** macro definition ************************/
 /***********************************************/
 
-} // namespace elastos
+} // namespace trinity
 
 #endif /* _MASSDATA_MANAGER_HPP_ */
 

@@ -8,8 +8,8 @@
  * @copyright	(c) 2012 xxx All rights reserved.
  **/
 
-#ifndef _ELASTOS_PLATFORM_DARWIN_HPP_
-#define _ELASTOS_PLATFORM_DARWIN_HPP_
+#ifndef _TRINITY_PLATFORM_DARWIN_HPP_
+#define _TRINITY_PLATFORM_DARWIN_HPP_
 
 #if defined(__APPLE__)
 #include "TargetConditionals.h"
@@ -17,7 +17,7 @@
 
 #include <string>
 
-namespace elastos {
+namespace trinity {
 
 class PlatformDarwin {
 public:
@@ -40,9 +40,9 @@ private:
 
 }; // class PlatformDarwin
 
-} // namespace elastos
+} // namespace trinity
 
 #endif // !(TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
 #endif // defined(__APPLE__)
 
-#endif /* _ELASTOS_PLATFORM_DARWIN_HPP_ */
+#endif /* _TRINITY_PLATFORM_DARWIN_HPP_ */

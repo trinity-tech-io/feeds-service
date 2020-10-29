@@ -5,7 +5,7 @@
 #include <mutex>
 #include <chrono>
 
-namespace elastos {
+namespace trinity {
 
 class Log {
 public:
@@ -38,7 +38,7 @@ public:
   static uint64_t NanoNow();
   static std::string GetFormatMethod(const std::string& prettyFunction);
 
-  static constexpr const char *TAG = "elastos";
+  static constexpr const char *TAG = "trinity";
 
   /*** class function and variable ***/
 
@@ -63,6 +63,6 @@ private:
   virtual ~Log() = delete;
 };
 
-} // namespace elastos
+} // namespace trinity
 
 #endif /* _FEEDS_LOG_HPP_ */

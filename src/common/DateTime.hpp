@@ -6,7 +6,7 @@
 #include <memory>
 #include <ctime>
 
-namespace elastos {
+namespace trinity {
 
 using std::chrono::system_clock;
 
@@ -52,6 +52,6 @@ protected:
 
 }; // class DateTime
 
-} // namespace elastos
+} // namespace trinity
 
 #endif /* _FEEDS_DATETIME_HPP_ */

@@ -68,7 +68,7 @@ extern "C" {
 #undef new
 }
 
-static const char *resolver = "http://api.elastos.io:20606";
+static const char *resolver = "http://api.trinity.io:20606";
 size_t connecting_clients;
 std::shared_ptr<ElaCarrier> carrier_instance;
 ElaCarrier *carrier;
@@ -155,7 +155,7 @@ void idle_callback(ElaCarrier *c, void *context)
 
     if (stop) {
         // avoid clean session in idle thread, it will crash.
-        // elastos::MassDataManager::GetInstance()->cleanup();
+        // trinity::MassDataManager::GetInstance()->cleanup();
         carrier_instance.reset();
         carrier = NULL;
         return;
@@ -260,7 +260,7 @@ static
 void print_backtrace(int sig) {
     std::cerr << "Error: signal " << sig << std::endl;
 
-    std::string backtrace = elastos::Platform::GetBacktrace();
+    std::string backtrace = trinity::Platform::GetBacktrace();
     std::cerr << backtrace << std::endl;
 
     exit(sig);
@@ -320,7 +320,7 @@ int daemonize()
 static
 void transport_deinit()
 {
-    elastos::MassDataManager::GetInstance()->cleanup();
+    trinity::MassDataManager::GetInstance()->cleanup();
     carrier_instance.reset();
     carrier = NULL;
 }
@@ -358,8 +358,8 @@ int transport_init(FeedsConfig *cfg)
         goto failure;
     }
 
-    elastos::Log::SetLevel(static_cast<elastos::Log::Level>(cfg->carrier_opts.log_level));
-    rc = elastos::MassDataManager::GetInstance()->config(cfg->data_dir, carrier_instance);
+    trinity::Log::SetLevel(static_cast<trinity::Log::Level>(cfg->carrier_opts.log_level));
+    rc = trinity::MassDataManager::GetInstance()->config(cfg->data_dir, carrier_instance);
     if(rc < 0) {
         vlogE("Carrier session init failed");
         goto failure;
