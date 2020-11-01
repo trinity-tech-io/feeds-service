@@ -612,6 +612,39 @@ typedef struct {
 } GetReportedCmtsResp;
 
 typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        AccessToken tk;
+        uint64_t    chan_id;
+        void       *content;
+        size_t      sz;
+        bool  with_notify;
+    } params;
+} DeclarePostReq;
+
+typedef struct {
+    uint64_t tsx_id;
+    struct {
+        uint64_t id;
+    } result;
+} DeclarePostResp;
+
+typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        AccessToken tk;
+        uint64_t    chan_id;
+        uint64_t    post_id;
+    } params;
+} NotifyPostReq;
+
+typedef struct {
+    uint64_t tsx_id;
+} NotifyPostResp;
+
+typedef struct {
     char *method;
     char params[0];
 } Notif;
@@ -736,6 +769,7 @@ int rpc_unmarshal_signin_req_chal_resp(SigninReqChalResp **resp, ErrResp **err);
 int rpc_unmarshal_signin_conf_chal_resp(SigninConfChalResp **resp, ErrResp **err);
 int rpc_unmarshal_create_chan_resp(CreateChanResp **resp, ErrResp **err);
 int rpc_unmarshal_pub_post_resp(PubPostResp **resp, ErrResp **err);
+int rpc_unmarshal_declare_post_resp(DeclarePostResp **resp, ErrResp **err);
 int rpc_unmarshal_post_cmt_resp(PostCmtResp **resp, ErrResp **err);
 int rpc_unmarshal_post_like_resp(PostLikeResp **resp, ErrResp **err);
 int rpc_unmarshal_post_unlike_resp(PostUnlikeResp **resp, ErrResp **err);
@@ -779,6 +813,10 @@ Marshalled *rpc_marshal_create_chan_resp(const CreateChanResp *resp);
 Marshalled *rpc_marshal_upd_chan_resp(const UpdChanResp *resp);
 Marshalled *rpc_marshal_pub_post_req(const PubPostReq *req);
 Marshalled *rpc_marshal_pub_post_resp(const PubPostResp *resp);
+Marshalled *rpc_marshal_declare_post_req(const DeclarePostReq *req);
+Marshalled *rpc_marshal_declare_post_resp(const DeclarePostResp *resp);
+Marshalled *rpc_marshal_notify_post_req(const NotifyPostReq *req);
+Marshalled *rpc_marshal_notify_post_resp(const NotifyPostResp *resp);
 Marshalled *rpc_marshal_edit_post_resp(const EditPostResp *resp);
 Marshalled *rpc_marshal_del_post_resp(const DelPostResp *resp);
 Marshalled *rpc_marshal_post_cmt_req(const PostCmtReq *req);

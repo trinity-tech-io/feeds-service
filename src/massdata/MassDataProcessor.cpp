@@ -67,7 +67,7 @@ int MassDataProcessor::dispose(const std::vector<uint8_t>& headData,
 
     Req *reqBuf = nullptr;
     int ret = rpc_unmarshal_req(headData.data(), headData.size(), &reqBuf);
-    auto req = std::shared_ptr<Req>(reqBuf, deleter); // workaround: declear for auto release Req pointer
+    auto req = std::shared_ptr<Req>(reqBuf, deleter); // workaround: declare for auto release Req pointer
     auto resp = std::make_shared<Resp>();
     if (ret >= 0) {
         Log::D(Log::TAG, "Mass data processor: dispose method [%s]", req->method);
@@ -102,7 +102,7 @@ int MassDataProcessor::dispose(const std::vector<uint8_t>& headData,
         Log::D(Log::TAG, "    code: %d", ret);
         Log::D(Log::TAG, "    message: %s", errDesp.c_str());
     }
-    auto marshalData = std::shared_ptr<Marshalled>(marshalBuf, deleter); // workaround: declear for auto release Marshalled pointer
+    auto marshalData = std::shared_ptr<Marshalled>(marshalBuf, deleter); // workaround: declare for auto release Marshalled pointer
     CHECK_ASSERT(marshalData, ErrCode::MassDataMarshalRespFailed);
 
     auto marshalDataPtr = reinterpret_cast<uint8_t*>(marshalData->data);

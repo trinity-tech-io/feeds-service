@@ -573,6 +573,103 @@ int unmarshal_pub_post_req(const msgpack_object *req, Req **req_unmarshal)
 }
 
 static
+int unmarshal_declare_post_req(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *tk;
+    const msgpack_object *chan_id;
+    const msgpack_object *content;
+    const msgpack_object *with_notify;
+    DeclarePostReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        (void)map_val_str("version");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            tk      = map_val_str("access_token");
+            chan_id = map_val_u64("channel_id");
+            content = map_val_bin("content");
+            with_notify = map_val_bool("with_notify");
+        });
+    });
+
+    if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
+        !content || !content->bin_sz) {
+        vlogE("Invalid declare_post request.");
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(DeclarePostReq) + str_reserve_spc(method) + str_reserve_spc(tk), NULL);
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method         = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->tsx_id         = tsx_id->u64_val;
+    tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
+    tmp->params.chan_id = chan_id->u64_val;
+    tmp->params.content = (void *)content->bin_val;
+    tmp->params.sz      = content->bin_sz;
+    tmp->params.with_notify = with_notify->bool_val;
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
+
+static
+int unmarshal_notify_post_req(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *tk;
+    const msgpack_object *chan_id;
+    const msgpack_object *post_id;
+    NotifyPostReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        (void)map_val_str("version");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            tk      = map_val_str("access_token");
+            chan_id = map_val_u64("channel_id");
+            post_id = map_val_u64("post_id");
+        });
+    });
+
+    if (!tk || !tk->str_sz
+    || !chan_id || !chan_id_is_valid(chan_id->u64_val)
+    || !post_id || !post_id_is_valid(post_id->u64_val)) {
+        vlogE("Invalid notify_post request.");
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(NotifyPostReq) + str_reserve_spc(method) + str_reserve_spc(tk), NULL);
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method         = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->tsx_id         = tsx_id->u64_val;
+    tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
+    tmp->params.chan_id = chan_id->u64_val;
+    tmp->params.post_id = post_id->u64_val;
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
+
+static
 int unmarshal_edit_post_req(const msgpack_object *req, Req **req_unmarshal)
 {
     const msgpack_object *method;
@@ -2006,6 +2103,8 @@ static struct RepParser req_parsers_1_0[] = {
     {"create_channel"              , unmarshal_create_chan_req        },
     {"update_feedinfo"             , unmarshal_upd_chan_req           },
     {"publish_post"                , unmarshal_pub_post_req           },
+    {"declare_post"                , unmarshal_declare_post_req       },
+    {"notify_post"                 , unmarshal_notify_post_req        },
     {"edit_post"                   , unmarshal_edit_post_req          },
     {"delete_post"                 , unmarshal_del_post_req           },
     {"post_comment"                , unmarshal_post_cmt_req           },
@@ -2759,6 +2858,46 @@ int rpc_unmarshal_pub_post_resp(PubPostResp **resp, ErrResp **err)
     }
 
     tmp = rc_zalloc(sizeof(PubPostResp), NULL);
+    if (!tmp) {
+        msgpack_unpacked_destroy(&msgpack);
+        return -1;
+    }
+
+    tmp->tsx_id    = tsx_id->u64_val;
+    tmp->result.id = post_id->u64_val;
+
+    *resp = tmp;
+
+    msgpack_unpacked_destroy(&msgpack);
+    return 0;
+}
+
+int rpc_unmarshal_declare_post_resp(DeclarePostResp **resp, ErrResp **err)
+{
+    const msgpack_object *tsx_id;
+    const msgpack_object *post_id;
+    DeclarePostResp *tmp;
+
+    if (!rpc_unmarshal_err_resp(err)) {
+        msgpack_unpacked_destroy(&msgpack);
+        return 0;
+    }
+
+    map_iter_kvs(&msgpack.data, {
+        (void)map_val_str("version");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("result"), {
+            post_id = map_val_u64("id");
+        });
+    });
+
+    if (!post_id) {
+        vlogE("Invalid declare_post response.");
+        msgpack_unpacked_destroy(&msgpack);
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(DeclarePostResp), NULL);
     if (!tmp) {
         msgpack_unpacked_destroy(&msgpack);
         return -1;
@@ -4632,6 +4771,102 @@ Marshalled *rpc_marshal_pub_post_resp(const PubPostResp *resp)
         pack_kv_map(pk, "result", 1, {
             pack_kv_u64(pk, "id", resp->result.id);
         });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_declare_post_req(const DeclarePostReq *req)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 4, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_str(pk, "method", "declarelish_post");
+        pack_kv_u64(pk, "id", req->tsx_id);
+        pack_kv_map(pk, "params", 4, {
+            pack_kv_str(pk, "access_token", req->params.tk);
+            pack_kv_u64(pk, "channel_id", req->params.chan_id);
+            pack_kv_bin(pk, "content", req->params.content, req->params.sz);
+            pack_kv_bool(pk, "with_notify", req->params.with_notify);
+        });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_declare_post_resp(const DeclarePostResp *resp)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_u64(pk, "id", resp->tsx_id);
+        pack_kv_map(pk, "result", 1, {
+            pack_kv_u64(pk, "id", resp->result.id);
+        });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_notify_post_req(const NotifyPostReq *req)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 4, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_str(pk, "method", "notifylish_post");
+        pack_kv_u64(pk, "id", req->tsx_id);
+        pack_kv_map(pk, "params", 4, {
+            pack_kv_str(pk, "access_token", req->params.tk);
+            pack_kv_u64(pk, "channel_id", req->params.chan_id);
+            pack_kv_u64(pk, "post_id", req->params.post_id);
+        });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_notify_post_resp(const NotifyPostResp *resp)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 2, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_u64(pk, "id", resp->tsx_id);
     });
 
     m->m.data = buf->data;

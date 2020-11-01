@@ -75,6 +75,7 @@ typedef struct {
 typedef enum {
     POST_AVAILABLE,
     POST_DELETED,
+    POST_DECLARED,
     POST_WRONG_STAT
 } PostStat;
 
@@ -88,6 +89,8 @@ const char *post_stat_str(PostStat stat)
         return "available";
     case POST_DELETED:
         return "deleted";
+    case POST_DECLARED:
+        return "declared";
     default:
         abort();
     }
