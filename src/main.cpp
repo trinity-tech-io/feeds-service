@@ -87,6 +87,8 @@ static struct {
     {"create_channel"              , hdl_create_chan_req        },
     {"update_feedinfo"             , hdl_upd_chan_req           },
     {"publish_post"                , hdl_pub_post_req           },
+    {"declare_post"                , hdl_declare_post_req       },
+    {"notify_post"                 , hdl_notify_post_req        },
     {"edit_post"                   , hdl_edit_post_req          },
     {"delete_post"                 , hdl_del_post_req           },
     {"post_comment"                , hdl_post_cmt_req           },

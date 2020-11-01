@@ -935,6 +935,7 @@ void hdl_pub_post_req(ElaCarrier *c, const char *from, Req *base)
     new_post.upd_at     = now;
     new_post.content    = req->params.content;
     new_post.len        = req->params.sz;
+    new_post.stat       = POST_AVAILABLE;
 
     rc = db_add_post(&new_post);
     if (rc < 0) {
@@ -968,6 +969,231 @@ void hdl_pub_post_req(ElaCarrier *c, const char *from, Req *base)
 
         hashtable_foreach(aspc->as->ndpass, ndpas)
             notify_of_new_post(ndpas->nd->node_id, &new_post);
+    }
+
+finally:
+    if (resp_marshal) {
+        msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
+    deref(uinfo);
+    deref(chan);
+}
+
+void hdl_declare_post_req(ElaCarrier *c, const char *from, Req *base)
+{
+    DeclarePostReq *req = (DeclarePostReq *)base;
+    Marshalled *resp_marshal = NULL;
+    ActiveSuberPerChan *aspc;
+    UserInfo *uinfo = NULL;
+    list_iterator_t it;
+    Chan *chan = NULL;
+    PostInfo new_post;
+    time_t now;
+    int rc;
+
+    vlogD("Received declare_post request from [%s]: "
+          "{access_token: %s, channel_id: %" PRIu64 ", content_length: %zu}",
+          from, req->params.tk, req->params.chan_id, req->params.sz);
+
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
+        return;
+    }
+
+    uinfo = create_uinfo_from_access_token(req->params.tk);
+    if (!uinfo) {
+        vlogE("Invalid access token.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_ACCESS_TOKEN_EXP
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if (!user_id_is_owner(uinfo->uid)) {
+        vlogE("Declareing post while not being owner.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_AUTHORIZED
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    chan = chan_get_by_id(req->params.chan_id);
+    if (!chan) {
+        vlogE("Declareing post on non-existent channel.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    memset(&new_post, 0, sizeof(new_post));
+    new_post.chan_id    = req->params.chan_id;
+    new_post.post_id    = chan->info.next_post_id;
+    new_post.created_at = now = time(NULL);
+    new_post.upd_at     = now;
+    new_post.content    = req->params.content;
+    new_post.len        = req->params.sz;
+    new_post.stat       = (req->params.with_notify ? POST_AVAILABLE : POST_DECLARED);
+
+    rc = db_add_post(&new_post);
+    if (rc < 0) {
+        vlogE("Inserting post into database failed.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    ++chan->info.next_post_id;
+    vlogI("Declare %s post [%" PRIu64 "] on channel [%" PRIu64 "] created.",
+          post_stat_str(new_post.stat), new_post.post_id, new_post.chan_id);
+
+    {
+        DeclarePostResp resp = {
+            .tsx_id = req->tsx_id,
+            .result = {
+                .id = new_post.post_id
+            }
+        };
+        resp_marshal = rpc_marshal_declare_post_resp(&resp);
+        vlogD("Sending declare_post response: "
+              "{id: %" PRIu64 "}", new_post.post_id);
+    }
+
+    if(req->params.with_notify) {
+        list_foreach(chan->aspcs, aspc) {
+            NotifDestPerActiveSuber *ndpas;
+            hashtable_iterator_t it;
+
+            hashtable_foreach(aspc->as->ndpass, ndpas)
+                notify_of_new_post(ndpas->nd->node_id, &new_post);
+        }
+    }
+
+finally:
+    if (resp_marshal) {
+        msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
+    deref(uinfo);
+    deref(chan);
+}
+
+void hdl_notify_post_req(ElaCarrier *c, const char *from, Req *base)
+{
+    NotifyPostReq *req = (NotifyPostReq *)base;
+    Marshalled *resp_marshal = NULL;
+    ActiveSuberPerChan *aspc;
+    UserInfo *uinfo = NULL;
+    list_iterator_t it;
+    Chan *chan = NULL;
+    PostInfo post_notify;
+    int rc;
+
+    vlogI("Received notify_post request from [%s]: "
+          "{access_token: %s, channel_id: %" PRIu64 ", post_id: %" PRIu64 "}",
+          from, req->params.tk, req->params.chan_id, req->params.post_id);
+
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
+        return;
+    }
+
+    uinfo = create_uinfo_from_access_token(req->params.tk);
+    if (!uinfo) {
+        vlogE("Invalid access token.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_ACCESS_TOKEN_EXP
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if (!user_id_is_owner(uinfo->uid)) {
+        vlogE("Editing post while not being owner.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_AUTHORIZED
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    chan = chan_get_by_id(req->params.chan_id);
+    if (!chan) {
+        vlogE("Notifying non-existent post: invalid channel id.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    rc = db_get_post_status(req->params.chan_id, req->params.post_id);
+        vlogE("============================================ %d.", rc);
+    if (rc < 0) {
+        vlogE("Notifying non-existent post: invalid post id.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+    if(rc == POST_DELETED) {
+        vlogE("Notifying post: invalid post id.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_WRONG_STATE
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    memset(&post_notify, 0, sizeof(post_notify));
+    post_notify.chan_id = req->params.chan_id;
+    post_notify.post_id = req->params.post_id;
+    post_notify.stat    = POST_AVAILABLE;
+    post_notify.upd_at  = time(NULL);
+
+    rc = db_set_post_status(&post_notify);
+    if (rc < 0) {
+        vlogE("Notifyeting post in database failed.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    vlogI("Post [%" PRIu64 "] on channel [%" PRIu64 "] updated.", post_notify.post_id, post_notify.chan_id);
+
+    {
+        NotifyPostResp resp = {
+            .tsx_id = req->tsx_id,
+        };
+        resp_marshal = rpc_marshal_notify_post_resp(&resp);
+        vlogD("Sending notifyete_post response");
+    }
+
+    list_foreach(chan->aspcs, aspc) {
+        NotifDestPerActiveSuber *ndpas;
+        hashtable_iterator_t it;
+
+        hashtable_foreach(aspc->as->ndpass, ndpas)
+            notify_of_post_upd(ndpas->nd->node_id, &post_notify);
     }
 
 finally:
@@ -1130,7 +1356,7 @@ void hdl_del_post_req(ElaCarrier *c, const char *from, Req *base)
 
     chan = chan_get_by_id(req->params.chan_id);
     if (!chan) {
-        vlogE("Editing non-existent post: invalid channel id.");
+        vlogE("Deleting non-existent post: invalid channel id.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -1140,7 +1366,7 @@ void hdl_del_post_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if ((rc = db_post_is_avail(req->params.chan_id, req->params.post_id)) < 0 || !rc) {
-        vlogE("Editing non-existent post: invalid post id.");
+        vlogE("Deleting non-existent post: invalid post id.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -1155,7 +1381,7 @@ void hdl_del_post_req(ElaCarrier *c, const char *from, Req *base)
     post_del.stat    = POST_DELETED;
     post_del.upd_at  = time(NULL);
 
-    rc = db_del_post(&post_del);
+    rc = db_set_post_status(&post_del);
     if (rc < 0) {
         vlogE("Deleting post in database failed.");
         ErrResp resp = {
