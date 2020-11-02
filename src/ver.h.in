@@ -25,6 +25,6 @@
 
 #define FEEDSD_VER "@PROJECT_VERSION@" // defined by cmake project()
 
-#define DB_VER 2U
+#define DB_VER 3U
 
 #endif //__VER_H__

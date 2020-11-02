@@ -285,6 +285,36 @@ typedef struct {
         uint64_t    post_id;
         uint64_t    cmt_id;
     } params;
+} BlockCmtReq;
+
+typedef struct {
+    uint64_t tsx_id;
+} BlockCmtResp;
+
+typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        AccessToken tk;
+        uint64_t    chan_id;
+        uint64_t    post_id;
+        uint64_t    cmt_id;
+    } params;
+} UnblockCmtReq;
+
+typedef struct {
+    uint64_t tsx_id;
+} UnblockCmtResp;
+
+typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        AccessToken tk;
+        uint64_t    chan_id;
+        uint64_t    post_id;
+        uint64_t    cmt_id;
+    } params;
 } PostLikeReq;
 
 typedef struct {
@@ -549,6 +579,39 @@ typedef struct {
 } GetSrvVerResp;
 
 typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        AccessToken tk;
+        uint64_t    chan_id;
+        uint64_t    post_id;
+        uint64_t    cmt_id;
+        char* reasons;
+    } params;
+} ReportIllegalCmtReq;
+
+typedef struct {
+    uint64_t tsx_id;
+} ReportIllegalCmtResp;
+
+typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        AccessToken tk;
+        QryCriteria qc;
+    } params;
+} GetReportedCmtsReq;
+
+typedef struct {
+    uint64_t tsx_id;
+    struct {
+        bool is_last;
+        cvector_vector_type(ReportedCmtInfo *) rcinfos;
+    } result;
+} GetReportedCmtsResp;
+
+typedef struct {
     char *method;
     char params[0];
 } Notif;
@@ -609,6 +672,13 @@ typedef struct {
         uint64_t total_cs;
     } params;
 } StatsChangedNotif;
+
+typedef struct {
+    char *method;
+    struct {
+        ReportedCmtInfo *li;
+    } params;
+} ReportCmtNotif;
 
 typedef struct {
     uint64_t tsx_id;
@@ -681,6 +751,7 @@ int rpc_unmarshal_get_stats_resp(GetStatsResp **resp, ErrResp **err);
 int rpc_unmarshal_sub_chan_resp(SubChanResp **resp, ErrResp **err);
 int rpc_unmarshal_unsub_chan_resp(UnsubChanResp **resp, ErrResp **err);
 int rpc_unmarshal_enbl_notif_resp(EnblNotifResp **resp, ErrResp **err);
+int rpc_unmarshal_report_illegal_cmt_resp(ReportIllegalCmtResp **resp, ErrResp **err);
 Marshalled *rpc_marshal_decl_owner_req(const DeclOwnerReq *req);
 Marshalled *rpc_marshal_decl_owner_resp(const DeclOwnerResp *resp);
 Marshalled *rpc_marshal_imp_did_req(const ImpDIDReq *req);
@@ -701,6 +772,7 @@ Marshalled *rpc_marshal_new_like_notif(const NewLikeNotif *notif);
 Marshalled *rpc_marshal_new_sub_notif(const NewSubNotif *notif);
 Marshalled *rpc_marshal_chan_upd_notif(const ChanUpdNotif *notif);
 Marshalled *rpc_marshal_stats_changed_notif(const StatsChangedNotif *notif);
+Marshalled *rpc_marshal_report_cmt_notif(const ReportCmtNotif *notif);
 Marshalled *rpc_marshal_err_resp(const ErrResp *resp);
 Marshalled *rpc_marshal_create_chan_req(const CreateChanReq *req);
 Marshalled *rpc_marshal_create_chan_resp(const CreateChanResp *resp);
@@ -713,6 +785,8 @@ Marshalled *rpc_marshal_post_cmt_req(const PostCmtReq *req);
 Marshalled *rpc_marshal_post_cmt_resp(const PostCmtResp *resp);
 Marshalled *rpc_marshal_edit_cmt_resp(const EditCmtResp *resp);
 Marshalled *rpc_marshal_del_cmt_resp(const DelCmtResp *resp);
+Marshalled *rpc_marshal_block_cmt_resp(const BlockCmtResp *resp);
+Marshalled *rpc_marshal_unblock_cmt_resp(const UnblockCmtResp *resp);
 Marshalled *rpc_marshal_post_like_req(const PostLikeReq *req);
 Marshalled *rpc_marshal_post_like_resp(const PostLikeResp *resp);
 Marshalled *rpc_marshal_post_unlike_req(const PostUnlikeReq *req);
@@ -745,6 +819,10 @@ Marshalled *rpc_marshal_enbl_notif_req(const EnblNotifReq *req);
 Marshalled *rpc_marshal_enbl_notif_resp(const EnblNotifResp *resp);
 Marshalled *rpc_marshal_get_srv_ver_req(const GetSrvVerReq *req);
 Marshalled *rpc_marshal_get_srv_ver_resp(const GetSrvVerResp *resp);
+Marshalled *rpc_marshal_report_illegal_cmt_req(const ReportIllegalCmtReq *req);
+Marshalled *rpc_marshal_report_illegal_cmt_resp(const ReportIllegalCmtResp *resp);
+Marshalled *rpc_marshal_get_reported_cmts_req(const GetReportedCmtsReq *req);
+Marshalled *rpc_marshal_get_reported_cmts_resp(const GetReportedCmtsResp *resp);
 Marshalled *rpc_marshal_resp(const char* method, const Resp *resp);
 Marshalled *rpc_marshal_err(uint64_t tsx_id, int64_t errcode, const char *errdesp);
 

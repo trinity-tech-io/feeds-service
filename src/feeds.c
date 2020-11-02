@@ -465,6 +465,30 @@ void notify_of_stats_changed(const char *peer, uint64_t total_clients)
 }
 
 static
+void notify_of_report_cmt(const char *peer, const ReportedCmtInfo *li)
+{
+    ReportCmtNotif notif = {
+        .method = "report_illegal_comment",
+        .params = {
+            .li = (ReportedCmtInfo *)li
+        }
+    };
+    Marshalled *notif_marshal;
+
+    notif_marshal = rpc_marshal_report_cmt_notif(&notif);
+    if (!notif_marshal)
+        return;
+
+    vlogD("Sending new like notification to [%s]: "
+          "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", comment_id: %" PRIu64
+          ", reporter_name: %s, reporter_did: %s, reasons: %s created_at: %" PRIu64 "}",
+          peer, li->chan_id, li->post_id, li->cmt_id,
+          li->reporter.name, li->reporter.did, li->reasons, li->created_at);
+    msgq_enq(peer, notif_marshal);
+    deref(notif_marshal);
+}
+
+static
 void as_dtor(void *obj)
 {
     ActiveSuber *as = obj;
@@ -1517,7 +1541,7 @@ void hdl_del_cmt_req(ElaCarrier *c, const char *from, Req *base)
     cmt_del.user    = *uinfo;
     cmt_del.upd_at  = time(NULL);
 
-    rc = db_del_cmt(&cmt_del);
+    rc = db_set_cmt_status(&cmt_del);
     if (rc < 0) {
         vlogE("Deleting comment in database failed");
         ErrResp resp = {
@@ -1545,6 +1569,256 @@ void hdl_del_cmt_req(ElaCarrier *c, const char *from, Req *base)
 
         hashtable_foreach(aspc->as->ndpass, ndpas)
             notify_of_cmt_upd(ndpas->nd->node_id, &cmt_del);
+    }
+
+finally:
+    if (resp_marshal) {
+        msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
+    deref(uinfo);
+    deref(chan);
+}
+
+void hdl_block_cmt_req(ElaCarrier *c, const char *from, Req *base)
+{
+    BlockCmtReq *req = (BlockCmtReq *)base;
+    Marshalled *resp_marshal = NULL;
+    ActiveSuberPerChan *aspc;
+    UserInfo *uinfo = NULL;
+    list_iterator_t it;
+    Chan *chan = NULL;
+    uint64_t cmt_uid;
+    CmtInfo cmt_block;
+    int rc;
+
+    vlogD("Received block_comment request from [%s]: {access_token: %s, channel_id: %" PRIu64
+          ", post_id: %" PRIu64 ", comment_id: %" PRIu64 "}",
+          from, req->params.tk, req->params.chan_id, req->params.post_id, req->params.cmt_id);
+
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
+        return;
+    }
+
+    uinfo = create_uinfo_from_access_token(req->params.tk);
+    if (!uinfo) {
+        vlogE("Invalid access token.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_ACCESS_TOKEN_EXP
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    chan = chan_get_by_id(req->params.chan_id);
+    if (!chan) {
+        vlogE("Blocking comment on non-existent channel");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if (req->params.post_id >= chan->info.next_post_id) {
+        vlogE("Blocking comment on non-existent post");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if ((rc = db_cmt_exists(req->params.chan_id,
+                            req->params.post_id,
+                            req->params.cmt_id)) < 0 || !rc) {
+        vlogE("Blocking unavailable comment");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if ((rc = db_cmt_uid(req->params.chan_id,
+                         req->params.post_id,
+                         req->params.cmt_id,
+                         &cmt_uid)) < 0 || cmt_uid != uinfo->uid) {
+        vlogE("Blocking other's comment");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_AUTHORIZED
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    memset(&cmt_block, 0, sizeof(cmt_block));
+    cmt_block.chan_id = req->params.chan_id;
+    cmt_block.post_id = req->params.post_id;
+    cmt_block.cmt_id  = req->params.cmt_id;
+    cmt_block.stat    = CMT_BLOCKED;
+    cmt_block.user    = *uinfo;
+    cmt_block.upd_at  = time(NULL);
+
+    rc = db_set_cmt_status(&cmt_block);
+    if (rc < 0) {
+        vlogE("Blocking comment in database failed");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    vlogI("Channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] blocked by [%s].",
+          cmt_block.chan_id, cmt_block.post_id, cmt_block.cmt_id, cmt_block.user.did);
+
+    {
+        BlockCmtResp resp = {
+            .tsx_id = req->tsx_id,
+        };
+        resp_marshal = rpc_marshal_block_cmt_resp(&resp);
+        vlogD("Sending block_comment response");
+    }
+
+    list_foreach(chan->aspcs, aspc) {
+        NotifDestPerActiveSuber *ndpas;
+        hashtable_iterator_t it;
+
+        hashtable_foreach(aspc->as->ndpass, ndpas)
+            notify_of_cmt_upd(ndpas->nd->node_id, &cmt_block);
+    }
+
+finally:
+    if (resp_marshal) {
+        msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
+    deref(uinfo);
+    deref(chan);
+}
+
+void hdl_unblock_cmt_req(ElaCarrier *c, const char *from, Req *base)
+{
+    UnblockCmtReq *req = (UnblockCmtReq *)base;
+    Marshalled *resp_marshal = NULL;
+    ActiveSuberPerChan *aspc;
+    UserInfo *uinfo = NULL;
+    list_iterator_t it;
+    Chan *chan = NULL;
+    uint64_t cmt_uid;
+    CmtInfo cmt_unblock;
+    int rc;
+
+    vlogD("Received unblock_comment request from [%s]: {access_token: %s, channel_id: %" PRIu64
+          ", post_id: %" PRIu64 ", comment_id: %" PRIu64 "}",
+          from, req->params.tk, req->params.chan_id, req->params.post_id, req->params.cmt_id);
+
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
+        return;
+    }
+
+    uinfo = create_uinfo_from_access_token(req->params.tk);
+    if (!uinfo) {
+        vlogE("Invalid access token.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_ACCESS_TOKEN_EXP
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    chan = chan_get_by_id(req->params.chan_id);
+    if (!chan) {
+        vlogE("Unblocking comment on non-existent channel");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if (req->params.post_id >= chan->info.next_post_id) {
+        vlogE("Unblocking comment on non-existent post");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if ((rc = db_cmt_exists(req->params.chan_id,
+                            req->params.post_id,
+                            req->params.cmt_id)) < 0 || !rc) {
+        vlogE("Unblocking unavailable comment");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if ((rc = db_cmt_uid(req->params.chan_id,
+                         req->params.post_id,
+                         req->params.cmt_id,
+                         &cmt_uid)) < 0 || cmt_uid != uinfo->uid) {
+        vlogE("Unblocking other's comment");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_AUTHORIZED
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    memset(&cmt_unblock, 0, sizeof(cmt_unblock));
+    cmt_unblock.chan_id = req->params.chan_id;
+    cmt_unblock.post_id = req->params.post_id;
+    cmt_unblock.cmt_id  = req->params.cmt_id;
+    cmt_unblock.stat    = CMT_AVAILABLE;
+    cmt_unblock.user    = *uinfo;
+    cmt_unblock.upd_at  = time(NULL);
+
+    rc = db_set_cmt_status(&cmt_unblock);
+    if (rc < 0) {
+        vlogE("Unblocking comment in database failed");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    vlogI("Channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] unblocked by [%s].",
+          cmt_unblock.chan_id, cmt_unblock.post_id, cmt_unblock.cmt_id, cmt_unblock.user.did);
+
+    {
+        UnblockCmtResp resp = {
+            .tsx_id = req->tsx_id,
+        };
+        resp_marshal = rpc_marshal_unblock_cmt_resp(&resp);
+        vlogD("Sending unblock_comment response");
+    }
+
+    list_foreach(chan->aspcs, aspc) {
+        NotifDestPerActiveSuber *ndpas;
+        hashtable_iterator_t it;
+
+        hashtable_foreach(aspc->as->ndpass, ndpas)
+            notify_of_cmt_upd(ndpas->nd->node_id, &cmt_unblock);
     }
 
 finally:
@@ -3416,6 +3690,271 @@ finally:
         deref(resp_marshal);
     }
     deref(uinfo);
+}
+
+void hdl_report_illegal_cmt_req(ElaCarrier *c, const char *from, Req *base)
+{
+    ReportIllegalCmtReq *req = (ReportIllegalCmtReq *)base;
+    Marshalled *resp_marshal = NULL;
+    UserInfo *uinfo = NULL;
+    ActiveSuberPerChan *aspc;
+    list_iterator_t it;
+    Chan *chan = NULL;
+    ActiveSuber *owner = NULL;
+    ReportedCmtInfo li;
+    int rc;
+
+    vlogD("Received report_illegal_cmt request from [%s]: "
+          "{access_token: %s, channel_id: %" PRIu64
+          ", post_id: %" PRIu64 ", comment_id: %" PRIu64 "}"
+          ", reasons: %s",
+          from, req->params.tk, req->params.chan_id, req->params.post_id, req->params.cmt_id, req->params.reasons);
+
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
+        return;
+    }
+
+    uinfo = create_uinfo_from_access_token(req->params.tk);
+    if (!uinfo) {
+        vlogE("Invalid access token.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_ACCESS_TOKEN_EXP
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    chan = chan_get_by_id(req->params.chan_id);
+    if (!chan) {
+        vlogE("Reporting illegal comment on non-existent channel");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if (req->params.post_id >= chan->info.next_post_id) {
+        vlogE("Reporting illegal comment on non-existent post");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if (req->params.cmt_id &&
+        ((rc = db_cmt_exists(req->params.chan_id,
+                             req->params.post_id,
+                             req->params.cmt_id)) < 0 || !rc)) {
+        vlogE("Reporting illegal comment on non-existent comment");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_EXIST
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if ((rc = db_like_exists(uinfo->uid, req->params.chan_id,
+                             req->params.post_id, req->params.cmt_id)) < 0 ||
+        rc > 0) {
+        vlogE("Reporting illegal comment on liked subject");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_WRONG_STATE
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    rc = db_add_reported_cmts(req->params.chan_id, req->params.post_id, req->params.cmt_id,
+                              uinfo->uid, req->params.reasons);
+    if (rc < 0) {
+        vlogE("Adding reported_comment to database failed");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    vlogI("Reported illegal on channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] by [%s], reasons: %s.",
+          req->params.chan_id, req->params.post_id, req->params.cmt_id, uinfo->did, req->params.reasons);
+
+    {
+        ReportIllegalCmtResp resp = {
+            .tsx_id = req->tsx_id
+        };
+        resp_marshal = rpc_marshal_report_illegal_cmt_resp(&resp);
+        vlogD("Sending report_illegal_cmt response.");
+    }
+
+    li.chan_id = req->params.chan_id;
+    li.post_id = req->params.post_id;
+    li.cmt_id  = req->params.cmt_id;
+    li.reporter    = *uinfo;
+
+    if ((owner = as_get(OWNER_USER_ID))) {
+        hashtable_iterator_t it;
+        NotifDestPerActiveSuber *ndpas;
+
+        hashtable_foreach(owner->ndpass, ndpas)
+            notify_of_report_cmt(ndpas->nd->node_id, &li);
+    }
+
+finally:
+    if (resp_marshal) {
+        msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
+    deref(uinfo);
+    deref(chan);
+    deref(owner);
+}
+
+void hdl_get_reported_cmts_req(ElaCarrier *c, const char *from, Req *base)
+{
+    GetReportedCmtsReq *req = (GetReportedCmtsReq *)base;
+    cvector_vector_type(ReportedCmtInfo *) rcinfos = NULL;
+    Marshalled *resp_marshal = NULL;
+    UserInfo *uinfo = NULL;
+    DBObjIt *it = NULL;
+    Chan *chan = NULL;
+    ReportedCmtInfo *rcinfo;
+    int rc;
+
+    vlogD("Received get_comments request from [%s]: "
+          "{access_token: %s, by: %" PRIu64
+          ", upper_bound: %" PRIu64 ", lower_bound: %" PRIu64 ", max_count: %" PRIu64 "}",
+          from, req->params.tk, req->params.qc.by,
+          req->params.qc.upper, req->params.qc.lower, req->params.qc.maxcnt);
+
+    if (!did_is_ready()) {
+        vlogE("Feeds DID is not ready.");
+        return;
+    }
+
+    uinfo = create_uinfo_from_access_token(req->params.tk);
+    if (!uinfo) {
+        vlogE("Invalid access token.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_ACCESS_TOKEN_EXP
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    if (!user_id_is_owner(uinfo->uid)) {
+        vlogE("Get reported owner while not being owner.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_NOT_AUTHORIZED
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    it = db_iter_reported_cmts(&req->params.qc);
+    if (!it) {
+        vlogE("Getting reported_comments from database failed.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    foreach_db_obj(rcinfo) {
+        cvector_push_back(rcinfos, ref(rcinfo));
+        vlogD("Retrieved comment: "
+              "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", comment_id: %" PRIu64
+              ", reporter_name: %s, reporter_did: %s, reasons:%s"
+              ", created_at: %" PRIu64 "}",
+              rcinfo->chan_id, rcinfo->post_id, rcinfo->cmt_id,
+              rcinfo->reporter.name, rcinfo->reporter.did, rcinfo->reasons,
+              rcinfo->created_at);
+    }
+    if (rc < 0) {
+        vlogE("Iterating comments failed.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    {
+        // size_t left = MAX_CONTENT_LEN;
+        cvector_vector_type(ReportedCmtInfo *) rcinfos_tmp = NULL;
+        int i;
+
+        if (!cvector_size(rcinfos)) {
+            GetReportedCmtsResp resp = {
+                .tsx_id = req->tsx_id,
+                .result = {
+                    .is_last = true,
+                    .rcinfos  = rcinfos
+                }
+            };
+            resp_marshal = rpc_marshal_get_reported_cmts_resp(&resp);
+            vlogD("Sending get_reported_comments empty response.");
+            goto finally;
+        }
+
+        for (i = 0; i < cvector_size(rcinfos); ++i) {
+            // left -= rcinfos[i]->len;
+            cvector_push_back(rcinfos_tmp, rcinfos[i]);
+
+            // if (!(!left || i == cvector_size(rcinfos) - 1 || rcinfos[i + 1]->len > left))
+            //     continue;
+
+            GetReportedCmtsResp resp = {
+                .tsx_id = req->tsx_id,
+                .result = {
+                    .is_last = i == cvector_size(rcinfos) - 1,
+                    .rcinfos  = rcinfos_tmp
+                }
+            };
+            resp_marshal = rpc_marshal_get_reported_cmts_resp(&resp);
+
+            vlogD("Sending get_reported_comments response.");
+
+            rc = msgq_enq(from, resp_marshal);
+            deref(resp_marshal);
+            resp_marshal = NULL;
+            if (rc < 0)
+                break;
+
+            cvector_set_size(rcinfos_tmp, 0);
+            // left = MAX_CONTENT_LEN;
+        }
+
+        cvector_free(rcinfos_tmp);
+    }
+
+finally:
+    if (resp_marshal) {
+        msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
+    if (rcinfos) {
+        ReportedCmtInfo **i;
+        cvector_foreach(rcinfos, i)
+            deref(*i);
+        cvector_free(rcinfos);
+    }
+    deref(uinfo);
+    deref(chan);
+    deref(it);
 }
 
 void hdl_unknown_req(ElaCarrier *c, const char *from, Req *base)

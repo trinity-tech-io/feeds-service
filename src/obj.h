@@ -108,6 +108,7 @@ typedef struct {
 typedef enum {
     CMT_AVAILABLE,
     CMT_DELETED,
+    CMT_BLOCKED,
     CMT_WRONG_STAT
 } CmtStat;
 
@@ -147,5 +148,14 @@ typedef struct {
     UserInfo user;
     uint64_t total_cnt;
 } LikeInfo;
+
+typedef struct {
+    uint64_t    chan_id;
+    uint64_t    post_id;
+    uint64_t    cmt_id;
+    UserInfo    reporter;
+    const char *reasons;
+    uint64_t    created_at;
+} ReportedCmtInfo;
 
 #endif // __OBJ_H__

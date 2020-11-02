@@ -140,7 +140,7 @@ int64_t CarrierSession::sendData(const std::vector<uint8_t>& data)
 {
     Log::D(Log::TAG, "CarrierSession send vector data, len: %d", data.size());
 
-    const int step = 1024;
+    const int step = 2048;
     for(int idx = 0; idx < data.size(); idx+=step) {
         int sendSize = step < (data.size() - idx) ? step : (data.size() - idx);
         int ret = ela_stream_write(sessionHandler.get(), sessionStreamId,
@@ -162,7 +162,7 @@ int64_t CarrierSession::sendData(std::iostream& data)
     data.seekg(0, data.beg);
     Log::D(Log::TAG, "CarrierSession send stream data, len: %d", dataSize);
 
-    const int step = 1024;
+    const int step = 2048;
     uint8_t buf[step];
     for(int idx = 0; idx < dataSize; idx+=step) {
         int sendSize = step < (dataSize - idx) ? step : (dataSize - idx);

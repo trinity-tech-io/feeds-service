@@ -41,6 +41,8 @@ void hdl_del_post_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_post_cmt_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_edit_cmt_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_del_cmt_req(ElaCarrier *c, const char *from, Req *base);
+void hdl_block_cmt_req(ElaCarrier *c, const char *from, Req *base);
+void hdl_unblock_cmt_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_post_unlike_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_get_my_chans_req(ElaCarrier *c, const char *from, Req *base);
@@ -58,6 +60,8 @@ void hdl_sub_chan_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_unsub_chan_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_get_srv_ver_req(ElaCarrier *c, const char *from, Req *base);
+void hdl_report_illegal_cmt_req(ElaCarrier *c, const char *from, Req *base);
+void hdl_get_reported_cmts_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_unknown_req(ElaCarrier *c, const char *from, Req *base);
 
 void hdl_stats_changed_notify();
