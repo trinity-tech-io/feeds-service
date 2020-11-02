@@ -28,6 +28,7 @@
 #include <limits.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -45,6 +46,14 @@
 #include <getopt.h>
 #endif
 
+#include <memory>
+#include <iostream>
+
+#include <MassDataManager.hpp>
+#include <Platform.hpp>
+
+extern "C" {
+#define new fix_cpp_keyword_new
 #include <ela_carrier.h>
 #include <crystal.h>
 
@@ -55,14 +64,17 @@
 #include "did.h"
 #include "rpc.h"
 #include "db.h"
+#undef new
+}
 
 static const char *resolver = "http://api.elastos.io:20606";
 size_t connecting_clients;
+std::shared_ptr<ElaCarrier> carrier_instance;
 ElaCarrier *carrier;
 static bool stop;
 
 static struct {
-    char *method;
+    const char *method;
     void (*hdlr)(ElaCarrier *c, const char *from, Req *base);
 } method_hdlrs[] = {
     {"declare_owner"               , hdl_decl_owner_req       },
@@ -134,12 +146,22 @@ void idle_callback(ElaCarrier *c, void *context)
     (void)context;
 
     if (stop) {
-        ela_kill(carrier);
+        // avoid clean session in idle thread, it will crash.
+        // elastos::MassDataManager::GetInstance()->cleanup();
+        carrier_instance.reset();
         carrier = NULL;
         return;
     }
 
     auth_expire_login();
+}
+
+static
+void on_connection_status(ElaCarrier *carrier,
+                          ElaConnectionStatus status, void *context)
+{
+    vlogI("carrier %s", status == ElaConnectionStatus_Connected ?
+                                "connected" : "disconnected");
 }
 
 static
@@ -211,10 +233,10 @@ void usage(void)
 
 #define CONFIG_NAME "feedsd.conf"
 static const char *default_cfg_files[] = {
-    "./"CONFIG_NAME,
-    "../etc/feedsd/"CONFIG_NAME,
-    "/usr/local/etc/feedsd/"CONFIG_NAME,
-    "/etc/feedsd/"CONFIG_NAME,
+    "./" CONFIG_NAME,
+    "../etc/feedsd/" CONFIG_NAME,
+    "/usr/local/etc/feedsd/" CONFIG_NAME,
+    "/etc/feedsd/" CONFIG_NAME,
     NULL
 };
 
@@ -224,6 +246,16 @@ void shutdown_proc(int signum)
     (void)signum;
 
     stop = true;
+}
+
+static
+void print_backtrace(int sig) {
+    std::cerr << "Error: signal " << sig << std::endl;
+
+    std::string backtrace = elastos::Platform::GetBacktrace();
+    std::cerr << backtrace << std::endl;
+
+    exit(sig);
 }
 
 static
@@ -280,26 +312,48 @@ int daemonize()
 static
 void transport_deinit()
 {
-    if (carrier)
-        ela_kill(carrier);
+    elastos::MassDataManager::GetInstance()->cleanup();
+    carrier_instance.reset();
+    carrier = NULL;
 }
 
 static
 int transport_init(FeedsConfig *cfg)
 {
+    int rc;
     ElaCallbacks callbacks;
 
     memset(&callbacks, 0, sizeof(callbacks));
     callbacks.idle = idle_callback;
+    callbacks.connection_status = on_connection_status;
     callbacks.friend_connection = friend_connection_callback;
     callbacks.friend_request = friend_request_callback;
     callbacks.friend_message = on_receiving_message;
 
     DIDBackend_InitializeDefault(resolver, cfg->didcache_dir);
 
-    carrier = ela_new(&cfg->carrier_opts, &callbacks, NULL);
+    auto creater = [&]() -> ElaCarrier* {
+        vlogD("Create carrier instance.");
+        auto ptr = ela_new(&cfg->carrier_opts, &callbacks, NULL);
+        return ptr;
+    };
+    auto deleter = [=](ElaCarrier* ptr) -> void {
+        vlogD("Kill carrier instance.");
+        if(ptr != nullptr) {
+            ela_kill(ptr);
+        }
+    };
+    carrier_instance = std::shared_ptr<ElaCarrier>(creater(), deleter);
+    carrier = carrier_instance.get();
     if (!carrier) {
         vlogE("Creating carrier instance failed");
+        goto failure;
+    }
+
+    elastos::Log::SetLevel(static_cast<elastos::Log::Level>(cfg->carrier_opts.log_level));
+    rc = elastos::MassDataManager::GetInstance()->config(cfg->data_dir, carrier_instance);
+    if(rc < 0) {
+        vlogE("Carrier session init failed");
         goto failure;
     }
 
@@ -438,6 +492,9 @@ int main(int argc, char *argv[])
 
     signal(SIGINT, shutdown_proc);
     signal(SIGTERM, shutdown_proc);
+
+    signal(SIGSEGV, print_backtrace);
+    signal(SIGABRT, print_backtrace);
 
     printf("Carrier node identities:\n");
     printf("  Node ID  : %s\n", ela_get_nodeid(carrier, buf, sizeof(buf)));

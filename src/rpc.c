@@ -1572,6 +1572,107 @@ int unmarshal_enbl_notif_req(const msgpack_object *req, Req **req_unmarshal)
 }
 
 static
+int unmarshal_set_binary_req(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *tk;
+    const msgpack_object *key;
+    const msgpack_object *algo;
+    const msgpack_object *checksum;
+    SetBinaryReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        (void)map_val_str("version");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            tk       = map_val_str("access_token");
+            key      = map_val_str("key");
+            algo     = map_val_str("algo");
+            checksum = map_val_str("checksum");
+        });
+    });
+
+    if (!tk || !tk->str_sz || !key || !key->str_sz) {
+        vlogE("Invalid set_binary request.");
+        return -1;
+    }
+
+    int str_size = str_reserve_spc(method)
+                 + str_reserve_spc(tk) + str_reserve_spc(key)
+                 + str_reserve_spc(algo) + str_reserve_spc(checksum);
+    tmp = rc_zalloc(sizeof(*tmp) + str_size, NULL);
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method          = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->tsx_id          = tsx_id->u64_val;
+    tmp->params.tk       = strncpy(buf, tk->str_val, tk->str_sz);
+    buf += str_reserve_spc(tk);
+    tmp->params.key      = strncpy(buf, key->str_val, key->str_sz);
+    buf += str_reserve_spc(key);
+    tmp->params.algo     = strncpy(buf, algo->str_val, algo->str_sz);
+    buf += str_reserve_spc(algo);
+    tmp->params.checksum = strncpy(buf, checksum->str_val, checksum->str_sz);
+    buf += str_reserve_spc(checksum);
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
+
+static
+int unmarshal_get_binary_req(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *tk;
+    const msgpack_object *key;
+    GetBinaryReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        (void)map_val_str("version");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            tk       = map_val_str("access_token");
+            key      = map_val_str("key");
+        });
+    });
+
+    if (!tk || !tk->str_sz || !key || !key->str_sz) {
+        vlogE("Invalid get_binary request.");
+        return -1;
+    }
+
+    int str_size = str_reserve_spc(method)
+                 + str_reserve_spc(tk) + str_reserve_spc(key);
+    tmp = rc_zalloc(sizeof(*tmp) + str_size, NULL);
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method          = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->tsx_id          = tsx_id->u64_val;
+    tmp->params.tk       = strncpy(buf, tk->str_val, tk->str_sz);
+    buf += str_reserve_spc(tk);
+    tmp->params.key      = strncpy(buf, key->str_val, key->str_sz);
+    buf += str_reserve_spc(key);
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
+
+static
 int unmarshal_unknown_req(const msgpack_object *req, Req **req_unmarshal)
 {
     const msgpack_object *method;
@@ -1600,10 +1701,11 @@ int unmarshal_unknown_req(const msgpack_object *req, Req **req_unmarshal)
 }
 
 typedef int ReqHdlr(const msgpack_object *req_map, Req **req_unmarshal);
-static struct {
+struct RepParser {
     char *method;
     ReqHdlr *parser;
-} req_parsers[] = {
+};
+static struct RepParser req_parsers_1_0[] = {
     {"declare_owner"               , unmarshal_decl_owner_req       },
     {"import_did"                  , unmarshal_imp_did_req          },
     {"issue_credential"            , unmarshal_iss_vc_req           },
@@ -1633,6 +1735,8 @@ static struct {
     {"subscribe_channel"           , unmarshal_sub_chan_req         },
     {"unsubscribe_channel"         , unmarshal_unsub_chan_req       },
     {"enable_notification"         , unmarshal_enbl_notif_req       },
+    {"set_binary"                  , unmarshal_set_binary_req       },
+    {"get_binary"                  , unmarshal_get_binary_req       },
 };
 
 int rpc_unmarshal_req(const void *rpc, size_t len, Req **req)
@@ -1642,6 +1746,8 @@ int rpc_unmarshal_req(const void *rpc, size_t len, Req **req)
     const msgpack_object *tsx_id;
     char method_str[1024];
     msgpack_object obj;
+    struct RepParser *req_parsers;
+    int req_parsers_size;
     int rc;
     int i;
 
@@ -1664,9 +1770,9 @@ int rpc_unmarshal_req(const void *rpc, size_t len, Req **req)
         tsx_id  = map_val_u64("id");
     });
 
-    if (!version || version->str_sz != strlen("1.0") ||
-        memcmp(version->str_val, "1.0", version->str_sz) ||
-        !method || !method->str_sz || !tsx_id) {
+    if (!version || !version->str_sz ||
+        !method || !method->str_sz ||
+        !tsx_id) {
         vlogE("No version/method/id field.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
@@ -1675,7 +1781,17 @@ int rpc_unmarshal_req(const void *rpc, size_t len, Req **req)
     memset(method_str, 0, sizeof(method_str));
     strncpy(method_str, method->str_val, method->str_sz);
 
-    for (i = 0; i < sizeof(req_parsers) / sizeof(req_parsers[0]); ++i) {
+    if(memcmp(version->str_val, "1.0", version->str_sz) == 0) {
+        req_parsers = req_parsers_1_0;
+        req_parsers_size = sizeof(req_parsers_1_0) / sizeof(*req_parsers_1_0);
+    } else {
+        vlogE("Unsupported version field.");
+        rc = unmarshal_unknown_req(&obj, req);
+        msgpack_unpacked_destroy(&msgpack);
+        return -3;
+    }
+
+    for (i = 0; i < req_parsers_size; ++i) {
         if (!strcmp(method_str, req_parsers[i].method)) {
             int rc = req_parsers[i].parser(&obj, req);
             msgpack_unpacked_destroy(&msgpack);
@@ -3977,26 +4093,7 @@ Marshalled *rpc_marshal_chan_upd_notif(const ChanUpdNotif *notif)
 
 Marshalled *rpc_marshal_err_resp(const ErrResp *resp)
 {
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 3, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_u64(pk, "id", resp->tsx_id);
-        pack_kv_map(pk, "error", 2, {
-            pack_kv_i64(pk, "code", resp->ec);
-            pack_kv_str(pk, "message", err_strerror(resp->ec));
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
+    return rpc_marshal_err(resp->tsx_id, resp->ec, err_strerror(resp->ec));
 }
 
 Marshalled *rpc_marshal_create_chan_req(const CreateChanReq *req)
@@ -5101,6 +5198,111 @@ Marshalled *rpc_marshal_enbl_notif_resp(const EnblNotifResp *resp)
         pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_nil(pk, "result");
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *marshal_set_binary_resp(const Resp *resp)
+{
+    SetBinaryResp *wrap_resp = (SetBinaryResp*)resp;
+
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.1.3");
+        pack_kv_u64(pk, "id", wrap_resp->tsx_id);
+        pack_kv_map(pk, "result", 2, {
+            pack_kv_str(pk, "key", wrap_resp->result.key);
+        });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *marshal_get_binary_resp(const Resp *resp)
+{
+    GetBinaryResp *wrap_resp = (GetBinaryResp*)resp;
+
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.1.3");
+        pack_kv_u64(pk, "id", wrap_resp->tsx_id);
+        pack_kv_map(pk, "result", 4, {
+            pack_kv_str(pk, "key", wrap_resp->result.key);
+            pack_kv_str(pk, "algo", wrap_resp->result.algo);
+            pack_kv_str(pk, "checksum", wrap_resp->result.checksum);
+        });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+typedef Marshalled *RespHdlr(const Resp *resp);
+struct RespSerializer {
+    char *method;
+    RespHdlr *serializer;
+};
+static struct RespSerializer resp_serializers_1_0[] = {
+    {"set_binary"              , marshal_set_binary_resp       },
+    {"get_binary"              , marshal_get_binary_resp       },
+};
+
+Marshalled *rpc_marshal_resp(const char* method, const Resp *resp)
+{
+    struct RespSerializer *resp_serializers;
+    int resp_serializers_size;
+    Marshalled *marshalled_data;
+    int i;
+
+    resp_serializers = resp_serializers_1_0;
+    resp_serializers_size = sizeof(resp_serializers_1_0) / sizeof(*resp_serializers_1_0);
+    for (i = 0; i < resp_serializers_size; ++i) {
+        if (!strcmp(method, resp_serializers[i].method)) {
+            return resp_serializers[i].serializer(resp);
+        }
+    }
+
+    vlogE("RespSerializer: not a valid method.");
+    return NULL;
+}
+
+Marshalled *rpc_marshal_err(uint64_t tsx_id, int64_t errcode, const char *errdesp)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_u64(pk, "id", tsx_id);
+        pack_kv_map(pk, "error", 2, {
+            pack_kv_i64(pk, "code", errcode);
+            pack_kv_str(pk, "message", errdesp);
+        });
     });
 
     m->m.data = buf->data;

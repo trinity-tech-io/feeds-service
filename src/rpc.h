@@ -575,6 +575,47 @@ typedef struct {
 } ChanUpdNotif;
 
 typedef struct {
+    uint64_t tsx_id;
+    char     result[0];
+} Resp;
+
+typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        AccessToken  tk;
+        char        *key;
+        char        *algo;
+        char        *checksum;
+    } params;
+} SetBinaryReq;
+
+typedef struct {
+    uint64_t tsx_id;
+    struct {
+        char        *key;
+    } result;
+} SetBinaryResp;
+
+typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        AccessToken  tk;
+        char        *key;
+    } params;
+} GetBinaryReq;
+
+typedef struct {
+    uint64_t tsx_id;
+    struct {
+        char        *key;
+        char        *algo;
+        char        *checksum;
+    } result;
+} GetBinaryResp;
+
+typedef struct {
     void  *data;
     size_t sz;
 } Marshalled;
@@ -662,5 +703,7 @@ Marshalled *rpc_marshal_unsub_chan_req(const UnsubChanReq *req);
 Marshalled *rpc_marshal_unsub_chan_resp(const UnsubChanResp *resp);
 Marshalled *rpc_marshal_enbl_notif_req(const EnblNotifReq *req);
 Marshalled *rpc_marshal_enbl_notif_resp(const EnblNotifResp *resp);
+Marshalled *rpc_marshal_resp(const char* method, const Resp *resp);
+Marshalled *rpc_marshal_err(uint64_t tsx_id, int64_t errcode, const char *errdesp);
 
 #endif //__RPC_H__
