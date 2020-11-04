@@ -104,7 +104,7 @@ typedef struct {
     uint64_t    upd_at;
     uint64_t    cmts;
     uint64_t    likes;
-    const void *content;
+    void        *content;
     size_t      len;
 } PostInfo;
 

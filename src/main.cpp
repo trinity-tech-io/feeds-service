@@ -141,6 +141,7 @@ void on_receiving_message(ElaCarrier *c, const char *from,
 
     for (i = 0; i < sizeof(method_hdlrs) / sizeof(method_hdlrs[0]); ++i) {
         if (!strcmp(req->method, method_hdlrs[i].method)) {
+            vlogD("receive msg: method =%s from=%s", req->method, from);
             method_hdlrs[i].hdlr(c, from, req);
             break;
         }
