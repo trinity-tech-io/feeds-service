@@ -1141,7 +1141,6 @@ void hdl_notify_post_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     rc = db_get_post_status(req->params.chan_id, req->params.post_id);
-        vlogE("============================================ %d.", rc);
     if (rc < 0) {
         vlogE("Notifying non-existent post: invalid post id.");
         ErrResp resp = {
@@ -1165,11 +1164,10 @@ void hdl_notify_post_req(ElaCarrier *c, const char *from, Req *base)
     post_notify.chan_id = req->params.chan_id;
     post_notify.post_id = req->params.post_id;
     post_notify.stat    = POST_AVAILABLE;
-    post_notify.upd_at  = time(NULL);
 
     rc = db_set_post_status(&post_notify);
     if (rc < 0) {
-        vlogE("Notifyeting post in database failed.");
+        vlogE("Notifying post in database failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -1188,6 +1186,17 @@ void hdl_notify_post_req(ElaCarrier *c, const char *from, Req *base)
         vlogD("Sending notifyete_post response");
     }
 
+    rc = db_get_post(post_notify.chan_id, post_notify.post_id, &post_notify);
+    if (rc < 0) {
+        vlogE("Notifying get post in database failed.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
     list_foreach(chan->aspcs, aspc) {
         NotifDestPerActiveSuber *ndpas;
         hashtable_iterator_t it;
@@ -1195,6 +1204,8 @@ void hdl_notify_post_req(ElaCarrier *c, const char *from, Req *base)
         hashtable_foreach(aspc->as->ndpass, ndpas)
             notify_of_post_upd(ndpas->nd->node_id, &post_notify);
     }
+
+    deref(post_notify.content);
 
 finally:
     if (resp_marshal) {

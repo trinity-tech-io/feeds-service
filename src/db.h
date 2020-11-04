@@ -41,6 +41,7 @@ int db_post_is_avail(uint64_t chan_id, uint64_t post_id);
 int db_upd_post(PostInfo *pi);
 int db_set_post_status(PostInfo *pi);
 int db_get_post_status(uint64_t chan_id, uint64_t post_id);
+int db_get_post(uint64_t chan_id, uint64_t post_id, PostInfo *pi);
 int db_cmt_exists(uint64_t channel_id, uint64_t post_id, uint64_t comment_id);
 int db_cmt_is_avail(uint64_t channel_id, uint64_t post_id, uint64_t comment_id);
 int db_cmt_uid(uint64_t channel_id, uint64_t post_id, uint64_t comment_id, uint64_t *uid);

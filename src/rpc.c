@@ -4864,9 +4864,10 @@ Marshalled *rpc_marshal_notify_post_resp(const NotifyPostResp *resp)
     msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
-    pack_map(pk, 2, {
+    pack_map(pk, 3, {
         pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
+        pack_kv_nil(pk, "result");
     });
 
     m->m.data = buf->data;
