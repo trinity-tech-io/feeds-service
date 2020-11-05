@@ -1,7 +1,7 @@
-diff -ruN Elastos.DID.Native.SDK/deps/libcrystal/CMakeLists.txt Elastos.DID.Native.SDK-mod/deps/libcrystal/CMakeLists.txt
---- Elastos.DID.Native.SDK/deps/libcrystal/CMakeLists.txt	2020-08-10 10:35:52.000000000 +0800
-+++ Elastos.DID.Native.SDK-mod/deps/libcrystal/CMakeLists.txt	2020-08-10 14:38:48.000000000 +0800
-@@ -14,6 +14,8 @@
+diff --git a/deps/libcrystal/CMakeLists.txt b/deps/libcrystal/CMakeLists.txt
+--- a/deps/libcrystal/CMakeLists.txt
++++ b/deps/libcrystal/CMakeLists.txt
+@@ -14,6 +14,8 @@ ExternalProject_Add(
      DOWNLOAD_DIR ${PROJECT_DEPS_TARBALL_DIR}
      DOWNLOAD_NO_PROGRESS 1
  
@@ -10,14 +10,15 @@ diff -ruN Elastos.DID.Native.SDK/deps/libcrystal/CMakeLists.txt Elastos.DID.Nati
      CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${PROJECT_INT_DIST_DIR}
          -DENABLE_STATIC=${ENABLE_STATIC}
          -DENABLE_SHARED=${ENABLE_SHARED}
-diff -ruN Elastos.DID.Native.SDK/deps/libcrystal/libcrystal.patch Elastos.DID.Native.SDK-mod/deps/libcrystal/libcrystal.patch
---- Elastos.DID.Native.SDK/deps/libcrystal/libcrystal.patch	1970-01-01 08:00:00.000000000 +0800
-+++ Elastos.DID.Native.SDK-mod/deps/libcrystal/libcrystal.patch	2020-08-10 14:39:07.000000000 +0800
-@@ -0,0 +1,511 @@
-+diff -ruN libcrystal/include/crystal/linkedhashtable.h libcrystal-mod/include/crystal/linkedhashtable.h
-+--- libcrystal/include/crystal/linkedhashtable.h	2019-05-24 16:32:11.000000000 +0800
-++++ libcrystal-mod/include/crystal/linkedhashtable.h	2020-08-10 13:04:22.000000000 +0800
-+@@ -39,11 +39,11 @@
+diff --git a/deps/libcrystal/libcrystal.patch b/deps/libcrystal/libcrystal.patch
+new file mode 100644
+--- /dev/null
++++ b/deps/libcrystal/libcrystal.patch
+@@ -0,0 +1,282 @@
++diff --git a/include/crystal/linkedhashtable.h b/include/crystal/linkedhashtable.h
++--- a/include/crystal/linkedhashtable.h
+++++ b/include/crystal/linkedhashtable.h
++@@ -39,11 +39,11 @@ typedef struct _hash_entry_t
 +     const void *        key;
 +     size_t              keylen;
 +     void *              data;
@@ -31,124 +32,10 @@ diff -ruN Elastos.DID.Native.SDK/deps/libcrystal/libcrystal.patch Elastos.DID.Na
 + } hashtable_iterator_t;
 + 
 + CRYSTAL_API
-+diff -ruN libcrystal/src/CMakeLists.txt libcrystal-mod/src/CMakeLists.txt
-+--- libcrystal/src/CMakeLists.txt	2019-05-24 16:32:11.000000000 +0800
-++++ libcrystal-mod/src/CMakeLists.txt	2020-08-10 13:04:22.000000000 +0800
-+@@ -28,6 +28,8 @@
-+         "slim-pthread or pthreads-win32 are recommended.")
-+ endif()
-+ 
-++set(CMAKE_C_STANDARD 99)
-++
-+ set(SRC
-+     base58.c
-+     bitset.c
-+diff -ruN libcrystal/src/crypto.c libcrystal-mod/src/crypto.c
-+--- libcrystal/src/crypto.c	2019-05-24 16:32:11.000000000 +0800
-++++ libcrystal-mod/src/crypto.c	2020-08-10 14:37:09.000000000 +0800
-+@@ -164,6 +164,8 @@
-+ #pragma GCC diagnostic pop
-+ #endif
-+ 
-++#define STACK_BUFFER_MAXSIZE (2 * 1024)
-++
-+ ssize_t crypto_encrypt(const uint8_t *key, const uint8_t *nonce,
-+                        const uint8_t *plain, size_t length, uint8_t *encrypted)
-+ {
-+@@ -173,20 +175,42 @@
-+     if (length == 0 || !key || !nonce || !plain || !encrypted)
-+         return -1;
-+ 
-+-    _plain = (uint8_t *)alloca(length + crypto_box_ZEROBYTES);
-+-    _encrypted = (uint8_t *)alloca(length + crypto_box_MACBYTES + crypto_box_BOXZEROBYTES);
-++    if(length > STACK_BUFFER_MAXSIZE) {
-++        _plain = (uint8_t *)malloc(length + crypto_box_ZEROBYTES);
-++        if(!_plain)
-++            return -1;
-++        _encrypted = (uint8_t *)malloc(length + crypto_box_MACBYTES + crypto_box_BOXZEROBYTES);
-++        if(!_encrypted) {
-++            free(_plain);
-++            return -1;
-++        }
-++    } else {
-++        _plain = (uint8_t *)alloca(length + crypto_box_ZEROBYTES);
-++        _encrypted = (uint8_t *)alloca(length + crypto_box_MACBYTES + crypto_box_BOXZEROBYTES);
-++    }
-+ 
-+     // Pad the plain with 32 zero bytes.
-+     memset(_plain, 0, crypto_box_ZEROBYTES);
-+     memcpy(_plain + crypto_box_ZEROBYTES, plain, length);
-+ 
-+     if (crypto_box_afternm(_encrypted, _plain, length + crypto_box_ZEROBYTES,
-+-                           nonce, key) != 0)
-++                           nonce, key) != 0) {
-++        if(length > STACK_BUFFER_MAXSIZE) {
-++            free(_plain);
-++            free(_encrypted);
-++        }
-+         return -1;
-++    }
-+ 
-+     /* Unpad the encrypted message. */
-+     memcpy(encrypted, _encrypted + crypto_box_BOXZEROBYTES,
-+            length + crypto_box_MACBYTES);
-++
-++    if(length > STACK_BUFFER_MAXSIZE) {
-++        free(_plain);
-++        free(_encrypted);
-++    }
-++
-+     return length + crypto_box_MACBYTES;
-+ }
-+ 
-+@@ -215,18 +239,40 @@
-+         || !encrypted || !plain)
-+         return -1;
-+ 
-+-    _plain = (uint8_t *)alloca(length + crypto_box_ZEROBYTES);
-+-    _encrypted = (uint8_t *)alloca(length + crypto_box_BOXZEROBYTES);
-++    if(length > STACK_BUFFER_MAXSIZE) {
-++        _plain = (uint8_t *)malloc(length + crypto_box_ZEROBYTES);
-++        if(!_plain)
-++            return -1;
-++        _encrypted = (uint8_t *)malloc(length + crypto_box_BOXZEROBYTES);
-++        if(!_encrypted) {
-++            free(_plain);
-++            return -1;
-++        }
-++    } else {
-++        _plain = (uint8_t *)alloca(length + crypto_box_ZEROBYTES);
-++        _encrypted = (uint8_t *)alloca(length + crypto_box_BOXZEROBYTES);
-++    }
-+ 
-+     // Pad the encrypted message with 16 zero bytes.
-+     memset(_encrypted, 0, crypto_box_BOXZEROBYTES);
-+     memcpy(_encrypted + crypto_box_BOXZEROBYTES, encrypted, length);
-+ 
-+     if (crypto_box_open_afternm(_plain, _encrypted,
-+-                        length + crypto_box_BOXZEROBYTES, nonce, key) != 0)
-++                        length + crypto_box_BOXZEROBYTES, nonce, key) != 0) {
-++        if(length > STACK_BUFFER_MAXSIZE) {
-++            free(_plain);
-++            free(_encrypted);
-++        }
-+         return -1;
-++    }
-+ 
-+     memcpy(plain, _plain + crypto_box_ZEROBYTES, length - crypto_box_MACBYTES);
-++
-++    if(length > STACK_BUFFER_MAXSIZE) {
-++        free(_plain);
-++        free(_encrypted);
-++    }
-++
-+     return length - crypto_box_MACBYTES;
-+ }
-+ 
-+diff -ruN libcrystal/src/linkedhashtable.c libcrystal-mod/src/linkedhashtable.c
-+--- libcrystal/src/linkedhashtable.c	2019-05-24 16:32:11.000000000 +0800
-++++ libcrystal-mod/src/linkedhashtable.c	2020-08-10 13:04:22.000000000 +0800
-+@@ -41,6 +41,7 @@
++diff --git a/src/linkedhashtable.c b/src/linkedhashtable.c
++--- a/src/linkedhashtable.c
+++++ b/src/linkedhashtable.c
++@@ -41,6 +41,7 @@ typedef struct _hash_entry_i
 +     size_t               keylen;
 +     void *               data;
 +     uint32_t             hash_code;
@@ -156,7 +43,7 @@ diff -ruN Elastos.DID.Native.SDK/deps/libcrystal/libcrystal.patch Elastos.DID.Na
 +     struct _hash_entry_i *next;
 +     struct _hash_entry_i *lst_prev;
 +     struct _hash_entry_i *lst_next;
-+@@ -49,7 +50,6 @@
++@@ -49,7 +50,6 @@ typedef struct _hash_entry_i
 + typedef struct hashtable_iterator_i {
 +     hashtable_t *htab;
 +     hash_entry_i *current;
@@ -164,7 +51,7 @@ diff -ruN Elastos.DID.Native.SDK/deps/libcrystal/libcrystal.patch Elastos.DID.Na
 +     int expected_mod_count;
 + } hashtable_iterator_i;
 + 
-+@@ -61,7 +61,6 @@
++@@ -61,7 +61,6 @@ static_assert(sizeof(hashtable_iterator_t) >= sizeof(hashtable_iterator_i),
 + struct _hashtable_t {
 +     size_t      capacity;
 +     size_t      count;
@@ -172,7 +59,7 @@ diff -ruN Elastos.DID.Native.SDK/deps/libcrystal/libcrystal.patch Elastos.DID.Na
 +     int         synced;
 +     pthread_rwlock_t lock;
 + 
-+@@ -135,7 +134,6 @@
++@@ -135,7 +134,6 @@ hashtable_t *hashtable_create(size_t capacity, int synced,
 + 
 +     htab->capacity = capacity;
 +     htab->count = 0;
@@ -180,7 +67,7 @@ diff -ruN Elastos.DID.Native.SDK/deps/libcrystal/libcrystal.patch Elastos.DID.Na
 +     htab->synced = synced;
 + 
 +     htab->hash_code = hash_code ? hash_code : default_hash_code;
-+@@ -143,6 +141,8 @@
++@@ -143,6 +141,8 @@ hashtable_t *hashtable_create(size_t capacity, int synced,
 + 
 +     htab->lst_head.lst_next = &htab->lst_head;
 +     htab->lst_head.lst_prev = &htab->lst_head;
@@ -189,7 +76,7 @@ diff -ruN Elastos.DID.Native.SDK/deps/libcrystal/libcrystal.patch Elastos.DID.Na
 + 
 +     return htab;
 + }
-+@@ -190,6 +190,7 @@
++@@ -190,6 +190,7 @@ static void hashtable_clear_i(hashtable_t *htab)
 +     entry = htab->lst_head.lst_next;
 +     while (entry != &htab->lst_head) {
 +         cur = entry;
@@ -197,46 +84,15 @@ diff -ruN Elastos.DID.Native.SDK/deps/libcrystal/libcrystal.patch Elastos.DID.Na
 +         entry = entry->lst_next;
 + 
 +         deref(cur->data);
-+@@ -201,31 +202,22 @@
++@@ -201,7 +202,6 @@ static void hashtable_clear_i(hashtable_t *htab)
 +     htab->lst_head.lst_prev = &htab->lst_head;
 + 
 +     htab->count = 0;
 +-    htab->mod_count++;
 + }
 + 
-+-static void hashtable_destroy(void *htab)
-++static void hashtable_destroy(void *obj)
-+ {
-+-    int synced;
-+-    pthread_rwlock_t lock;
-+-
-+-    if (!htab)
-+-        return;
-++    hashtable_t *htab = obj;
-+ 
-+-    synced = ((hashtable_t *)htab)->synced;
-+-
-+-    if (synced) {
-+-        lock = ((hashtable_t *)htab)->lock;
-+-        if (pthread_rwlock_wrlock(&lock) != 0)
-++    if (htab->synced) {
-++        if (pthread_rwlock_wrlock(&htab->lock) != 0)
-+             return;
-+     }
-+ 
-+     hashtable_clear_i(htab);
-+-    memset(htab, 0, sizeof(hashtable_t));
-+ 
-+-    if (synced) {
-+-        pthread_rwlock_unlock(&lock);
-+-        pthread_rwlock_destroy(&lock);
-++    if (htab->synced) {
-++        pthread_rwlock_unlock(&htab->lock);
-++        pthread_rwlock_destroy(&htab->lock);
-+     }
-+ }
-+ 
-+@@ -299,13 +291,14 @@
++ static void hashtable_destroy(void *obj)
++@@ -295,13 +295,14 @@ void *hashtable_put(hashtable_t *htab, hash_entry_t *entry)
 +         new_entry->lst_prev->lst_next = new_entry;
 +         new_entry->lst_next->lst_prev = new_entry;
 + 
@@ -252,7 +108,7 @@ diff -ruN Elastos.DID.Native.SDK/deps/libcrystal/libcrystal.patch Elastos.DID.Na
 + 
 +     hashtable_unlock(htab);
 + 
-+@@ -331,7 +324,6 @@
++@@ -327,7 +328,6 @@ void *hashtable_get(hashtable_t *htab, const void *key, size_t keylen)
 +     hashtable_unlock(htab);
 + 
 +     return val;
@@ -260,7 +116,7 @@ diff -ruN Elastos.DID.Native.SDK/deps/libcrystal/libcrystal.patch Elastos.DID.Na
 + }
 + 
 + int hashtable_exist(hashtable_t *htab, const void *key, size_t keylen)
-+@@ -377,12 +369,13 @@
++@@ -373,12 +373,13 @@ static void *hashtable_remove_nolock(hashtable_t *htab, const void *key, size_t
 +         to_remove->lst_prev->lst_next = to_remove->lst_next;
 +         to_remove->lst_next->lst_prev = to_remove->lst_prev;
 + 
@@ -275,7 +131,7 @@ diff -ruN Elastos.DID.Native.SDK/deps/libcrystal/libcrystal.patch Elastos.DID.Na
 +     }
 + 
 +     return val;
-+@@ -431,10 +424,10 @@
++@@ -427,10 +428,10 @@ hashtable_iterator_t *hashtable_iterate(hashtable_t *htab,
 + 
 +     hashtable_rlock(htab);
 + 
@@ -290,7 +146,7 @@ diff -ruN Elastos.DID.Native.SDK/deps/libcrystal/libcrystal.patch Elastos.DID.Na
 + 
 +     hashtable_unlock(htab);
 + 
-+@@ -445,26 +438,34 @@
++@@ -441,26 +442,34 @@ hashtable_iterator_t *hashtable_iterate(hashtable_t *htab,
 + int hashtable_iterator_next(hashtable_iterator_t *iterator, void **key,
 +                               size_t *keylen, void **data)
 + {
@@ -336,7 +192,7 @@ diff -ruN Elastos.DID.Native.SDK/deps/libcrystal/libcrystal.patch Elastos.DID.Na
 + 
 +             if (key)
 +                 *key = (void *)it->current->key;
-+@@ -474,57 +475,82 @@
++@@ -470,57 +479,82 @@ int hashtable_iterator_next(hashtable_iterator_t *iterator, void **key,
 +             *data = it->current->data;
 +             ref(*data);
 + 
@@ -356,8 +212,7 @@ diff -ruN Elastos.DID.Native.SDK/deps/libcrystal/libcrystal.patch Elastos.DID.Na
 ++            it->htab = NULL;
 ++            it->current = NULL;
 ++            it->expected_mod_count = 0;
-+ 
-+-    return rc;
+++
 ++            return 0;
 ++        } else {
 ++            it->current = it->htab->lst_head.lst_next;
@@ -371,7 +226,8 @@ diff -ruN Elastos.DID.Native.SDK/deps/libcrystal/libcrystal.patch Elastos.DID.Na
 ++
 ++            *data = it->current->data;
 ++            ref(*data);
-++
++ 
++-    return rc;
 ++            hashtable_unlock(it->htab);
 ++
 ++            return 1;
@@ -441,87 +297,25 @@ diff -ruN Elastos.DID.Native.SDK/deps/libcrystal/libcrystal.patch Elastos.DID.Na
 ++
 ++    return 1;
 + }
-+diff -ruN libcrystal/src/linkedlist.c libcrystal-mod/src/linkedlist.c
-+--- libcrystal/src/linkedlist.c	2019-05-24 16:32:11.000000000 +0800
-++++ libcrystal-mod/src/linkedlist.c	2020-08-10 13:04:22.000000000 +0800
-+@@ -303,28 +303,20 @@
-+     list_unlock(lst);
-+ }
-+ 
-+-static void list_destroy(void *lst)
-++static void list_destroy(void *obj)
-+ {
-+-    int synced;
-+-    pthread_rwlock_t lock;
-++    list_t *lst = obj;
-+ 
-+-    if (!lst)
-+-        return;
-+-
-+-    synced = ((list_t *)lst)->synced;
-+-
-+-    if (synced) {
-+-        lock = ((list_t *)lst)->lock;
-+-        if (pthread_rwlock_wrlock(&lock) != 0)
-++    if (lst->synced) {
-++        if (pthread_rwlock_wrlock(&lst->lock) != 0)
-+             return;
-+     }
-+ 
-+-    list_clear_i((list_t *)lst);
-+-    memset(lst, 0, sizeof(list_t));
-++    list_clear_i(lst);
-+ 
-+-    if (synced) {
-+-        pthread_rwlock_unlock(&lock);
-+-        pthread_rwlock_destroy(&lock);
-++    if (lst->synced) {
-++        pthread_rwlock_unlock(&lst->lock);
-++        pthread_rwlock_destroy(&lst->lock);
-+     }
-+ }
-+ 
-+diff -ruN libcrystal/src/vlog.c libcrystal-mod/src/vlog.c
-+--- libcrystal/src/vlog.c	2019-05-24 16:32:11.000000000 +0800
-++++ libcrystal-mod/src/vlog.c	2020-08-10 13:04:22.000000000 +0800
-+@@ -25,6 +25,7 @@
-+ #include <time.h>
-+ #include <stdarg.h>
-+ #include <pthread.h>
-++#include <stddef.h>
-+ 
-+ #include "crystal/vlog.h"
-+ 
-+@@ -222,15 +223,29 @@
-+         level = VLOG_VERBOSE;
-+ 
-+     char timestr[20];
-+-    char buf[1024];
-++    char *buf;
-++    va_list args_dup;
-+     time_t cur = time(NULL);
-++    int rc;
-++
-++    va_copy(args_dup, args);
-++    rc = vsnprintf(NULL, 0, format, args_dup);
-++    va_end(args_dup);
-++    if (rc <= 0)
-++        return;
-++
-++    buf = rc + 1 > 1024 ? malloc(rc + 1) : alloca(rc + 1);
-++    if (!buf)
-++        return;
-+ 
-+     strftime(timestr, 20, TIME_FORMAT, localtime(&cur));
-+-    vsnprintf(buf, sizeof(buf), format, args);
-+-    buf[1023] = 0;
-++    vsnprintf(buf, rc + 1, format, args);
-+ 
-+     output(level, "%s - %-7s : %s\n",
-+             timestr, level_names[level], buf);
-++
-++    if (rc + 1 > 1024)
-++        free(buf);
-+ }
-+ 
-+ void vlog(int level, const char *format, ...)
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -99,13 +99,11 @@ if(ENABLE_TESTS)
+     set(HEADER_FILTER
+         "*.h")
+ else()
+-    set(HEADER_FILTER
+-        "ela_did.h")
+-    if(ENABLE_JWT)
+-        set(HEADER_FILTER
+-            ${HEADER_FILTER}
+-            "ela_jwt.h")
+-    endif()
++if(ENABLE_JWT)
++    set(HEADER_FILTER "ela_*.h")
++else()
++    set(HEADER_FILTER "ela_did.h")
++endif()
+ endif()
+ 
+ if(ENABLE_JWT)

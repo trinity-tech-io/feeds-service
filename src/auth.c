@@ -36,7 +36,7 @@
 
 typedef struct {
     UserInfo info;
-    JWS *token;
+    JWT *token;
 } AccessTokenUserInfo;
 
 typedef struct {
@@ -234,7 +234,7 @@ finally:
 }
 
 static
-bool chal_resp_is_valid(JWS *chan_resp, Login **l)
+bool chal_resp_is_valid(JWT *chan_resp, Login **l)
 {
     char nid[ELA_MAX_ID_LEN + 1];
     char signer_did[ELA_MAX_DID_LEN];
@@ -242,7 +242,7 @@ bool chal_resp_is_valid(JWS *chan_resp, Login **l)
     char *vp_str;
     Login *login;
 
-    if (!(vp_str = (char *)JWS_GetClaimAsJson(chan_resp, "presentation"))) {
+    if (!(vp_str = (char *)JWT_GetClaimAsJson(chan_resp, "presentation"))) {
         vlogE("Invalid challenge response: get presentation failed: %s", DIDError_GetMessage());
         return false;
     }
@@ -261,9 +261,9 @@ bool chal_resp_is_valid(JWS *chan_resp, Login **l)
     }
 
     if (strcmp(DID_ToString(Presentation_GetSigner(vp), signer_did, sizeof(signer_did)),
-               JWS_GetIssuer(chan_resp))) {
+               JWT_GetIssuer(chan_resp))) {
         vlogE("Invalid challenge response presentation signer and jws issuer mismatch."
-              "signer DID: [%s], issuer DID: [%s]", signer_did, JWS_GetIssuer(chan_resp));
+              "signer DID: [%s], issuer DID: [%s]", signer_did, JWT_GetIssuer(chan_resp));
         Presentation_Destroy(vp);
         free(vp_str);
         return false;
@@ -411,7 +411,7 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
     char owner_did[ELA_MAX_DID_LEN];
     char *access_token = NULL;
     UserInfo *uinfo = NULL;
-    JWS *chal_resp = NULL;
+    JWT *chal_resp = NULL;
     Credential *vc = NULL;
     Login *login = NULL;
     int rc;
@@ -476,10 +476,10 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
             goto finally;
         }
 
-        if (strcmp(JWS_GetIssuer(chal_resp),
+        if (strcmp(JWT_GetIssuer(chal_resp),
                    DID_ToString(Credential_GetOwner(vc), owner_did, sizeof(owner_did)))) {
             vlogE("Invalid credential in signin_confirm_challenge: issuer and owner mismatch: "
-                  "issuer: [%s], owner: [%s]", JWS_GetIssuer(chal_resp), owner_did);
+                  "issuer: [%s], owner: [%s]", JWT_GetIssuer(chal_resp), owner_did);
             ErrResp resp = {
                 .tsx_id = req->tsx_id,
                 .ec     = ERR_INVALID_VC
@@ -488,7 +488,7 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
             goto finally;
         }
 
-        uinfo = create_uinfo_from_vc(JWS_GetIssuer(chal_resp), vc);
+        uinfo = create_uinfo_from_vc(JWT_GetIssuer(chal_resp), vc);
         if (!uinfo) {
             ErrResp resp = {
                 .tsx_id = req->tsx_id,
@@ -568,7 +568,7 @@ finally:
     if (vc)
         Credential_Destroy(vc);
     if (chal_resp)
-        JWS_Destroy(chal_resp);
+        JWT_Destroy(chal_resp);
     deref(uinfo);
     deref(login);
 }
@@ -578,24 +578,24 @@ void atuinfo_dtor(void *obj)
 {
     AccessTokenUserInfo *usr = (AccessTokenUserInfo *)obj;
 
-    JWS_Destroy(usr->token);
+    JWT_Destroy(usr->token);
 }
 
 static inline
-time_t access_token_get_iss_time(JWS *token)
+time_t access_token_get_iss_time(JWT *token)
 {
-    return JWS_GetExpiration(token) - ACCESS_TOKEN_VALIDITY_PERIOD;
+    return JWT_GetExpiration(token) - ACCESS_TOKEN_VALIDITY_PERIOD;
 }
 
 static
-bool access_token_is_valid(JWS *token)
+bool access_token_is_valid(JWT *token)
 {
     DIDURL *keyurl = NULL;
     bool valid = false;
     char auth_key[ELA_MAX_DIDURL_LEN];
     time_t now;
 
-    keyurl = DIDURL_FromString(JWS_GetKeyId(token), NULL);
+    keyurl = DIDURL_FromString(JWT_GetKeyId(token), NULL);
     if (!keyurl) {
         vlogE("Getting access token signing key URL failed: %s", DIDError_GetMessage());
         goto finally;
@@ -603,7 +603,7 @@ bool access_token_is_valid(JWS *token)
 
     if (!DIDURL_Equals(keyurl, feeeds_auth_key_url)) {
         vlogE("Getting access token signing key URL mismatch: expected: [%s], actual: [%s].",
-              DIDURL_ToString(feeeds_auth_key_url, auth_key, sizeof(auth_key), true), JWS_GetKeyId(token));
+              DIDURL_ToString(feeeds_auth_key_url, auth_key, sizeof(auth_key), true), JWT_GetKeyId(token));
         goto finally;
     }
 
@@ -612,9 +612,9 @@ bool access_token_is_valid(JWS *token)
         goto finally;
     }
 
-    if (JWS_GetExpiration(token) < (now = time(NULL))) {
+    if (JWT_GetExpiration(token) < (now = time(NULL))) {
         vlogE("Access token has expired. expiration: %" PRIu64 ", now: %" PRIu64,
-              (uint64_t)JWS_GetExpiration(token), (uint64_t)now);
+              (uint64_t)JWT_GetExpiration(token), (uint64_t)now);
         goto finally;
     }
 
@@ -630,7 +630,7 @@ finally:
 UserInfo *create_uinfo_from_access_token(const char *token_marshal)
 {
     AccessTokenUserInfo *uinfo = NULL;
-    JWS *token = NULL;
+    JWT *token = NULL;
 
     token = JWTParser_Parse(token_marshal);
     if (!token) {
@@ -647,17 +647,17 @@ UserInfo *create_uinfo_from_access_token(const char *token_marshal)
         goto finally;
     }
 
-    uinfo->info.did   = (char *)JWS_GetSubject(token);
-    uinfo->info.uid   = JWS_GetClaimAsInteger(token, "uid");
-    uinfo->info.name  = (char *)JWS_GetClaim(token, "name");
-    uinfo->info.email = (char *)JWS_GetClaim(token, "email");
+    uinfo->info.did   = (char *)JWT_GetSubject(token);
+    uinfo->info.uid   = JWT_GetClaimAsInteger(token, "uid");
+    uinfo->info.name  = (char *)JWT_GetClaim(token, "name");
+    uinfo->info.email = (char *)JWT_GetClaim(token, "email");
     uinfo->token      = token;
 
     token = NULL;
 
 finally:
     if (token)
-        JWS_Destroy(token);
+        JWT_Destroy(token);
 
     return uinfo ? &uinfo->info : NULL;
 }
