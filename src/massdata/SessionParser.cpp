@@ -195,8 +195,6 @@ int SessionParser::unpackBodyData(const std::vector<uint8_t>& data, int offset,
                   ? neededData : (data.size() - offset));
 
     protocol->payload->bodyData.stream.write((char*)data.data() + offset, realSize);
-    // protocol->payload.bodyData.insert(protocol->payload.bodyData.end(),
-    //                                   data.begin() + offset, data.begin() + offset + realSize);
     protocol->payload->bodyData.receivedBodySize += realSize;
 
     if(protocol->payload->bodyData.receivedBodySize == protocol->info.bodySize) {
@@ -259,7 +257,7 @@ SessionParser::Protocol::Payload::Payload(const std::filesystem::path& bodyPath)
 SessionParser::Protocol::Payload::~Payload()
 {
     bodyData.stream.close();
-    // std::filesystem::remove(bodyData.filepath); // TODO: Comment for test
+    std::filesystem::remove(bodyData.filepath);
     Log::V(Log::TAG, "%s", __PRETTY_FUNCTION__);
 }
 

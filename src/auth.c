@@ -632,16 +632,6 @@ UserInfo *create_uinfo_from_access_token(const char *token_marshal)
     AccessTokenUserInfo *uinfo = NULL;
     JWS *token = NULL;
 
-    // TODO: FORTEST ONLY!!!
-    if(token_marshal && strcmp(token_marshal, "access-token-test") == 0) {
-        uinfo = rc_zalloc(sizeof(AccessTokenUserInfo), atuinfo_dtor);
-        uinfo->info.did   = "did:elastos:iTesterDid";
-        uinfo->info.uid   = USER_ID_START;
-        uinfo->info.name  = "Tester";
-        uinfo->info.email = "tester@feeds.org";
-        return &uinfo->info;
-    }
-
     token = JWTParser_Parse(token_marshal);
     if (!token) {
         vlogE("Parsing access token failed: %s", DIDError_GetMessage());

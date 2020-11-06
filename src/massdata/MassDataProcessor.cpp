@@ -193,9 +193,13 @@ int MassDataProcessor::onSetBinary(std::shared_ptr<Req> req,
     auto setBinResp = std::make_shared<SetBinaryResp>();
     setBinResp->tsx_id = setBinReq->tsx_id;
 
-    // TODO: Comment For Test
-    // int ret = isOwner(setBinReq->params.tk);
-    // CHECK_ERROR(ret);
+#ifdef NDEBUG
+    Log::D(Log::TAG, "Checking request is owner or not.");
+    int ret = isOwner(setBinReq->params.tk);
+    CHECK_ERROR(ret);
+#else
+    Log::W(Log::TAG, "Debug: Ignore to check request is owner or not.");
+#endif
 
     if(std::strcmp(setBinReq->params.algo, "None") != 0) {
         CHECK_ERROR(ErrCode::MassDataUnsupportedAlgo);
@@ -229,9 +233,13 @@ int MassDataProcessor::onGetBinary(std::shared_ptr<Req> req,
     auto getBinResp = std::make_shared<GetBinaryResp>();
     getBinResp->tsx_id = getBinReq->tsx_id;
 
-    // TODO: Comment For Test
-    // int ret = isMember(getBinReq->params.tk);
-    // CHECK_ERROR(ret);
+#ifdef NDEBUG
+    Log::D(Log::TAG, "Checking request is member or not.");
+    int ret = isMember(getBinReq->params.tk);
+    CHECK_ERROR(ret);
+#else
+    Log::W(Log::TAG, "Debug: Ignore to check request is member or not.");
+#endif
 
     auto keyPath = massDataDir / getBinReq->params.key;
     Log::V(Log::TAG, "Try to load %s.", keyPath.c_str());

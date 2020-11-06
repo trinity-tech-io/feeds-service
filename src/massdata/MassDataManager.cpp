@@ -95,19 +95,25 @@ void MassDataManager::onSessionRequest(std::weak_ptr<ElaCarrier> carrier,
     dataPipe->parser->config(massDataDir / MassDataCacheDirName);
     dataPipe->processor->config(massDataDir);
 
-    append(from, dataPipe);
+    appendDataPipe(from, dataPipe);
 }
 
-void MassDataManager::append(const std::string& key, std::shared_ptr<MassDataManager::DataPipe> value)
+void MassDataManager::appendDataPipe(const std::string& key, std::shared_ptr<MassDataManager::DataPipe> value)
 {
-    Log::V(Log::TAG, "MassDataManager::append() key=%s,val=%p", key.c_str(), value->session.get());
+    Log::D(Log::TAG, "%s key=%s,val=%p", FORMAT_METHOD, key.c_str(), value->session.get());
     dataPipeMap[key] = value;
 }
 
-void MassDataManager::remove(const std::string& key)
+void MassDataManager::removeDataPipe(const std::string& key)
 {
-    Log::V(Log::TAG, "MassDataManager::remove() key=%s", key.c_str());
+    Log::D(Log::TAG, "%s key=%s", FORMAT_METHOD, key.c_str());
     dataPipeMap.erase(key);
+}
+
+void MassDataManager::clearAllDataPipe()
+{
+    Log::D(Log::TAG, "%s", FORMAT_METHOD);
+    dataPipeMap.clear();
 }
 
 std::shared_ptr<MassDataManager::DataPipe> MassDataManager::find(const std::string& key)
@@ -117,7 +123,7 @@ std::shared_ptr<MassDataManager::DataPipe> MassDataManager::find(const std::stri
         CHECK_AND_RETDEF(ErrCode::CarrierSessionReleasedError, nullptr);
     }
     auto value = dataPipeIt->second;
-    // Log::V(Log::TAG, "MassDataManager::find() key=%s,val=%p", key.c_str(), value->session.get());
+    Log::D(Log::TAG, "%s key=%s,val=%p", FORMAT_METHOD, key.c_str(), value->session.get());
 
     return value; 
 }
@@ -139,9 +145,8 @@ std::shared_ptr<CarrierSession::ConnectListener> MassDataManager::makeConnectLis
             if(notify == Notify::Closed
             || notify == Notify::Error) {
                 auto mgrPtr = SAFE_GET_PTR_NO_RETVAL(mgr);
-                mgrPtr->remove(peerId);
+                mgrPtr->removeDataPipe(peerId);
             }
-            // TODO: deal with Error
         };
         virtual void onReceivedData(const std::vector<uint8_t>& data) override {
             auto mgrPtr = SAFE_GET_PTR_NO_RETVAL(mgr);
@@ -164,48 +169,49 @@ std::shared_ptr<CarrierSession::ConnectListener> MassDataManager::makeConnectLis
 
 std::shared_ptr<SessionParser::OnUnpackedListener> MassDataManager::makeUnpackedListener(const std::string& peerId)
 {
-    auto unpackedListener = std::make_shared<SessionParser::OnUnpackedListener>(
-        [=](const std::vector<uint8_t>& headData,
-            const std::filesystem::path& bodyPath) -> void {
-            Log::I(Log::TAG, "MassData: start to process unpacked data.");
-            auto weakPtr = this->weak_from_this();
-            auto mgrPtr = SAFE_GET_PTR_NO_RETVAL(weakPtr);
+    auto unpackedListener = std::make_shared<SessionParser::OnUnpackedListener>([=](
+            const std::vector<uint8_t>& headData,
+            const std::filesystem::path& bodyPath) -> void
+    {
+        Log::I(Log::TAG, "MassData: start to process unpacked data.");
+        auto weakPtr = this->weak_from_this();
+        auto mgrPtr = SAFE_GET_PTR_NO_RETVAL(weakPtr);
 
-            auto dataPipe = mgrPtr->find(peerId);
-            assert(dataPipe->processor != nullptr);
+        auto dataPipe = mgrPtr->find(peerId);
+        assert(dataPipe->processor != nullptr);
 
-            int ret = dataPipe->processor->dispose(headData, bodyPath);
-            CHECK_RETVAL(ret);
+        int ret = dataPipe->processor->dispose(headData, bodyPath);
+        CHECK_RETVAL(ret);
 
-            std::vector<uint8_t> resultHeadData;
-            std::filesystem::path resultBodyPath;
-            ret = dataPipe->processor->getResultAndReset(resultHeadData, resultBodyPath);
-            CHECK_RETVAL(ret);
+        std::vector<uint8_t> resultHeadData;
+        std::filesystem::path resultBodyPath;
+        ret = dataPipe->processor->getResultAndReset(resultHeadData, resultBodyPath);
+        CHECK_RETVAL(ret);
 
-            std::vector<uint8_t> sessionProtocolData;
-            ret = dataPipe->parser->pack(sessionProtocolData, resultHeadData, resultBodyPath);                                                                            
-            CHECK_RETVAL(ret);
+        std::vector<uint8_t> sessionProtocolData;
+        ret = dataPipe->parser->pack(sessionProtocolData, resultHeadData, resultBodyPath);                                                                            
+        CHECK_RETVAL(ret);
 
-            ret = dataPipe->session->sendData(sessionProtocolData);
-            CHECK_RETVAL(ret);
-            ret = dataPipe->session->sendData(resultHeadData);
-            CHECK_RETVAL(ret);
+        ret = dataPipe->session->sendData(sessionProtocolData);
+        CHECK_RETVAL(ret);
+        ret = dataPipe->session->sendData(resultHeadData);
+        CHECK_RETVAL(ret);
 
-            if(resultBodyPath.empty() == false
-            && std::filesystem::exists(resultBodyPath) == true) {
-                auto future = std::async(std::launch::async, [=] {
-                    std::fstream bodyStream;
-                    bodyStream.open(resultBodyPath, std::ios::binary | std::ios::in | std::ios::out);
-                    int ret = dataPipe->session->sendData(bodyStream);
-                    bodyStream.close();
-                    CHECK_RETVAL(ret);
-                });
-                future.get();
-            }
-
-            Log::I(Log::TAG, "MassData: finish to process unpacked data.");
+        if(resultBodyPath.empty() == false
+        && std::filesystem::exists(resultBodyPath) == true) {
+            auto future = std::async(std::launch::async,
+                                     [=] {
+                std::fstream bodyStream;
+                bodyStream.open(resultBodyPath, std::ios::binary | std::ios::in | std::ios::out);
+                int ret = dataPipe->session->sendData(bodyStream);
+                bodyStream.close();
+                CHECK_RETVAL(ret);
+            });
+            future.get();
         }
-    );
+
+        Log::I(Log::TAG, "MassData: finish to process unpacked data.");
+    });
 
     return unpackedListener;
 }
