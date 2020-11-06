@@ -28,6 +28,9 @@ public:
                std::weak_ptr<ElaCarrier> carrier);
     void cleanup();
 
+    void removeDataPipe(const std::string& key);
+    void clearAllDataPipe();
+
 protected:
     /*** type define ***/
 
@@ -55,8 +58,7 @@ private:
     void onSessionRequest(std::weak_ptr<ElaCarrier> carrier,
                           const std::string& from, const std::string& sdp);
                         
-    void append(const std::string& key, std::shared_ptr<DataPipe> value);
-    void remove(const std::string& key);
+    void appendDataPipe(const std::string& key, std::shared_ptr<DataPipe> value);
     std::shared_ptr<DataPipe> find(const std::string& key);
 
     std::shared_ptr<CarrierSession::ConnectListener> makeConnectListener(const std::string& peerId,

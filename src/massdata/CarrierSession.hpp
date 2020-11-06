@@ -51,7 +51,6 @@ public:
     /*** static function and variable ***/
 
     /*** class function and variable ***/
-    int requestConnectAsync(const std::string& peerId, std::shared_ptr<ConnectListener> listener);
     int allowConnectAsync(const std::string& peerId, std::shared_ptr<ConnectListener> listener);
 
     void disconnect();
@@ -79,7 +78,7 @@ private:
     virtual ~CarrierSession() noexcept;
 
     int makeSessionAndStream(const std::string& peerId);
-    int requestOrReplySession();
+    int replySession();
     int startSession();
 
     void connectNotify(ConnectListener::Notify notify, int errCode);
@@ -90,8 +89,6 @@ private:
     std::string sessionSdp;
     std::shared_ptr<ThreadPool> threadPool; // avoid session thread pending when send mass data.
     std::shared_ptr<ConnectListener> connectListener;
-
-    bool acitveRequest;
 };
 
 /***********************************************/

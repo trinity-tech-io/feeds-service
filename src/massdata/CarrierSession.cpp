@@ -36,12 +36,13 @@ int CarrierSession::Factory::Init(
     CarrierHandler = carrier;
     OnRequestListener = listener;
 
-    auto onSessionRequest = 
-        [](ElaCarrier *carrier, const char *from,
-            const char *bundle, const char *sdp, size_t len, void *context) {
-            Log::D(Log::TAG, "Carrier session request callback!");
-            OnRequestListener(CarrierHandler, from, sdp);            
-        };
+    auto onSessionRequest = [](
+            ElaCarrier *carrier, const char *from,
+            const char *bundle, const char *sdp, size_t len, void *context)
+    {
+        Log::D(Log::TAG, "Carrier session request callback!");
+        OnRequestListener(CarrierHandler, from, sdp);            
+    };
     ret = ela_session_set_callback(ptr.get(), nullptr, onSessionRequest, nullptr);
     if (ret < 0) {
         PrintElaCarrierError("Failed to set carrier session callback!");
@@ -80,31 +81,12 @@ void CarrierSession::setSdp(const std::string& sdp)
     this->sessionSdp = sdp;
 }
 
-// NOT TEST
-int CarrierSession::requestConnectAsync(
-        const std::string &peerId,
-        std::shared_ptr<ConnectListener> listener)
-{
-    acitveRequest = true;
-    connectListener = listener;
-    int ret = makeSessionAndStream(peerId);
-    if(ret < 0) {
-        this->connectNotify(ConnectListener::Notify::Error, ret);
-    }
-    CHECK_ERROR(ret);
-
-    // session request and start will process in state changed callback async
-
-    return 0;
-}
-
 int CarrierSession::allowConnectAsync(
         const std::string& peerId,
         std::shared_ptr<ConnectListener> listener)
 {
     Log::V(Log::TAG, "%s", __PRETTY_FUNCTION__);
 
-    acitveRequest = false;
     connectListener = listener;
     int ret = makeSessionAndStream(peerId);
     if(ret < 0) {
@@ -195,8 +177,8 @@ void CarrierSession::PrintElaCarrierError(const std::string& errReason)
     char errStr[1024] = {0};
     ela_get_strerror(errCode, errStr, sizeof(errStr));
 
-        Log::E(Log::TAG, "%s carrier error desc is %s(0x%x)",
-                         errReason.c_str(), errStr, errCode);
+    Log::E(Log::TAG, "%s carrier error desc is %s(0x%x)",
+                     errReason.c_str(), errStr, errCode);
 }
 
 CarrierSession::CarrierSession() noexcept
@@ -205,10 +187,9 @@ CarrierSession::CarrierSession() noexcept
     , sessionSdp()
     , threadPool()
     , connectListener()
-    , acitveRequest(false)
 {
-    threadPool = std::make_shared<ThreadPool>("carrier-session");
     Log::V(Log::TAG, "%s", __PRETTY_FUNCTION__);
+    threadPool = std::make_shared<ThreadPool>("carrier-session");
 }
 
 CarrierSession::~CarrierSession() noexcept
@@ -231,8 +212,8 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
     auto deleter = [=](ElaSession* ptr) -> void {
         if(ptr != nullptr) {
             ela_session_close(ptr);
+            Log::I(Log::TAG, "Destroy an ela carrier session at %p", ptr);
         }
-        Log::I(Log::TAG, "Destroy an ela carrier session at %p", ptr);
     };
     sessionHandler = std::shared_ptr<ElaSession>(creater(), deleter);
     if (sessionHandler == nullptr) {
@@ -240,72 +221,74 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
     }
     CHECK_ASSERT(sessionHandler, ErrCode::CarrierSessionCreateFailed);
 
-    auto onStateChanged =
-        [](ElaSession *session, int stream,
-           ElaStreamState state, void *context) {
-            auto thiz = reinterpret_cast<CarrierSession*>(context);
-            Log::V(Log::TAG, "CarrierSession state change to %d, session=%p,stream=%d", state, session, stream);
-            auto weakPtr = thiz->weak_from_this();
-            auto carrierSession = weakPtr.lock();
-            if(carrierSession == nullptr) {
-                Log::D(Log::TAG, "CarrierSession has been released");
-                return;
-            }
+    auto onStateChanged = [](
+            ElaSession *session, int stream,
+            ElaStreamState state, void *context)
+    {
+        auto thiz = reinterpret_cast<CarrierSession*>(context);
+        Log::V(Log::TAG, "CarrierSession state change to %d, session=%p,stream=%d", state, session, stream);
+        auto weakPtr = thiz->weak_from_this();
+        auto carrierSession = weakPtr.lock();
+        if(carrierSession == nullptr) {
+            Log::D(Log::TAG, "CarrierSession has been released");
+            return;
+        }
 
-            ConnectListener::Notify notify = static_cast<ConnectListener::Notify>(-1);
-            int ret = 0;
-            switch (state) {
-            case ElaStreamState_initialized:
-                ret = carrierSession->requestOrReplySession();
-                if(ret < 0) {
-                    notify = ConnectListener::Notify::Error;
-                }
-                break;
-            case ElaStreamState_transport_ready:
-                // wait for request complete if sdp is not set.
-                if(carrierSession->sessionSdp.empty() == true) {
-                    break;
-                }
-                ret = carrierSession->startSession();
-                if(ret < 0) {
-                    notify = ConnectListener::Notify::Error;
-                }
-                break;
-            case ElaStreamState_connected:
-                notify = ConnectListener::Notify::Connected;
-                break;
-            case ElaStreamState_closed:
-                notify = ConnectListener::Notify::Closed;
-                break;
-            case ElaStreamState_failed:
+        ConnectListener::Notify notify = static_cast<ConnectListener::Notify>(-1);
+        int ret = 0;
+        switch (state) {
+        case ElaStreamState_initialized:
+            ret = carrierSession->replySession();
+            if(ret < 0) {
                 notify = ConnectListener::Notify::Error;
-                ret = ErrCode::CarrierSessionErrorExists;
+            }
+            break;
+        case ElaStreamState_transport_ready:
+            // wait for request complete if sdp is not set.
+            if(carrierSession->sessionSdp.empty() == true) {
                 break;
-            default:
-                break;
             }
+            ret = carrierSession->startSession();
+            if(ret < 0) {
+                notify = ConnectListener::Notify::Error;
+            }
+            break;
+        case ElaStreamState_connected:
+            notify = ConnectListener::Notify::Connected;
+            break;
+        case ElaStreamState_closed:
+            notify = ConnectListener::Notify::Closed;
+            break;
+        case ElaStreamState_failed:
+            notify = ConnectListener::Notify::Error;
+            PrintElaCarrierError("Carrier session state change to failed!");
+            ret = ErrCode::CarrierSessionErrorExists;
+            break;
+        default:
+            break;
+        }
 
-            if(notify >= 0) {
-                carrierSession->connectNotify(notify, ret);
-            }
-        };
-    auto onReceivedData =
-        [](ElaSession *session, int stream,
-           const void *data, size_t len,
-           void *context) {
-            // Log::D(Log::TAG, "CarrierSession received data, len: %d", len);
-            auto thiz = reinterpret_cast<CarrierSession*>(context);
-            auto weakPtr = thiz->weak_from_this();
-            auto carrierSession = SAFE_GET_PTR_NO_RETVAL(weakPtr);
+        if(notify >= 0) {
+            carrierSession->connectNotify(notify, ret);
+        }
+    };
+    auto onReceivedData = [](
+            ElaSession *session, int stream,
+            const void *data, size_t len, void *context)
+    {
+        // Log::D(Log::TAG, "CarrierSession received data, len: %d", len);
+        auto thiz = reinterpret_cast<CarrierSession*>(context);
+        auto weakPtr = thiz->weak_from_this();
+        auto carrierSession = SAFE_GET_PTR_NO_RETVAL(weakPtr);
 
-            if(carrierSession->connectListener != nullptr) {
-                auto dataCast = reinterpret_cast<const uint8_t*>(data);
-                auto dataPtr = std::make_shared<std::vector<uint8_t>>(dataCast, dataCast + len);
-                carrierSession->threadPool->post([=] {
-                    carrierSession->connectListener->onReceivedData(*dataPtr);
-                });
-            }
-        };
+        if(carrierSession->connectListener != nullptr) {
+            auto dataCast = reinterpret_cast<const uint8_t*>(data);
+            auto dataPtr = std::make_shared<std::vector<uint8_t>>(dataCast, dataCast + len);
+            carrierSession->threadPool->post([=] {
+                carrierSession->connectListener->onReceivedData(*dataPtr);
+            });
+        }
+    };
     sessionStreamCallbacks = std::make_shared<ElaStreamCallbacks>();
     sessionStreamCallbacks->state_changed = onStateChanged;
     sessionStreamCallbacks->stream_data = onReceivedData;
@@ -324,41 +307,11 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
     return 0;
 }
 
-int CarrierSession::requestOrReplySession()
+int CarrierSession::replySession()
 {
-    int ret;
-
-    if(acitveRequest == true) { // TODO: not test
-        auto onRequestComplete =
-            [](ElaSession *session, const char *bundle,
-               int status, const char *reason,
-               const char *sdp, size_t len, void *context) {
-                Log::D(Log::TAG, "CarrierSession request completed");
-                auto thiz = reinterpret_cast<CarrierSession*>(context);
-                auto weakPtr = thiz->weak_from_this();
-                auto carrierSession = SAFE_GET_PTR_NO_RETVAL(weakPtr);
-
-                carrierSession->setSdp(sdp);
-
-                ElaStreamState state;
-                ela_stream_get_state(carrierSession->sessionHandler.get(), carrierSession->sessionStreamId, &state);
-                if (state != ElaStreamState_transport_ready) { // wait for session ready
-                    return;
-                }
-
-                int ret = carrierSession->startSession();
-                if (ret < 0) {
-                    carrierSession->connectNotify( ConnectListener::Notify::Error, ret);
-                }
-        };
-
-        ret = ela_session_request(sessionHandler.get(), nullptr, 
-                                  onRequestComplete, nullptr);
-    } else {
-        ret = ela_session_reply_request(sessionHandler.get(), nullptr, 0, nullptr);
-    }
+    int ret= ela_session_reply_request(sessionHandler.get(), nullptr, 0, nullptr);
     if (ret < 0) {
-        PrintElaCarrierError("Failed to try to connect carrier session!");
+        PrintElaCarrierError("Failed to reply carrier session!");
         ret = ErrCode::CarrierSessionConnectFailed;
     }
     CHECK_ERROR(ret);

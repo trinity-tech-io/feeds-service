@@ -14,7 +14,7 @@ class SessionParser : public std::enable_shared_from_this<SessionParser> {
 public:
     /*** type define ***/
  using OnUnpackedListener = std::function<void(const std::vector<uint8_t>& headData,
-                                               const std::filesystem::path& bodyPath)>;
+                                          const std::filesystem::path& bodyPath)>;
 
  /*** static function and variable ***/
 
