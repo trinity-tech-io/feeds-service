@@ -141,7 +141,7 @@ void on_receiving_message(ElaCarrier *c, const char *from,
 
     for (i = 0; i < sizeof(method_hdlrs) / sizeof(method_hdlrs[0]); ++i) {
         if (!strcmp(req->method, method_hdlrs[i].method)) {
-            vlogD("receive msg: method =%s from=%s", req->method, from);
+            vlogD("receive msg: method =%s tsx_id=%llu from=%s", req->method, req->tsx_id, from);
             method_hdlrs[i].hdlr(c, from, req);
             break;
         }
@@ -173,6 +173,8 @@ void on_connection_status(ElaCarrier *carrier,
 {
     vlogI("carrier %s", status == ElaConnectionStatus_Connected ?
                                 "connected" : "disconnected");
+    if(status != ElaConnectionStatus_Connected) 
+            trinity::MassDataManager::GetInstance()->clearAllDataPipe();
 }
 
 static
@@ -188,7 +190,8 @@ void friend_connection_callback(ElaCarrier *c, const char *friend_id,
     if (status == ElaConnectionStatus_Connected) {
         ++connecting_clients;
         return;
-    }
+    } else
+        trinity::MassDataManager::GetInstance()->removeDataPipe(friend_id);
 
     --connecting_clients;
     feeds_deactivate_suber(friend_id);
