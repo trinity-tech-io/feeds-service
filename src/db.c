@@ -3185,6 +3185,7 @@ DBObjIt *db_iter_posts(uint64_t chan_id, const QryCriteria *qc)
                  "       next_comment_id - 1 AS comments, likes, created_at, updated_at "
                  "  FROM posts "
                  "  WHERE channel_id = :channel_id");
+    rc += sprintf(sql + rc, " AND (status=%d OR status=%d)", POST_AVAILABLE, POST_DELETED);
     if (qc->by) {
         qcol = query_column(POST, qc->by);
         if (qc->lower)
@@ -3245,6 +3246,10 @@ DBObjIt *db_iter_posts(uint64_t chan_id, const QryCriteria *qc)
         sqlite3_finalize(stmt);
         return NULL;
     }
+
+    char* exsql = sqlite3_expanded_sql(stmt);
+    vlogD("get posts sql: %s", exsql);
+    sqlite3_free(exsql);
 
     return it;
 }
