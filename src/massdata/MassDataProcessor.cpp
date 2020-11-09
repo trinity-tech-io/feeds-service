@@ -59,8 +59,6 @@ void MassDataProcessor::config(const std::filesystem::path& massDataDir)
 int MassDataProcessor::dispose(const std::vector<uint8_t>& headData,
                                const std::filesystem::path& bodyPath)
 {
-    Log::V(Log::TAG, "%s", __PRETTY_FUNCTION__);
-
     auto deleter = [](void* ptr) -> void {
         deref(ptr);
     };

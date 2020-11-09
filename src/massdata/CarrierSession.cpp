@@ -23,7 +23,6 @@ int CarrierSession::Factory::Init(
         std::weak_ptr<ElaCarrier> carrier,
         const std::function<OnRequest>& listener)
 {
-    Log::V(Log::TAG, "%s", __PRETTY_FUNCTION__);
     auto ptr = SAFE_GET_PTR(carrier);
 
     int ret = ela_session_init(ptr.get());
@@ -55,8 +54,6 @@ int CarrierSession::Factory::Init(
 
 void CarrierSession::Factory::Uninit()
 {
-    Log::V(Log::TAG, "%s", __PRETTY_FUNCTION__);
-
     auto carrier = CarrierHandler.lock();
     if(carrier.get() != nullptr) {
         ela_session_cleanup(carrier.get());
@@ -85,8 +82,6 @@ int CarrierSession::allowConnectAsync(
         const std::string& peerId,
         std::shared_ptr<ConnectListener> listener)
 {
-    Log::V(Log::TAG, "%s", __PRETTY_FUNCTION__);
-
     connectListener = listener;
     int ret = makeSessionAndStream(peerId);
     if(ret < 0) {
@@ -188,7 +183,6 @@ CarrierSession::CarrierSession() noexcept
     , threadPool()
     , connectListener()
 {
-    Log::V(Log::TAG, "%s", __PRETTY_FUNCTION__);
     threadPool = std::make_shared<ThreadPool>("carrier-session");
 }
 
@@ -196,12 +190,10 @@ CarrierSession::~CarrierSession() noexcept
 {
     connectListener = nullptr; // fix dead loop issue.
     disconnect();
-    Log::V(Log::TAG, "%s", __PRETTY_FUNCTION__);
 }
 
 int CarrierSession::makeSessionAndStream(const std::string& peerId)
 {
-    Log::V(Log::TAG, "%s start", __PRETTY_FUNCTION__);
     auto carrier = SAFE_GET_PTR(Factory::CarrierHandler);
 
     auto creater = [&]() -> ElaSession* {
@@ -303,7 +295,6 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
     CHECK_ERROR(ret);
     sessionStreamId = ret;
 
-    Log::V(Log::TAG, "%s end", __PRETTY_FUNCTION__);
     return 0;
 }
 
