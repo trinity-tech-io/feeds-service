@@ -36,8 +36,6 @@ void SessionParser::config(const std::filesystem::path& cacheDir)
 int SessionParser::unpack(const std::vector<uint8_t>& data,
                           std::shared_ptr<OnUnpackedListener> listener)
 {
-    // Log::W(Log::TAG, "%s datasize=%d", __PRETTY_FUNCTION__, data.size());
-
     auto dataPos = 0;
 
     do {
@@ -51,7 +49,6 @@ int SessionParser::unpack(const std::vector<uint8_t>& data,
         ret = unpackBodyData(data, dataPos, listener);
         CHECK_ERROR(ret);
         dataPos += ret;
-        // Log::D(Log::TAG, "%s datapos=%d", __PRETTY_FUNCTION__, dataPos);
     } while(dataPos < data.size());
 
     return 0;
@@ -93,7 +90,6 @@ int SessionParser::unpack(const std::vector<uint8_t>& data,
     dataPtr = reinterpret_cast<uint8_t*>(&netOrderBodySize);
     data.insert(data.end(), dataPtr, dataPtr + sizeof(result->info.bodySize));
 
-    Log::V(Log::TAG, "%s datasize=%d", __PRETTY_FUNCTION__, data.size());
     return data.size();
 }
 
@@ -251,14 +247,12 @@ SessionParser::Protocol::Payload::Payload(const std::filesystem::path& bodyPath)
     bodyData.stream.open(bodyData.filepath,
                          std::ios::binary | std::ios::in | std::ios::out | std::ios::app);
     bodyData.receivedBodySize = 0;
-    Log::V(Log::TAG, "%s body data cache: %s", __PRETTY_FUNCTION__, bodyData.filepath.c_str());
 }
 
 SessionParser::Protocol::Payload::~Payload()
 {
     bodyData.stream.close();
     std::filesystem::remove(bodyData.filepath);
-    Log::V(Log::TAG, "%s", __PRETTY_FUNCTION__);
 }
 
 

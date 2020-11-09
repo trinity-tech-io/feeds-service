@@ -76,7 +76,8 @@ void MassDataManager::cleanup()
 void MassDataManager::onSessionRequest(std::weak_ptr<ElaCarrier> carrier,
                                        const std::string& from, const std::string& sdp)
 {
-    Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
+    Log::D(Log::TAG, "Received carrier session request from %s. sdp:\n%s",
+                     from.c_str(), sdp.c_str());
 
     auto dataPipe = std::make_shared<DataPipe>();
     dataPipe->session = CarrierSession::Factory::Create();
