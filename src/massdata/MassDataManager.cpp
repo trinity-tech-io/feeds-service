@@ -101,19 +101,19 @@ void MassDataManager::onSessionRequest(std::weak_ptr<ElaCarrier> carrier,
 
 void MassDataManager::appendDataPipe(const std::string& key, std::shared_ptr<MassDataManager::DataPipe> value)
 {
-    Log::D(Log::TAG, "%s key=%s,val=%p", FORMAT_METHOD, key.c_str(), value->session.get());
+    Log::D(Log::TAG, "append datapipe key=%s,val=%p", key.c_str(), value->session.get());
     dataPipeMap[key] = value;
 }
 
 void MassDataManager::removeDataPipe(const std::string& key)
 {
-    Log::D(Log::TAG, "%s key=%s", FORMAT_METHOD, key.c_str());
+    Log::D(Log::TAG, "remove datapipe key=%s", key.c_str());
     dataPipeMap.erase(key);
 }
 
 void MassDataManager::clearAllDataPipe()
 {
-    Log::D(Log::TAG, "%s", FORMAT_METHOD);
+    Log::D(Log::TAG, "clear all datapipe.");
     dataPipeMap.clear();
 }
 
@@ -124,7 +124,6 @@ std::shared_ptr<MassDataManager::DataPipe> MassDataManager::find(const std::stri
         CHECK_AND_RETDEF(ErrCode::CarrierSessionReleasedError, nullptr);
     }
     auto value = dataPipeIt->second;
-    Log::D(Log::TAG, "%s key=%s,val=%p", FORMAT_METHOD, key.c_str(), value->session.get());
 
     return value; 
 }
