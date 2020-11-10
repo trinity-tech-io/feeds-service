@@ -198,13 +198,12 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
 
     auto creater = [&]() -> ElaSession* {
         auto ptr = ela_session_new(carrier.get(), peerId.c_str());
-        Log::I(Log::TAG, "Create a new ela carrier session at %p", ptr);
         return ptr;
     };
     auto deleter = [=](ElaSession* ptr) -> void {
         if(ptr != nullptr) {
             ela_session_close(ptr);
-            Log::I(Log::TAG, "Destroy an ela carrier session at %p", ptr);
+            Log::I(Log::TAG, "Destroy an ela carrier session with %s, stream %d", peerId.c_str(), sessionStreamId);
         }
     };
     sessionHandler = std::shared_ptr<ElaSession>(creater(), deleter);
@@ -218,7 +217,7 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
             ElaStreamState state, void *context)
     {
         auto thiz = reinterpret_cast<CarrierSession*>(context);
-        Log::V(Log::TAG, "CarrierSession state change to %d, session=%p,stream=%d", state, session, stream);
+        Log::I(Log::TAG, "CarrierSession state change to %d at session stream %d", state, stream);
         auto weakPtr = thiz->weak_from_this();
         auto carrierSession = weakPtr.lock();
         if(carrierSession == nullptr) {
@@ -268,7 +267,6 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
             ElaSession *session, int stream,
             const void *data, size_t len, void *context)
     {
-        // Log::D(Log::TAG, "CarrierSession received data, len: %d", len);
         auto thiz = reinterpret_cast<CarrierSession*>(context);
         auto weakPtr = thiz->weak_from_this();
         auto carrierSession = SAFE_GET_PTR_NO_RETVAL(weakPtr);
@@ -287,13 +285,13 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
     int ret = ela_session_add_stream(sessionHandler.get(),
                                      ElaStreamType_application, ELA_STREAM_RELIABLE,
                                      sessionStreamCallbacks.get(), this);
-    Log::D(Log::TAG, "CarrierSession add stream to carrier session=%p,stream=%d", sessionHandler.get(), ret);
     if (ret < 0) {
         PrintElaCarrierError("Failed to add stream!");
         ret = ErrCode::CarrierSessionAddStreamFailed;
     }
     CHECK_ERROR(ret);
     sessionStreamId = ret;
+    Log::I(Log::TAG, "Create a new ela carrier session with %s stream %d", peerId.c_str(), sessionStreamId);
 
     return 0;
 }

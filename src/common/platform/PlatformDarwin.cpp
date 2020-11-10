@@ -38,7 +38,7 @@ std::string PlatformDarwin::GetBacktrace() {
 
     std::stringstream sstream;
     char** symbollist = backtrace_symbols( addrlist, addrlen );
-    for ( int i = 4; i < addrlen; i++ ) {
+    for ( int i = 0; i < addrlen; i++ ) {
         sstream << symbollist[i] << std::endl;
     }
     free(symbollist);
