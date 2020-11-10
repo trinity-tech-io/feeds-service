@@ -160,12 +160,10 @@ int MassDataProcessor::getUserInfo(const std::string& accessToken, std::shared_p
     }
 
     auto creater = [&]() -> UserInfo* {
-        Log::I(Log::TAG, "Create user info.");
         auto ptr = create_uinfo_from_access_token(accessToken.c_str());
         return ptr;
     };
     auto deleter = [=](UserInfo* ptr) -> void {
-        Log::I(Log::TAG, "Destroy user info.");
         deref(ptr);
     };
     userInfo = std::shared_ptr<UserInfo>(creater(), deleter);

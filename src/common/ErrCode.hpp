@@ -15,7 +15,7 @@ public:
 	if((errCode) < 0) { \
 	    int errRet = (errCode); \
 		APPEND_SRCLINE(errRet); \
-		Log::E(Log::TAG, "Failed to call %s in line %d, return %d.", FORMAT_METHOD, __LINE__, errRet); \
+		Log::E(Log::TAG, "Failed to call %s in line %d, return %s(%d).", FORMAT_METHOD, __LINE__, ErrCode::ToString(errRet).c_str(), errRet); \
 		return errRet; \
 	}
 
@@ -23,7 +23,7 @@ public:
 	if(errCode < 0) { \
 	    int errRet = errCode; \
 		APPEND_SRCLINE(errRet); \
-		Log::E(Log::TAG, "Failed to call %s in line %d, return %d.", FORMAT_METHOD, __LINE__, errRet); \
+		Log::E(Log::TAG, "Failed to call %s in line %d, return %s(%d).", FORMAT_METHOD, __LINE__, ErrCode::ToString(errRet).c_str(), errRet); \
         return; \
 	}
 
@@ -36,7 +36,7 @@ public:
 	if(errCode < 0) { \
 	    int errRet = errCode; \
 		APPEND_SRCLINE(errRet); \
-		Log::E(Log::TAG, "Failed to call %s in line %d, return %d.", FORMAT_METHOD, __LINE__, errRet); \
+		Log::E(Log::TAG, "Failed to call %s in line %d, return %s(%d).", FORMAT_METHOD, __LINE__, ErrCode::ToString(errRet).c_str(), errRet); \
 		return def; \
 	}
 
