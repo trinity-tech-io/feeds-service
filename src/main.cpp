@@ -364,7 +364,6 @@ int transport_init(FeedsConfig *cfg)
         goto failure;
     }
 
-    trinity::Log::SetLevel(static_cast<trinity::Log::Level>(cfg->carrier_opts.log_level));
     rc = trinity::MassDataManager::GetInstance()->config(cfg->data_dir, carrier_instance);
     if(rc < 0) {
         vlogE("Carrier session init failed");
