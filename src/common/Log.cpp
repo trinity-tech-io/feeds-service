@@ -1,145 +1,99 @@
-#include <iostream>
-
 #include "Log.hpp"
-#include "DateTime.hpp"
 
-#include <thread>
-#include <unistd.h>
-#if defined(__APPLE__)
-#include <pthread.h>
-#elif defined(__ANDROID__)
-#include <android/log.h>
-#endif
-
-#define LOG_HEAD_FMT ("%s%s - %c/%s(%u/%u): ")
-
-#if defined(__APPLE__)
-#define gettid() pthread_mach_thread_np(pthread_self())
-#else
-#include <sys/syscall.h>
-#define gettid() (unsigned int)syscall(SYS_gettid)
-#endif
+#include <iostream>
+#include <crystal/vlog.h>
 
 namespace trinity {
 
 /***********************************************/
 /***** static variables initialize *************/
 /***********************************************/
-enum Log::Level Log::m_logLevel = Log::Level::Verbose;
-std::recursive_mutex Log::m_mutex {};
-//const std::chrono::steady_clock::time_point Log::m_baseTime = std::chrono::steady_clock::now();
 
 /***********************************************/
 /***** static function implement ***************/
 /***********************************************/
-void Log::SetLevel(enum Level level)
-{
-  m_logLevel = level;
-}
-
 void Log::F(const char* tag, const char* format, ...)
 {
+  if (log_level < VLOG_FATAL) {
+    return;
+  }
+
   va_list ap;
   va_start(ap, format);
-  log('F', tag, format, ap);
+  Print(VLOG_FATAL, tag, format, ap);
   va_end(ap);
 }
 
 void Log::E(const char* tag, const char* format, ...)
 {
+  if (log_level < VLOG_ERROR) {
+    return;
+  }
+
   va_list ap;
   va_start(ap, format);
-  log('E', tag, format, ap);
+  Print(VLOG_ERROR, tag, format, ap);
   va_end(ap);
 }
 
 void Log::W(const char* tag, const char* format, ...)
 {
-  if(m_logLevel < Level::Warn) {
+  if (log_level < VLOG_WARN) {
     return;
   }
 
   va_list ap;
   va_start(ap, format);
-  log('W', tag, format, ap);
+  Print(VLOG_WARN, tag, format, ap);
   va_end(ap);
 }
 
 void Log::I(const char* tag, const char* format, ...)
 {
-  if(m_logLevel < Level::Info) {
+  if (log_level < VLOG_INFO) {
     return;
   }
 
   va_list ap;
   va_start(ap, format);
-  log('I', tag, format, ap);
+  Print(VLOG_INFO, tag, format, ap);
   va_end(ap);
 }
 
 void Log::D(const char* tag, const char* format, ...)
 {
-  if(m_logLevel < Level::Debug) {
+  if (log_level < VLOG_DEBUG) {
     return;
   }
 
   va_list ap;
   va_start(ap, format);
-  log('D', tag, format, ap);
+  Print(VLOG_DEBUG, tag, format, ap);
+  va_end(ap);
+}
+
+void Log::T(const char* tag, const char* format, ...)
+{
+  if (log_level < VLOG_TRACE) {
+    return;
+  }
+
+  va_list ap;
+  va_start(ap, format);
+  Print(VLOG_TRACE, tag, format, ap);
   va_end(ap);
 }
 
 void Log::V(const char* tag, const char* format, ...)
 {
-  if(m_logLevel < Level::Verbose) {
+  if (log_level < VLOG_VERBOSE) {
     return;
   }
 
   va_list ap;
   va_start(ap, format);
-  log('V', tag, format, ap);
+  Print(VLOG_VERBOSE, tag, format, ap);
   va_end(ap);
-}
-
-void Log::T(const char* tag, const char* function, int line, const char* format, ...)
-{
-  if(m_logLevel < Level::Trace) {
-    return;
-  }
-
-  std::string new_fmt = "line:%d %s %s";
-  char msg[1024] = { '\0' };
-
-  if(format != nullptr) {
-    va_list ap;
-    va_start(ap, format);
-    vsnprintf(msg, sizeof(msg) - 1, format, ap);
-    va_end(ap);
-  }
-
-  log('T', tag, new_fmt.c_str(), line, function, msg);
-}
-
-uint64_t Log::Now() {
-  return MilliNow();
-}
-
-uint64_t Log::MilliNow() {
-  using namespace std::chrono;
-  //return (duration_cast<milliseconds>(steady_clock::now() - m_baseTime)).count();
-  return (duration_cast<milliseconds>(system_clock::now().time_since_epoch())).count();
-}
-
-uint64_t Log::MicroNow() {
-  using namespace std::chrono;
-//  return (duration_cast<microseconds>(steady_clock::now() - m_baseTime)).count();
-  return (duration_cast<microseconds>(system_clock::now().time_since_epoch())).count();
-}
-
-uint64_t Log::NanoNow() {
-  using namespace std::chrono;
-//  return (duration_cast<nanoseconds>(steady_clock::now() - m_baseTime)).count();
-  return (duration_cast<nanoseconds>(system_clock::now().time_since_epoch())).count();
 }
 
 std::string Log::GetFormatMethod(const std::string& prettyFunction) {
@@ -163,102 +117,48 @@ std::string Log::GetFormatMethod(const std::string& prettyFunction) {
 /***********************************************/
 /***** class private function implement  *******/
 /***********************************************/
-inline void Log::log(const char head, const char* tag, const char* format, ...)
+void Log::Print(int level, const char* tag, const char* format, va_list ap)
 {
-  va_list ap;
-  va_start(ap, format);
-  log(head, tag, format, ap);
-  va_end(ap);
+  std::ignore = tag;
+  auto prefix = ConvColor(level);
+  auto suffix = ConvColor(-1);
+
+  std::cerr << prefix;
+  vlogv(level, format, ap);
+  std::cerr << suffix;
 }
 
-#include <sys/types.h>
-
-inline void Log::log(const char head, const char* tag, const char* format, va_list ap)
-{
-  //std::lock_guard<std::recursive_mutex> lg(m_mutex); // JSI是单线程的，所以不需要加锁。
-
-  const char* color = convColor(head);
-  auto time = DateTime::Current();
-
-#if defined(__ANDROID__)
-  int prio = convPrio(head);
-  __android_log_vprint(prio, tag, format, ap);
-#else
-
-  printf(LOG_HEAD_FMT, color, time.c_str(), head, tag, getpid(), gettid());
-  vprintf(format, ap);
-  color = convColor(' ');
-  printf("%s\n", color);
-#endif
-}
-
-inline const char* Log::convColor(const char head)
+inline const char* Log::ConvColor(int level)
 {
   const char* ret = "\033[00m";
 
-  switch (head) {
-    case 'F':
+  switch (level) {
+    case VLOG_FATAL:
       ret = "\033[1;31m";
           break;
-    case 'E':
+    case VLOG_ERROR:
       ret = "\033[1;31m";
           break;
-    case 'W':
+    case VLOG_WARN:
       ret = "\033[1;33m";
           break;
-    case 'I':
+    case VLOG_INFO:
       ret = "\033[0;32m";
           break;
-    case 'D':
+    case VLOG_DEBUG:
       ret = "\033[0;36m";
           break;
-    case 'V':
-      ret = "\033[00m";
-          break;
-    case 'T':
+    case VLOG_TRACE:
       ret = "\033[1;34m";
           break;
+    case VLOG_VERBOSE:
+      ret = "\033[00m";
+          break;
     default:
       break;
   }
 
   return ret;
 }
-
-#if defined(__ANDROID__)
-inline int Log::convPrio(const char head)
-{
-  int ret = ANDROID_LOG_UNKNOWN;
-
-  switch (head) {
-    case 'F':
-      ret = ANDROID_LOG_FATAL;
-      break;
-    case 'E':
-      ret = ANDROID_LOG_ERROR;
-      break;
-    case 'W':
-      ret = ANDROID_LOG_WARN;
-      break;
-    case 'I':
-      ret = ANDROID_LOG_INFO;
-      break;
-    case 'D':
-      ret = ANDROID_LOG_DEBUG;
-      break;
-    case 'V':
-      ret = ANDROID_LOG_VERBOSE;
-      break;
-    case 'T':
-      ret = ANDROID_LOG_VERBOSE;
-      break;
-    default:
-      ret = ANDROID_LOG_DEFAULT;
-      break;
-  }
-
-  return ret;
-}
-#endif
 
 } // namespace trinity

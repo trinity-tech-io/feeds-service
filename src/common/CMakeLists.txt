@@ -11,9 +11,11 @@ if(${CMAKE_VERSION} VERSION_LESS "3.12")
 else()
     add_library(common OBJECT ${COMMON_SOURCES})
 endif()
+
 target_include_directories(common PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}"
-    "${pkg-openssl_INCLUDE_DIRS}")
+    "${pkg-openssl_INCLUDE_DIRS}"
+    "${FEEDS_INT_DIST_DIR}/include")
 
 target_link_libraries(common PUBLIC
     platform)
