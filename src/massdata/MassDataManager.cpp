@@ -41,7 +41,7 @@ std::shared_ptr<MassDataManager> MassDataManager::GetInstance()
 int MassDataManager::config(const std::filesystem::path& dataDir,
                             std::weak_ptr<ElaCarrier> carrier)
 {
-    massDataDir = dataDir / MassDataDirName;
+    massDataDir = dataDir / MassData::MassDataDirName;
 
     Log::D(Log::TAG, "Mass data saved to: %s", massDataDir.c_str());
     auto dirExists = std::filesystem::exists(massDataDir);
@@ -82,7 +82,7 @@ void MassDataManager::onSessionRequest(std::weak_ptr<ElaCarrier> carrier,
     auto dataPipe = std::make_shared<DataPipe>();
     dataPipe->session = CarrierSession::Factory::Create();
     dataPipe->parser = std::make_shared<SessionParser>();
-    dataPipe->processor = std::make_shared<MassDataProcessor>();
+    dataPipe->processor = std::make_shared<MassDataProcessor>(massDataDir);
 
     // config session.
     auto unpackedListener = makeUnpackedListener(from);
@@ -93,8 +93,7 @@ void MassDataManager::onSessionRequest(std::weak_ptr<ElaCarrier> carrier,
     CHECK_RETVAL(ret);
 
     // config parser.
-    dataPipe->parser->config(massDataDir / MassDataCacheDirName);
-    dataPipe->processor->config(massDataDir);
+    dataPipe->parser->config(massDataDir / MassData::MassDataCacheDirName);
 
     appendDataPipe(from, dataPipe);
 }

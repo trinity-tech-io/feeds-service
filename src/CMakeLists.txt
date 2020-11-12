@@ -57,6 +57,8 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/gen)
 
 link_directories(${FEEDS_INT_DIST_DIR}/lib)
 
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+
 add_executable(feedsd
     db.c
     cfg.c
@@ -167,9 +169,11 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
     include(CPack)
 endif()
 
+add_subdirectory(cmdhandler)
 add_subdirectory(common)
 add_subdirectory(massdata)
 target_link_libraries(feedsd
     common
     platform
+    cmdhandler
     massdata)

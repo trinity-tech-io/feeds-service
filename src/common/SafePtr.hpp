@@ -44,4 +44,15 @@
     ptr;                                                                                            \
 })
 
+#if defined(__APPLE__)
+namespace std {
+template <class T, class U>
+static std::shared_ptr<T> reinterpret_pointer_cast(const std::shared_ptr<U> &r) noexcept
+{
+    auto p = reinterpret_cast<typename std::shared_ptr<T>::element_type *>(r.get());
+    return std::shared_ptr<T>(r, p);
+}
+} // namespace std
+#endif // defined(__APPLE__)
+
 #endif /* _FEEDS_SAFE_PTR_HPP_ */

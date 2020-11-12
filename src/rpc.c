@@ -1819,6 +1819,7 @@ int unmarshal_set_binary_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *key;
     const msgpack_object *algo;
     const msgpack_object *checksum;
+    const msgpack_object *content;
     SetBinaryReq *tmp;
     void *buf;
 
@@ -1833,6 +1834,7 @@ int unmarshal_set_binary_req(const msgpack_object *req, Req **req_unmarshal)
             key      = map_val_str("key");
             algo     = map_val_str("algo");
             checksum = map_val_str("checksum");
+            content  = map_val_bin("content");
         });
     });
 
@@ -1860,6 +1862,10 @@ int unmarshal_set_binary_req(const msgpack_object *req, Req **req_unmarshal)
     buf += str_reserve_spc(algo);
     tmp->params.checksum = strncpy(buf, checksum->str_val, checksum->str_sz);
     buf += str_reserve_spc(checksum);
+    if(content) {
+        tmp->params.content = (void *)content->bin_val;
+        tmp->params.content_sz      = content->bin_sz;
+    }
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -2037,7 +2043,7 @@ int unmarshal_get_reported_cmts_req(const msgpack_object *req, Req **req_unmarsh
 
     if (!tk || !tk->str_sz ||
         !by || !qry_fld_is_valid(by->u64_val) || !upper || !lower || !maxcnt) {
-        vlogE("Invalid get_comments request.");
+        vlogE("Invalid get_reported_comments request.");
         return -1;
     }
 
@@ -2059,6 +2065,44 @@ int unmarshal_get_reported_cmts_req(const msgpack_object *req, Req **req_unmarsh
     return 0;
 }
 
+static
+int unmarshal_standard_sign_in_req(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *doc;
+    StandardSignInReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        (void)map_val_str("version");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            doc      = map_val_str("document");
+        });
+    });
+
+    if (!doc || !doc->str_sz) {
+        vlogE("Invalid standard_sign_in request.");
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(StandardSignInReq) + str_reserve_spc(method) + str_reserve_spc(doc), NULL);
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method           = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->tsx_id           = tsx_id->u64_val;
+    tmp->params.doc       = strncpy(buf, doc->str_val, doc->str_sz);
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
 
 static
 int unmarshal_unknown_req(const msgpack_object *req, Req **req_unmarshal)
@@ -2077,8 +2121,8 @@ int unmarshal_unknown_req(const msgpack_object *req, Req **req_unmarshal)
     });
 
     tmp = rc_zalloc(sizeof(Req) + str_reserve_spc(method), NULL);
-    if (!tmp)
-        return -1;
+    if(!tmp)
+     return -1;
 
     buf = tmp + 1;
     tmp->method = strncpy(buf, method->str_val, method->str_sz);
@@ -2133,6 +2177,7 @@ static struct RepParser req_parsers_1_0[] = {
     {"get_service_version"         , unmarshal_get_srv_ver_req        },
     {"report_illegal_comment"      , unmarshal_report_illegal_cmt_req },
     {"get_reported_comments"       , unmarshal_get_reported_cmts_req  },
+    {"standard_sign_in"            , unmarshal_standard_sign_in_req  },
 };
 
 int rpc_unmarshal_req(const void *rpc, size_t len, Req **req)
@@ -4066,6 +4111,20 @@ void pack_kv_bin(msgpack_packer* pk, const char *k, const void *bin, size_t sz)
         msgpack_pack_bin(pk, sz);
         msgpack_pack_bin_body(pk, bin, sz);
     }
+}
+
+static inline
+void pack_kv_bin_withzero(msgpack_packer* pk, const char *k, const void *bin, size_t sz)
+{
+    assert(pk);
+    assert(k);
+
+    if(bin == NULL)
+        sz = 0;
+
+    pack_str(pk, k);
+    msgpack_pack_bin(pk, sz);
+    msgpack_pack_bin_body(pk, bin, sz);
 }
 
 #define pack_map(pk, kvs, set_kvs)     \
@@ -6113,12 +6172,40 @@ Marshalled *marshal_get_binary_resp(const Resp *resp)
     pack_map(pk, 3, {
         pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", wrap_resp->tsx_id);
-        pack_kv_map(pk, "result", 3, {
+        pack_kv_map(pk, "result", 4, {
             pack_kv_str(pk, "key", wrap_resp->result.key);
             pack_kv_str(pk, "algo", wrap_resp->result.algo);
             pack_kv_str(pk, "checksum", wrap_resp->result.checksum);
+            pack_kv_bin_withzero(pk, "content", wrap_resp->result.content, wrap_resp->result.content_sz);
         });
     });
+    deref(wrap_resp->result.content);
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *marshal_standard_sign_in_resp(const Resp *resp)
+{
+    StandardSignInResp *wrap_resp = (StandardSignInResp*)resp;
+
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_u64(pk, "id", wrap_resp->tsx_id);
+        pack_kv_map(pk, "result", 1, {
+            pack_kv_str(pk, "challenge", wrap_resp->result.challenge);
+        });
+    });
+    deref(wrap_resp->result.challenge);
 
     m->m.data = buf->data;
     m->m.sz   = buf->size;
@@ -6137,6 +6224,7 @@ struct RespSerializer {
 static struct RespSerializer resp_serializers_1_0[] = {
     {"set_binary"              , marshal_set_binary_resp       },
     {"get_binary"              , marshal_get_binary_resp       },
+    {"standard_sign_in"        , marshal_standard_sign_in_resp  },
 };
 
 Marshalled *rpc_marshal_resp(const char* method, const Resp *resp)

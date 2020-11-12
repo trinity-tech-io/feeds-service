@@ -49,6 +49,7 @@
 #include <memory>
 #include <iostream>
 
+#include <CommandHandler.hpp>
 #include <MassDataManager.hpp>
 #include <Platform.hpp>
 
@@ -129,6 +130,13 @@ void on_receiving_message(ElaCarrier *c, const char *from,
 
     (void)offline;
     (void)context;
+
+    auto msgptr = reinterpret_cast<uint8_t*>(const_cast<void*>(msg));
+    auto data = std::vector<uint8_t>(msgptr, msgptr + len);
+    rc = trinity::CommandHandler::GetInstance()->process(from, data);
+    if(rc >= 0) {
+        return;
+    }
 
     rc = rpc_unmarshal_req(msg, len, &req);
     if (rc == -1)
@@ -326,6 +334,7 @@ int daemonize()
 static
 void transport_deinit()
 {
+    trinity::CommandHandler::GetInstance()->cleanup();
     trinity::MassDataManager::GetInstance()->cleanup();
     carrier_instance.reset();
     carrier = NULL;
@@ -364,6 +373,11 @@ int transport_init(FeedsConfig *cfg)
         goto failure;
     }
 
+    rc = trinity::CommandHandler::GetInstance()->config(cfg->data_dir, carrier_instance);
+    if(rc < 0) {
+        vlogE("Config command handler failed");
+        goto failure;
+    }
     rc = trinity::MassDataManager::GetInstance()->config(cfg->data_dir, carrier_instance);
     if(rc < 0) {
         vlogE("Carrier session init failed");

@@ -47,6 +47,14 @@ typedef struct {
     char    *method;
     uint64_t tsx_id;
     struct {
+        AccessToken tk;
+    } params;
+} TkReq;
+
+typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
         char *nonce;
         char *owner_did;
     } params;
@@ -645,6 +653,21 @@ typedef struct {
 } NotifyPostResp;
 
 typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        char    *doc;
+    } params;
+} StandardSignInReq;
+
+typedef struct {
+    uint64_t tsx_id;
+    struct {
+        char* challenge;
+    } result;
+} StandardSignInResp;
+
+typedef struct {
     char *method;
     char params[0];
 } Notif;
@@ -726,6 +749,8 @@ typedef struct {
         char        *key;
         char        *algo;
         char        *checksum;
+        void        *content;
+        size_t       content_sz;
     } params;
 } SetBinaryReq;
 
@@ -751,6 +776,8 @@ typedef struct {
         char        *key;
         char        *algo;
         char        *checksum;
+        void        *content;
+        size_t       content_sz;
     } result;
 } GetBinaryResp;
 
