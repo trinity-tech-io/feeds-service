@@ -66,6 +66,9 @@ std::string ErrCode::ToString(int errCode)
     case StdSystemError:
         errMsg = "StdSystemError";
         break;
+    case OutOfMemoryError:
+        errMsg = "OutOfMemoryError";
+        break;
     case DidNotReady:
         errMsg = "DidNotReady";
         break;

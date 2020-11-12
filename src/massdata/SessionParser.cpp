@@ -164,12 +164,12 @@ int SessionParser::unpackProtocol(const std::vector<uint8_t>& data, int offset)
         protocol->info.bodySize = ntoh(netOrderBodySize);
         dataPtr += sizeof(protocol->info.bodySize);
 
-        Log::D(Log::TAG, "Transfer start. timestamp=%lld", DateTime::CurrentMS());
+        Log::D(Log::TAG, "Transfer start.");
     }
 
     // return and parse next time if data is not enough to save as head data.
     if(cachingData.size() < (sizeof(protocol->info) + protocol->info.headSize)) {
-        Log::D(Log::TAG, "Protocol head data is not enough.");
+        Log::D(Log::TAG, "Protocol head data is not enough. caching size: %d", cachingData.size());
         return ErrCode::CarrierSessionDataNotEnough;
     }
 
@@ -190,11 +190,12 @@ int SessionParser::unpackBodyData(const std::vector<uint8_t>& data, int offset,
     auto realSize = (neededData < (data.size() - offset)
                   ? neededData : (data.size() - offset));
 
+    Log::D(Log::TAG, "Transfer data... size=%d", data.size());
     protocol->payload->bodyData.stream.write((char*)data.data() + offset, realSize);
     protocol->payload->bodyData.receivedBodySize += realSize;
 
     if(protocol->payload->bodyData.receivedBodySize == protocol->info.bodySize) {
-        Log::D(Log::TAG, "Transfer finished. timestamp=%lld", DateTime::CurrentMS());
+        Log::D(Log::TAG, "Transfer finished.");
 
         if(listener != nullptr) {
             protocol->payload->bodyData.stream.flush();

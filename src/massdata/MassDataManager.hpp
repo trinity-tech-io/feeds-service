@@ -47,8 +47,6 @@ private:
     };
 
     /*** static function and variable ***/
-    static constexpr const char* MassDataDirName = "massdata";
-    static constexpr const char* MassDataCacheDirName = "cache";
     static std::shared_ptr<MassDataManager> MassDataMgrInstance;
 
     /*** class function and variable ***/

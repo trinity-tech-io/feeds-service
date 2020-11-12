@@ -75,6 +75,7 @@ public:
     constexpr static const int CreateDirectoryError             = -108;
     constexpr static const int SizeOverflowError                = -109;
     constexpr static const int StdSystemError                   = -110;
+    constexpr static const int OutOfMemoryError                 = -111;
 
     constexpr static const int DidNotReady                      = -120;
     constexpr static const int InvalidAccessToken               = -121;
@@ -99,6 +100,20 @@ public:
     constexpr static const int MassDataMarshalRespFailed        = -152;
     constexpr static const int MassDataUnsupportedVersion 	    = -153;
     constexpr static const int MassDataUnsupportedAlgo          = -154;
+
+    constexpr static const int AuthBadDidDoc                    = -160;
+    constexpr static const int AuthDidDocInvlid                 = -161;
+    constexpr static const int AuthBadDid                       = -162;
+    constexpr static const int AuthBadDidSpec                   = -163;
+    constexpr static const int AuthBadDidMethod                 = -164;
+    constexpr static const int AuthBadJwtBuilder                = -165;
+    constexpr static const int AuthBadJwtHeader                 = -166;
+    constexpr static const int AuthBadJwtSubject                = -167;
+    constexpr static const int AuthBadJwtAudience               = -168;
+    constexpr static const int AuthBadJwtClaim                  = -169;
+    constexpr static const int AuthBadJwtExpiration             = -170;
+    constexpr static const int AuthJwtSignFailed                = -171;
+    constexpr static const int AuthJwtCompactFailed             = -172;
 
     // constexpr static const int CarrierIndex                  = -1000;
     constexpr static const int StdSystemErrorIndex              = -2000;
