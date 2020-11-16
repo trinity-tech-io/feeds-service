@@ -48,9 +48,9 @@ protected:
 private:
     /*** type define ***/
     struct Handler {
-        std::function<int(std::shared_ptr<Req>,
-                            const std::filesystem::path &,
-                            std::shared_ptr<Resp> &)> callback;
+        std::function<int(const std::shared_ptr<Req> &,
+                          const std::filesystem::path &,
+                          std::shared_ptr<Resp> &)> callback;
         Accessible accessible;
     };
 
@@ -58,8 +58,8 @@ private:
     /*** static function and variable ***/
 
     /*** class function and variable ***/
-    int onSetBinary(std::shared_ptr<Req> req, const std::filesystem::path& bodyPath, std::shared_ptr<Resp>& resp);
-    int onGetBinary(std::shared_ptr<Req> req, const std::filesystem::path& bodyPath, std::shared_ptr<Resp>& resp);
+    int onSetBinary(const std::shared_ptr<Req>& req, const std::filesystem::path& bodyPath, std::shared_ptr<Resp>& resp);
+    int onGetBinary(const std::shared_ptr<Req>& req, const std::filesystem::path& bodyPath, std::shared_ptr<Resp>& resp);
 
     int isOwner(const std::string& accessToken);
     int isMember(const std::string& accessToken);

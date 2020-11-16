@@ -39,11 +39,11 @@ protected:
 
     /*** class function and variable ***/
     int saveBinData(const std::filesystem::path &massDataDir,
-                   std::shared_ptr<Req> req,
+                   const std::shared_ptr<Req>& req,
                    std::shared_ptr<Resp> &resp,
                    const std::filesystem::path &contentFilePath);
     int loadBinData(const std::filesystem::path &massDataDir,
-                    std::shared_ptr<Req> req,
+                    const std::shared_ptr<Req>& req,
                     std::shared_ptr<Resp> &resp,
                     std::filesystem::path &contentFilePath);
 

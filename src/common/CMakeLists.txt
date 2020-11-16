@@ -4,7 +4,7 @@
 
 add_subdirectory(platform)
 
-file( GLOB COMMON_SOURCES "*.cpp" )
+file( GLOB COMMON_SOURCES "*.c" "*.cpp")
 
 if(${CMAKE_VERSION} VERSION_LESS "3.12")
     add_library(common STATIC ${COMMON_SOURCES})

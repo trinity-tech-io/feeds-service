@@ -44,15 +44,10 @@ MassDataProcessor::~MassDataProcessor()
 int MassDataProcessor::dispose(const std::vector<uint8_t>& headData,
                                const std::filesystem::path& bodyPath)
 {
-    auto deleter = [](void* ptr) -> void {
-        deref(ptr);
-    };
-
-    Req *reqBuf = nullptr;
-    int ret = rpc_unmarshal_req(headData.data(), headData.size(), &reqBuf);
-    auto req = std::shared_ptr<Req>(reqBuf, deleter); // workaround: declare for auto release Req pointer
-    auto resp = std::make_shared<Resp>();
-    if (ret >= 0) {
+    std::shared_ptr<Req> req;
+    std::shared_ptr<Resp> resp;
+    int ret = CommandHandler::GetInstance()->unpackRequest(headData, req);
+    if(ret >= 0) {
         Log::D(Log::TAG, "Mass data processor: dispose method [%s]", req->method);
         ret = ErrCode::UnimplementedError;
         for (const auto& it : mothodHandleMap) {
@@ -61,40 +56,21 @@ int MassDataProcessor::dispose(const std::vector<uint8_t>& headData,
             }
 
             ret = checkAccessible(it.second.accessible, reinterpret_cast<TkReq*>(req.get())->params.tk);
-            CHECK_ERROR(ret);
+            if(ret < 0) {
+                break;
+            }
 
             ret = it.second.callback(req, bodyPath, resp);
             break;
         }
-    } else if (ret == -1) {
-        ret = ErrCode::MassDataUnmarshalReqFailed;
-    } else if (ret == -2) {
-        ret = ErrCode::MassDataUnknownReqFailed;
-    } else if (ret == -3) {
-        ret = ErrCode::MassDataUnsupportedVersion;
-    } else {
-        ret = ErrCode::UnknownError;
-    }
-    if(ret < ErrCode::StdSystemErrorIndex) {
-        ret = ErrCode::StdSystemError;
     }
 
-    Marshalled* marshalBuf = nullptr;
-    if(ret >= 0) {
-        marshalBuf = rpc_marshal_resp(req->method, resp.get());
-    } else {
-        CHECK_ASSERT(req, ret);
-        auto errDesp = ErrCode::ToString(ret);
-        marshalBuf = rpc_marshal_err(req->tsx_id, ret, errDesp.c_str());
-        Log::D(Log::TAG, "Response error:");
-        Log::D(Log::TAG, "    code: %d", ret);
-        Log::D(Log::TAG, "    message: %s", errDesp.c_str());
-    }
-    auto marshalData = std::shared_ptr<Marshalled>(marshalBuf, deleter); // workaround: declare for auto release Marshalled pointer
-    CHECK_ASSERT(marshalData, ErrCode::MassDataMarshalRespFailed);
+    auto errCode = ret;
+    std::vector<uint8_t> data;
+    ret = CommandHandler::GetInstance()->packResponse(req, resp, errCode, data);
+    CHECK_ERROR(ret);
 
-    auto marshalDataPtr = reinterpret_cast<uint8_t*>(marshalData->data);
-    resultHeadData = {marshalDataPtr, marshalDataPtr + marshalData->sz};
+    resultHeadData = std::move(data);
 
     return 0;
 }
@@ -120,7 +96,7 @@ int MassDataProcessor::getResultAndReset(std::vector<uint8_t>& headData,
 /* === class private function implement  ===== */
 /* =========================================== */
 
-int MassDataProcessor::onSetBinary(std::shared_ptr<Req> req,
+int MassDataProcessor::onSetBinary(const std::shared_ptr<Req>& req,
                                    const std::filesystem::path& bodyPath,
                                    std::shared_ptr<Resp>& resp)
 {
@@ -132,7 +108,7 @@ int MassDataProcessor::onSetBinary(std::shared_ptr<Req> req,
     return 0;
 }
 
-int MassDataProcessor::onGetBinary(std::shared_ptr<Req> req,
+int MassDataProcessor::onGetBinary(const std::shared_ptr<Req>& req,
                                    const std::filesystem::path& bodyPath,
                                    std::shared_ptr<Resp>& resp)
 {

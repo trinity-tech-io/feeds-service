@@ -4,7 +4,9 @@
 #include <string>
 #include <functional>
 
+extern "C" {
 #include "err.h"
+}
 
 namespace trinity {
 
@@ -65,6 +67,7 @@ public:
 	(errRet - errRet / trinity::ErrCode::SourceLineSection * trinity::ErrCode::SourceLineSection)
 
     /*** static function and variable ***/
+    constexpr static const int ReservedError                    = -100;
     constexpr static const int UnknownError                     = -101;
     constexpr static const int UnimplementedError               = -102;
     constexpr static const int NotFoundError                    = -103;
@@ -100,6 +103,7 @@ public:
     constexpr static const int MassDataMarshalRespFailed        = -152;
     constexpr static const int MassDataUnsupportedVersion 	    = -153;
     constexpr static const int MassDataUnsupportedAlgo          = -154;
+    constexpr static const int MassDataUnknownRespFailed        = -155;
 
     constexpr static const int AuthBadDidDoc                    = -160;
     constexpr static const int AuthDidDocInvlid                 = -161;
