@@ -64,6 +64,13 @@ public:
 
     int process(const char* from, const std::vector<uint8_t>& data);
 
+    int unpackRequest(const std::vector<uint8_t>& data,
+                      std::shared_ptr<Req>& req) const;
+    int packResponse(const std::shared_ptr<Req> &req,
+                     const std::shared_ptr<Resp> &resp,
+                     int errCode,
+                     std::vector<uint8_t>& data) const;
+
 protected:
     /*** type define ***/
 

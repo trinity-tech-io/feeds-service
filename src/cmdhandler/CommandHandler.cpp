@@ -63,65 +63,87 @@ void CommandHandler::cleanup()
 
 int CommandHandler::process(const char* from, const std::vector<uint8_t>& data)
 {
+    std::shared_ptr<Req> req;
+    std::shared_ptr<Resp> resp;
+    int ret = unpackRequest(data, req);
+    if(ret >= 0) {
+        Log::D(Log::TAG, "Command handler dispose method [%s]", req->method);
+        ret = ErrCode::UnimplementedError;
+        for (const auto &it : cmdListener) {
+            ret = it->onDispose(req, resp);
+            if (ret != ErrCode::UnimplementedError) {
+                break;
+            }
+        }
+        if(ret == ErrCode::UnimplementedError) { // return if unprocessed.
+            return ErrCode::UnimplementedError;
+        }
+    }
+
+    auto errCode = ret;
+    std::vector<uint8_t> respData;
+    ret = packResponse(req, resp, errCode, respData);
+    CHECK_ERROR(ret);
+
+    Marshalled marshalledResp = {
+        respData.data(),
+        respData.size()
+    };
+    msgq_enq(from, &marshalledResp);
+
+    return 0;
+}
+
+int CommandHandler::unpackRequest(const std::vector<uint8_t>& data,
+                                  std::shared_ptr<Req>& req) const
+{
     Req *reqBuf = nullptr;
     int ret = rpc_unmarshal_req(data.data(), data.size(), &reqBuf);
     auto deleter = [](void* ptr) -> void {
         deref(ptr);
     };
-    auto req = std::shared_ptr<Req>(reqBuf, deleter); // workaround: declare for auto release Req pointer
-    auto resp = std::make_shared<Resp>();
-    if (ret < 0) {
-        Log::E(Log::TAG, "Failed to  unmarshal req method:[%s]", req ? req->method : "unknown");
-        if (ret == -1) {
-            ret = ErrCode::MassDataUnmarshalReqFailed;
-        } else if (ret == -2) {
-            ret = ErrCode::MassDataUnknownReqFailed;
-        } else if (ret == -3) {
-            ret = ErrCode::MassDataUnsupportedVersion;
-        } else {
-            ret = ErrCode::UnknownError;
-        }
-
-        ErrResp errResp = {
-            .tsx_id = req ? req->tsx_id : -1,
-            .ec     = ret 
-        };
-        Marshalled *respMarshal = rpc_marshal_err_resp(&errResp);
-        msgq_enq(from, respMarshal);
-        deref(respMarshal);
-        return ret;
+    req = std::shared_ptr<Req>(reqBuf, deleter); // workaround: declare for auto release Req pointer
+    if (ret == -1) {
+        ret = ErrCode::MassDataUnmarshalReqFailed;
+    } else if (ret == -2) {
+        ret = ErrCode::MassDataUnknownReqFailed;
+    } else if (ret == -3) {
+        ret = ErrCode::MassDataUnsupportedVersion;
+    } else if(ret < ErrCode::StdSystemErrorIndex) {
+        ret = ErrCode::StdSystemError;
+    } else if (ret < 0) {
+        ret = ErrCode::UnknownError;
     }
+    CHECK_ERROR(ret);
 
-    Log::D(Log::TAG, "Dispose method [%s]", req->method);
-    ret = ErrCode::UnimplementedError;
-    for (const auto &it : cmdListener) {
-        ret = it->onDispose(req, resp);
-        if (ret != ErrCode::UnimplementedError) {
-            break;
-        }
-    }
-    if(ret == ErrCode::UnimplementedError) { // return if unprocessed.
-        return ErrCode::UnimplementedError;
-    }
-    if(ret < 0) {
-        if (ret < ErrCode::StdSystemErrorIndex) {
-            ret = ErrCode::StdSystemError;
-        }
+    return 0;
+}
 
-        ErrResp errResp = {
-            .tsx_id = req ? req->tsx_id : -1,
-            .ec     = ret 
-        };
-        Marshalled *respMarshal = rpc_marshal_err_resp(&errResp);
-        msgq_enq(from, respMarshal);
-        deref(respMarshal);
-        return ret;
+int CommandHandler::packResponse(const std::shared_ptr<Req> &req,
+                                 const std::shared_ptr<Resp> &resp,
+                                 int errCode,
+                                 std::vector<uint8_t> &data) const
+{
+    Marshalled* marshalBuf = nullptr;
+    if(errCode >= 0) {
+        CHECK_ASSERT(resp, ErrCode::MassDataUnknownRespFailed);
+        marshalBuf = rpc_marshal_resp(req->method, resp.get());
+    } else {
+        CHECK_ASSERT(req, ErrCode::MassDataUnknownReqFailed);
+        auto errDesp = ErrCode::ToString(errCode);
+        marshalBuf = rpc_marshal_err(req->tsx_id, errCode, errDesp.c_str());
+        Log::D(Log::TAG, "Response error:");
+        Log::D(Log::TAG, "    code: %d", errCode);
+        Log::D(Log::TAG, "    message: %s", errDesp.c_str());
     }
+    auto deleter = [](void* ptr) -> void {
+        deref(ptr);
+    };
+    auto marshalData = std::shared_ptr<Marshalled>(marshalBuf, deleter); // workaround: declare for auto release Marshalled pointer
+    CHECK_ASSERT(marshalData, ErrCode::MassDataMarshalRespFailed);
 
-    assert(resp.get() != nullptr);
-    Marshalled *respMarshal = rpc_marshal_resp(req->method, resp.get());
-    msgq_enq(from, respMarshal);
-    deref(respMarshal);
+    auto marshalDataPtr = reinterpret_cast<uint8_t*>(marshalData->data);
+    data = {marshalDataPtr, marshalDataPtr + marshalData->sz};
 
     return 0;
 }
@@ -135,7 +157,7 @@ int CommandHandler::Listener::checkAccessible(Accessible accessible, const std::
 {
     int ret = ErrCode::UnknownError;
 
-#ifdef NDEBUG
+// #ifdef NDEBUG
     Log::D(Log::TAG, "Checking request accessible.");
     if (accessible == Accessible::Owner) {
         ret = isOwner(accessToken);
@@ -145,9 +167,9 @@ int CommandHandler::Listener::checkAccessible(Accessible accessible, const std::
         ret = 0;
     }
     CHECK_ERROR(ret);
-#else
-    Log::W(Log::TAG, "Debug: Ignore to check request accessible.");
-#endif
+// #else
+//     Log::W(Log::TAG, "Debug: Ignore to check request accessible.");
+// #endif
 
     return 0;
 }

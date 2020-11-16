@@ -1,5 +1,6 @@
 #include <ErrCode.hpp>
 
+#include <map>
 #include <system_error>
 
 namespace trinity {
@@ -33,107 +34,69 @@ void ErrCode::SetError(int errCode, const std::string& ext)
 
 std::string ErrCode::ToString(int errCode)
 {
-    std::string errMsg = "UnprocessedErrCode";
-
-    switch (errCode) {
-    case UnknownError:
-        errMsg = "UnknownError";
-        break;
-    case UnimplementedError:
-        errMsg = "UnimplementedError";
-        break;
-    case NotFoundError:
-        errMsg = "NotFoundError";
-        break;
-    case InvalidArgument:
-        errMsg = "InvalidArgument";
-        break;
-    case PointerReleasedError:
-        errMsg = "PointerReleasedError";
-        break;
-    case DevUUIDError:
-        errMsg = "DevUUIDError";
-        break;
-    case FileNotExistsError:
-        errMsg = "FileNotExistsError";
-        break;
-    case CreateDirectoryError:
-        errMsg = "CreateDirectoryError";
-        break;
-    case SizeOverflowError:
-        errMsg = "SizeOverflowError";
-        break;
-    case StdSystemError:
-        errMsg = "StdSystemError";
-        break;
-    case OutOfMemoryError:
-        errMsg = "OutOfMemoryError";
-        break;
-    case DidNotReady:
-        errMsg = "DidNotReady";
-        break;
-    case InvalidAccessToken:
-        errMsg = "InvalidAccessToken";
-        break;
-    case NotAuthorizedError:
-        errMsg = "NotAuthorizedError";
-        break;
-    case CarrierSessionInitFailed:
-        errMsg = "CarrierSessionInitFailed";
-        break;
-    case CarrierSessionConnectFailed:
-        errMsg = "CarrierSessionConnectFailed";
-        break;
-    case CarrierSessionCreateFailed:
-        errMsg = "CarrierSessionCreateFailed";
-        break;
-    case CarrierSessionAddStreamFailed:
-        errMsg = "CarrierSessionAddStreamFailed";
-        break;
-    case CarrierSessionTimeoutError:
-        errMsg = "CarrierSessionTimeoutError";
-        break;
-    case CarrierSessionReplyFailed:
-        errMsg = "CarrierSessionReplyFailed";
-        break;
-    case CarrierSessionStartFailed:
-        errMsg = "CarrierSessionStartFailed";
-        break;
-    case CarrierSessionBadStatus:
-        errMsg = "CarrierSessionBadStatus";
-        break;
-    case CarrierSessionDataNotEnough:
-        errMsg = "CarrierSessionDataNotEnough";
-        break;
-    case CarrierSessionUnsuppertedVersion:
-        errMsg = "CarrierSessionUnsuppertedVersion";
-        break;
-    case CarrierSessionReleasedError:
-        errMsg = "CarrierSessionReleasedError";
-        break;
-    case CarrierSessionSendFailed:
-        errMsg = "CarrierSessionSendFailed";
-        break;
-    case CarrierSessionErrorExists:
-        errMsg = "CarrierSessionErrorExists";
-        break;
-    case MassDataUnknownReqFailed:
-        errMsg = "MassDataUnknownReqFailed";
-        break;
-    case MassDataUnmarshalReqFailed:
-        errMsg = "MassDataUnmarshalReqFailed";
-        break;
-    case MassDataMarshalRespFailed:
-        errMsg = "MassDataMarshalRespFailed";
-        break;
-    case MassDataUnsupportedAlgo:
-        errMsg = "MassDataUnsupportedAlgo";
-        break;
-    case MassDataUnsupportedVersion:
-        errMsg = "MassDataUnsupportedVersion";
-        break;
+    if(errCode > ReservedError) {
+        return err_strerror(errCode);
     }
 
+    static const std::map<int, const char*> errDespMap = {
+        { UnknownError                     , "UnknownError" },
+        { UnimplementedError               , "UnimplementedError" },
+        { NotFoundError                    , "NotFoundError" },
+        { InvalidArgument                  , "InvalidArgument" },
+        { PointerReleasedError             , "PointerReleasedError" },
+        { DevUUIDError                     , "DevUUIDError" },
+        { FileNotExistsError               , "FileNotExistsError" },
+        { CreateDirectoryError             , "CreateDirectoryError" },
+        { SizeOverflowError                , "SizeOverflowError" },
+        { StdSystemError                   , "StdSystemError" },
+        { OutOfMemoryError                 , "OutOfMemoryError" },
+
+        { DidNotReady                      , "DidNotReady" },
+        { InvalidAccessToken               , "InvalidAccessToken" },
+        { NotAuthorizedError               , "NotAuthorizedError" },
+
+        { CarrierSessionInitFailed         , "CarrierSessionInitFailed" },
+        { CarrierSessionConnectFailed      , "CarrierSessionConnectFailed" },
+        { CarrierSessionCreateFailed       , "CarrierSessionCreateFailed" },
+        { CarrierSessionAddStreamFailed    , "CarrierSessionAddStreamFailed" },
+        { CarrierSessionTimeoutError       , "CarrierSessionTimeoutError" },
+        { CarrierSessionReplyFailed        , "CarrierSessionReplyFailed" },
+        { CarrierSessionStartFailed        , "CarrierSessionStartFailed" },
+        { CarrierSessionBadStatus          , "CarrierSessionBadStatus" },
+        { CarrierSessionDataNotEnough      , "CarrierSessionDataNotEnough" },
+        { CarrierSessionUnsuppertedVersion , "CarrierSessionUnsuppertedVersion" },
+        { CarrierSessionReleasedError      , "CarrierSessionReleasedError" },
+        { CarrierSessionSendFailed         , "CarrierSessionSendFailed" },
+        { CarrierSessionErrorExists        , "CarrierSessionErrorExists" },
+
+        { MassDataUnknownReqFailed         , "MassDataUnknownReqFailed" },
+        { MassDataUnmarshalReqFailed       , "MassDataUnmarshalReqFailed" },
+        { MassDataMarshalRespFailed        , "MassDataMarshalRespFailed" },
+        { MassDataUnsupportedVersion       , "MassDataUnsupportedVersion   " },
+        { MassDataUnsupportedAlgo          , "MassDataUnsupportedAlgo" },
+        { MassDataUnknownRespFailed        , "MassDataUnknownRespFailed" },
+
+        { AuthBadDidDoc                    , "AuthBadDidDoc" },
+        { AuthDidDocInvlid                 , "AuthDidDocInvlid" },
+        { AuthBadDid                       , "AuthBadDid" },
+        { AuthBadDidSpec                   , "AuthBadDidSpec" },
+        { AuthBadDidMethod                 , "AuthBadDidMethod" },
+        { AuthBadJwtBuilder                , "AuthBadJwtBuilder" },
+        { AuthBadJwtHeader                 , "AuthBadJwtHeader" },
+        { AuthBadJwtSubject                , "AuthBadJwtSubject" },
+        { AuthBadJwtAudience               , "AuthBadJwtAudience" },
+        { AuthBadJwtClaim                  , "AuthBadJwtClaim" },
+        { AuthBadJwtExpiration             , "AuthBadJwtExpiration" },
+        { AuthJwtSignFailed                , "AuthJwtSignFailed" },
+        { AuthJwtCompactFailed             , "AuthJwtCompactFailed" },
+    };
+
+    auto it = errDespMap.find(errCode);
+    if(it != errDespMap.end()) {
+        return it->second;
+    }
+
+    std::string errMsg = "UnprocessedErrCode";
     if(errCode < StdSystemErrorIndex) { // is std error
         int stdErrVal = StdSystemErrorIndex - errCode;
         auto stdErrCode = std::error_code(stdErrVal, std::generic_category());
