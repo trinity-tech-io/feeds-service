@@ -671,14 +671,14 @@ typedef struct {
     char    *method;
     uint64_t tsx_id;
     struct {
-        char *challenge;
+        char *jwt;
     } params;
 } StandardDidAuthReq;
 
 typedef struct {
     uint64_t tsx_id;
     struct {
-        char *token;
+        char *access_token;
     } result;
 } StandardDidAuthResp;
 

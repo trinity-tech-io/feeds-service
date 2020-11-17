@@ -210,7 +210,7 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
     if (sessionHandler == nullptr) {
         PrintElaCarrierError("Failed to new carrier session!");
     }
-    CHECK_ASSERT(sessionHandler, ErrCode::CarrierSessionCreateFailed);
+    CHECK_ASSERT(sessionHandler != nullptr, ErrCode::CarrierSessionCreateFailed);
 
     auto onStateChanged = [](
             ElaSession *session, int stream,

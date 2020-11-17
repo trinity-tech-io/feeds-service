@@ -7,10 +7,6 @@
 
 #include <CommandHandler.hpp>
 
-struct ElaCarrier;
-struct ElaSession;
-struct ElaStreamCallbacks;
-
 namespace trinity {
 
 class MassData : public CommandHandler::Listener {
@@ -36,6 +32,7 @@ protected:
     /*** static function and variable ***/
 
     /*** class function and variable ***/
+
     int saveBinData(const std::filesystem::path &massDataDir,
                    const std::shared_ptr<Req>& req,
                    std::shared_ptr<Resp> &resp,

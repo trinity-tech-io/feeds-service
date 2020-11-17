@@ -7,10 +7,6 @@
 
 #include <CommandHandler.hpp>
 
-struct ElaCarrier;
-struct ElaSession;
-struct ElaStreamCallbacks;
-
 namespace trinity {
 
 class LegacyMethod : public CommandHandler::Listener {

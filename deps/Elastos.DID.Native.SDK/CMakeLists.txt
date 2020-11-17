@@ -27,5 +27,7 @@ ExternalProject_Add(
         ${EXTERNAL_CMAKE_PROJECT_ADDITIONAL_ARGS}
 )
 
+export_shared_library(eladid)
+
 add_library(libeladid-shared INTERFACE)
 target_link_libraries(libeladid-shared INTERFACE eladid libcrystal-shared)
