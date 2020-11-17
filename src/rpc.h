@@ -668,6 +668,21 @@ typedef struct {
 } StandardSignInResp;
 
 typedef struct {
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        char *challenge;
+    } params;
+} StandardDidAuthReq;
+
+typedef struct {
+    uint64_t tsx_id;
+    struct {
+        char *token;
+    } result;
+} StandardDidAuthResp;
+
+typedef struct {
     char *method;
     char params[0];
 } Notif;
