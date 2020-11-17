@@ -2096,6 +2096,45 @@ int unmarshal_standard_sign_in_req(const msgpack_object *req, Req **req_unmarsha
 }
 
 static
+int unmarshal_standard_did_auth_req(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *challenge;
+    StandardDidAuthReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        (void)map_val_str("version");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            challenge = map_val_str("challenge");
+        });
+    });
+
+    if (!challenge || !challenge->str_sz) {
+        vlogE("Invalid standard_did_auth request.");
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(StandardDidAuthReq) + str_reserve_spc(method) + str_reserve_spc(challenge), NULL);
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method           = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->tsx_id           = tsx_id->u64_val;
+    tmp->params.challenge = strncpy(buf, challenge->str_val, challenge->str_sz);
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
+
+static
 int unmarshal_unknown_req(const msgpack_object *req, Req **req_unmarshal)
 {
     const msgpack_object *method;
@@ -2168,7 +2207,8 @@ static struct RepParser req_parsers_1_0[] = {
     {"get_service_version"         , unmarshal_get_srv_ver_req        },
     {"report_illegal_comment"      , unmarshal_report_illegal_cmt_req },
     {"get_reported_comments"       , unmarshal_get_reported_cmts_req  },
-    {"standard_sign_in"            , unmarshal_standard_sign_in_req  },
+    {"standard_sign_in"            , unmarshal_standard_sign_in_req   },
+    {"standard_did_auth"           , unmarshal_standard_did_auth_req  },
 };
 
 int rpc_unmarshal_req(const void *rpc, size_t len, Req **req)

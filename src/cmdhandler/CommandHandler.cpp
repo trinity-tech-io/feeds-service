@@ -4,6 +4,7 @@
 #include <SafePtr.hpp>
 #include <LegacyMethod.hpp>
 #include <MassData.hpp>
+#include <StandardAuth.hpp>
 #include <ThreadPool.hpp>
 
 #include <crystal.h>
@@ -52,6 +53,7 @@ int CommandHandler::config(const std::filesystem::path& dataDir,
     cmdListener = std::move(std::vector<std::shared_ptr<Listener>> {
         std::make_shared<LegacyMethod>(),
         std::make_shared<MassData>(dataDir / MassData::MassDataDirName),
+        std::make_shared<StandardAuth>(),
     });
 
     return 0;
