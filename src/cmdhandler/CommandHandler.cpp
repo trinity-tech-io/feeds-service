@@ -134,6 +134,9 @@ int CommandHandler::unpackRequest(const std::vector<uint8_t>& data,
     } else if (ret < 0) {
         ret = ErrCode::UnknownError;
     }
+    if(ret < 0) {
+        Log::W(Log::TAG, "Failed to unmarshal request: %s", data.data());
+    }
     CHECK_ERROR(ret);
 
     return 0;
