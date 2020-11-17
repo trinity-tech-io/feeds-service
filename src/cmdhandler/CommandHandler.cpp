@@ -177,7 +177,7 @@ int CommandHandler::Listener::checkAccessible(Accessible accessible, const std::
 {
     int ret = ErrCode::UnknownError;
 
-// #ifdef NDEBUG
+#ifdef NDEBUG
     Log::D(Log::TAG, "Checking request accessible.");
     if (accessible == Accessible::Owner) {
         ret = isOwner(accessToken);
@@ -187,9 +187,9 @@ int CommandHandler::Listener::checkAccessible(Accessible accessible, const std::
         ret = 0;
     }
     CHECK_ERROR(ret);
-// #else
-//     Log::W(Log::TAG, "Debug: Ignore to check request accessible.");
-// #endif
+#else
+    Log::W(Log::TAG, "Debug: Ignore to check request accessible.");
+#endif
 
     return 0;
 }

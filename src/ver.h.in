@@ -23,7 +23,11 @@
 #ifndef __VER_H__
 #define __VER_H__
 
+#ifdef NDEBUG
 #define FEEDSD_VER "@PROJECT_VERSION@" // defined by cmake project()
+#else
+#define FEEDSD_VER "@PROJECT_VERSION@" "." "@GIT_COMMIT_ID@"
+#endif
 
 #define DB_VER 3U
 
