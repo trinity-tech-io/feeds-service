@@ -50,6 +50,7 @@ std::string ErrCode::ToString(int errCode)
         { SizeOverflowError                , "SizeOverflowError" },
         { StdSystemError                   , "StdSystemError" },
         { OutOfMemoryError                 , "OutOfMemoryError" },
+        { CompletelyFinishedNotify         , "CompletelyFinishedNotify" },
 
         { DidNotReady                      , "DidNotReady" },
         { InvalidAccessToken               , "InvalidAccessToken" },

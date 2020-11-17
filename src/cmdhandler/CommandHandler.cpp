@@ -1,6 +1,7 @@
 #include "CommandHandler.hpp"
 
 #include <SafePtr.hpp>
+#include <LegacyMethod.hpp>
 #include <MassData.hpp>
 
 #include <crystal.h>
@@ -46,8 +47,8 @@ int CommandHandler::config(const std::filesystem::path& dataDir,
     carrierHandler = carrier;
 
     cmdListener = std::move(std::vector<std::shared_ptr<Listener>> {
+        std::make_shared<LegacyMethod>(),
         std::make_shared<MassData>(dataDir / MassData::MassDataDirName),
-
     });
 
     return 0;
@@ -61,22 +62,27 @@ void CommandHandler::cleanup()
     cmdListener.clear();
 }
 
-int CommandHandler::process(const char* from, const std::vector<uint8_t>& data)
+std::weak_ptr<ElaCarrier> CommandHandler::getCarrierHandler()
+{
+    return carrierHandler;
+}
+
+int CommandHandler::process(const std::string& from, const std::vector<uint8_t>& data)
 {
     std::shared_ptr<Req> req;
     std::shared_ptr<Resp> resp;
     int ret = unpackRequest(data, req);
     if(ret >= 0) {
-        Log::D(Log::TAG, "Command handler dispose method [%s]", req->method);
+        Log::D(Log::TAG, "Command handler dispose method:%s, tsx_id:%llu, from:%s", req->method, req->tsx_id, from.c_str());
         ret = ErrCode::UnimplementedError;
         for (const auto &it : cmdListener) {
-            ret = it->onDispose(req, resp);
+            ret = it->onDispose(from, req, resp);
             if (ret != ErrCode::UnimplementedError) {
                 break;
             }
         }
-        if(ret == ErrCode::UnimplementedError) { // return if unprocessed.
-            return ErrCode::UnimplementedError;
+        if(ret == ErrCode::CompletelyFinishedNotify) { // return if process totally finished.
+            return 0;
         }
     }
 
@@ -89,7 +95,7 @@ int CommandHandler::process(const char* from, const std::vector<uint8_t>& data)
         respData.data(),
         respData.size()
     };
-    msgq_enq(from, &marshalledResp);
+    msgq_enq(from.c_str(), &marshalledResp);
 
     return 0;
 }
@@ -174,8 +180,12 @@ int CommandHandler::Listener::checkAccessible(Accessible accessible, const std::
     return 0;
 }
 
-int CommandHandler::Listener::onDispose(std::shared_ptr<Req> req, std::shared_ptr<Resp> &resp)
+int CommandHandler::Listener::onDispose(const std::string& from,
+                                        std::shared_ptr<Req> req,
+                                        std::shared_ptr<Resp> &resp)
 {
+    std::ignore = from;
+
     for (const auto& it : cmdHandleMap) {
         if (std::strcmp(it.first, req->method) != 0) {
             continue;
