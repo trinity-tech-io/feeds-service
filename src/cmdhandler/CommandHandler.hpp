@@ -29,7 +29,7 @@ public:
     class Listener {
     public:
         enum Accessible {
-            Any,
+            Anyone,
             Member,
             Owner,
         };
@@ -42,10 +42,11 @@ public:
 
         explicit Listener() = default;
         virtual ~Listener() = default;
-        virtual void setHandleMap(const std::map<const char*, Handler>& handleMap);
-        virtual int onDispose(const std::string& from, std::shared_ptr<Req> req, std::shared_ptr<Resp>& resp);
 
-        int checkAccessible(Accessible accessible, const std::string &accessToken);
+        void setHandleMap(const std::map<const char*, Handler>& handleMap);
+
+        virtual int checkAccessible(Accessible accessible, const std::string &accessToken);
+        virtual int onDispose(const std::string& from, std::shared_ptr<Req> req, std::shared_ptr<Resp>& resp);
     private:
         int isOwner(const std::string &accessToken);
         int isMember(const std::string &accessToken);

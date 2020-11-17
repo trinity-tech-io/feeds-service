@@ -119,6 +119,29 @@ public:
     constexpr static const int AuthBadJwtExpiration             = -170;
     constexpr static const int AuthJwtSignFailed                = -171;
     constexpr static const int AuthJwtCompactFailed             = -172;
+    constexpr static const int AuthBadJwtChallenge              = -173;
+    constexpr static const int AuthGetJwsClaimFailed            = -174;
+    constexpr static const int AuthGetPresentationFailed        = -175;
+    constexpr static const int AuthInvalidPresentation          = -176;
+    constexpr static const int AuthPresentationEmptyNonce       = -177;
+    constexpr static const int AuthPresentationBadNonce         = -178;
+    constexpr static const int AuthPresentationEmptyRealm       = -179;
+    constexpr static const int AuthPresentationBadRealm         = -180;
+    constexpr static const int AuthVerifiableCredentialBadCount = -181;
+    constexpr static const int AuthVerifiableCredentialNotExists= -182;
+    constexpr static const int AuthVerifiableCredentialInvalid  = -183;
+    constexpr static const int AuthCredentialNotExists          = -184;
+    constexpr static const int AuthCredentialInvalid            = -185;
+    constexpr static const int AuthCredentialSerialFailed       = -186;
+    constexpr static const int AuthCredentialParseFailed        = -187;
+    constexpr static const int AuthCredentialSubjectNotExists   = -188;
+    constexpr static const int AuthCredentialSubjectIdNotExists   = -189;
+    constexpr static const int AuthCredentialSubjectBadInstanceId   = -190;
+    constexpr static const int AuthCredentialSubjectAppIdNotExists   = -191;
+    constexpr static const int AuthCredentialIssuerNotExists   = -192;
+    constexpr static const int AuthCredentialExpirationError   = -193;
+    constexpr static const int AuthNonceExpiredError   = -194;
+    
 
     // constexpr static const int CarrierIndex                  = -1000;
     constexpr static const int StdSystemErrorIndex              = -2000;

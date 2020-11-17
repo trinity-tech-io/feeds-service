@@ -75,7 +75,7 @@ std::weak_ptr<ElaCarrier> CommandHandler::getCarrierHandler()
 
 int CommandHandler::processAsync(const std::string& from, const std::vector<uint8_t>& data)
 {
-    CHECK_ASSERT(threadPool, ErrCode::PointerReleasedError);
+    CHECK_ASSERT(threadPool != nullptr, ErrCode::PointerReleasedError);
 
     threadPool->post([this, from = std::move(from), data = std::move(data)] {
         process(from, data);
@@ -152,10 +152,10 @@ int CommandHandler::packResponse(const std::shared_ptr<Req> &req,
 {
     Marshalled* marshalBuf = nullptr;
     if(errCode >= 0) {
-        CHECK_ASSERT(resp, ErrCode::CmdUnknownRespFailed);
+        CHECK_ASSERT(resp != nullptr, ErrCode::CmdUnknownRespFailed);
         marshalBuf = rpc_marshal_resp(req->method, resp.get());
     } else {
-        CHECK_ASSERT(req, ErrCode::CmdUnknownReqFailed);
+        CHECK_ASSERT(req != nullptr, ErrCode::CmdUnknownReqFailed);
         auto errDesp = ErrCode::ToString(errCode);
         marshalBuf = rpc_marshal_err(req->tsx_id, errCode, errDesp.c_str());
         Log::D(Log::TAG, "Response error:");
@@ -166,7 +166,7 @@ int CommandHandler::packResponse(const std::shared_ptr<Req> &req,
         deref(ptr);
     };
     auto marshalData = std::shared_ptr<Marshalled>(marshalBuf, deleter); // workaround: declare for auto release Marshalled pointer
-    CHECK_ASSERT(marshalData, ErrCode::CmdMarshalRespFailed);
+    CHECK_ASSERT(marshalData != nullptr, ErrCode::CmdMarshalRespFailed);
 
     auto marshalDataPtr = reinterpret_cast<uint8_t*>(marshalData->data);
     data = {marshalDataPtr, marshalDataPtr + marshalData->sz};

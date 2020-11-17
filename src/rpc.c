@@ -2100,7 +2100,7 @@ int unmarshal_standard_did_auth_req(const msgpack_object *req, Req **req_unmarsh
 {
     const msgpack_object *method;
     const msgpack_object *tsx_id;
-    const msgpack_object *challenge;
+    const msgpack_object *jwt;
     StandardDidAuthReq *tmp;
     void *buf;
 
@@ -2111,16 +2111,16 @@ int unmarshal_standard_did_auth_req(const msgpack_object *req, Req **req_unmarsh
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("params"), {
-            challenge = map_val_str("challenge");
+            jwt = map_val_str("jwt");
         });
     });
 
-    if (!challenge || !challenge->str_sz) {
+    if (!jwt || !jwt->str_sz) {
         vlogE("Invalid standard_did_auth request.");
         return -1;
     }
 
-    tmp = rc_zalloc(sizeof(StandardDidAuthReq) + str_reserve_spc(method) + str_reserve_spc(challenge), NULL);
+    tmp = rc_zalloc(sizeof(StandardDidAuthReq) + str_reserve_spc(method) + str_reserve_spc(jwt), NULL);
     if (!tmp)
         return -1;
 
@@ -2128,7 +2128,7 @@ int unmarshal_standard_did_auth_req(const msgpack_object *req, Req **req_unmarsh
     tmp->method           = strncpy(buf, method->str_val, method->str_sz);
     buf += str_reserve_spc(method);
     tmp->tsx_id           = tsx_id->u64_val;
-    tmp->params.challenge = strncpy(buf, challenge->str_val, challenge->str_sz);
+    tmp->params.jwt = strncpy(buf, jwt->str_val, jwt->str_sz);
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -6247,15 +6247,42 @@ Marshalled *marshal_standard_sign_in_resp(const Resp *resp)
     return &m->m;
 }
 
+Marshalled *marshal_standard_did_auth_resp(const Resp *resp)
+{
+    StandardDidAuthResp *wrap_resp = (StandardDidAuthResp*)resp;
+
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_u64(pk, "id", wrap_resp->tsx_id);
+        pack_kv_map(pk, "result", 1, {
+            pack_kv_str(pk, "access_token", wrap_resp->result.access_token);
+        });
+    });
+    deref(wrap_resp->result.access_token);
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
 typedef Marshalled *RespHdlr(const Resp *resp);
 struct RespSerializer {
     char *method;
     RespHdlr *serializer;
 };
 static struct RespSerializer resp_serializers_1_0[] = {
-    {"set_binary"              , marshal_set_binary_resp       },
-    {"get_binary"              , marshal_get_binary_resp       },
+    {"set_binary"              , marshal_set_binary_resp        },
+    {"get_binary"              , marshal_get_binary_resp        },
     {"standard_sign_in"        , marshal_standard_sign_in_resp  },
+    {"standard_did_auth"       , marshal_standard_did_auth_resp },
 };
 
 Marshalled *rpc_marshal_resp(const char* method, const Resp *resp)

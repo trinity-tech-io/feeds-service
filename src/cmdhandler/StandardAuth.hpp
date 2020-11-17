@@ -3,18 +3,12 @@
 
 #include <map>
 #include <memory>
+#include <nlohmann/json.hpp>
 #include <vector>
 
 #include <CommandHandler.hpp>
 
-extern "C" {
-#include "obj.h"
-#include "rpc.h"
-}
-
-struct ElaCarrier;
-struct ElaSession;
-struct ElaStreamCallbacks;
+using nlohmann::json;
 
 namespace trinity {
 
@@ -25,8 +19,8 @@ public:
     /*** static function and variable ***/
 
     /*** class function and variable ***/
-    explicit StandardAuth() = default;
-    virtual ~StandardAuth() = default;
+    explicit StandardAuth();
+    virtual ~StandardAuth();
 
 protected:
     /*** type define ***/
@@ -43,18 +37,19 @@ private:
     };
 
     struct AuthSecret {
-        std::string nonce;
+        std::string did;
         time_t expiration;
     };
 
     /*** static function and variable ***/
-    constexpr static const int DID_EXPIRATION = (3600 * 24 * 60);
+    constexpr static const int ACCESS_EXPIRATION = (3600 * 24 * 60);
 
     /*** class function and variable ***/
     int onSignIn(std::shared_ptr<Req> req, std::shared_ptr<Resp>& resp);
     int onDidAuth(std::shared_ptr<Req> req, std::shared_ptr<Resp>& resp);
 
-    int checkAuthToken(const char* jwt);
+    int checkAuthToken(const char* jwt, json& credentialSubject);
+    int createAccessToken(json& credentialSubject, std::shared_ptr<const char>& accessToken);
 
     std::map<std::string, AuthSecret> authSecretMap;
 };
