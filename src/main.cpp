@@ -133,29 +133,7 @@ void on_receiving_message(ElaCarrier *c, const char *from,
 
     auto msgptr = reinterpret_cast<uint8_t*>(const_cast<void*>(msg));
     auto data = std::vector<uint8_t>(msgptr, msgptr + len);
-    rc = trinity::CommandHandler::GetInstance()->process(from, data);
-    if(rc >= 0) {
-        return;
-    }
-
-    rc = rpc_unmarshal_req(msg, len, &req);
-    if (rc == -1)
-        return;
-    else if (rc == -2) {
-        hdl_unknown_req(c, from, req);
-        deref(req);
-        return;
-    }
-
-    for (i = 0; i < sizeof(method_hdlrs) / sizeof(method_hdlrs[0]); ++i) {
-        if (!strcmp(req->method, method_hdlrs[i].method)) {
-            vlogD("receive msg: method =%s tsx_id=%llu from=%s", req->method, req->tsx_id, from);
-            method_hdlrs[i].hdlr(c, from, req);
-            break;
-        }
-    }
-
-    deref(req);
+    std::ignore = trinity::CommandHandler::GetInstance()->process(from, data);
 }
 
 static

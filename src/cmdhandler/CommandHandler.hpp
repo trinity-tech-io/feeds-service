@@ -41,10 +41,10 @@ public:
         explicit Listener() = default;
         virtual ~Listener() = default;
         virtual void setHandleMap(const std::map<const char*, Handler>& handleMap);
+        virtual int onDispose(const std::string& from, std::shared_ptr<Req> req, std::shared_ptr<Resp>& resp);
 
         int checkAccessible(Accessible accessible, const std::string &accessToken);
     private:
-        int onDispose(std::shared_ptr<Req> req, std::shared_ptr<Resp>& resp);
         int isOwner(const std::string &accessToken);
         int isMember(const std::string &accessToken);
         int getUserInfo(const std::string &accessToken, std::shared_ptr<UserInfo> &userInfo);
@@ -62,7 +62,9 @@ public:
                std::weak_ptr<ElaCarrier> carrier);
     void cleanup();
 
-    int process(const char* from, const std::vector<uint8_t>& data);
+    std::weak_ptr<ElaCarrier> getCarrierHandler();
+
+    int process(const std::string& from, const std::vector<uint8_t>& data);
 
     int unpackRequest(const std::vector<uint8_t>& data,
                       std::shared_ptr<Req>& req) const;

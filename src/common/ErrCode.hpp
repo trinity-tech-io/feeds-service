@@ -79,6 +79,7 @@ public:
     constexpr static const int SizeOverflowError                = -109;
     constexpr static const int StdSystemError                   = -110;
     constexpr static const int OutOfMemoryError                 = -111;
+    constexpr static const int CompletelyFinishedNotify         = -112;
 
     constexpr static const int DidNotReady                      = -120;
     constexpr static const int InvalidAccessToken               = -121;
