@@ -3,6 +3,7 @@
 #include <SafePtr.hpp>
 #include <LegacyMethod.hpp>
 #include <MassData.hpp>
+#include <ThreadPool.hpp>
 
 #include <crystal.h>
 extern "C" {
@@ -44,6 +45,7 @@ std::shared_ptr<CommandHandler> CommandHandler::GetInstance()
 int CommandHandler::config(const std::filesystem::path& dataDir,
                            std::weak_ptr<ElaCarrier> carrier)
 {
+    threadPool = std::make_shared<ThreadPool>("command-handler");
     carrierHandler = carrier;
 
     cmdListener = std::move(std::vector<std::shared_ptr<Listener>> {
@@ -58,6 +60,7 @@ void CommandHandler::cleanup()
 {
     CmdHandlerInstance.reset();
 
+    threadPool.reset();
     carrierHandler.reset();
     cmdListener.clear();
 }
@@ -65,6 +68,17 @@ void CommandHandler::cleanup()
 std::weak_ptr<ElaCarrier> CommandHandler::getCarrierHandler()
 {
     return carrierHandler;
+}
+
+int CommandHandler::processAsync(const std::string& from, const std::vector<uint8_t>& data)
+{
+    CHECK_ASSERT(threadPool, ErrCode::PointerReleasedError);
+
+    threadPool->post([this, from = std::move(from), data = std::move(data)] {
+        process(from, data);
+    });
+
+    return 0;
 }
 
 int CommandHandler::process(const std::string& from, const std::vector<uint8_t>& data)

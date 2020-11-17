@@ -64,6 +64,7 @@ public:
 
     std::weak_ptr<ElaCarrier> getCarrierHandler();
 
+    int processAsync(const std::string& from, const std::vector<uint8_t>& data);
     int process(const std::string& from, const std::vector<uint8_t>& data);
 
     int unpackRequest(const std::vector<uint8_t>& data,
@@ -90,6 +91,7 @@ private:
     explicit CommandHandler() = default;
     virtual ~CommandHandler() = default;
 
+    std::shared_ptr<ThreadPool> threadPool;
     std::weak_ptr<ElaCarrier> carrierHandler;
     std::vector<std::shared_ptr<Listener>> cmdListener;
 };

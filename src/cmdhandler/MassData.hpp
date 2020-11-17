@@ -13,8 +13,6 @@ struct ElaStreamCallbacks;
 
 namespace trinity {
 
-class ThreadPool;
-
 class MassData : public CommandHandler::Listener {
 public:
     /*** type define ***/
