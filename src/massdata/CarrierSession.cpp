@@ -217,7 +217,7 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
             ElaStreamState state, void *context)
     {
         auto thiz = reinterpret_cast<CarrierSession*>(context);
-        Log::I(Log::TAG, "CarrierSession state change to %d at session stream %d", state, stream);
+        Log::D(Log::TAG, "CarrierSession state change to %d at session stream %d", state, stream);
         auto weakPtr = thiz->weak_from_this();
         auto carrierSession = weakPtr.lock();
         if(carrierSession == nullptr) {

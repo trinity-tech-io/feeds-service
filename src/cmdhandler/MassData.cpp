@@ -56,7 +56,7 @@ int MassData::saveBinData(const std::filesystem::path &massDataDir,
     setBinResp->tsx_id = setBinReq->tsx_id;
 
     if(std::strcmp(setBinReq->params.algo, "None") != 0) {
-        CHECK_ERROR(ErrCode::MassDataUnsupportedAlgo);
+        CHECK_ERROR(ErrCode::CmdUnsupportedAlgo);
     }
 
     auto keyPath = massDataDir / setBinReq->params.key;

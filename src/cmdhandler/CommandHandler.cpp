@@ -124,11 +124,11 @@ int CommandHandler::unpackRequest(const std::vector<uint8_t>& data,
     };
     req = std::shared_ptr<Req>(reqBuf, deleter); // workaround: declare for auto release Req pointer
     if (ret == -1) {
-        ret = ErrCode::MassDataUnmarshalReqFailed;
+        ret = ErrCode::CmdUnmarshalReqFailed;
     } else if (ret == -2) {
-        ret = ErrCode::MassDataUnknownReqFailed;
+        ret = ErrCode::CmdUnknownReqFailed;
     } else if (ret == -3) {
-        ret = ErrCode::MassDataUnsupportedVersion;
+        ret = ErrCode::CmdUnsupportedVersion;
     } else if(ret < ErrCode::StdSystemErrorIndex) {
         ret = ErrCode::StdSystemError;
     } else if (ret < 0) {
@@ -149,10 +149,10 @@ int CommandHandler::packResponse(const std::shared_ptr<Req> &req,
 {
     Marshalled* marshalBuf = nullptr;
     if(errCode >= 0) {
-        CHECK_ASSERT(resp, ErrCode::MassDataUnknownRespFailed);
+        CHECK_ASSERT(resp, ErrCode::CmdUnknownRespFailed);
         marshalBuf = rpc_marshal_resp(req->method, resp.get());
     } else {
-        CHECK_ASSERT(req, ErrCode::MassDataUnknownReqFailed);
+        CHECK_ASSERT(req, ErrCode::CmdUnknownReqFailed);
         auto errDesp = ErrCode::ToString(errCode);
         marshalBuf = rpc_marshal_err(req->tsx_id, errCode, errDesp.c_str());
         Log::D(Log::TAG, "Response error:");
@@ -163,7 +163,7 @@ int CommandHandler::packResponse(const std::shared_ptr<Req> &req,
         deref(ptr);
     };
     auto marshalData = std::shared_ptr<Marshalled>(marshalBuf, deleter); // workaround: declare for auto release Marshalled pointer
-    CHECK_ASSERT(marshalData, ErrCode::MassDataMarshalRespFailed);
+    CHECK_ASSERT(marshalData, ErrCode::CmdMarshalRespFailed);
 
     auto marshalDataPtr = reinterpret_cast<uint8_t*>(marshalData->data);
     data = {marshalDataPtr, marshalDataPtr + marshalData->sz};

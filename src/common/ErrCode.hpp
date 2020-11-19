@@ -99,12 +99,12 @@ public:
     constexpr static const int CarrierSessionSendFailed         = -141;
     constexpr static const int CarrierSessionErrorExists        = -142;
 
-    constexpr static const int MassDataUnknownReqFailed         = -150;
-    constexpr static const int MassDataUnmarshalReqFailed       = -151;
-    constexpr static const int MassDataMarshalRespFailed        = -152;
-    constexpr static const int MassDataUnsupportedVersion 	    = -153;
-    constexpr static const int MassDataUnsupportedAlgo          = -154;
-    constexpr static const int MassDataUnknownRespFailed        = -155;
+    constexpr static const int CmdUnknownReqFailed              = -150;
+    constexpr static const int CmdUnmarshalReqFailed            = -151;
+    constexpr static const int CmdMarshalRespFailed             = -152;
+    constexpr static const int CmdUnsupportedVersion 	        = -153;
+    constexpr static const int CmdUnsupportedAlgo               = -154;
+    constexpr static const int CmdUnknownRespFailed             = -155;
 
     constexpr static const int AuthBadDidDoc                    = -160;
     constexpr static const int AuthDidDocInvlid                 = -161;
