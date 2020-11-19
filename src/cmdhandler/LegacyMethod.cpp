@@ -1,11 +1,8 @@
 #include "LegacyMethod.hpp"
 
 #include <crystal.h>
-#include <fstream>
 #include <CommandHandler.hpp>
 #include <ErrCode.hpp>
-#include <Log.hpp>
-#include <Random.hpp>
 #include <SafePtr.hpp>
 
 extern "C" {
