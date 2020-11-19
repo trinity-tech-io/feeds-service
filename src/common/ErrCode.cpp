@@ -70,12 +70,12 @@ std::string ErrCode::ToString(int errCode)
         { CarrierSessionSendFailed         , "CarrierSessionSendFailed" },
         { CarrierSessionErrorExists        , "CarrierSessionErrorExists" },
 
-        { MassDataUnknownReqFailed         , "MassDataUnknownReqFailed" },
-        { MassDataUnmarshalReqFailed       , "MassDataUnmarshalReqFailed" },
-        { MassDataMarshalRespFailed        , "MassDataMarshalRespFailed" },
-        { MassDataUnsupportedVersion       , "MassDataUnsupportedVersion   " },
-        { MassDataUnsupportedAlgo          , "MassDataUnsupportedAlgo" },
-        { MassDataUnknownRespFailed        , "MassDataUnknownRespFailed" },
+        { CmdUnknownReqFailed              , "CmdUnknownReqFailed" },
+        { CmdUnmarshalReqFailed            , "CmdUnmarshalReqFailed" },
+        { CmdMarshalRespFailed             , "CmdMarshalRespFailed" },
+        { CmdUnsupportedVersion            , "CmdUnsupportedVersion   " },
+        { CmdUnsupportedAlgo               , "CmdUnsupportedAlgo" },
+        { CmdUnknownRespFailed             , "CmdUnknownRespFailed" },
 
         { AuthBadDidDoc                    , "AuthBadDidDoc" },
         { AuthDidDocInvlid                 , "AuthDidDocInvlid" },
