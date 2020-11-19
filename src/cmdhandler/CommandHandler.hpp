@@ -1,6 +1,8 @@
 #ifndef _FEEDS_COMMAND_HANDLER_HPP_
 #define _FEEDS_COMMAND_HANDLER_HPP_
 
+#include <cassert>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>

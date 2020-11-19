@@ -1,5 +1,6 @@
 #include "CommandHandler.hpp"
 
+#include <cstring>
 #include <SafePtr.hpp>
 #include <LegacyMethod.hpp>
 #include <MassData.hpp>

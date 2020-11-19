@@ -1,11 +1,12 @@
 #include "MassData.hpp"
 
-#include <crystal.h>
+#include <cstring>
 #include <fstream>
 #include <ErrCode.hpp>
 #include <Log.hpp>
 #include <Random.hpp>
 #include <SafePtr.hpp>
+#include <crystal.h>
 
 namespace trinity {
 
