@@ -457,22 +457,22 @@ int main(int argc, char *argv[])
     signal(SIGSEGV, print_backtrace);
     signal(SIGABRT, print_backtrace);
 
-    printf("Feedsd version: %s\n", FEEDSD_VER);
-    printf("Carrier node identities:\n");
-    printf("  Node ID  : %s\n", ela_get_nodeid(carrier, buf, sizeof(buf)));
-    printf("  User ID  : %s\n", ela_get_userid(carrier, buf, sizeof(buf)));
-    printf("  Address  : %s\n", ela_get_address(carrier, buf, sizeof(buf)));
+    vlogI("Feedsd version: %s", FEEDSD_VER);
+    vlogI("Carrier node identities:");
+    vlogI("  Node ID  : %s", ela_get_nodeid(carrier, buf, sizeof(buf)));
+    vlogI("  User ID  : %s", ela_get_userid(carrier, buf, sizeof(buf)));
+    vlogI("  Address  : %s", ela_get_address(carrier, buf, sizeof(buf)));
     if (feeds_owner_info.did && feeds_owner_info.did[0])
-        printf("  Owner DID: %s\n", feeds_owner_info.did);
+        vlogI("  Owner DID: %s", feeds_owner_info.did);
     if (feeds_did_str[0])
-        printf("  Feeds DID: %s\n", feeds_did_str);
+        vlogI("  Feeds DID: %s", feeds_did_str);
 
     if (!did_is_ready())
-        printf("Visit http://YOUR-IP-ADDRESS:%s using your browser to start binding process."
-               "Verification code:[%s]\n", cfg.http_port, did_get_nonce());
+        vlogI("Visit http://YOUR-IP-ADDRESS:%s using your browser to start binding process."
+               "Verification code:[%s]", cfg.http_port, did_get_nonce());
     else
-        printf("Visiting http://YOUR-IP-ADDRESS:%s with your browser to retrieve the QRcode "
-               "of feeds URL\n", cfg.http_port);
+        vlogI("Visiting http://YOUR-IP-ADDRESS:%s with your browser to retrieve the QRcode "
+               "of feeds URL", cfg.http_port);
     free_cfg(&cfg);
 
     if (daemon && daemonize() < 0) {
