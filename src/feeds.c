@@ -3888,27 +3888,13 @@ void hdl_get_srv_ver_req(ElaCarrier *c, const char *from, Req *base)
 {
     GetSrvVerReq *req = (GetSrvVerReq *)base;
     Marshalled *resp_marshal = NULL;
-    UserInfo *uinfo = NULL;
     int rc;
 
-    vlogD("Received get_service_version request from [%s]: "
-          "{access_token: %s}",
-          from, req->params.tk);
+    vlogD("Received get_service_version request from [%s]: ", from);
 
     if (!did_is_ready()) {
         vlogE("Feeds DID is not ready.");
         return;
-    }
-
-    uinfo = create_uinfo_from_access_token(req->params.tk);
-    if (!uinfo) {
-        vlogE("Invalid access token.");
-        ErrResp resp = {
-            .tsx_id = req->tsx_id,
-            .ec     = ERR_ACCESS_TOKEN_EXP
-        };
-        resp_marshal = rpc_marshal_err_resp(&resp);
-        goto finally;
     }
 
     GetSrvVerResp resp = {
@@ -3918,7 +3904,7 @@ void hdl_get_srv_ver_req(ElaCarrier *c, const char *from, Req *base)
         }
     };
     resp_marshal = rpc_marshal_get_srv_ver_resp(&resp);
-    vlogD("get_service_version get_statistics response: "
+    vlogD("get_service_version response: "
           "{version: %s}", resp.result.version);
 
 finally:
@@ -3926,7 +3912,6 @@ finally:
         msgq_enq(from, resp_marshal);
         deref(resp_marshal);
     }
-    deref(uinfo);
 }
 
 void hdl_report_illegal_cmt_req(ElaCarrier *c, const char *from, Req *base)
