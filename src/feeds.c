@@ -3892,11 +3892,6 @@ void hdl_get_srv_ver_req(ElaCarrier *c, const char *from, Req *base)
 
     vlogD("Received get_service_version request from [%s]: ", from);
 
-    if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
-        return;
-    }
-
     GetSrvVerResp resp = {
         .tsx_id = req->tsx_id,
         .result = {
