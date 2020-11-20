@@ -1922,7 +1922,6 @@ int unmarshal_get_srv_ver_req(const msgpack_object *req, Req **req_unmarshal)
 {
     const msgpack_object *method;
     const msgpack_object *tsx_id;
-    const msgpack_object *tk;
     GetSrvVerReq *tmp;
     void *buf;
 
@@ -1933,17 +1932,11 @@ int unmarshal_get_srv_ver_req(const msgpack_object *req, Req **req_unmarshal)
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("params"), {
-            tk       = map_val_str("access_token");
+            map_val_str("access_token");
         });
     });
 
-    if (!tk || !tk->str_sz) {
-        vlogE("Invalid get_service_version request.");
-        return -1;
-    }
-
-    int str_size = str_reserve_spc(method)
-                 + str_reserve_spc(tk);
+    int str_size = str_reserve_spc(method);
     tmp = rc_zalloc(sizeof(*tmp) + str_size, NULL);
     if (!tmp)
         return -1;
@@ -1952,8 +1945,6 @@ int unmarshal_get_srv_ver_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->method          = strncpy(buf, method->str_val, method->str_sz);
     buf += str_reserve_spc(method);
     tmp->tsx_id          = tsx_id->u64_val;
-    tmp->params.tk       = strncpy(buf, tk->str_val, tk->str_sz);
-    buf += str_reserve_spc(tk);
 
     *req_unmarshal = (Req *)tmp;
     return 0;
