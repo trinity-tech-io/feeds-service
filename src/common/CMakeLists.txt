@@ -12,6 +12,9 @@ else()
     add_library(common OBJECT ${COMMON_SOURCES})
 endif()
 
+add_dependencies(common
+    libcrystal)
+
 target_include_directories(common PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${pkg-openssl_INCLUDE_DIRS}"
