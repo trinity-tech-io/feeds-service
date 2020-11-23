@@ -458,14 +458,14 @@ int main(int argc, char *argv[])
     signal(SIGABRT, print_backtrace);
 
     vlogI("Feedsd version: %s", FEEDSD_VER);
-    vlogI("Carrier node identities:");
-    vlogI("  Node ID  : %s", ela_get_nodeid(carrier, buf, sizeof(buf)));
-    vlogI("  User ID  : %s", ela_get_userid(carrier, buf, sizeof(buf)));
-    vlogI("  Address  : %s", ela_get_address(carrier, buf, sizeof(buf)));
+    vlogD("Carrier node identities:");
+    vlogD("  Node ID  : %s", ela_get_nodeid(carrier, buf, sizeof(buf)));
+    vlogD("  User ID  : %s", ela_get_userid(carrier, buf, sizeof(buf)));
+    vlogD("  Address  : %s", ela_get_address(carrier, buf, sizeof(buf)));
     if (feeds_owner_info.did && feeds_owner_info.did[0])
-        vlogI("  Owner DID: %s", feeds_owner_info.did);
+        vlogD("  Owner DID: %s", feeds_owner_info.did);
     if (feeds_did_str[0])
-        vlogI("  Feeds DID: %s", feeds_did_str);
+        vlogD("  Feeds DID: %s", feeds_did_str);
 
     if (!did_is_ready())
         vlogI("Visit http://YOUR-IP-ADDRESS:%s using your browser to start binding process."

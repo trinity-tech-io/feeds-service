@@ -203,7 +203,7 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
     auto deleter = [=](ElaSession* ptr) -> void {
         if(ptr != nullptr) {
             ela_session_close(ptr);
-            Log::I(Log::TAG, "Destroy an ela carrier session with %s, stream %d", peerId.c_str(), sessionStreamId);
+            Log::D(Log::TAG, "Destroy an ela carrier session with %s, stream %d", peerId.c_str(), sessionStreamId);
         }
     };
     sessionHandler = std::shared_ptr<ElaSession>(creater(), deleter);
@@ -291,7 +291,7 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
     }
     CHECK_ERROR(ret);
     sessionStreamId = ret;
-    Log::I(Log::TAG, "Create a new ela carrier session with %s stream %d", peerId.c_str(), sessionStreamId);
+    Log::D(Log::TAG, "Create a new ela carrier session with %s stream %d", peerId.c_str(), sessionStreamId);
 
     return 0;
 }
