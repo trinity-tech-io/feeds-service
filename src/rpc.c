@@ -2100,7 +2100,7 @@ int unmarshal_standard_did_auth_req(const msgpack_object *req, Req **req_unmarsh
 {
     const msgpack_object *method;
     const msgpack_object *tsx_id;
-    const msgpack_object *jwt;
+    const msgpack_object *vp;
     StandardDidAuthReq *tmp;
     void *buf;
 
@@ -2111,16 +2111,16 @@ int unmarshal_standard_did_auth_req(const msgpack_object *req, Req **req_unmarsh
         method  = map_val_str("method");
         tsx_id  = map_val_u64("id");
         map_iter_kvs(map_val_map("params"), {
-            jwt = map_val_str("jwt");
+            vp = map_val_str("vp");
         });
     });
 
-    if (!jwt || !jwt->str_sz) {
+    if (!vp || !vp->str_sz) {
         vlogE("Invalid standard_did_auth request.");
         return -1;
     }
 
-    tmp = rc_zalloc(sizeof(StandardDidAuthReq) + str_reserve_spc(method) + str_reserve_spc(jwt), NULL);
+    tmp = rc_zalloc(sizeof(StandardDidAuthReq) + str_reserve_spc(method) + str_reserve_spc(vp), NULL);
     if (!tmp)
         return -1;
 
@@ -2128,7 +2128,7 @@ int unmarshal_standard_did_auth_req(const msgpack_object *req, Req **req_unmarsh
     tmp->method           = strncpy(buf, method->str_val, method->str_sz);
     buf += str_reserve_spc(method);
     tmp->tsx_id           = tsx_id->u64_val;
-    tmp->params.jwt = strncpy(buf, jwt->str_val, jwt->str_sz);
+    tmp->params.vp = strncpy(buf, vp->str_val, vp->str_sz);
 
     *req_unmarshal = (Req *)tmp;
     return 0;

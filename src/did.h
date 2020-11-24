@@ -39,6 +39,7 @@ void did_deinit();
 bool did_is_ready();
 const char *did_get_nonce();
 int oinfo_upd(const UserInfo *ui);
+DIDDocument *local_resolver(DID *did);
 void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_imp_did_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base);

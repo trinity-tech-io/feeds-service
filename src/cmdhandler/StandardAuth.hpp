@@ -9,6 +9,8 @@
 #include <CommandHandler.hpp>
 
 using nlohmann::json;
+struct DID;
+struct DIDDocument;
 
 namespace trinity {
 
@@ -17,6 +19,7 @@ public:
     /*** type define ***/
 
     /*** static function and variable ***/
+    static constexpr const char* LocalDocDirName = "didlocaldoc";
 
     /*** class function and variable ***/
     explicit StandardAuth();
@@ -38,19 +41,26 @@ private:
 
     struct AuthSecret {
         std::string did;
-        time_t expiration;
+        int64_t expiration;
     };
 
     /*** static function and variable ***/
-    constexpr static const int ACCESS_EXPIRATION = (3600 * 24 * 60);
+    static std::filesystem::path GetLocalDocDir();
+    static int SaveLocalDIDDocument(DID* did, DIDDocument* doc);
+    static DIDDocument* LoadLocalDIDDocument(DID* did);
+
+    constexpr static const int64_t JWT_EXPIRATION = (static_cast<int64_t>(5) * 60); // 5 minute
+    constexpr static const int64_t ACCESS_EXPIRATION = (static_cast<int64_t>(30) * 24 * 60 * 60); //1 month
 
     /*** class function and variable ***/
     int onSignIn(std::shared_ptr<Req> req, std::shared_ptr<Resp>& resp);
     int onDidAuth(std::shared_ptr<Req> req, std::shared_ptr<Resp>& resp);
 
+    std::string getServiceDid();
     int checkAuthToken(const char* jwt, json& credentialSubject);
     int createAccessToken(json& credentialSubject, std::shared_ptr<const char>& accessToken);
 
+    std::filesystem::path localDocDir;
     std::map<std::string, AuthSecret> authSecretMap;
 };
 

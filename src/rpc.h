@@ -671,7 +671,7 @@ typedef struct {
     char    *method;
     uint64_t tsx_id;
     struct {
-        char *jwt;
+        char *vp;
     } params;
 } StandardDidAuthReq;
 
