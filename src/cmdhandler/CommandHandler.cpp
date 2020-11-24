@@ -21,6 +21,7 @@ namespace trinity {
 /* === static variables initialize =========== */
 /* =========================================== */
 std::shared_ptr<CommandHandler> CommandHandler::CmdHandlerInstance;
+std::filesystem::path CommandHandler::Listener::DataDir;
 
 /* =========================================== */
 /* === static function implement ============= */
@@ -47,6 +48,9 @@ std::shared_ptr<CommandHandler> CommandHandler::GetInstance()
 int CommandHandler::config(const std::filesystem::path& dataDir,
                            std::weak_ptr<ElaCarrier> carrier)
 {
+    int ret = Listener::SetDataDir(dataDir);
+    CHECK_ERROR(ret);
+
     threadPool = std::make_shared<ThreadPool>("command-handler");
     carrierHandler = carrier;
 
@@ -174,6 +178,24 @@ int CommandHandler::packResponse(const std::shared_ptr<Req> &req,
     return 0;
 }
 
+const std::filesystem::path& CommandHandler::Listener::GetDataDir()
+{
+    return DataDir;
+}
+
+int CommandHandler::Listener::SetDataDir(const std::filesystem::path& dataDir)
+{
+    auto dirExists = std::filesystem::exists(dataDir);
+    if(dirExists == false) {
+        dirExists = std::filesystem::create_directories(dataDir);
+    }
+    CHECK_ASSERT(dirExists, ErrCode::FileNotExistsError);
+
+    DataDir = dataDir;
+
+    return 0;
+}
+
 void CommandHandler::Listener::setHandleMap(const std::map<const char*, Handler>& handleMap)
 {
     cmdHandleMap = std::move(handleMap);
@@ -181,9 +203,9 @@ void CommandHandler::Listener::setHandleMap(const std::map<const char*, Handler>
 
 int CommandHandler::Listener::checkAccessible(Accessible accessible, const std::string &accessToken)
 {
-    int ret = ErrCode::UnknownError;
 
 #ifdef NDEBUG
+    int ret = ErrCode::UnknownError;
     Log::D(Log::TAG, "Checking request accessible.");
     if (accessible == Accessible::Owner) {
         ret = isOwner(accessToken);

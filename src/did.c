@@ -446,9 +446,10 @@ int load_feeds_doc(DID *did, void *context)
     return -1;
 }
 
-static inline
 DIDDocument *local_resolver(DID *did)
 {
+    char didStrBuf[ELA_MAX_DID_LEN];
+    vlogD("Find doc from local resolver: %s", DID_ToString(did, didStrBuf, sizeof(didStrBuf)));
     return DID_Equals(did, feeds_did) ? DIDStore_LoadDID(feeds_didstore, feeds_did) : NULL;
 }
 

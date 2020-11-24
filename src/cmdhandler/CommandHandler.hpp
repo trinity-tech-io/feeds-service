@@ -40,6 +40,8 @@ public:
             Accessible accessible;
         };
 
+        static const std::filesystem::path& GetDataDir();
+
         explicit Listener() = default;
         virtual ~Listener() = default;
 
@@ -48,6 +50,9 @@ public:
         virtual int checkAccessible(Accessible accessible, const std::string &accessToken);
         virtual int onDispose(const std::string& from, std::shared_ptr<Req> req, std::shared_ptr<Resp>& resp);
     private:
+        static int SetDataDir(const std::filesystem::path& dataDir);
+        static std::filesystem::path DataDir;
+
         int isOwner(const std::string &accessToken);
         int isMember(const std::string &accessToken);
         int getUserInfo(const std::string &accessToken, std::shared_ptr<UserInfo> &userInfo);

@@ -1,7 +1,9 @@
 #include "StandardAuth.hpp"
 
+#include <fstream>
 #include <map>
 
+#include <DateTime.hpp>
 #include <ErrCode.hpp>
 #include <Log.hpp>
 #include <SafePtr.hpp>
@@ -31,6 +33,81 @@ namespace trinity {
 /* =========================================== */
 /* === static function implement ============= */
 /* =========================================== */
+std::filesystem::path StandardAuth::GetLocalDocDir()
+{
+    auto localDocDir = GetDataDir() / LocalDocDirName;
+    auto dirExists = std::filesystem::exists(localDocDir);
+    if(dirExists == false) {
+        dirExists = std::filesystem::create_directories(localDocDir);
+    }
+    if(dirExists == false) {
+        Log::E(Log::TAG, "No such directory: %s", localDocDir.c_str());
+        localDocDir.clear();
+    }
+
+    return localDocDir;
+}
+
+int StandardAuth::SaveLocalDIDDocument(DID* did, DIDDocument* doc)
+{
+    CHECK_ASSERT(did && doc, ErrCode::InvalidArgument);
+
+    auto localDocDir = GetLocalDocDir();
+    CHECK_ASSERT(localDocDir.empty() == false, ErrCode::DirectoryNotExistsError);
+
+    auto creater = [](DIDDocument* doc) -> const char* {
+        return DIDDocument_ToJson(doc, false);
+    };
+    auto deleter = [](const char* ptr) -> void {
+        if(ptr != nullptr) {
+            free(const_cast<char*>(ptr));
+        }
+    };
+    auto docStr = std::shared_ptr<const char>(creater(doc), deleter);
+    CHECK_DIDSDK(docStr != nullptr, ErrCode::AuthBadDidDoc, "Failed to format did document to json.");
+
+    auto docFilePath = localDocDir / DID_GetMethodSpecificId(did);
+    Log::D(Log::TAG, "Save did document to local: %s", docFilePath.c_str());
+    std::fstream docStream;
+    docStream.open(docFilePath, std::ios::binary | std::ios::out);
+    docStream.seekg(0);
+    docStream.write(docStr.get(), std::strlen(docStr.get()) + 1);
+    docStream.flush();
+    docStream.close();
+
+    return 0;
+}
+
+DIDDocument* StandardAuth::LoadLocalDIDDocument(DID* did)
+{
+    if(did == nullptr) {
+        return nullptr;
+    }
+
+    auto localDocDir = GetLocalDocDir();
+    if(localDocDir.empty() == true) {
+        Log::E(Log::TAG, "Local did document directory is not set.");
+        return nullptr;
+    };
+
+    auto docFilePath = localDocDir / DID_GetMethodSpecificId(did);
+    auto fileExists = std::filesystem::exists(docFilePath);
+    if(fileExists == false) {
+        return nullptr;
+    }
+    Log::D(Log::TAG, "Load did document from local: %s", docFilePath.c_str());
+
+    auto docSize = std::filesystem::file_size(docFilePath);
+    char docStr[docSize];
+
+    std::fstream docStream;
+    docStream.open(docFilePath, std::ios::binary | std::ios::in);
+    docStream.seekg(0);
+    docStream.read(docStr, docSize);
+    docStream.close();
+
+    return DIDDocument_FromJson(docStr);
+}
 
 /* =========================================== */
 /* === class public function implement  ====== */
@@ -74,27 +151,26 @@ int StandardAuth::onSignIn(std::shared_ptr<Req> req,
     auto didDoc = std::shared_ptr<DIDDocument>(docCreater(signInReq->params.doc), docDeleter);
     CHECK_DIDSDK(didDoc != nullptr, ErrCode::AuthBadDidDoc, "Failed to get did document from json.");
 
-    bool ret = DIDDocument_IsValid(didDoc.get());
-    CHECK_DIDSDK(ret, ErrCode::AuthDidDocInvlid, "Did document is invalid.");
+    bool valid = DIDDocument_IsValid(didDoc.get());
+    CHECK_DIDSDK(valid, ErrCode::AuthDidDocInvlid, "Did document is invalid.");
 
     auto did = DIDDocument_GetSubject(didDoc.get());
     CHECK_DIDSDK(did, ErrCode::AuthBadDid, "Failed to get did from document.");
 
-    auto didSpec = DID_GetMethodSpecificId(did);
-    CHECK_DIDSDK(didSpec, ErrCode::AuthBadDid, "Failed to get did specific from did");
+    char didStrBuf[ELA_MAX_DID_LEN];
+    auto didStr = DID_ToString(did, didStrBuf, sizeof(didStrBuf));
+    CHECK_DIDSDK(didStr, ErrCode::AuthBadDidString, "Failed to get did string.");
+    Log::D(Log::TAG, "Sign in Did: %s", didStr);
 
-    auto didMtd = DID_GetMethod(did);
-    CHECK_DIDSDK(didMtd, ErrCode::AuthBadDidMethod, "Failed to get did method from did");
-
-    auto didStr = std::string("did:") + didMtd + ":" + didSpec;
-    Log::D(Log::TAG, "Sign in Did: %s", didStr.c_str());
+    int ret = SaveLocalDIDDocument(did, didDoc.get());
+    CHECK_DIDSDK(ret >= 0, ErrCode::AuthSaveDocFailed, "Failed to save did document to local.");
 
     uint8_t nonce[NONCE_BYTES];
     char nonceStr[NONCE_BYTES << 1];
     crypto_random_nonce(nonce);
     crypto_nonce_to_str(nonce, nonceStr, sizeof(nonceStr));
 
-    auto expiration = time(NULL) + ACCESS_EXPIRATION;
+    auto expiration = DateTime::Current() + JWT_EXPIRATION;
     authSecretMap[nonceStr] = std::move(AuthSecret{didStr, expiration});
 
     auto jwtCreater = [](DIDDocument* didDoc) -> JWTBuilder* {
@@ -115,7 +191,7 @@ int StandardAuth::onSignIn(std::shared_ptr<Req> req,
     ret = JWTBuilder_SetSubject(jwtBuilder.get(), "DIDAuthChallenge");
     CHECK_DIDSDK(ret, ErrCode::AuthBadJwtSubject, "Failed to set jwt subject.");
 
-    ret = JWTBuilder_SetAudience(jwtBuilder.get(), didStr.c_str());
+    ret = JWTBuilder_SetAudience(jwtBuilder.get(), didStr);
     CHECK_DIDSDK(ret, ErrCode::AuthBadJwtAudience, "Failed to set jwt audience.");
 
     ret = JWTBuilder_SetClaim(jwtBuilder.get(), "nonce", nonceStr);
@@ -156,12 +232,12 @@ int StandardAuth::onDidAuth(std::shared_ptr<Req> req,
 {
     auto didAuthReq = std::reinterpret_pointer_cast<StandardDidAuthReq>(req);
     Log::D(Log::TAG, "Request params:");
-    Log::D(Log::TAG, "    challenge: %s", didAuthReq->params.jwt);
+    Log::D(Log::TAG, "    vp: %s", didAuthReq->params.vp);
 
     int ret;
 
     json credentialSubject;
-    ret = checkAuthToken(didAuthReq->params.jwt, credentialSubject);
+    ret = checkAuthToken(didAuthReq->params.vp, credentialSubject);
     CHECK_ERROR(ret);
 
     std::shared_ptr<const char> accessToken;
@@ -182,11 +258,21 @@ int StandardAuth::onDidAuth(std::shared_ptr<Req> req,
     return 0;
 }
 
+std::string StandardAuth::getServiceDid()
+{
+    char didStrBuf[ELA_MAX_DID_LEN] = {0};
+
+    DID_ToString(DIDURL_GetDid(feeeds_auth_key_url), didStrBuf, sizeof(didStrBuf));
+
+    return std::string(didStrBuf);
+}
+
 int StandardAuth::checkAuthToken(const char* jwt, json& credentialSubject)
 {
     CHECK_ASSERT(jwt != nullptr, ErrCode::InvalidArgument);
 
     /** check jwt token **/
+    DIDBackend_SetLocalResolveHandle(StandardAuth::LoadLocalDIDDocument);
     auto jwsCreater = [](const char* jwt) -> JWT* {
         return DefaultJWSParser_Parse(jwt);
     };
@@ -233,7 +319,7 @@ int StandardAuth::checkAuthToken(const char* jwt, json& credentialSubject)
     /** check realm **/
     auto realm = Presentation_GetRealm(vp.get());
     CHECK_DIDSDK(realm != nullptr, ErrCode::AuthPresentationEmptyRealm, "Failed to get presentation realm, return null.");
-    CHECK_DIDSDK(realm == authSecret.did, ErrCode::AuthPresentationBadRealm, "Bad presentation realm.");
+    CHECK_DIDSDK(getServiceDid() == realm, ErrCode::AuthPresentationBadRealm, "Bad presentation realm.");
 
     /** check vc **/
     auto count = Presentation_GetCredentialCount(vp.get());
@@ -270,7 +356,7 @@ int StandardAuth::checkAuthToken(const char* jwt, json& credentialSubject)
 
     CHECK_DIDSDK(credentialSubject.contains("appDid"), ErrCode::AuthCredentialSubjectAppIdNotExists, "The credential subject's id isn't exist.");
 
-    bool expired = (authSecret.expiration < time(NULL));
+    bool expired = (authSecret.expiration < DateTime::Current());
     CHECK_ASSERT(expired == false, ErrCode::AuthNonceExpiredError);
 
     CHECK_DIDSDK(vcJson.contains("issuer"), ErrCode::AuthCredentialIssuerNotExists, "The credential issuer isn't exist.");
@@ -292,7 +378,7 @@ int StandardAuth::createAccessToken(json& credentialSubject, std::shared_ptr<con
     std::string appInstanceDid = credentialSubject["id"];
 
     auto expTime = credentialSubject["expTime"];
-    auto expiration = time(NULL) + ACCESS_EXPIRATION;
+    auto expiration = DateTime::Current() + ACCESS_EXPIRATION;
     if(expiration > expTime) {
         expiration = expTime;
     }

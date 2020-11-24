@@ -632,6 +632,7 @@ UserInfo *create_uinfo_from_access_token(const char *token_marshal)
     AccessTokenUserInfo *uinfo = NULL;
     JWT *token = NULL;
 
+    DIDBackend_SetLocalResolveHandle(local_resolver);
     token = DefaultJWSParser_Parse(token_marshal);
     if (!token) {
         vlogE("Parsing access token failed: %s", DIDError_GetMessage());

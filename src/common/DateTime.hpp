@@ -15,7 +15,7 @@ public:
     /*** type define ***/
 
     /*** static function and variable ***/
-    static std::string Current() {
+    static std::string CurrentStr() {
         system_clock::time_point tp = system_clock::now();
         time_t raw_time = system_clock::to_time_t(tp);
         struct tm *timeinfo  = std::localtime(&raw_time);
@@ -35,6 +35,12 @@ public:
     static int64_t CurrentMS() {
         system_clock::time_point tp = system_clock::now();
         std::chrono::milliseconds now = std::chrono::duration_cast<std::chrono::milliseconds>(tp.time_since_epoch());
+        return now.count();
+    }
+
+    static int64_t Current() {
+        system_clock::time_point tp = system_clock::now();
+        std::chrono::seconds now = std::chrono::duration_cast<std::chrono::seconds>(tp.time_since_epoch());
         return now.count();
     }
 
