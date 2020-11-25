@@ -135,10 +135,10 @@ public:
     constexpr static const int AuthCredentialInvalid               = -185;
     constexpr static const int AuthCredentialSerialFailed          = -186;
     constexpr static const int AuthCredentialParseFailed           = -187;
-    constexpr static const int AuthCredentialSubjectNotExists      = -188;
-    constexpr static const int AuthCredentialSubjectIdNotExists    = -189;
-    constexpr static const int AuthCredentialSubjectBadInstanceId  = -190;
-    constexpr static const int AuthCredentialSubjectAppIdNotExists = -191;
+    constexpr static const int AuthCredentialIdNotExists           = -188;
+    constexpr static const int AuthCredentialBadInstanceId         = -189;
+    constexpr static const int AuthCredentialPropertyNotExists     = -190;
+    constexpr static const int AuthCredentialPropertyAppIdNotExists = -191;
     constexpr static const int AuthCredentialIssuerNotExists       = -192;
     constexpr static const int AuthCredentialExpirationError       = -193;
     constexpr static const int AuthNonceExpiredError               = -194;
