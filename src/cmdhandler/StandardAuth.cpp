@@ -211,12 +211,12 @@ int StandardAuth::onDidAuth(std::shared_ptr<Req> req,
 
     int ret;
 
-    json credentialSubject;
-    ret = checkAuthToken(didAuthReq->params.vp, credentialSubject);
+    CredentialInfo credentialInfo;
+    ret = checkAuthToken(didAuthReq->params.vp, credentialInfo);
     CHECK_ERROR(ret);
 
     std::string accessToken;
-    ret = createAccessToken(credentialSubject, accessToken);
+    ret = createAccessToken(credentialInfo, accessToken);
     CHECK_ERROR(ret);
 
     auto didAuthResp = std::make_shared<StandardDidAuthResp>();
@@ -295,7 +295,7 @@ int StandardAuth::makeJwt(time_t expiration,
     return 0;
 }
 
-int StandardAuth::checkAuthToken(const char* jwt, json& credentialSubject)
+int StandardAuth::checkAuthToken(const char* jwt, CredentialInfo& credentialInfo)
 {
     CHECK_ASSERT(jwt != nullptr, ErrCode::InvalidArgument);
 
@@ -330,8 +330,6 @@ int StandardAuth::checkAuthToken(const char* jwt, json& credentialSubject)
     auto vp = std::shared_ptr<Presentation>(vpCreater(vpStr.get()), vpDeleter);
     CHECK_DIDSDK(vp != nullptr, ErrCode::AuthGetPresentationFailed, "Failed to get presentation from json.");
 
-    auto vpJson = json::parse(vpStr.get());
-
     /** check vp **/
     bool valid = Presentation_IsValid(vp.get());
     CHECK_DIDSDK(valid, ErrCode::AuthInvalidPresentation, "Failed to check presentation.");
@@ -353,68 +351,58 @@ int StandardAuth::checkAuthToken(const char* jwt, json& credentialSubject)
     auto count = Presentation_GetCredentialCount(vp.get());
     CHECK_DIDSDK(count >= 1, ErrCode::AuthVerifiableCredentialBadCount, "The credential count is error.");
 
-    CHECK_DIDSDK(vpJson.contains("verifiableCredential"), ErrCode::AuthVerifiableCredentialNotExists, "The verifiable credential isn't exist.");
-    auto vcsJson = vpJson["verifiableCredential"];
-    CHECK_DIDSDK(vcsJson.is_array(), ErrCode::AuthVerifiableCredentialInvalid, "The verifiable credential isn't valid.");
+    Credential* vcArray[count];
+    int ret = Presentation_GetCredentials(vp.get(), vcArray, count);
+    CHECK_DIDSDK(ret >= 1, ErrCode::AuthCredentialNotExists, "The credential isn't exist.");
 
-    auto vcJson = vcsJson[0];
-    CHECK_DIDSDK(vcJson.is_null() == false, ErrCode::AuthCredentialNotExists, "The credential isn't exist.");
-
-    auto vcStr = vcJson.dump();
-    CHECK_DIDSDK(vcStr.empty() == false, ErrCode::AuthCredentialSerialFailed, "Failed to serialize credential.");
-
-    auto vcCreater = [](const char *vcStr) -> Credential* {
-        return Credential_FromJson(vcStr, nullptr);
-    };
-    auto vcDeleter = [](Credential *ptr) -> void {
-        Credential_Destroy(ptr);
-    };
-    auto vc = std::shared_ptr<Credential>(vcCreater(vcStr.c_str()), vcDeleter);
+    auto vc = vcArray[0];
     CHECK_DIDSDK(vc != nullptr, ErrCode::AuthCredentialParseFailed, "The credential string is error, unable to rebuild to a credential object.");
 
-    valid = Credential_IsValid(vc.get());
+    valid = Credential_IsValid(vc);
     CHECK_DIDSDK(valid, ErrCode::AuthCredentialInvalid, "The credential isn't valid.");
 
-    CHECK_DIDSDK(vcJson.contains("credentialSubject"), ErrCode::AuthCredentialSubjectNotExists, "The credential subject isn't exist.");
-    credentialSubject = vcJson["credentialSubject"];
+    auto instanceDidUrl = Credential_GetId(vc);
+    auto instanceDid = DIDURL_GetDid(instanceDidUrl);
+    char didStrBuf[ELA_MAX_DID_LEN];
+    auto instanceDidStr = DID_ToString(instanceDid, didStrBuf, sizeof(didStrBuf));
+    CHECK_DIDSDK(instanceDidStr != nullptr, ErrCode::AuthCredentialIdNotExists, "The credential id isn't exist.");
+    CHECK_ASSERT(authSecret.did == instanceDidStr, ErrCode::AuthCredentialBadInstanceId);
 
-    CHECK_DIDSDK(credentialSubject.contains("id"), ErrCode::AuthCredentialSubjectIdNotExists, "The credential subject's id isn't exist.");
-    auto instanceDid = credentialSubject["id"];
-    CHECK_ASSERT(instanceDid == authSecret.did, ErrCode::AuthCredentialSubjectBadInstanceId);
+    count = Credential_GetPropertyCount(vc);
+    CHECK_DIDSDK(count >= 1, ErrCode::AuthCredentialPropertyNotExists, "The credential property isn't exist.");
 
-    CHECK_DIDSDK(credentialSubject.contains("appDid"), ErrCode::AuthCredentialSubjectAppIdNotExists, "The credential subject's id isn't exist.");
+    auto appDid = Credential_GetProperty(vc, "appDid");
+    CHECK_DIDSDK(appDid != nullptr, ErrCode::AuthCredentialPropertyAppIdNotExists, "The credential subject's id isn't exist.");
 
     bool expired = (authSecret.expiration < DateTime::Current());
     CHECK_ASSERT(expired == false, ErrCode::AuthNonceExpiredError);
 
-    CHECK_DIDSDK(vcJson.contains("issuer"), ErrCode::AuthCredentialIssuerNotExists, "The credential issuer isn't exist.");
-    credentialSubject["userDid"] = vcJson["issuer"];
-    credentialSubject["nonce"] = nonce;
+    auto issuer = Credential_GetIssuer(vc);
+    auto issuerDidStr = DID_ToString(issuer, didStrBuf, sizeof(didStrBuf));
+    credentialInfo.userDid = issuerDidStr;
+    credentialInfo.appDid = appDid;
+    credentialInfo.instanceDid = instanceDidStr;
 
-    auto expirationDate = Credential_GetExpirationDate(vc.get());
+    auto expirationDate = Credential_GetExpirationDate(vc);
     CHECK_DIDSDK(expirationDate > 0, ErrCode::AuthCredentialExpirationError, "Faile to get credential expiration date.");
-    credentialSubject["expTime"] = expirationDate;
+    credentialInfo.expiration = expirationDate;
 
     return 0;
 }
 
-int StandardAuth::createAccessToken(json& credentialSubject, std::string& accessToken)
+int StandardAuth::createAccessToken(const CredentialInfo& credentialInfo,
+                                    std::string& accessToken)
 {
     int ret;
-    std::string userDid = credentialSubject["userDid"];
-    std::string appId = credentialSubject["appDid"];
-    std::string appInstanceDid = credentialSubject["id"];
-
-    auto expTime = credentialSubject["expTime"];
-    auto expiration = DateTime::Current() + ACCESS_EXPIRATION;
-    if(expiration > expTime) {
-        expiration = expTime;
+    int64_t expiration = DateTime::Current() + ACCESS_EXPIRATION;
+    if(expiration > credentialInfo.expiration) {
+        expiration = credentialInfo.expiration;
     }
 
-    ret = makeJwt(expiration, appInstanceDid, "AccessToken",
-                  {{"userDid", userDid},
-                   {"appId", appId},
-                   {"appInstanceDid", appInstanceDid}},
+    ret = makeJwt(expiration, credentialInfo.instanceDid, "AccessToken",
+                  {{"userDid", credentialInfo.userDid},
+                   {"appId", credentialInfo.appDid},
+                   {"appInstanceDid", credentialInfo.instanceDid}},
                   accessToken);
     CHECK_ERROR(ret);
 

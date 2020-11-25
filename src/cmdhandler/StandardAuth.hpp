@@ -3,12 +3,10 @@
 
 #include <map>
 #include <memory>
-#include <nlohmann/json.hpp>
 #include <vector>
 
 #include <CommandHandler.hpp>
 
-using nlohmann::json;
 struct DID;
 struct DIDDocument;
 
@@ -44,6 +42,13 @@ private:
         int64_t expiration;
     };
 
+    struct CredentialInfo {
+        std::string userDid;
+        std::string appDid;
+        std::string instanceDid;
+        int64_t expiration;
+    };
+
     /*** static function and variable ***/
     static std::filesystem::path GetLocalDocDir();
     static int SaveLocalDIDDocument(DID* did, DIDDocument* doc);
@@ -62,8 +67,8 @@ private:
                 const std::string& subject,
                 const std::map<const char*, std::string>& claimMap,
                 std::string& jwt);
-    int checkAuthToken(const char* jwt, json& credentialSubject);
-    int createAccessToken(json& credentialSubject, std::string& accessToken);
+    int checkAuthToken(const char* jwt, CredentialInfo& credentialInfo);
+    int createAccessToken(const CredentialInfo& credentialInfo, std::string& accessToken);
 
     std::filesystem::path localDocDir;
     std::map<std::string, AuthSecret> authSecretMap;

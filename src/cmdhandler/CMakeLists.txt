@@ -11,7 +11,6 @@ else()
 endif()
 add_dependencies(cmdhandler
     cvector
-    json
     libcrystal)
 
 target_include_directories(cmdhandler PUBLIC
