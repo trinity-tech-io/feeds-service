@@ -49,9 +49,9 @@ char *feeds_storepass;
 Credential *feeds_vc;
 
 static char qrcode_path[PATH_MAX];
-static DIDStore *feeds_didstore;
+DIDStore *feeds_didstore;
 static bool http_is_running;
-static DID *feeds_did;
+DID *feeds_did;
 static char nonce_str[NONCE_BYTES << 1];
 static char feeds_url[1024];
 static enum {
@@ -446,10 +446,9 @@ int load_feeds_doc(DID *did, void *context)
     return -1;
 }
 
+static inline
 DIDDocument *local_resolver(DID *did)
 {
-    char didStrBuf[ELA_MAX_DID_LEN];
-    vlogD("Find doc from local resolver: %s", DID_ToString(did, didStrBuf, sizeof(didStrBuf)));
     return DID_Equals(did, feeds_did) ? DIDStore_LoadDID(feeds_didstore, feeds_did) : NULL;
 }
 

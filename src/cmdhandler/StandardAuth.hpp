@@ -57,8 +57,13 @@ private:
     int onDidAuth(std::shared_ptr<Req> req, std::shared_ptr<Resp>& resp);
 
     std::string getServiceDid();
+    int makeJwt(time_t expiration,
+                const std::string& audience,
+                const std::string& subject,
+                const std::map<const char*, std::string>& claimMap,
+                std::string& jwt);
     int checkAuthToken(const char* jwt, json& credentialSubject);
-    int createAccessToken(json& credentialSubject, std::shared_ptr<const char>& accessToken);
+    int createAccessToken(json& credentialSubject, std::string& accessToken);
 
     std::filesystem::path localDocDir;
     std::map<std::string, AuthSecret> authSecretMap;

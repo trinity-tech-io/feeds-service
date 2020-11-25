@@ -11,8 +11,8 @@
 extern "C" {
 #define new fix_cpp_keyword_new
 #include <crystal.h>
-#include <ela_jwt.h>
 #include <ela_did.h>
+#include <ela_jwt.h>
 #include "../did.h"
 #undef new
 //} // ela_jwt error
@@ -21,7 +21,8 @@ namespace trinity {
 
 #define CHECK_DIDSDK(expr, errCode, errDesp) \
     if(!(expr)) { \
-        Log::E(Log::TAG, errDesp " diderr=0x%x, desc=%s", \
+        Log::E(Log::TAG, errDesp); \
+        Log::D(Log::TAG, "Did sdk errCode:0x%x, errDesc:%s", \
                DIDError_GetCode(), DIDError_GetMessage()); \
         CHECK_ERROR(errCode); \
     }
@@ -82,6 +83,14 @@ DIDDocument* StandardAuth::LoadLocalDIDDocument(DID* did)
 {
     if(did == nullptr) {
         return nullptr;
+    }
+
+    {
+        // adapt old process from local_resolver()
+        auto oldResolverDoc = (DID_Equals(did, feeds_did) ? DIDStore_LoadDID(feeds_didstore, feeds_did) : NULL);
+        if(oldResolverDoc != nullptr) {
+            return oldResolverDoc; 
+        }
     }
 
     auto localDocDir = GetLocalDocDir();
@@ -165,60 +174,26 @@ int StandardAuth::onSignIn(std::shared_ptr<Req> req,
     int ret = SaveLocalDIDDocument(did, didDoc.get());
     CHECK_DIDSDK(ret >= 0, ErrCode::AuthSaveDocFailed, "Failed to save did document to local.");
 
+    auto expiration = DateTime::Current() + JWT_EXPIRATION;
+
     uint8_t nonce[NONCE_BYTES];
     char nonceStr[NONCE_BYTES << 1];
     crypto_random_nonce(nonce);
     crypto_nonce_to_str(nonce, nonceStr, sizeof(nonceStr));
 
-    auto expiration = DateTime::Current() + JWT_EXPIRATION;
+    std::string challenge;
+    ret = makeJwt(expiration, didStr, "DIDAuthChallenge",
+                  {{"nonce", std::string(nonceStr)}},
+                  challenge);
+    CHECK_ERROR(ret);
+
     authSecretMap[nonceStr] = std::move(AuthSecret{didStr, expiration});
-
-    auto jwtCreater = [](DIDDocument* didDoc) -> JWTBuilder* {
-        return DIDDocument_GetJwtBuilder(didDoc);
-    };
-    auto jwtDeleter = [](JWTBuilder* ptr) -> void {
-        JWTBuilder_Destroy(ptr);
-    };
-    auto jwtBuilder = std::shared_ptr<JWTBuilder>(jwtCreater(feeds_doc), jwtDeleter);
-    CHECK_DIDSDK(jwtBuilder != nullptr, ErrCode::AuthBadJwtBuilder, "Failed to get jwt builder from self did");
-
-    ret = JWTBuilder_SetHeader(jwtBuilder.get(), "typ", "JWT");
-    CHECK_DIDSDK(ret, ErrCode::AuthBadJwtHeader, "Failed to set jwt header.");
-
-    ret = JWTBuilder_SetHeader(jwtBuilder.get(), "version", "1.0");
-    CHECK_DIDSDK(ret, ErrCode::AuthBadJwtHeader, "Failed to set jwt header.");
-
-    ret = JWTBuilder_SetSubject(jwtBuilder.get(), "DIDAuthChallenge");
-    CHECK_DIDSDK(ret, ErrCode::AuthBadJwtSubject, "Failed to set jwt subject.");
-
-    ret = JWTBuilder_SetAudience(jwtBuilder.get(), didStr);
-    CHECK_DIDSDK(ret, ErrCode::AuthBadJwtAudience, "Failed to set jwt audience.");
-
-    ret = JWTBuilder_SetClaim(jwtBuilder.get(), "nonce", nonceStr);
-    CHECK_DIDSDK(ret, ErrCode::AuthBadJwtClaim, "Failed to set jwt claim.");
-
-    ret = JWTBuilder_SetExpiration(jwtBuilder.get(), expiration);
-    CHECK_DIDSDK(ret, ErrCode::AuthBadJwtExpiration, "Failed to set jwt expiration.");
-
-    int jwtSigned = JWTBuilder_Sign(jwtBuilder.get(), feeeds_auth_key_url, feeds_storepass);
-    CHECK_DIDSDK(jwtSigned == 0, ErrCode::AuthJwtSignFailed, "Failed to sign jwt.");
-
-    auto tokenCreater = [](JWTBuilder* jwtBuilder) -> const char* {
-        return JWTBuilder_Compact(jwtBuilder);
-    };
-    auto tokenDeleter = [](const char* ptr) -> void {
-        if(ptr != nullptr) {
-            free(const_cast<char*>(ptr));
-        }
-    };
-    auto token = std::shared_ptr<const char>(tokenCreater(jwtBuilder.get()), tokenDeleter);
-    CHECK_DIDSDK(token != nullptr, ErrCode::AuthJwtCompactFailed, "Failed to compact jwt.");
 
     auto signInResp = std::make_shared<StandardSignInResp>();
     signInResp->tsx_id = signInReq->tsx_id;
-    auto tokenSize = std::strlen(token.get()) + 1;
-    signInResp->result.challenge = (char*)rc_zalloc(tokenSize, nullptr);
-    strncpy(signInResp->result.challenge, token.get(), tokenSize);
+    auto challengeSize = challenge.length() + 1;
+    signInResp->result.challenge = (char*)rc_zalloc(challengeSize, nullptr);
+    strncpy(signInResp->result.challenge, challenge.data(), challengeSize);
     Log::D(Log::TAG, "Response result:");
     Log::D(Log::TAG, "    challenge: %s", signInResp->result.challenge);
 
@@ -240,20 +215,19 @@ int StandardAuth::onDidAuth(std::shared_ptr<Req> req,
     ret = checkAuthToken(didAuthReq->params.vp, credentialSubject);
     CHECK_ERROR(ret);
 
-    std::shared_ptr<const char> accessToken;
+    std::string accessToken;
     ret = createAccessToken(credentialSubject, accessToken);
     CHECK_ERROR(ret);
 
     auto didAuthResp = std::make_shared<StandardDidAuthResp>();
     didAuthResp->tsx_id = didAuthReq->tsx_id;
-    auto tokenSize = std::strlen(accessToken.get()) + 1;
+    auto tokenSize = accessToken.length() + 1;
     didAuthResp->result.access_token = (char*)rc_zalloc(tokenSize, nullptr);
-    strncpy(didAuthResp->result.access_token, accessToken.get(), tokenSize);
+    strncpy(didAuthResp->result.access_token, accessToken.data(), tokenSize);
     Log::D(Log::TAG, "Response result:");
     Log::D(Log::TAG, "    access_token: %s", didAuthResp->result.access_token);
 
     resp = std::reinterpret_pointer_cast<Resp>(didAuthResp);
-
 
     return 0;
 }
@@ -265,6 +239,60 @@ std::string StandardAuth::getServiceDid()
     DID_ToString(DIDURL_GetDid(feeeds_auth_key_url), didStrBuf, sizeof(didStrBuf));
 
     return std::string(didStrBuf);
+}
+
+int StandardAuth::makeJwt(time_t expiration,
+                          const std::string& audience,
+                          const std::string& subject,
+                          const std::map<const char*, std::string>& claimMap,
+                          std::string& jwt)
+{
+    auto jwtCreater = [](DIDDocument* didDoc) -> JWTBuilder* {
+        return DIDDocument_GetJwtBuilder(didDoc);
+    };
+    auto jwtDeleter = [](JWTBuilder* ptr) -> void {
+        JWTBuilder_Destroy(ptr);
+    };
+    auto jwtBuilder = std::shared_ptr<JWTBuilder>(jwtCreater(feeds_doc), jwtDeleter);
+    CHECK_DIDSDK(jwtBuilder != nullptr, ErrCode::AuthBadJwtBuilder, "Failed to get jwt builder from service did");
+
+    int ret = JWTBuilder_SetHeader(jwtBuilder.get(), "typ", "JWT");
+    CHECK_DIDSDK(ret, ErrCode::AuthBadJwtHeader, "Failed to set jwt header.");
+
+    ret = JWTBuilder_SetHeader(jwtBuilder.get(), "version", "1.0");
+    CHECK_DIDSDK(ret, ErrCode::AuthBadJwtHeader, "Failed to set jwt header.");
+
+    ret = JWTBuilder_SetExpiration(jwtBuilder.get(), expiration);
+    CHECK_DIDSDK(ret, ErrCode::AuthBadJwtExpiration, "Failed to set jwt expiration.");
+
+    ret = JWTBuilder_SetAudience(jwtBuilder.get(), audience.c_str());
+    CHECK_DIDSDK(ret, ErrCode::AuthBadJwtAudience, "Failed to set jwt audience.");
+
+    ret = JWTBuilder_SetSubject(jwtBuilder.get(), subject.c_str());
+    CHECK_DIDSDK(ret, ErrCode::AuthBadJwtSubject, "Failed to set jwt subject.");
+
+    for(const auto& it: claimMap) {
+        ret = JWTBuilder_SetClaim(jwtBuilder.get(), it.first, it.second.c_str());
+        CHECK_DIDSDK(ret, ErrCode::AuthBadJwtClaim, "Failed to set jwt claim.");
+    }
+
+    int jwtSigned = JWTBuilder_Sign(jwtBuilder.get(), feeeds_auth_key_url, feeds_storepass);
+    CHECK_DIDSDK(jwtSigned == 0, ErrCode::AuthJwtSignFailed, "Failed to sign jwt.");
+
+    auto tokenCreater = [](JWTBuilder* jwtBuilder) -> const char* {
+        return JWTBuilder_Compact(jwtBuilder);
+    };
+    auto tokenDeleter = [](const char* ptr) -> void {
+        if(ptr != nullptr) {
+            free(const_cast<char*>(ptr));
+        }
+    };
+    auto token = std::shared_ptr<const char>(tokenCreater(jwtBuilder.get()), tokenDeleter);
+    CHECK_DIDSDK(token != nullptr, ErrCode::AuthJwtCompactFailed, "Failed to compact jwt.");
+
+    jwt = token.get();
+
+    return 0;
 }
 
 int StandardAuth::checkAuthToken(const char* jwt, json& credentialSubject)
@@ -370,7 +398,7 @@ int StandardAuth::checkAuthToken(const char* jwt, json& credentialSubject)
     return 0;
 }
 
-int StandardAuth::createAccessToken(json& credentialSubject, std::shared_ptr<const char>& accessToken)
+int StandardAuth::createAccessToken(json& credentialSubject, std::string& accessToken)
 {
     int ret;
     std::string userDid = credentialSubject["userDid"];
@@ -383,52 +411,12 @@ int StandardAuth::createAccessToken(json& credentialSubject, std::shared_ptr<con
         expiration = expTime;
     }
 
-    auto jwtCreater = [](DIDDocument* didDoc) -> JWTBuilder* {
-        return DIDDocument_GetJwtBuilder(didDoc);
-    };
-    auto jwtDeleter = [](JWTBuilder* ptr) -> void {
-        JWTBuilder_Destroy(ptr);
-    };
-    auto jwtBuilder = std::shared_ptr<JWTBuilder>(jwtCreater(feeds_doc), jwtDeleter);
-    CHECK_DIDSDK(jwtBuilder != nullptr, ErrCode::AuthBadJwtBuilder, "Failed to get jwt builder from self did");
-
-    ret = JWTBuilder_SetHeader(jwtBuilder.get(), "typ", "JWT");
-    CHECK_DIDSDK(ret, ErrCode::AuthBadJwtHeader, "Failed to set jwt header.");
-
-    ret = JWTBuilder_SetHeader(jwtBuilder.get(), "version", "1.0");
-    CHECK_DIDSDK(ret, ErrCode::AuthBadJwtHeader, "Failed to set jwt header.");
-
-    ret = JWTBuilder_SetSubject(jwtBuilder.get(), "AccessToken");
-    CHECK_DIDSDK(ret, ErrCode::AuthBadJwtSubject, "Failed to set jwt subject.");
-
-    ret = JWTBuilder_SetAudience(jwtBuilder.get(), appInstanceDid.c_str());
-    CHECK_DIDSDK(ret, ErrCode::AuthBadJwtAudience, "Failed to set jwt audience.");
-
-    ret = JWTBuilder_SetExpiration(jwtBuilder.get(), expiration);
-    CHECK_DIDSDK(ret, ErrCode::AuthBadJwtExpiration, "Failed to set jwt expiration.");
-
-    ret = JWTBuilder_SetClaim(jwtBuilder.get(), "userDid", userDid.c_str());
-    CHECK_DIDSDK(ret, ErrCode::AuthBadJwtClaim, "Failed to set jwt claim.");
-    ret = JWTBuilder_SetClaim(jwtBuilder.get(), "appId", appId.c_str());
-    CHECK_DIDSDK(ret, ErrCode::AuthBadJwtClaim, "Failed to set jwt claim.");
-    ret = JWTBuilder_SetClaim(jwtBuilder.get(), "appInstanceDid", appInstanceDid.c_str());
-    CHECK_DIDSDK(ret, ErrCode::AuthBadJwtClaim, "Failed to set jwt claim.");
-
-    int jwtSigned = JWTBuilder_Sign(jwtBuilder.get(), feeeds_auth_key_url, feeds_storepass);
-    CHECK_DIDSDK(jwtSigned == 0, ErrCode::AuthJwtSignFailed, "Failed to sign jwt.");
-
-    auto tokenCreater = [](JWTBuilder* jwtBuilder) -> const char* {
-        return JWTBuilder_Compact(jwtBuilder);
-    };
-    auto tokenDeleter = [](const char* ptr) -> void {
-        if(ptr != nullptr) {
-            free(const_cast<char*>(ptr));
-        }
-    };
-    auto token = std::shared_ptr<const char>(tokenCreater(jwtBuilder.get()), tokenDeleter);
-    CHECK_DIDSDK(token != nullptr, ErrCode::AuthJwtCompactFailed, "Failed to compact jwt.");
-
-    accessToken = token;
+    ret = makeJwt(expiration, appInstanceDid, "AccessToken",
+                  {{"userDid", userDid},
+                   {"appId", appId},
+                   {"appInstanceDid", appInstanceDid}},
+                  accessToken);
+    CHECK_ERROR(ret);
 
     return 0;
 }

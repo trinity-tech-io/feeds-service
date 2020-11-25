@@ -425,7 +425,7 @@ void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
         return;
     }
 
-    chal_resp = JWTParser_Parse(req->params.jws);
+    chal_resp = DefaultJWSParser_Parse(req->params.jws);
     if (!chal_resp) {
         vlogE("Invalid jws in signin_confirm_challenge: %s", DIDError_GetMessage());
         ErrResp resp = {
@@ -607,10 +607,12 @@ bool access_token_is_valid(JWT *token)
         goto finally;
     }
 
-    if (access_token_get_iss_time(token) < Credential_GetIssuanceDate(feeds_vc)) {
-        vlogE("Credential is updated since last check.");
-        goto finally;
-    }
+    // fix: ignore to check issue expire because new standard auth expire time change to 1month
+    // if (access_token_get_iss_time(token) < Credential_GetIssuanceDate(feeds_vc)) {
+    //     vlogE("Credential is updated since last check. tokentime:[%lld], credentialtime:[%lld]",
+    //           access_token_get_iss_time(token), Credential_GetIssuanceDate(feeds_vc));
+    //     goto finally;
+    // }
 
     if (JWT_GetExpiration(token) < (now = time(NULL))) {
         vlogE("Access token has expired. expiration: %" PRIu64 ", now: %" PRIu64,
@@ -632,7 +634,6 @@ UserInfo *create_uinfo_from_access_token(const char *token_marshal)
     AccessTokenUserInfo *uinfo = NULL;
     JWT *token = NULL;
 
-    DIDBackend_SetLocalResolveHandle(local_resolver);
     token = DefaultJWSParser_Parse(token_marshal);
     if (!token) {
         vlogE("Parsing access token failed: %s", DIDError_GetMessage());
