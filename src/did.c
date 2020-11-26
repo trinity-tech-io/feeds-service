@@ -49,9 +49,9 @@ char *feeds_storepass;
 Credential *feeds_vc;
 
 static char qrcode_path[PATH_MAX];
-DIDStore *feeds_didstore;
+static DIDStore *feeds_didstore;
 static bool http_is_running;
-DID *feeds_did;
+static DID *feeds_did;
 static char nonce_str[NONCE_BYTES << 1];
 static char feeds_url[1024];
 static enum {
@@ -446,7 +446,6 @@ int load_feeds_doc(DID *did, void *context)
     return -1;
 }
 
-static inline
 DIDDocument *local_resolver(DID *did)
 {
     return DID_Equals(did, feeds_did) ? DIDStore_LoadDID(feeds_didstore, feeds_did) : NULL;

@@ -43,10 +43,13 @@ private:
     };
 
     struct CredentialInfo {
-        std::string userDid;
         std::string appDid;
+        std::string userDid;
         std::string instanceDid;
         int64_t expiration;
+
+        std::string name;
+        std::string email;
     };
 
     /*** static function and variable ***/
@@ -62,13 +65,18 @@ private:
     int onDidAuth(std::shared_ptr<Req> req, std::shared_ptr<Resp>& resp);
 
     std::string getServiceDid();
+    void cleanExpiredChallenge();
     int makeJwt(time_t expiration,
                 const std::string& audience,
                 const std::string& subject,
                 const std::map<const char*, std::string>& claimMap,
+                const std::map<const char*, int>& claimIntMap,
                 std::string& jwt);
     int checkAuthToken(const char* jwt, CredentialInfo& credentialInfo);
-    int createAccessToken(const CredentialInfo& credentialInfo, std::string& accessToken);
+    int adaptOldLogin(const CredentialInfo& credentialInfo);
+    int createAccessToken(const CredentialInfo& credentialInfo,
+                          int userIndex,
+                          std::string& accessToken);
 
     std::filesystem::path localDocDir;
     std::map<std::string, AuthSecret> authSecretMap;
