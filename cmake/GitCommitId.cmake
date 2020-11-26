@@ -8,7 +8,8 @@ function(git_head_commit_id _commit_id)
     execute_process(
         COMMAND "${GIT_EXECUTABLE}" rev-parse --short HEAD
         WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-        OUTPUT_VARIABLE HEAD_COMMIT_ID)
+        OUTPUT_VARIABLE HEAD_COMMIT_ID
+        ERROR_VARIABLE ERROR_OUTPUT)
     if(NOT HEAD_COMMIT_ID)
         set(HEAD_COMMIT_ID "0000000")
     endif()
