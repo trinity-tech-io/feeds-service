@@ -142,6 +142,8 @@ public:
     constexpr static const int AuthCredentialIssuerNotExists       = -192;
     constexpr static const int AuthCredentialExpirationError       = -193;
     constexpr static const int AuthNonceExpiredError               = -194;
+    constexpr static const int AuthUpdateOwnerError                = -195;
+    constexpr static const int AuthUpdateUserError                = -196;
     
 
     // constexpr static const int CarrierIndex                  = -1000;

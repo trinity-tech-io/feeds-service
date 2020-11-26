@@ -34,9 +34,6 @@ extern DIDDocument *feeds_doc;
 extern char *feeds_storepass;
 extern Credential *feeds_vc;
 
-extern DIDStore *feeds_didstore;
-extern DID *feeds_did;
-
 int did_init(FeedsConfig *cfg);
 void did_deinit();
 bool did_is_ready();
@@ -46,5 +43,7 @@ void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_imp_did_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base);
 void hdl_update_vc_req(ElaCarrier *c, const char *from, Req *base);
+
+DIDDocument *local_resolver(DID *did);
 
 #endif //__DID_H__

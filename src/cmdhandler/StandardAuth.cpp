@@ -9,13 +9,18 @@
 #include <SafePtr.hpp>
 
 extern "C" {
+#include <ela_jwt.h>
+//} // ela_jwt error
+
+extern "C" {
 #define new fix_cpp_keyword_new
 #include <crystal.h>
 #include <ela_did.h>
-#include <ela_jwt.h>
+#include "../db.h"
 #include "../did.h"
+#include "../feeds.h"
 #undef new
-//} // ela_jwt error
+}
 
 namespace trinity {
 
@@ -87,7 +92,7 @@ DIDDocument* StandardAuth::LoadLocalDIDDocument(DID* did)
 
     {
         // adapt old process from local_resolver()
-        auto oldResolverDoc = (DID_Equals(did, feeds_did) ? DIDStore_LoadDID(feeds_didstore, feeds_did) : NULL);
+        auto oldResolverDoc = local_resolver(did);
         if(oldResolverDoc != nullptr) {
             return oldResolverDoc; 
         }
@@ -184,6 +189,7 @@ int StandardAuth::onSignIn(std::shared_ptr<Req> req,
     std::string challenge;
     ret = makeJwt(expiration, didStr, "DIDAuthChallenge",
                   {{"nonce", std::string(nonceStr)}},
+                  {},
                   challenge);
     CHECK_ERROR(ret);
 
@@ -215,8 +221,11 @@ int StandardAuth::onDidAuth(std::shared_ptr<Req> req,
     ret = checkAuthToken(didAuthReq->params.vp, credentialInfo);
     CHECK_ERROR(ret);
 
+    auto userIndex = adaptOldLogin(credentialInfo);
+    CHECK_ERROR(userIndex);
+
     std::string accessToken;
-    ret = createAccessToken(credentialInfo, accessToken);
+    ret = createAccessToken(credentialInfo, userIndex, accessToken);
     CHECK_ERROR(ret);
 
     auto didAuthResp = std::make_shared<StandardDidAuthResp>();
@@ -228,6 +237,8 @@ int StandardAuth::onDidAuth(std::shared_ptr<Req> req,
     Log::D(Log::TAG, "    access_token: %s", didAuthResp->result.access_token);
 
     resp = std::reinterpret_pointer_cast<Resp>(didAuthResp);
+
+    hdl_stats_changed_notify();
 
     return 0;
 }
@@ -241,10 +252,22 @@ std::string StandardAuth::getServiceDid()
     return std::string(didStrBuf);
 }
 
+void StandardAuth::cleanExpiredChallenge()
+{
+    auto now = DateTime::Current();
+
+    for(auto& it: authSecretMap) {
+        if(it.second.expiration < now) {
+            authSecretMap.erase(it.first);
+        }
+    }
+}
+
 int StandardAuth::makeJwt(time_t expiration,
                           const std::string& audience,
                           const std::string& subject,
                           const std::map<const char*, std::string>& claimMap,
+                          const std::map<const char*, int>& claimIntMap,
                           std::string& jwt)
 {
     auto jwtCreater = [](DIDDocument* didDoc) -> JWTBuilder* {
@@ -274,6 +297,10 @@ int StandardAuth::makeJwt(time_t expiration,
     for(const auto& it: claimMap) {
         ret = JWTBuilder_SetClaim(jwtBuilder.get(), it.first, it.second.c_str());
         CHECK_DIDSDK(ret, ErrCode::AuthBadJwtClaim, "Failed to set jwt claim.");
+    }
+    for(const auto& it: claimIntMap) {
+        ret = JWTBuilder_SetClaimWithIntegar(jwtBuilder.get(), it.first, it.second);
+        CHECK_DIDSDK(ret, ErrCode::AuthBadJwtClaim, "Failed to set jwt claim integer.");
     }
 
     int jwtSigned = JWTBuilder_Sign(jwtBuilder.get(), feeeds_auth_key_url, feeds_storepass);
@@ -374,14 +401,20 @@ int StandardAuth::checkAuthToken(const char* jwt, CredentialInfo& credentialInfo
     auto appDid = Credential_GetProperty(vc, "appDid");
     CHECK_DIDSDK(appDid != nullptr, ErrCode::AuthCredentialPropertyAppIdNotExists, "The credential subject's id isn't exist.");
 
+    auto name = Credential_GetProperty(vc, "name");
+    auto email = Credential_GetProperty(vc, "email");
+
     bool expired = (authSecret.expiration < DateTime::Current());
     CHECK_ASSERT(expired == false, ErrCode::AuthNonceExpiredError);
 
     auto issuer = Credential_GetIssuer(vc);
     auto issuerDidStr = DID_ToString(issuer, didStrBuf, sizeof(didStrBuf));
-    credentialInfo.userDid = issuerDidStr;
     credentialInfo.appDid = appDid;
+    credentialInfo.userDid = issuerDidStr;
     credentialInfo.instanceDid = instanceDidStr;
+
+    credentialInfo.name = (name ? name : "NA");
+    credentialInfo.email = (email ? email : "NA");
 
     auto expirationDate = Credential_GetExpirationDate(vc);
     CHECK_DIDSDK(expirationDate > 0, ErrCode::AuthCredentialExpirationError, "Faile to get credential expiration date.");
@@ -390,7 +423,34 @@ int StandardAuth::checkAuthToken(const char* jwt, CredentialInfo& credentialInfo
     return 0;
 }
 
+int StandardAuth::adaptOldLogin(const CredentialInfo& credentialInfo)
+{
+    UserInfo uinfo = {
+        .uid = 0,
+        .did = const_cast<char*>(credentialInfo.userDid.c_str()),
+        .name = const_cast<char*>(credentialInfo.name.c_str()),
+        .email = const_cast<char*>(credentialInfo.email.c_str()),
+    };
+
+    if(credentialInfo.userDid == feeds_owner_info.did) {
+        int ret = oinfo_upd(&uinfo);
+        if(ret < 0) {
+            ret = ErrCode::AuthUpdateOwnerError;
+        }
+        CHECK_ERROR(ret);
+    }
+
+    int ret = db_upsert_user(&uinfo, &(uinfo.uid));
+    if(ret < 0) {
+        ret = ErrCode::AuthUpdateUserError;
+    }
+    CHECK_ERROR(ret);
+
+    return uinfo.uid;
+}
+
 int StandardAuth::createAccessToken(const CredentialInfo& credentialInfo,
+                                    int userIndex,
                                     std::string& accessToken)
 {
     int ret;
@@ -400,9 +460,13 @@ int StandardAuth::createAccessToken(const CredentialInfo& credentialInfo,
     }
 
     ret = makeJwt(expiration, credentialInfo.instanceDid, "AccessToken",
-                  {{"userDid", credentialInfo.userDid},
-                   {"appId", credentialInfo.appDid},
-                   {"appInstanceDid", credentialInfo.instanceDid}},
+                  {{"appId", credentialInfo.appDid},
+                   {"userDid", credentialInfo.userDid},
+                   {"appInstanceDid", credentialInfo.instanceDid},
+                   {"name", credentialInfo.name},
+                   {"email", credentialInfo.email}},
+                  // adapt old login
+                  {{"uid", userIndex}},
                   accessToken);
     CHECK_ERROR(ret);
 
