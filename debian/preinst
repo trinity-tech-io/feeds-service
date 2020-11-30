@@ -5,11 +5,13 @@ set -e
 . /usr/share/debconf/confmodule
 
 case "$1" in
-  configure)
+  upgrade|install)
     db_get feedsd/agreement || true
-    if [ "$RET" != "true" ]; then
-      if [ "$RET" != "false" ]; then
-        echo "Failed to ensure feedsd agreement, error($RET)" >&2
+    AGREE=$RET 
+    db_purge
+    if [ "$AGREE" != "true" ]; then
+      if [ "$AGREE" != "false" ]; then
+        echo "Failed to ensure feedsd agreement, error($AGREE)" >&2
       fi
       exit 1
     fi
