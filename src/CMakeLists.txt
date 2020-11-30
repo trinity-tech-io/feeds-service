@@ -152,7 +152,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
     set(CPACK_DEBIAN_PACKAGE_PREDEPENDS adduser)
     set(CPACK_DEBIAN_PACKAGE_DEPENDS
         "lsb-base (>= 3.0), init-system-helpers (>= 1.18~),
-        libc6 (>= 2.14), libsystemd0")
+        libc6 (>= 2.14), libsystemd0,
+        debconf (>= 0.2.17)")
     set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "http://www.trinity-tech.io/")
     set(CPACK_DEBIAN_PACKAGE_DESCRIPTION
         "Feeds service daemon.")
@@ -164,7 +165,9 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
         ${CMAKE_SOURCE_DIR}/debian/postrm
         ${CMAKE_SOURCE_DIR}/debian/preinst
         ${CMAKE_SOURCE_DIR}/debian/prerm
-        ${CMAKE_SOURCE_DIR}/debian/conffiles)
+        ${CMAKE_SOURCE_DIR}/debian/conffiles
+        ${CMAKE_SOURCE_DIR}/debian/config
+        ${CMAKE_SOURCE_DIR}/debian/templates)
 
     include(CPack)
 endif()
