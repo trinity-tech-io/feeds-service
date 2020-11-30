@@ -5,6 +5,8 @@ set -e
 # Source debconf library.
 . /usr/share/debconf/confmodule
 
-# Turn off rp filter?
-db_input critical trinity/feedsd || true
+db_input critical feedsd/disclaimer || true
+db_go
+
+db_input critical feedsd/agreement || true
 db_go

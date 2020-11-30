@@ -5,8 +5,14 @@ set -e
 . /usr/share/debconf/confmodule
 
 case "$1" in
-  upgrade|install)
-    db_get rcdiscover/rpfilter || true
+  configure)
+    db_get feedsd/agreement || true
+    if [ "$RET" != "true" ]; then
+      if [ "$RET" != "false" ]; then
+        echo "Failed to ensure feedsd agreement, error($RET)" >&2
+      fi
+      exit 1
+    fi
   ;;
 
   abort-upgrade|abort-remove|abort-deconfigure)
