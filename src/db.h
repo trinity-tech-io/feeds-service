@@ -32,7 +32,7 @@
 
 typedef struct DBObjIt DBObjIt;
 
-int db_init(const char *db_file);
+int db_init(sqlite3 *handle);
 void db_deinit();
 int db_create_chan(const ChanInfo *ci);
 int db_upd_chan(const ChanInfo *ci);

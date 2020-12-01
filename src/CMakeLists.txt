@@ -172,8 +172,10 @@ endif()
 add_subdirectory(cmdhandler)
 add_subdirectory(common)
 add_subdirectory(massdata)
+add_subdirectory(utils)
 target_link_libraries(feedsd
     common
     platform
     cmdhandler
-    massdata)
+    massdata
+    utils)

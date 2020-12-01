@@ -17,7 +17,5 @@ ExternalProject_Add(
         -DENABLE_STATIC=TRUE
 )
 
-export_static_library(SQLiteCpp)
-
 add_library(sqlitecpp-static INTERFACE)
 target_link_libraries(sqlitecpp-static INTERFACE SQLiteCpp)

@@ -539,22 +539,24 @@ rollback:
     return -1;
 }
 
-int db_init(const char *db_file)
+int db_init(sqlite3 *handle)
 {
     sqlite3_stmt *stmt;
     const char *sql;
     uint64_t ver;
     int rc;
 
-    sqlite3_initialize();
+    db = handle;
 
-    rc = sqlite3_open_v2(db_file, &db,
-                         SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,
-                         NULL);
-    if (rc) {
-        vlogE("sqlite3_open_v2() failed");
-        goto failure;
-    }
+    // sqlite3_initialize();
+
+    // rc = sqlite3_open_v2(db_file, &db,
+    //                      SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,
+    //                      NULL);
+    // if (rc) {
+    //     vlogE("sqlite3_open_v2() failed");
+    //     goto failure;
+    // }
 
     /* ================================= stmt-sep ================================= */
     sql = "PRAGMA user_version";
@@ -3784,8 +3786,8 @@ int db_is_suber(uint64_t uid, uint64_t chan_id)
 
 void db_deinit()
 {
-    sqlite3_close(db);
-    sqlite3_shutdown();
+    // sqlite3_close(db);
+    // sqlite3_shutdown();
 }
 
 static
