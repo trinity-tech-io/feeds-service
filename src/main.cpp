@@ -50,6 +50,7 @@
 #include <iostream>
 
 #include <CommandHandler.hpp>
+#include <DataBase.hpp>
 #include <MassDataManager.hpp>
 #include <Platform.hpp>
 
@@ -414,7 +415,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    rc = db_init(cfg.db_fpath);
+    rc = trinity::DataBase::GetInstance()->config(cfg.db_fpath);
     if (rc < 0) {
         free_cfg(&cfg);
         msgq_deinit();
@@ -425,7 +426,7 @@ int main(int argc, char *argv[])
     rc = did_init(&cfg);
     if (rc < 0) {
         free_cfg(&cfg);
-        db_deinit();
+        trinity::DataBase::GetInstance()->cleanup();
         msgq_deinit();
         transport_deinit();
         return -1;
@@ -435,7 +436,7 @@ int main(int argc, char *argv[])
     if (rc < 0) {
         free_cfg(&cfg);
         did_deinit();
-        db_deinit();
+        trinity::DataBase::GetInstance()->cleanup();
         msgq_deinit();
         transport_deinit();
         return -1;
@@ -446,7 +447,7 @@ int main(int argc, char *argv[])
         free_cfg(&cfg);
         auth_deinit();
         did_deinit();
-        db_deinit();
+        trinity::DataBase::GetInstance()->cleanup();
         msgq_deinit();
         transport_deinit();
         return -1;
@@ -481,7 +482,7 @@ int main(int argc, char *argv[])
         feeds_deinit();
         auth_deinit();
         did_deinit();
-        db_deinit();
+        trinity::DataBase::GetInstance()->cleanup();
         msgq_deinit();
         transport_deinit();
         return -1;
@@ -492,7 +493,7 @@ int main(int argc, char *argv[])
     feeds_deinit();
     auth_deinit();
     did_deinit();
-    db_deinit();
+    trinity::DataBase::GetInstance()->cleanup();
     msgq_deinit();
     transport_deinit();
 

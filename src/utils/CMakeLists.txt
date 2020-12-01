@@ -5,24 +5,22 @@
 file( GLOB MASSDATA_SOURCES "*.cpp" )
 
 if(${CMAKE_VERSION} VERSION_LESS "3.12")
-    add_library(cmdhandler STATIC ${MASSDATA_SOURCES})
+    add_library(utils STATIC ${MASSDATA_SOURCES})
 else()
-    add_library(cmdhandler OBJECT ${MASSDATA_SOURCES})
+    add_library(utils OBJECT ${MASSDATA_SOURCES})
 endif()
-add_dependencies(cmdhandler
+add_dependencies(utils
     cvector
-    libcrystal)
+    libcrystal
+    sqlitecpp-static)
 
-target_include_directories(cmdhandler PUBLIC
+target_include_directories(utils PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}")
-target_include_directories(cmdhandler PRIVATE
+target_include_directories(utils PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
-target_link_libraries(cmdhandler PUBLIC
+target_link_libraries(utils PUBLIC
     common
-    cvector
-    libcrystal-shared
-    libelacarrier-shared
-    utils)
+    sqlitecpp-static)
 
 set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
