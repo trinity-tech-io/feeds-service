@@ -22,6 +22,7 @@ target_link_libraries(cmdhandler PUBLIC
     common
     cvector
     libcrystal-shared
-    libelacarrier-shared)
+    libelacarrier-shared
+    sqlitecpp-static)
 
 set(CMAKE_INCLUDE_CURRENT_DIR TRUE)

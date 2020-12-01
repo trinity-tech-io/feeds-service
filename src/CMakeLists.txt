@@ -77,7 +77,7 @@ add_dependencies(feedsd
     libcrystal
     libconfig
     libqrencode
-    sqlite
+    sqlitecpp-static
     cvector
     mkdirs
     sandbird)
