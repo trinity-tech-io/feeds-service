@@ -1,6 +1,7 @@
 #include "CommandHandler.hpp"
 
 #include <cstring>
+#include <ChannelMethod.hpp>
 #include <SafePtr.hpp>
 #include <LegacyMethod.hpp>
 #include <MassData.hpp>
@@ -56,6 +57,7 @@ int CommandHandler::config(const std::filesystem::path& dataDir,
 
     cmdListener = std::move(std::vector<std::shared_ptr<Listener>> {
         std::make_shared<LegacyMethod>(),
+        std::make_shared<ChannelMethod>(),
         std::make_shared<MassData>(dataDir / MassData::MassDataDirName),
         std::make_shared<StandardAuth>(),
     });
@@ -91,13 +93,19 @@ int CommandHandler::processAsync(const std::string& from, const std::vector<uint
 int CommandHandler::process(const std::string& from, const std::vector<uint8_t>& data)
 {
     std::shared_ptr<Req> req;
-    std::shared_ptr<Resp> resp;
+    std::vector<std::shared_ptr<Resp>> respArray;
     int ret = unpackRequest(data, req);
     if(ret >= 0) {
         Log::D(Log::TAG, "Command handler dispose method:%s, tsx_id:%llu, from:%s", req->method, req->tsx_id, from.c_str());
         ret = ErrCode::UnimplementedError;
-        for (const auto &it : cmdListener) {
+        for (const auto& it : cmdListener) {
+            std::shared_ptr<Resp> resp;
             ret = it->onDispose(from, req, resp);
+            if (ret >= 0) { // successful
+                respArray.push_back(resp);
+            } else if (ret == ErrCode::UnimplementedError) { // unprocessed
+                ret = it->onDispose(from, req, respArray);
+            }
             if (ret != ErrCode::UnimplementedError) {
                 break;
             }
@@ -107,16 +115,18 @@ int CommandHandler::process(const std::string& from, const std::vector<uint8_t>&
         }
     }
 
-    auto errCode = ret;
-    std::vector<uint8_t> respData;
-    ret = packResponse(req, resp, errCode, respData);
-    CHECK_ERROR(ret);
+    for(const auto& resp: respArray) {
+        auto errCode = ret;
+        std::vector<uint8_t> respData;
+        ret = packResponse(req, resp, errCode, respData);
+        CHECK_ERROR(ret);
 
-    Marshalled marshalledResp = {
-        respData.data(),
-        respData.size()
-    };
-    msgq_enq(from.c_str(), &marshalledResp);
+        Marshalled marshalledResp = {
+            respData.data(),
+            respData.size()
+        };
+        msgq_enq(from.c_str(),& marshalledResp);
+    }
 
     return 0;
 }
@@ -125,7 +135,7 @@ int CommandHandler::unpackRequest(const std::vector<uint8_t>& data,
                                   std::shared_ptr<Req>& req) const
 {
     Req *reqBuf = nullptr;
-    int ret = rpc_unmarshal_req(data.data(), data.size(), &reqBuf);
+    int ret = rpc_unmarshal_req(data.data(), data.size(),& reqBuf);
     auto deleter = [](void* ptr) -> void {
         deref(ptr);
     };
@@ -149,10 +159,10 @@ int CommandHandler::unpackRequest(const std::vector<uint8_t>& data,
     return 0;
 }
 
-int CommandHandler::packResponse(const std::shared_ptr<Req> &req,
-                                 const std::shared_ptr<Resp> &resp,
+int CommandHandler::packResponse(const std::shared_ptr<Req>& req,
+                                 const std::shared_ptr<Resp>& resp,
                                  int errCode,
-                                 std::vector<uint8_t> &data) const
+                                 std::vector<uint8_t>& data) const
 {
     Marshalled* marshalBuf = nullptr;
     if(errCode >= 0) {
@@ -196,12 +206,14 @@ int CommandHandler::Listener::SetDataDir(const std::filesystem::path& dataDir)
     return 0;
 }
 
-void CommandHandler::Listener::setHandleMap(const std::map<const char*, Handler>& handleMap)
+void CommandHandler::Listener::setHandleMap(const std::map<const char *, NormalHandler> &normalHandlerMap,
+                                            const std::map<const char *, MultiRespHandler> &multiRespHandlerMap)
 {
-    cmdHandleMap = std::move(handleMap);
+    this->normalHandlerMap = std::move(normalHandlerMap);
+    this->multiRespHandlerMap = std::move(multiRespHandlerMap);
 }
 
-int CommandHandler::Listener::checkAccessible(Accessible accessible, const std::string &accessToken)
+int CommandHandler::Listener::checkAccessible(Accessible accessible, const std::string& accessToken)
 {
 
 #ifdef NDEBUG
@@ -224,11 +236,34 @@ int CommandHandler::Listener::checkAccessible(Accessible accessible, const std::
 
 int CommandHandler::Listener::onDispose(const std::string& from,
                                         std::shared_ptr<Req> req,
-                                        std::shared_ptr<Resp> &resp)
+                                        std::shared_ptr<Resp>& resp)
 {
     std::ignore = from;
 
-    for (const auto& it : cmdHandleMap) {
+    for (const auto& it : normalHandlerMap) {
+        if (std::strcmp(it.first, req->method) != 0) {
+            continue;
+        }
+
+        int ret = checkAccessible(it.second.accessible, reinterpret_cast<TkReq*>(req.get())->params.tk);
+        CHECK_ERROR(ret);
+
+        ret = it.second.callback(req, resp);
+        CHECK_ERROR(ret);
+
+        return ret;
+    }
+
+    return ErrCode::UnimplementedError;
+}
+
+int CommandHandler::Listener::onDispose(const std::string& from,
+                                        std::shared_ptr<Req> req,
+                                        std::vector<std::shared_ptr<Resp>>& resp)
+{
+    std::ignore = from;
+
+    for (const auto& it : multiRespHandlerMap) {
         if (std::strcmp(it.first, req->method) != 0) {
             continue;
         }

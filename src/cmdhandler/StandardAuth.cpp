@@ -129,12 +129,12 @@ DIDDocument* StandardAuth::LoadLocalDIDDocument(DID* did)
 StandardAuth::StandardAuth()
 {
     using namespace std::placeholders;
-    std::map<const char*, Handler> cmdHandleMap {
+    std::map<const char*, NormalHandler> normalHandlerMap {
         {Method::SignIn,  {std::bind(&StandardAuth::onSignIn, this, _1, _2), Accessible::Anyone}},
         {Method::DidAuth, {std::bind(&StandardAuth::onDidAuth, this, _1, _2), Accessible::Anyone}},
     };
 
-    setHandleMap(cmdHandleMap);
+    setHandleMap(normalHandlerMap, {});
 }
 
 StandardAuth::~StandardAuth()
