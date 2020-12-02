@@ -56,6 +56,11 @@ void DataBase::cleanup()
     DataBaseInstance.reset();
 }
 
+std::shared_ptr<SQLite::Database> DataBase::getHandler()
+{
+    return handler;
+}
+
 /* =========================================== */
 /* === class protected function implement  === */
 /* =========================================== */
