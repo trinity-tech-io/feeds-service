@@ -148,6 +148,12 @@ public:
     constexpr static const int DBOpenFailed                        = -200;
     constexpr static const int DBInitFailed                        = -201;
 
+    constexpr static const int MsgPackCreateFailed                   = -300;
+    constexpr static const int MsgPackInvalidStruct                   = -301;
+    constexpr static const int MsgPackInvalidValue                   = -302;
+    constexpr static const int MsgPackParseFailed                   = -303;
+    constexpr static const int MsgPackUnprocessedMethod                   = -304;
+
 
     // constexpr static const int CarrierIndex                  = -1000;
     constexpr static const int StdSystemErrorIndex              = -2000;

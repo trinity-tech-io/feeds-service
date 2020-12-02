@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <RpcFactory.hpp>
 #include <StdFileSystem.hpp>
 
 extern "C" {
@@ -39,8 +40,8 @@ public:
             std::function<int(std::shared_ptr<Req>, std::shared_ptr<Resp>&)> callback;
             Accessible accessible;
         };
-        struct MultiRespHandler {
-            std::function<int(std::shared_ptr<Req>, std::vector<std::shared_ptr<Resp>>&)> callback;
+        struct AdvancedHandler {
+            std::function<int(std::shared_ptr<Rpc::Request>, std::vector<std::shared_ptr<Rpc::Response>>&)> callback;
             Accessible accessible;
         };
 
@@ -50,15 +51,14 @@ public:
         virtual ~Listener() = default;
 
         void setHandleMap(const std::map<const char*, NormalHandler>& normalHandlerMap,
-                          const std::map<const char*, MultiRespHandler>& multiRespHandlerMap);
+                          const std::map<const char*, AdvancedHandler>& advancedHandlerMap);
 
         virtual int checkAccessible(Accessible accessible, const std::string& accessToken);
         virtual int onDispose(const std::string& from,
                               std::shared_ptr<Req> req,
                               std::shared_ptr<Resp>& resp);
-        virtual int onDispose(const std::string& from,
-                              std::shared_ptr<Req> req,
-                              std::vector<std::shared_ptr<Resp>>& respArray);
+        virtual int onDispose(std::shared_ptr<Rpc::Request> request,
+                              std::vector<std::shared_ptr<Rpc::Response>>& responseArray);
     private:
         static int SetDataDir(const std::filesystem::path& dataDir);
         static std::filesystem::path DataDir;
@@ -68,7 +68,7 @@ public:
         int getUserInfo(const std::string& accessToken, std::shared_ptr<UserInfo>& userInfo);
 
         std::map<const char *, NormalHandler> normalHandlerMap;
-        std::map<const char *, MultiRespHandler> multiRespHandlerMap;
+        std::map<const char *, AdvancedHandler> advancedHandlerMap;
 
         friend CommandHandler;
     };
@@ -84,7 +84,6 @@ public:
     std::weak_ptr<ElaCarrier> getCarrierHandler();
 
     int processAsync(const std::string& from, const std::vector<uint8_t>& data);
-    int process(const std::string& from, const std::vector<uint8_t>& data);
 
     int unpackRequest(const std::vector<uint8_t>& data,
                       std::shared_ptr<Req>& req) const;
@@ -109,6 +108,8 @@ private:
     /*** class function and variable ***/
     explicit CommandHandler() = default;
     virtual ~CommandHandler() = default;
+    int process(const std::string& from, const std::vector<uint8_t>& data);
+    int processAdvance(const std::string& from, const std::vector<uint8_t>& data);
 
     std::shared_ptr<ThreadPool> threadPool;
     std::weak_ptr<ElaCarrier> carrierHandler;

@@ -2,9 +2,9 @@
 
 #include <cstring>
 #include <ChannelMethod.hpp>
-#include <SafePtr.hpp>
 #include <LegacyMethod.hpp>
 #include <MassData.hpp>
+#include <SafePtr.hpp>
 #include <StandardAuth.hpp>
 #include <ThreadPool.hpp>
 
@@ -84,6 +84,11 @@ int CommandHandler::processAsync(const std::string& from, const std::vector<uint
     CHECK_ASSERT(threadPool != nullptr, ErrCode::PointerReleasedError);
 
     threadPool->post([this, from = std::move(from), data = std::move(data)] {
+        int ret = processAdvance(from, data);
+        if(ret != ErrCode::UnimplementedError) {
+            return;
+        }
+
         process(from, data);
     });
 
@@ -93,39 +98,63 @@ int CommandHandler::processAsync(const std::string& from, const std::vector<uint
 int CommandHandler::process(const std::string& from, const std::vector<uint8_t>& data)
 {
     std::shared_ptr<Req> req;
-    std::vector<std::shared_ptr<Resp>> respArray;
+    std::shared_ptr<Resp> resp;
     int ret = unpackRequest(data, req);
     if(ret >= 0) {
         Log::D(Log::TAG, "Command handler dispose method:%s, tsx_id:%llu, from:%s", req->method, req->tsx_id, from.c_str());
         ret = ErrCode::UnimplementedError;
         for (const auto& it : cmdListener) {
-            std::shared_ptr<Resp> resp;
             ret = it->onDispose(from, req, resp);
-            if (ret >= 0) { // successful
-                respArray.push_back(resp);
-            } else if (ret == ErrCode::UnimplementedError) { // unprocessed
-                ret = it->onDispose(from, req, respArray);
-            }
             if (ret != ErrCode::UnimplementedError) {
                 break;
             }
         }
-        if(ret == ErrCode::CompletelyFinishedNotify) { // return if process totally finished.
+        if(ret == ErrCode::UnimplementedError) { // return if unimplemented.
+            return ret;
+        } else if(ret == ErrCode::CompletelyFinishedNotify) { // return if process totally finished.
             return 0;
         }
     }
 
-    for(const auto& resp: respArray) {
+    auto errCode = ret;
+    std::vector<uint8_t> respData;
+    ret = packResponse(req, resp, errCode, respData);
+    CHECK_ERROR(ret);
+
+    Marshalled marshalledResp = {
+        respData.data(),
+        respData.size()
+    };
+    msgq_enq(from.c_str(), &marshalledResp);
+
+    return 0;
+}
+
+int CommandHandler::processAdvance(const std::string& from, const std::vector<uint8_t>& data)
+{
+    std::shared_ptr<Rpc::Request> request;
+    std::vector<std::shared_ptr<Rpc::Response>> responseArray;
+
+    int ret = Rpc::Factory::Unmarshal(data, request);
+    CHECK_ERROR(ret);
+
+    for (const auto& it : cmdListener) {
+        ret = it->onDispose(request, responseArray);
+        if (ret != ErrCode::UnimplementedError) {
+            break;
+        }
+    }
+
+    for (const auto &response : responseArray) {
         auto errCode = ret;
         std::vector<uint8_t> respData;
-        ret = packResponse(req, resp, errCode, respData);
+        int ret = Rpc::Factory::Marshal(response, respData);
         CHECK_ERROR(ret);
 
         Marshalled marshalledResp = {
             respData.data(),
-            respData.size()
-        };
-        msgq_enq(from.c_str(),& marshalledResp);
+            respData.size()};
+        msgq_enq(from.c_str(), &marshalledResp);
     }
 
     return 0;
@@ -206,11 +235,11 @@ int CommandHandler::Listener::SetDataDir(const std::filesystem::path& dataDir)
     return 0;
 }
 
-void CommandHandler::Listener::setHandleMap(const std::map<const char *, NormalHandler> &normalHandlerMap,
-                                            const std::map<const char *, MultiRespHandler> &multiRespHandlerMap)
+void CommandHandler::Listener::setHandleMap(const std::map<const char*, NormalHandler>& normalHandlerMap,
+                                            const std::map<const char*, AdvancedHandler>& advancedHandlerMap)
 {
     this->normalHandlerMap = std::move(normalHandlerMap);
-    this->multiRespHandlerMap = std::move(multiRespHandlerMap);
+    this->advancedHandlerMap = std::move(advancedHandlerMap);
 }
 
 int CommandHandler::Listener::checkAccessible(Accessible accessible, const std::string& accessToken)
@@ -257,21 +286,23 @@ int CommandHandler::Listener::onDispose(const std::string& from,
     return ErrCode::UnimplementedError;
 }
 
-int CommandHandler::Listener::onDispose(const std::string& from,
-                                        std::shared_ptr<Req> req,
-                                        std::vector<std::shared_ptr<Resp>>& resp)
+int CommandHandler::Listener::onDispose(std::shared_ptr<Rpc::Request> request,
+                                        std::vector<std::shared_ptr<Rpc::Response>>& responseArray)
 {
-    std::ignore = from;
-
-    for (const auto& it : multiRespHandlerMap) {
-        if (std::strcmp(it.first, req->method) != 0) {
+    for (const auto& it : advancedHandlerMap) {
+        if (it.first != request->method) {
             continue;
         }
 
-        int ret = checkAccessible(it.second.accessible, reinterpret_cast<TkReq*>(req.get())->params.tk);
+        std::string accessToken;
+        auto requestTokenPtr = std::dynamic_pointer_cast<Rpc::RequestWithToken>(request);
+        if(requestTokenPtr != nullptr) {
+            accessToken = requestTokenPtr->params.access_token;
+        }
+        int ret = checkAccessible(it.second.accessible, accessToken);
         CHECK_ERROR(ret);
 
-        ret = it.second.callback(req, resp);
+        ret = it.second.callback(request, responseArray);
         CHECK_ERROR(ret);
 
         return ret;
@@ -319,7 +350,7 @@ int CommandHandler::Listener::getUserInfo(const std::string& accessToken, std::s
     };
     userInfo = std::shared_ptr<UserInfo>(creater(), deleter);
     if (userInfo == nullptr) {
-        Log::E(Log::TAG, "Mass data processor: Invalid access token.");
+        Log::E(Log::TAG, "Invalid access token: %s.", accessToken.c_str());
         CHECK_ERROR(ErrCode::InvalidAccessToken);
     }
 

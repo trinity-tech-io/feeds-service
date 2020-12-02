@@ -28,14 +28,12 @@ protected:
 
 private:
     /*** type define ***/
-    struct Method {
-        static constexpr const char* GetMultiComments = "get_multi_comments";
-    };
 
     /*** static function and variable ***/
 
     /*** class function and variable ***/
-    int onGetMultiComments(std::shared_ptr<Req> req, std::vector<std::shared_ptr<Resp>>& resp);
+    int onGetMultiComments(std::shared_ptr<Rpc::Request> request,
+                           std::vector<std::shared_ptr<Rpc::Response>>& responseArray);
 };
 
 /***********************************************/
