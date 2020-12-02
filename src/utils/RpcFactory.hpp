@@ -17,15 +17,18 @@ public:
     };
 
     /*** static function and variable ***/
+    static std::shared_ptr<Request> MakeRequest(const std::string& method);
+    static std::shared_ptr<Response> MakeResponse(const std::string& method);
+
     static int Unmarshal(const std::vector<uint8_t>& data, std::shared_ptr<Request>& request);
     static int Marshal(const std::shared_ptr<Response>& response, std::vector<uint8_t>& data);
+
+    static constexpr const int MaxAvailableSize = 4 * 1024; // 4KB
 
     /*** class function and variable ***/
 
 protected:
     /*** type define ***/
-    using Dict = std::unordered_map<std::string, msgpack::object>;
-    static constexpr const char* DictKeyMethod = "method";
 
     /*** static function and variable ***/
 
@@ -33,10 +36,10 @@ protected:
 
 private:
     /*** type define ***/
+    using Dict = std::unordered_map<std::string, msgpack::object>;
 
     /*** static function and variable ***/
-    static std::shared_ptr<Request> MakeRequest(const std::string& method);
-    static std::shared_ptr<Response> MakeResponse(const std::string& method);
+    static constexpr const char* DictKeyMethod = "method";
 
     /*** class function and variable ***/
     explicit Factory() = delete;

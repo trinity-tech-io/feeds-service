@@ -31,21 +31,23 @@ int Factory::Unmarshal(const std::vector<uint8_t>& data, std::shared_ptr<Request
     auto method = methodIt->second.as<std::string>();
     CHECK_ASSERT(method.empty() == false, ErrCode::MsgPackInvalidValue);
 
-    int ret = 0;
+    int processed = 0;
     request = MakeRequest(method);
     if(request == nullptr) {
-        request = std::shared_ptr<Request>();
-        ret = ErrCode::UnimplementedError;
+        request = std::make_shared<Request>();
+        processed = ErrCode::UnimplementedError;
     }
-    mpRoot.convert(*request);
+    request->unpack(mpRoot);
+    CHECK_ASSERT(request->method.empty() == false, ErrCode::MsgPackParseFailed);
 
-    return ret;
+    return processed;
 }
 
 int Factory::Marshal(const std::shared_ptr<Response>& response, std::vector<uint8_t>& data)
 {
     msgpack::sbuffer mpBuf;
-    msgpack::pack(mpBuf, *response);
+
+    response->pack(mpBuf);
 
     auto mpBufPtr = reinterpret_cast<uint8_t*>(mpBuf.data());
     data = {mpBufPtr, mpBufPtr + mpBuf.size()};
@@ -60,7 +62,7 @@ std::shared_ptr<Request> Factory::MakeRequest(const std::string& method)
     if(method == Method::GetMultiComments) {
         request = std::make_shared<GetMultiCommentsRequest>();
     } else {
-        Log::E(Log::TAG, "Failed to make request from method: %s.", method.c_str());
+        Log::D(Log::TAG, "RPC Factory ignore to make request from method: %s.", method.c_str());
     }
 
     return request;
@@ -73,7 +75,7 @@ std::shared_ptr<Response> Factory::MakeResponse(const std::string& method)
     if(method == Method::GetMultiComments) {
         response = std::make_shared<GetMultiCommentsResponse>();
     } else {
-        Log::E(Log::TAG, "Failed to make response from method: %s.", method.c_str());
+        Log::E(Log::TAG, "RPC Factory ignore to make response from method: %s.", method.c_str());
     }
 
     return response;
@@ -86,26 +88,6 @@ std::shared_ptr<Response> Factory::MakeResponse(const std::string& method)
 /* =========================================== */
 /* === class protected function implement  === */
 /* =========================================== */
-// std::shared_ptr<msgpack_unpacked> Request::makeUnpackedObject()
-// {
-//     // auto creater = [&]() -> msgpack_unpacked* {
-//     //     msgpack_unpacked* ptr = new msgpack_unpacked;
-//     //     if(ptr != nullptr) {
-//     //         msgpack_unpacked_init(ptr);
-//     //     }
-//     //     return ptr;
-//     // };
-//     // auto deleter = [](msgpack_unpacked* ptr) -> void {
-//     //     if(ptr != nullptr) {
-//     //         msgpack_unpacked_destroy(ptr);
-//     //         delete ptr;
-//     //     }
-//     // };
-
-//     // auto ptr = std::shared_ptr<msgpack_unpacked>(creater(), deleter);
-//     // return ptr;
-// }
-
 
 
 /* =========================================== */

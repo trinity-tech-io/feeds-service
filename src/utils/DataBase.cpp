@@ -33,6 +33,28 @@ std::shared_ptr<DataBase> DataBase::GetInstance()
     return DataBaseInstance;
 }
 
+const char* DataBase::QueryBy(QueryField field, QueryIdType idType)
+{
+    switch (field) {
+    case Id:
+        switch (idType) {
+        case Channel:
+            return "channel_id";
+        case Post:
+            return "post_id";
+        case Comment:
+            return "comment_id";
+        default:
+            return nullptr;
+        }
+    case UpdatedAt:
+        return "updated_at";
+    case CreatedAt:
+        return "created_at";
+    default:
+        return nullptr;
+    }
+}
 
 /* =========================================== */
 /* === class public function implement  ====== */
