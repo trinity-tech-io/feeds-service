@@ -15,9 +15,20 @@ namespace trinity {
 class DataBase {
 public:
     /*** type define ***/
+    enum QueryField {
+        Id = 1,
+        UpdatedAt = 2,
+        CreatedAt = 3,
+    };
+    enum QueryIdType {
+        Channel = 1,
+        Post = 2,
+        Comment = 3,
+    };
 
     /*** static function and variable ***/
     static std::shared_ptr<DataBase> GetInstance();
+    static const char* QueryBy(QueryField field, QueryIdType idType);
 
     /*** class function and variable ***/
     int config(const std::filesystem::path& databaseFilePath);

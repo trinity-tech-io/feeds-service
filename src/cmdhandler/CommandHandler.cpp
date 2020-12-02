@@ -136,6 +136,9 @@ int CommandHandler::processAdvance(const std::string& from, const std::vector<ui
     std::vector<std::shared_ptr<Rpc::Response>> responseArray;
 
     int ret = Rpc::Factory::Unmarshal(data, request);
+    if(ret == ErrCode::UnimplementedError) {
+        return ret;
+    }
     CHECK_ERROR(ret);
 
     for (const auto& it : cmdListener) {
@@ -294,10 +297,15 @@ int CommandHandler::Listener::onDispose(std::shared_ptr<Rpc::Request> request,
             continue;
         }
 
+        Log::D(Log::TAG, "Request:");
+        Log::D(Log::TAG, "    version: %s", request->version.c_str());
+        Log::D(Log::TAG, "    method : %s", request->method.c_str());
+        Log::D(Log::TAG, "    id     : %lld", request->id);
+
         std::string accessToken;
         auto requestTokenPtr = std::dynamic_pointer_cast<Rpc::RequestWithToken>(request);
         if(requestTokenPtr != nullptr) {
-            accessToken = requestTokenPtr->params.access_token;
+            accessToken = requestTokenPtr->accessToken();
         }
         int ret = checkAccessible(it.second.accessible, accessToken);
         CHECK_ERROR(ret);
