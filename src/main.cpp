@@ -91,7 +91,7 @@ void on_receiving_message(ElaCarrier *c, const char *from,
     vlogD("received message: %s", msg);
     auto msgptr = reinterpret_cast<uint8_t*>(const_cast<void*>(msg));
     auto data = std::vector<uint8_t>(msgptr, msgptr + len);
-    std::ignore = trinity::CommandHandler::GetInstance()->processAsync(from, data);
+    std::ignore = trinity::CommandHandler::GetInstance()->received(from, data);
 }
 
 static

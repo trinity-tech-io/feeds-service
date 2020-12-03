@@ -52,7 +52,7 @@ int Factory::Marshal(const std::shared_ptr<Response>& response, std::vector<uint
     auto mpBufPtr = reinterpret_cast<uint8_t*>(mpBuf.data());
     data = {mpBufPtr, mpBufPtr + mpBuf.size()};
 
-    return 0;
+    return data.size();
 }
 
 std::shared_ptr<Request> Factory::MakeRequest(const std::string& method)

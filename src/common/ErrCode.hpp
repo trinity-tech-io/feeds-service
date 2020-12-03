@@ -106,6 +106,7 @@ public:
     constexpr static const int CmdUnsupportedVersion 	        = -153;
     constexpr static const int CmdUnsupportedAlgo               = -154;
     constexpr static const int CmdUnknownRespFailed             = -155;
+    constexpr static const int CmdSendFailed                    = -155;
 
     constexpr static const int AuthBadDidDoc                       = -160;
     constexpr static const int AuthDidDocInvlid                    = -161;

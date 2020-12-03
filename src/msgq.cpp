@@ -23,6 +23,8 @@
 #include <ela_carrier.h>
 #include <crystal.h>
 
+#undef static_assert // fix double conflict between crystal and std functional
+#include <CommandHandler.hpp>
 #include "msgq.h"
 
 typedef struct {
@@ -44,25 +46,25 @@ static hashtable_t *msgqs;
 static inline
 MsgQ *msgq_get(const char *peer)
 {
-    return hashtable_get(msgqs, peer, strlen(peer));
+    return (MsgQ*)hashtable_get(msgqs, peer, strlen(peer));
 }
 
 static inline
 MsgQ *msgq_put(MsgQ *q)
 {
-    return hashtable_put(msgqs, &q->he);
+    return (MsgQ*)hashtable_put(msgqs, &q->he);
 }
 
 static inline
 MsgQ *msgq_rm(const char *peer)
 {
-    return hashtable_remove(msgqs, peer, strlen(peer));
+    return (MsgQ*)hashtable_remove(msgqs, peer, strlen(peer));
 }
 
 static inline
 Msg *msgq_pop_head(MsgQ *q)
 {
-    return list_is_empty(q->q) ? NULL : list_pop_head(q->q);
+    return (Msg*)(list_is_empty(q->q) ? NULL : list_pop_head(q->q));
 }
 
 static inline
@@ -74,7 +76,7 @@ void msgq_push_tail(MsgQ *q, Msg *m)
 static
 void msg_dtor(void *obj)
 {
-    Msg *msg = obj;
+    Msg *msg = (Msg*)obj;
 
     deref(msg->data);
 }
@@ -82,12 +84,12 @@ void msg_dtor(void *obj)
 static
 Msg *msg_create(Marshalled *msg)
 {
-    Msg *m = rc_zalloc(sizeof(Msg), msg_dtor);
+    Msg *m = (Msg*)rc_zalloc(sizeof(Msg), msg_dtor);
     if (!m)
         return NULL;
 
     m->le.data = m;
-    m->data    = ref(msg);
+    m->data    = (Marshalled*)ref(msg);
 
     return m;
 }
@@ -95,7 +97,7 @@ Msg *msg_create(Marshalled *msg)
 static
 void msgq_dtor(void *obj)
 {
-    MsgQ *q = obj;
+    MsgQ *q = (MsgQ*)obj;
 
     deref(q->q);
 }
@@ -103,7 +105,7 @@ void msgq_dtor(void *obj)
 static
 MsgQ *msgq_create(const char *to)
 {
-    MsgQ *q = rc_zalloc(sizeof(MsgQ), msgq_dtor);
+    MsgQ *q = (MsgQ*)rc_zalloc(sizeof(MsgQ), msgq_dtor);
     if (!q)
         return NULL;
 
@@ -124,8 +126,9 @@ MsgQ *msgq_create(const char *to)
 static
 void on_msg_receipt(int64_t msgid, ElaReceiptState state, void *context)
 {
-    MsgQ *q = context;
+    MsgQ *q = (MsgQ*)context;
     Msg *m = NULL;
+    std::vector<uint8_t> data;
 
     (void)msgid;
     (void)state;
@@ -145,10 +148,9 @@ void on_msg_receipt(int64_t msgid, ElaReceiptState state, void *context)
         goto finally;
     }
 
-    msgid = ela_send_message_with_receipt(carrier, q->peer, m->data->data,
-                                          m->data->sz, on_msg_receipt, ref(q));
-    if (msgid > 0)
-        vlogD("Send message [%" PRIi64 "] to [%s].", msgid, q->peer);
+    data = std::move(std::vector<uint8_t>{ reinterpret_cast<uint8_t*>(m->data->data),
+                                           reinterpret_cast<uint8_t*>(m->data->data) + m->data->sz });
+    std::ignore = trinity::CommandHandler::GetInstance()->send(q->peer, data, on_msg_receipt, ref(q));
 
 finally:
     deref(q);
@@ -160,7 +162,7 @@ int msgq_enq(const char *to, Marshalled *msg)
     MsgQ *q = NULL;
     Msg *m = NULL;
     int rc = -1;
-    int64_t msgid;
+    std::vector<uint8_t> data;
 
     q = msgq_get(to);
     if (q) {
@@ -183,13 +185,9 @@ int msgq_enq(const char *to, Marshalled *msg)
         goto finally;
     }
 
-    msgid = ela_send_message_with_receipt(carrier, to, msg->data, msg->sz, on_msg_receipt, ref(q));
-    if (msgid <= 0) {
-        vlogE("Sending message with receipt to [%s] failed.", to);
-        goto finally;
-    }
-
-    vlogD("Transport channel is idle, send message [%" PRIi64 "] to [%s] instantly.", msgid, to);
+    data = std::move(std::vector<uint8_t>{ reinterpret_cast<uint8_t*>(msg->data),
+                                           reinterpret_cast<uint8_t*>(msg->data) + msg->sz });
+    std::ignore = trinity::CommandHandler::GetInstance()->send(to, data, on_msg_receipt, ref(q));
 
     msgq_put(q);
     rc = 0;

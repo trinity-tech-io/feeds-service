@@ -3,6 +3,7 @@
 #include <functional>
 #include <ela_carrier.h>
 #include <ela_session.h>
+#include <CommandHandler.hpp>
 #include <DateTime.hpp>
 #include <SafePtr.hpp>
 #include <Semaphore.hpp>
@@ -27,7 +28,7 @@ int CarrierSession::Factory::Init(
 
     int ret = ela_session_init(ptr.get());
     if (ret < 0) {
-        PrintElaCarrierError("Failed to new carrier session!");
+        CommandHandler::PrintElaCarrierError("Failed to new carrier session!");
         ret = ErrCode::CarrierSessionInitFailed;
     }
     CHECK_ERROR(ret);
@@ -44,7 +45,7 @@ int CarrierSession::Factory::Init(
     };
     ret = ela_session_set_callback(ptr.get(), nullptr, onSessionRequest, nullptr);
     if (ret < 0) {
-        PrintElaCarrierError("Failed to set carrier session callback!");
+        CommandHandler::PrintElaCarrierError("Failed to set carrier session callback!");
         ret = ErrCode::CarrierSessionInitFailed;
     }
     CHECK_ERROR(ret);
@@ -123,7 +124,7 @@ int64_t CarrierSession::sendData(const std::vector<uint8_t>& data)
         int ret = ela_stream_write(sessionHandler.get(), sessionStreamId,
                                    data.data() + idx, sendSize);
         if (ret < 0) {
-            PrintElaCarrierError("Failed to send vector data through carrier session!");
+            CommandHandler::PrintElaCarrierError("Failed to send vector data through carrier session!");
             ret = ErrCode::CarrierSessionSendFailed;
         }
         CHECK_ERROR(ret);
@@ -148,7 +149,7 @@ int64_t CarrierSession::sendData(std::iostream& data)
         int ret = ela_stream_write(sessionHandler.get(), sessionStreamId,
                                    buf, sendSize);
         if (ret < 0) {
-            PrintElaCarrierError("Failed to send stream data through carrier session!");
+            CommandHandler::PrintElaCarrierError("Failed to send stream data through carrier session!");
             ret = ErrCode::CarrierSessionSendFailed;
         }
         CHECK_ERROR(ret);
@@ -165,17 +166,6 @@ int64_t CarrierSession::sendData(std::iostream& data)
 /* =========================================== */
 /* === class private function implement  ===== */
 /* =========================================== */
-void CarrierSession::PrintElaCarrierError(const std::string& errReason)
-{
-    int errCode = ela_get_error();
-
-    char errStr[1024] = {0};
-    ela_get_strerror(errCode, errStr, sizeof(errStr));
-
-    Log::E(Log::TAG, "%s carrier error desc is %s(0x%x)",
-                     errReason.c_str(), errStr, errCode);
-}
-
 CarrierSession::CarrierSession() noexcept
     : sessionHandler()
     , sessionStreamId(-1)
@@ -208,7 +198,7 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
     };
     sessionHandler = std::shared_ptr<ElaSession>(creater(), deleter);
     if (sessionHandler == nullptr) {
-        PrintElaCarrierError("Failed to new carrier session!");
+        CommandHandler::PrintElaCarrierError("Failed to new carrier session!");
     }
     CHECK_ASSERT(sessionHandler != nullptr, ErrCode::CarrierSessionCreateFailed);
 
@@ -252,7 +242,7 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
             break;
         case ElaStreamState_failed:
             notify = ConnectListener::Notify::Error;
-            PrintElaCarrierError("Carrier session state change to failed!");
+            CommandHandler::PrintElaCarrierError("Carrier session state change to failed!");
             ret = ErrCode::CarrierSessionErrorExists;
             break;
         default:
@@ -286,7 +276,7 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
                                      ElaStreamType_application, ELA_STREAM_RELIABLE,
                                      sessionStreamCallbacks.get(), this);
     if (ret < 0) {
-        PrintElaCarrierError("Failed to add stream!");
+        CommandHandler::PrintElaCarrierError("Failed to add stream!");
         ret = ErrCode::CarrierSessionAddStreamFailed;
     }
     CHECK_ERROR(ret);
@@ -300,7 +290,7 @@ int CarrierSession::replySession()
 {
     int ret= ela_session_reply_request(sessionHandler.get(), nullptr, 0, nullptr);
     if (ret < 0) {
-        PrintElaCarrierError("Failed to reply carrier session!");
+        CommandHandler::PrintElaCarrierError("Failed to reply carrier session!");
         ret = ErrCode::CarrierSessionConnectFailed;
     }
     CHECK_ERROR(ret);
@@ -312,7 +302,7 @@ int CarrierSession::startSession()
 {
     int ret = ela_session_start(sessionHandler.get(), sessionSdp.c_str(), sessionSdp.length());
     if (ret < 0) {
-        PrintElaCarrierError("Failed to start carrier session!");
+        CommandHandler::PrintElaCarrierError("Failed to start carrier session!");
         ret = ErrCode::CarrierSessionStartFailed;
     }
     CHECK_ERROR(ret);
