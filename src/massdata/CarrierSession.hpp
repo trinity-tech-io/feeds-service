@@ -71,7 +71,6 @@ private:
     /*** type define ***/
 
     /*** static function and variable ***/
-    static void PrintElaCarrierError(const std::string& errReason);
 
     /*** class function and variable ***/
     explicit CarrierSession() noexcept;

@@ -10,13 +10,13 @@
 #include <RpcFactory.hpp>
 #include <StdFileSystem.hpp>
 
+#include <ela_carrier.h>
 extern "C" {
 #include <obj.h>
 #include <rpc.h>
 #include <msgq.h>
 }
 
-struct ElaCarrier;
 struct ElaSession;
 struct ElaStreamCallbacks;
 
@@ -75,15 +75,18 @@ public:
 
     /*** static function and variable ***/
     static std::shared_ptr<CommandHandler> GetInstance();
+    static void PrintElaCarrierError(const std::string &errReason);
 
     /*** class function and variable ***/
-    int config(const std::filesystem::path& dataDir,
-               std::weak_ptr<ElaCarrier> carrier);
+    int config(const std::filesystem::path &dataDir,
+                std::weak_ptr<ElaCarrier> carrier);
     void cleanup();
 
     std::weak_ptr<ElaCarrier> getCarrierHandler();
 
-    int processAsync(const std::string& from, const std::vector<uint8_t>& data);
+    int received(const std::string& from, const std::vector<uint8_t>& data);
+    int send(const std::string &to, const std::vector<uint8_t>& data,
+             ElaFriendMessageReceiptCallback* receiptCallback = nullptr, void* receiptContext = nullptr);
 
     int unpackRequest(const std::vector<uint8_t>& data,
                       std::shared_ptr<Req>& req) const;

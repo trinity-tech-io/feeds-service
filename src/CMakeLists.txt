@@ -66,7 +66,7 @@ add_executable(feedsd
     err.c
     auth.c
     main.cpp
-    msgq.c
+    msgq.cpp
     did.c
     feeds.c)
 

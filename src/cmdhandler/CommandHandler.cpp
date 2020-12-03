@@ -42,6 +42,16 @@ std::shared_ptr<CommandHandler> CommandHandler::GetInstance()
     return CmdHandlerInstance;
 }
 
+void CommandHandler::PrintElaCarrierError(const std::string& errReason)
+{
+    int errCode = ela_get_error();
+
+    char errStr[1024] = {0};
+    ela_get_strerror(errCode, errStr, sizeof(errStr));
+
+    Log::E(Log::TAG, "%s. carrier native error desc is %s(0x%x)",
+                     errReason.c_str(), errStr, errCode);
+}
 
 /* =========================================== */
 /* === class public function implement  ====== */
@@ -79,7 +89,7 @@ std::weak_ptr<ElaCarrier> CommandHandler::getCarrierHandler()
     return carrierHandler;
 }
 
-int CommandHandler::processAsync(const std::string& from, const std::vector<uint8_t>& data)
+int CommandHandler::received(const std::string& from, const std::vector<uint8_t>& data)
 {
     CHECK_ASSERT(threadPool != nullptr, ErrCode::PointerReleasedError);
 
@@ -90,6 +100,27 @@ int CommandHandler::processAsync(const std::string& from, const std::vector<uint
         }
 
         process(from, data);
+    });
+
+    return 0;
+}
+
+int CommandHandler::send(const std::string &to, const std::vector<uint8_t> &data,
+                         ElaFriendMessageReceiptCallback* receiptCallback, void* receiptContext)
+{
+    CHECK_ASSERT(threadPool != nullptr, ErrCode::PointerReleasedError);
+
+    threadPool->post([this, to = std::move(to), data = std::move(data), receiptCallback, receiptContext] {
+       auto carrier = SAFE_GET_PTR_NO_RETVAL(this->getCarrierHandler());
+       auto msgid = ela_send_message_with_receipt(carrier.get(), to.c_str(),
+                                                  data.data(), data.size(),
+                                                  receiptCallback, receiptContext);
+       if(msgid < 0) {
+           PrintElaCarrierError("Failed to send message to: [" + to + "].");
+           return;
+       }
+
+       Log::D(Log::TAG, "Success send message to [%s].", to.c_str());
     });
 
     return 0;

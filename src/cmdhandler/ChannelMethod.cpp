@@ -100,7 +100,6 @@ int ChannelMethod::onGetMultiComments(std::shared_ptr<Rpc::Request> request,
             (uint8_t*)stmt.getColumn(10).getBlob() + stmt.getColumn(10).getBytes()
         });
 
-        Log::D(Log::TAG, "Current RPC size: %d/%d", commentsSize, Rpc::Factory::MaxAvailableSize);
         auto nextCommentsSize = commentsSize + sizeof(comment)
                         - sizeof(comment.user_did) + comment.user_did.length()
                         - sizeof(comment.user_name) + comment.user_name.length()
