@@ -297,25 +297,3 @@ new file mode 100644
 ++
 ++    return 1;
 + }
-diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
---- a/src/CMakeLists.txt
-+++ b/src/CMakeLists.txt
-@@ -99,13 +99,11 @@ if(ENABLE_TESTS)
-     set(HEADER_FILTER
-         "*.h")
- else()
--    set(HEADER_FILTER
--        "ela_did.h")
--    if(ENABLE_JWT)
--        set(HEADER_FILTER
--            ${HEADER_FILTER}
--            "ela_jwt.h")
--    endif()
-+if(ENABLE_JWT)
-+    set(HEADER_FILTER "ela_*.h")
-+else()
-+    set(HEADER_FILTER "ela_did.h")
-+endif()
- endif()
- 
- if(ENABLE_JWT)

@@ -6,9 +6,9 @@ ExternalProject_Add(
     Elastos.DID.Native.SDK
 
     PREFIX ${FEEDS_DEPS_BUILD_PREFIX}
-    URL https://github.com/elastos/Elastos.DID.Native.SDK/archive/v1.2.zip
-    URL_HASH SHA256=da7b87c8d6b0e7856c466e24d1ac7a65e9f23f800d3800f887932b35afb6143f
-    DOWNLOAD_NAME Elastos.DID.Native.SDK-v1.2.zip
+    URL https://github.com/elastos/Elastos.DID.Native.SDK/archive/14073f6173bc4ebff03ade0cccefd6d9082d60c3.zip
+    URL_HASH SHA256=37e74234e8a032831c6ff2ab4e38e668d755f99ddb0f3fb32aae25f8756c20ae
+    DOWNLOAD_NAME Elastos.DID.Native.SDK-release-v1.x.zip
     DOWNLOAD_DIR ${FEEDS_DEPS_TARBALL_DIR}
     DOWNLOAD_NO_PROGRESS 1
     LOG_DOWNLOAD FALSE
