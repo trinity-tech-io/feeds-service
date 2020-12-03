@@ -1,6 +1,9 @@
 #ifndef _FEEDS_MSGPACK_EXTENSION_HPP_
 #define _FEEDS_MSGPACK_EXTENSION_HPP_
 
+#include <sstream>
+#include <string>
+
 #define MSGPACK_USE_DEFINE_MAP
 #include <msgpack.hpp>
 
@@ -9,8 +12,19 @@
     virtual ~name() = default \
 
 #define MSGPACK_DEFINE_STRUCT(name, ...)  \
-    virtual void pack(msgpack::sbuffer& buf) { msgpack::pack(buf, *this); } \
-    virtual void unpack(const msgpack::object& obj) { obj.convert(*this); } \
+    virtual void pack(msgpack::sbuffer& buf) { \
+        msgpack::pack(buf, *this); \
+    } \
+    virtual void unpack(const msgpack::object& obj) { \
+        obj.convert(*this); \
+    } \
+    virtual std::string str() { \
+        std::stringstream sstream; \
+        msgpack::zone z; \
+        auto obj = msgpack::object(*this, z); \
+        sstream << obj; \
+        return sstream.str(); \
+    } \
     DECLARE_DEFAULT_STRUCT(name); \
     MSGPACK_DEFINE(__VA_ARGS__)
 

@@ -125,6 +125,8 @@ int CommandHandler::process(const std::string& from, const std::vector<uint8_t>&
         respData.data(),
         respData.size()
     };
+    // Marshalled* marshalledResp = rc_zalloc(sizeof(Marshalled) + respData.size(), NULL);
+
     msgq_enq(from.c_str(), &marshalledResp);
 
     return 0;
@@ -298,9 +300,7 @@ int CommandHandler::Listener::onDispose(std::shared_ptr<Rpc::Request> request,
         }
 
         Log::D(Log::TAG, "Request:");
-        Log::D(Log::TAG, "    version: %s", request->version.c_str());
-        Log::D(Log::TAG, "    method : %s", request->method.c_str());
-        Log::D(Log::TAG, "    id     : %lld", request->id);
+        Log::D(Log::TAG, "  ->  %s", request->str().c_str());
 
         std::string accessToken;
         auto requestTokenPtr = std::dynamic_pointer_cast<Rpc::RequestWithToken>(request);
@@ -313,6 +313,10 @@ int CommandHandler::Listener::onDispose(std::shared_ptr<Rpc::Request> request,
         ret = it.second.callback(request, responseArray);
         CHECK_ERROR(ret);
 
+        Log::D(Log::TAG, "Response:");
+        for(const auto& response: responseArray) {
+            Log::D(Log::TAG, "  ->  %s", response->str().c_str());
+        }
         return ret;
     }
 

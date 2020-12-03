@@ -1,7 +1,6 @@
 #ifndef _FEEDS_RPC_DECLARE_HPP_
 #define _FEEDS_RPC_DECLARE_HPP_
 
-#include <string>
 #include <MsgPackExtension.hpp>
 
 namespace trinity {

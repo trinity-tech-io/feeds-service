@@ -15,12 +15,13 @@ namespace trinity {
 class DataBase {
 public:
     /*** type define ***/
-    enum QueryField {
+    using Step = std::function<int(SQLite::Statement&)>;
+    enum ConditionField {
         Id = 1,
         UpdatedAt = 2,
         CreatedAt = 3,
     };
-    enum QueryIdType {
+    enum ConditionIdType {
         Channel = 1,
         Post = 2,
         Comment = 3,
@@ -28,13 +29,14 @@ public:
 
     /*** static function and variable ***/
     static std::shared_ptr<DataBase> GetInstance();
-    static const char* QueryBy(QueryField field, QueryIdType idType);
+    static const char* ConditionBy(ConditionField field, ConditionIdType idType);
 
     /*** class function and variable ***/
     int config(const std::filesystem::path& databaseFilePath);
     void cleanup();
 
     std::shared_ptr<SQLite::Database> getHandler();
+    int executeStep(const std::string& sql, Step& step);
 
 protected:
     /*** type define ***/

@@ -33,7 +33,7 @@ std::shared_ptr<DataBase> DataBase::GetInstance()
     return DataBaseInstance;
 }
 
-const char* DataBase::QueryBy(QueryField field, QueryIdType idType)
+const char* DataBase::ConditionBy(ConditionField field, ConditionIdType idType)
 {
     switch (field) {
     case Id:
@@ -81,6 +81,24 @@ void DataBase::cleanup()
 std::shared_ptr<SQLite::Database> DataBase::getHandler()
 {
     return handler;
+}
+
+int DataBase::executeStep(const std::string& sql, Step& step)
+{
+    try {
+        Log::D(Log::TAG, "DataBase sql: %s", sql.c_str());
+        SQLite::Statement stmt(*handler, sql);
+
+        while (stmt.executeStep()) {
+            int ret = step(stmt);
+            CHECK_ERROR(ret);
+        }
+    } catch (SQLite::Exception& e) {
+        Log::E(Log::TAG, "DataBase exec failed. exception: %s", e.what());
+        CHECK_ERROR(ErrCode::DBException);
+    }
+
+    return 0;
 }
 
 /* =========================================== */
