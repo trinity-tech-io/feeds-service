@@ -2057,84 +2057,6 @@ int unmarshal_get_reported_cmts_req(const msgpack_object *req, Req **req_unmarsh
 }
 
 static
-int unmarshal_standard_sign_in_req(const msgpack_object *req, Req **req_unmarshal)
-{
-    const msgpack_object *method;
-    const msgpack_object *tsx_id;
-    const msgpack_object *doc;
-    StandardSignInReq *tmp;
-    void *buf;
-
-    assert(req->type == MSGPACK_OBJECT_MAP);
-
-    map_iter_kvs(req, {
-        (void)map_val_str("version");
-        method  = map_val_str("method");
-        tsx_id  = map_val_u64("id");
-        map_iter_kvs(map_val_map("params"), {
-            doc      = map_val_str("document");
-        });
-    });
-
-    if (!doc || !doc->str_sz) {
-        vlogE("Invalid standard_sign_in request.");
-        return -1;
-    }
-
-    tmp = rc_zalloc(sizeof(StandardSignInReq) + str_reserve_spc(method) + str_reserve_spc(doc), NULL);
-    if (!tmp)
-        return -1;
-
-    buf = tmp + 1;
-    tmp->method           = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
-    tmp->tsx_id           = tsx_id->u64_val;
-    tmp->params.doc       = strncpy(buf, doc->str_val, doc->str_sz);
-
-    *req_unmarshal = (Req *)tmp;
-    return 0;
-}
-
-static
-int unmarshal_standard_did_auth_req(const msgpack_object *req, Req **req_unmarshal)
-{
-    const msgpack_object *method;
-    const msgpack_object *tsx_id;
-    const msgpack_object *vp;
-    StandardDidAuthReq *tmp;
-    void *buf;
-
-    assert(req->type == MSGPACK_OBJECT_MAP);
-
-    map_iter_kvs(req, {
-        (void)map_val_str("version");
-        method  = map_val_str("method");
-        tsx_id  = map_val_u64("id");
-        map_iter_kvs(map_val_map("params"), {
-            vp = map_val_str("vp");
-        });
-    });
-
-    if (!vp || !vp->str_sz) {
-        vlogE("Invalid standard_did_auth request.");
-        return -1;
-    }
-
-    tmp = rc_zalloc(sizeof(StandardDidAuthReq) + str_reserve_spc(method) + str_reserve_spc(vp), NULL);
-    if (!tmp)
-        return -1;
-
-    buf = tmp + 1;
-    tmp->method           = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
-    tmp->tsx_id           = tsx_id->u64_val;
-    tmp->params.vp = strncpy(buf, vp->str_val, vp->str_sz);
-
-    *req_unmarshal = (Req *)tmp;
-    return 0;
-}
-
-static
 int unmarshal_unknown_req(const msgpack_object *req, Req **req_unmarshal)
 {
     const msgpack_object *method;
@@ -2207,8 +2129,6 @@ static struct RepParser req_parsers_1_0[] = {
     {"get_service_version"         , unmarshal_get_srv_ver_req        },
     {"report_illegal_comment"      , unmarshal_report_illegal_cmt_req },
     {"get_reported_comments"       , unmarshal_get_reported_cmts_req  },
-    {"standard_sign_in"            , unmarshal_standard_sign_in_req   },
-    {"standard_did_auth"           , unmarshal_standard_did_auth_req  },
 };
 
 int rpc_unmarshal_req(const void *rpc, size_t len, Req **req)
@@ -6221,58 +6141,6 @@ Marshalled *marshal_get_binary_resp(const Resp *resp)
     return &m->m;
 }
 
-Marshalled *marshal_standard_sign_in_resp(const Resp *resp)
-{
-    StandardSignInResp *wrap_resp = (StandardSignInResp*)resp;
-
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 3, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_u64(pk, "id", wrap_resp->tsx_id);
-        pack_kv_map(pk, "result", 1, {
-            pack_kv_str(pk, "challenge", wrap_resp->result.challenge);
-        });
-    });
-    deref(wrap_resp->result.challenge);
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
-Marshalled *marshal_standard_did_auth_resp(const Resp *resp)
-{
-    StandardDidAuthResp *wrap_resp = (StandardDidAuthResp*)resp;
-
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 3, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_u64(pk, "id", wrap_resp->tsx_id);
-        pack_kv_map(pk, "result", 1, {
-            pack_kv_str(pk, "access_token", wrap_resp->result.access_token);
-        });
-    });
-    deref(wrap_resp->result.access_token);
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
 typedef Marshalled *RespHdlr(const Resp *resp);
 struct RespSerializer {
     char *method;
@@ -6281,8 +6149,6 @@ struct RespSerializer {
 static struct RespSerializer resp_serializers_1_0[] = {
     {"set_binary"              , marshal_set_binary_resp        },
     {"get_binary"              , marshal_get_binary_resp        },
-    {"standard_sign_in"        , marshal_standard_sign_in_resp  },
-    {"standard_did_auth"       , marshal_standard_did_auth_resp },
 };
 
 Marshalled *rpc_marshal_resp(const char* method, const Resp *resp)
