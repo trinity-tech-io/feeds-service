@@ -139,7 +139,7 @@ std::shared_ptr<CarrierSession::ConnectListener> MassDataManager::makeConnectLis
         }
 
         virtual void onNotify(Notify notify, int errCode) override {
-            Log::I(Log::TAG, "Session nofify: notify:%s, errCode:%d", toString(notify), errCode);
+            Log::D(Log::TAG, "Session nofify: notify:%s, errCode:%d", toString(notify), errCode);
 
             if(notify == Notify::Closed
             || notify == Notify::Error) {
@@ -172,7 +172,7 @@ std::shared_ptr<SessionParser::OnUnpackedListener> MassDataManager::makeUnpacked
             const std::vector<uint8_t>& headData,
             const std::filesystem::path& bodyPath) -> void
     {
-        Log::I(Log::TAG, "MassData: start to process unpacked data.");
+        Log::D(Log::TAG, "MassData: start to process unpacked data.");
         auto weakPtr = this->weak_from_this();
         auto mgrPtr = SAFE_GET_PTR_NO_RETVAL(weakPtr);
 
@@ -209,7 +209,7 @@ std::shared_ptr<SessionParser::OnUnpackedListener> MassDataManager::makeUnpacked
             future.get();
         }
 
-        Log::I(Log::TAG, "MassData: finish to process unpacked data.");
+        Log::D(Log::TAG, "MassData: finish to process unpacked data.");
     });
 
     return unpackedListener;

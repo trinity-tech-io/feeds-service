@@ -120,12 +120,18 @@ std::string Log::GetFormatMethod(const std::string& prettyFunction) {
 void Log::Print(int level, const char* tag, const char* format, va_list ap)
 {
   std::ignore = tag;
-  auto prefix = ConvColor(level);
-  auto suffix = ConvColor(-1);
 
+#ifndef NDEBUG
+  auto prefix = ConvColor(level);
   std::cerr << prefix;
+#endif
+
   vlogv(level, format, ap);
+
+#ifndef NDEBUG
+  auto suffix = ConvColor(-1);
   std::cerr << suffix;
+#endif
 }
 
 inline const char* Log::ConvColor(int level)
