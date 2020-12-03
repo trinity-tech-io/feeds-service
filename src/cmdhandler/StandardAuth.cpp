@@ -109,7 +109,7 @@ DIDDocument* StandardAuth::LoadLocalDIDDocument(DID* did)
     if(fileExists == false) {
         return nullptr;
     }
-    Log::D(Log::TAG, "Load did document from local: %s", docFilePath.c_str());
+    // Log::D(Log::TAG, "Load did document from local: %s", docFilePath.c_str());
 
     auto docSize = std::filesystem::file_size(docFilePath);
     char docStr[docSize];
@@ -129,12 +129,12 @@ DIDDocument* StandardAuth::LoadLocalDIDDocument(DID* did)
 StandardAuth::StandardAuth()
 {
     using namespace std::placeholders;
-    std::map<const char*, NormalHandler> normalHandlerMap {
-        {Method::SignIn,  {std::bind(&StandardAuth::onSignIn, this, _1, _2), Accessible::Anyone}},
-        {Method::DidAuth, {std::bind(&StandardAuth::onDidAuth, this, _1, _2), Accessible::Anyone}},
+    std::map<const char*, AdvancedHandler> advancedHandlerMap {
+        {Rpc::Factory::Method::StandardSignIn,  {std::bind(&StandardAuth::onStandardSignIn, this, _1, _2), Accessible::Anyone}},
+        {Rpc::Factory::Method::StandardDidAuth, {std::bind(&StandardAuth::onStandardDidAuth, this, _1, _2), Accessible::Anyone}},
     };
 
-    setHandleMap(normalHandlerMap, {});
+    setHandleMap({}, advancedHandlerMap);
 }
 
 StandardAuth::~StandardAuth()
@@ -149,20 +149,21 @@ StandardAuth::~StandardAuth()
 /* =========================================== */
 /* === class private function implement  ===== */
 /* =========================================== */
-int StandardAuth::onSignIn(std::shared_ptr<Req> req,
-                           std::shared_ptr<Resp> &resp)
+int StandardAuth::onStandardSignIn(std::shared_ptr<Rpc::Request> request,
+                                   std::vector<std::shared_ptr<Rpc::Response>> &responseArray)
 {
-    auto signInReq = std::reinterpret_pointer_cast<StandardSignInReq>(req);
-    Log::D(Log::TAG, "Request params:");
-    Log::D(Log::TAG, "    document: %s", signInReq->params.doc);
+    auto requestPtr = std::dynamic_pointer_cast<Rpc::StandardSignInRequest>(request);
+    CHECK_ASSERT(requestPtr != nullptr, ErrCode::InvalidArgument);
+    const auto& params = requestPtr->params;
+    responseArray.clear();
 
-    auto docCreater = [](const char* json) -> DIDDocument* {
-        return DIDDocument_FromJson(json);
+    auto docCreater = [](const std::string& json) -> DIDDocument* {
+        return DIDDocument_FromJson(json.c_str());
     };
     auto docDeleter = [](DIDDocument* ptr) -> void {
         DIDDocument_Destroy(ptr);
     };
-    auto didDoc = std::shared_ptr<DIDDocument>(docCreater(signInReq->params.doc), docDeleter);
+    auto didDoc = std::shared_ptr<DIDDocument>(docCreater(params.document), docDeleter);
     CHECK_DIDSDK(didDoc != nullptr, ErrCode::AuthBadDidDoc, "Failed to get did document from json.");
 
     bool valid = DIDDocument_IsValid(didDoc.get());
@@ -195,30 +196,30 @@ int StandardAuth::onSignIn(std::shared_ptr<Req> req,
 
     authSecretMap[nonceStr] = std::move(AuthSecret{didStr, expiration});
 
-    auto signInResp = std::make_shared<StandardSignInResp>();
-    signInResp->tsx_id = signInReq->tsx_id;
-    auto challengeSize = challenge.length() + 1;
-    signInResp->result.challenge = (char*)rc_zalloc(challengeSize, nullptr);
-    strncpy(signInResp->result.challenge, challenge.data(), challengeSize);
-    Log::D(Log::TAG, "Response result:");
-    Log::D(Log::TAG, "    challenge: %s", signInResp->result.challenge);
+    auto responsePtr = Rpc::Factory::MakeResponse(request->method);
+    auto response = std::dynamic_pointer_cast<Rpc::StandardSignInResponse>(responsePtr);
+    CHECK_ASSERT(response != nullptr, ErrCode::RpcUnimplementedError);
+    response->version = request->version;
+    response->id = request->id;
+    response->result.jwt_challenge = std::move(challenge);
 
-    resp = std::reinterpret_pointer_cast<Resp>(signInResp);
+    responseArray.push_back(response);
 
     return 0;
 }
 
-int StandardAuth::onDidAuth(std::shared_ptr<Req> req,
-                            std::shared_ptr<Resp> &resp)
+int StandardAuth::onStandardDidAuth(std::shared_ptr<Rpc::Request> request,
+                                    std::vector<std::shared_ptr<Rpc::Response>> &responseArray)
 {
-    auto didAuthReq = std::reinterpret_pointer_cast<StandardDidAuthReq>(req);
-    Log::D(Log::TAG, "Request params:");
-    Log::D(Log::TAG, "    vp: %s", didAuthReq->params.vp);
+    auto requestPtr = std::dynamic_pointer_cast<Rpc::StandardDidAuthRequest>(request);
+    CHECK_ASSERT(requestPtr != nullptr, ErrCode::InvalidArgument);
+    const auto& params = requestPtr->params;
+    responseArray.clear();
 
     int ret;
 
     CredentialInfo credentialInfo;
-    ret = checkAuthToken(didAuthReq->params.vp, credentialInfo);
+    ret = checkAuthToken(params.user_name, params.jwt_vp, credentialInfo);
     CHECK_ERROR(ret);
 
     auto userIndex = adaptOldLogin(credentialInfo);
@@ -228,15 +229,14 @@ int StandardAuth::onDidAuth(std::shared_ptr<Req> req,
     ret = createAccessToken(credentialInfo, userIndex, accessToken);
     CHECK_ERROR(ret);
 
-    auto didAuthResp = std::make_shared<StandardDidAuthResp>();
-    didAuthResp->tsx_id = didAuthReq->tsx_id;
-    auto tokenSize = accessToken.length() + 1;
-    didAuthResp->result.access_token = (char*)rc_zalloc(tokenSize, nullptr);
-    strncpy(didAuthResp->result.access_token, accessToken.data(), tokenSize);
-    Log::D(Log::TAG, "Response result:");
-    Log::D(Log::TAG, "    access_token: %s", didAuthResp->result.access_token);
+    auto responsePtr = Rpc::Factory::MakeResponse(request->method);
+    auto response = std::dynamic_pointer_cast<Rpc::StandardDidAuthResponse>(responsePtr);
+    CHECK_ASSERT(response != nullptr, ErrCode::RpcUnimplementedError);
+    response->version = request->version;
+    response->id = request->id;
+    response->result.access_token = std::move(accessToken);
 
-    resp = std::reinterpret_pointer_cast<Resp>(didAuthResp);
+    responseArray.push_back(response);
 
     hdl_stats_changed_notify();
 
@@ -322,19 +322,20 @@ int StandardAuth::makeJwt(time_t expiration,
     return 0;
 }
 
-int StandardAuth::checkAuthToken(const char* jwt, CredentialInfo& credentialInfo)
+int StandardAuth::checkAuthToken(const std::string& userName, const std::string& jwtVP,
+                                 CredentialInfo& credentialInfo)
 {
-    CHECK_ASSERT(jwt != nullptr, ErrCode::InvalidArgument);
+    CHECK_ASSERT(jwtVP.empty() == false, ErrCode::InvalidArgument);
 
     /** check jwt token **/
     DIDBackend_SetLocalResolveHandle(StandardAuth::LoadLocalDIDDocument);
-    auto jwsCreater = [](const char* jwt) -> JWT* {
-        return DefaultJWSParser_Parse(jwt);
+    auto jwsCreater = [](const std::string& jwtVP) -> JWT* {
+        return DefaultJWSParser_Parse(jwtVP.c_str());
     };
     auto jwsDeleter = [](JWT* ptr) -> void {
         JWT_Destroy(ptr);
     };
-    auto jws = std::shared_ptr<JWT>(jwsCreater(jwt), jwsDeleter);
+    auto jws = std::shared_ptr<JWT>(jwsCreater(jwtVP), jwsDeleter);
     CHECK_DIDSDK(jws != nullptr, ErrCode::AuthBadJwtChallenge, "Failed to parse jws from jwt.");
 
     auto vpStrCreater = [](JWT *jws) -> const char* {
@@ -398,11 +399,8 @@ int StandardAuth::checkAuthToken(const char* jwt, CredentialInfo& credentialInfo
     count = Credential_GetPropertyCount(vc);
     CHECK_DIDSDK(count >= 1, ErrCode::AuthCredentialPropertyNotExists, "The credential property isn't exist.");
 
-    auto appDid = Credential_GetProperty(vc, "appDid");
+    auto appDid = Credential_GetProperty(vc, "appId");
     CHECK_DIDSDK(appDid != nullptr, ErrCode::AuthCredentialPropertyAppIdNotExists, "The credential subject's id isn't exist.");
-
-    auto name = Credential_GetProperty(vc, "name");
-    auto email = Credential_GetProperty(vc, "email");
 
     bool expired = (authSecret.expiration < DateTime::Current());
     CHECK_ASSERT(expired == false, ErrCode::AuthNonceExpiredError);
@@ -413,8 +411,8 @@ int StandardAuth::checkAuthToken(const char* jwt, CredentialInfo& credentialInfo
     credentialInfo.userDid = issuerDidStr;
     credentialInfo.instanceDid = instanceDidStr;
 
-    credentialInfo.name = (name ? name : "NA");
-    credentialInfo.email = (email ? email : "NA");
+    credentialInfo.name = (userName.empty() == false ? userName : "NA");
+    credentialInfo.email = "NA";
 
     auto expirationDate = Credential_GetExpirationDate(vc);
     CHECK_DIDSDK(expirationDate > 0, ErrCode::AuthCredentialExpirationError, "Faile to get credential expiration date.");

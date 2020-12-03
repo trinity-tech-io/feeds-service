@@ -33,8 +33,6 @@ protected:
 private:
     /*** type define ***/
     struct Method {
-        static constexpr const char* SignIn = "standard_sign_in";
-        static constexpr const char* DidAuth = "standard_did_auth";
     };
 
     struct AuthSecret {
@@ -61,8 +59,10 @@ private:
     constexpr static const int64_t ACCESS_EXPIRATION = (static_cast<int64_t>(30) * 24 * 60 * 60); //1 month
 
     /*** class function and variable ***/
-    int onSignIn(std::shared_ptr<Req> req, std::shared_ptr<Resp>& resp);
-    int onDidAuth(std::shared_ptr<Req> req, std::shared_ptr<Resp>& resp);
+    int onStandardSignIn(std::shared_ptr<Rpc::Request> request,
+                         std::vector<std::shared_ptr<Rpc::Response>>& responseArray);
+    int onStandardDidAuth(std::shared_ptr<Rpc::Request> request,
+                          std::vector<std::shared_ptr<Rpc::Response>>& responseArray);
 
     std::string getServiceDid();
     void cleanExpiredChallenge();
@@ -72,7 +72,8 @@ private:
                 const std::map<const char*, std::string>& claimMap,
                 const std::map<const char*, int>& claimIntMap,
                 std::string& jwt);
-    int checkAuthToken(const char* jwt, CredentialInfo& credentialInfo);
+    int checkAuthToken(const std::string& userName, const std::string& jwtVP,
+                       CredentialInfo& credentialInfo);
     int adaptOldLogin(const CredentialInfo& credentialInfo);
     int createAccessToken(const CredentialInfo& credentialInfo,
                           int userIndex,

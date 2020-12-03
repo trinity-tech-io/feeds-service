@@ -14,6 +14,7 @@ struct Request {
 };
 
 struct Response {
+    std::string version;
     int64_t id = -1;
     MSGPACK_DEFINE_STRUCT(Response, MSGPACK_RESPONSE_ARGS);
 };
@@ -25,6 +26,51 @@ struct RequestWithToken : Request {
 
     DECLARE_DEFAULT_STRUCT(RequestWithToken);
     virtual const std::string& accessToken() = 0;
+};
+
+struct StandardSignInRequest : Request {
+    struct Params {
+        std::string document;
+        MSGPACK_DEFINE(document);
+    };
+
+    Params params;
+    MSGPACK_DEFINE_STRUCT(StandardSignInRequest,
+                          MSGPACK_REQUEST_ARGS, params);
+};
+
+struct StandardSignInResponse : Response {
+    struct Result {
+        std::string jwt_challenge;
+        MSGPACK_DEFINE(jwt_challenge);
+    };
+
+    Result result;
+    MSGPACK_DEFINE_STRUCT(StandardSignInResponse,
+                          MSGPACK_RESPONSE_ARGS, result);
+};
+
+struct StandardDidAuthRequest : Request {
+    struct Params {
+        std::string user_name;
+        std::string jwt_vp;
+        MSGPACK_DEFINE(user_name, jwt_vp);
+    };
+
+    Params params;
+    MSGPACK_DEFINE_STRUCT(StandardDidAuthRequest,
+                          MSGPACK_REQUEST_ARGS, params);
+};
+
+struct StandardDidAuthResponse : Response {
+    struct Result {
+        std::string access_token;
+        MSGPACK_DEFINE(access_token);
+    };
+
+    Result result;
+    MSGPACK_DEFINE_STRUCT(StandardDidAuthResponse,
+                          MSGPACK_RESPONSE_ARGS, result);
 };
 
 struct GetMultiCommentsRequest : RequestWithToken {

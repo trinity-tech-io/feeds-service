@@ -110,9 +110,10 @@ int ChannelMethod::onGetMultiComments(std::shared_ptr<Rpc::Request> request,
             commentsSize = sizeof(Rpc::GetMultiCommentsResponse) - sizeof(Rpc::GetMultiCommentsResponse::Result::comments);
         }
         if(response == nullptr) {
-            auto ptr = Rpc::Factory::MakeResponse(request->method);
-            response = std::dynamic_pointer_cast<Rpc::GetMultiCommentsResponse>(ptr);
+            auto responsePtr = Rpc::Factory::MakeResponse(request->method);
+            response = std::dynamic_pointer_cast<Rpc::GetMultiCommentsResponse>(responsePtr);
             CHECK_ASSERT(response != nullptr, ErrCode::RpcUnimplementedError);
+            response->version = request->version;
             response->id = request->id;
         }
         response->result.comments.push_back(std::move(comment));

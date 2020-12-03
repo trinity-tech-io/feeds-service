@@ -59,7 +59,11 @@ std::shared_ptr<Request> Factory::MakeRequest(const std::string& method)
 {
     std::shared_ptr<Request> request;
 
-    if(method == Method::GetMultiComments) {
+    if(method == Method::StandardSignIn) {
+        request = std::make_shared<StandardSignInRequest>();
+    } else if(method == Method::StandardDidAuth) {
+        request = std::make_shared<StandardDidAuthRequest>();
+    } else if(method == Method::GetMultiComments) {
         request = std::make_shared<GetMultiCommentsRequest>();
     } else {
         Log::D(Log::TAG, "RPC Factory ignore to make request from method: %s.", method.c_str());
@@ -72,7 +76,11 @@ std::shared_ptr<Response> Factory::MakeResponse(const std::string& method)
 {
     std::shared_ptr<Response> response;
 
-    if(method == Method::GetMultiComments) {
+    if(method == Method::StandardSignIn) {
+        response = std::make_shared<StandardSignInResponse>();
+    } else if(method == Method::StandardDidAuth) {
+        response = std::make_shared<StandardDidAuthResponse>();
+    } else if(method == Method::GetMultiComments) {
         response = std::make_shared<GetMultiCommentsResponse>();
     } else {
         Log::E(Log::TAG, "RPC Factory ignore to make response from method: %s.", method.c_str());

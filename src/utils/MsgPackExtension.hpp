@@ -39,7 +39,7 @@
     access_token
 
 #define MSGPACK_RESPONSE_ARGS \
-    id
+    version, id
 
 
 #endif /* _FEEDS_MSGPACK_EXTENSION_HPP_ */
