@@ -653,36 +653,6 @@ typedef struct {
 } NotifyPostResp;
 
 typedef struct {
-    char    *method;
-    uint64_t tsx_id;
-    struct {
-        char    *doc;
-    } params;
-} StandardSignInReq;
-
-typedef struct {
-    uint64_t tsx_id;
-    struct {
-        char* challenge;
-    } result;
-} StandardSignInResp;
-
-typedef struct {
-    char    *method;
-    uint64_t tsx_id;
-    struct {
-        char *vp;
-    } params;
-} StandardDidAuthReq;
-
-typedef struct {
-    uint64_t tsx_id;
-    struct {
-        char *access_token;
-    } result;
-} StandardDidAuthResp;
-
-typedef struct {
     char *method;
     char params[0];
 } Notif;
