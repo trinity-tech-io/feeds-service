@@ -121,13 +121,13 @@ int CommandHandler::process(const std::string& from, const std::vector<uint8_t>&
     ret = packResponse(req, resp, errCode, respData);
     CHECK_ERROR(ret);
 
-    Marshalled marshalledResp = {
-        respData.data(),
-        respData.size()
-    };
-    // Marshalled* marshalledResp = rc_zalloc(sizeof(Marshalled) + respData.size(), NULL);
+    Marshalled* marshalledResp = (Marshalled*)rc_zalloc(sizeof(Marshalled) + respData.size(), NULL);
+    marshalledResp->data = marshalledResp + 1;
+    marshalledResp->sz = respData.size();
+    memcpy(marshalledResp->data, respData.data(), respData.size());
 
-    msgq_enq(from.c_str(), &marshalledResp);
+    msgq_enq(from.c_str(), marshalledResp);
+    deref(marshalledResp);
 
     return 0;
 }
@@ -156,10 +156,13 @@ int CommandHandler::processAdvance(const std::string& from, const std::vector<ui
         int ret = Rpc::Factory::Marshal(response, respData);
         CHECK_ERROR(ret);
 
-        Marshalled marshalledResp = {
-            respData.data(),
-            respData.size()};
-        msgq_enq(from.c_str(), &marshalledResp);
+        Marshalled* marshalledResp = (Marshalled*)rc_zalloc(sizeof(Marshalled) + respData.size(), NULL);
+        marshalledResp->data = marshalledResp + 1;
+        marshalledResp->sz = respData.size();
+        memcpy(marshalledResp->data, respData.data(), respData.size());
+
+        msgq_enq(from.c_str(), marshalledResp);
+        deref(marshalledResp);
     }
 
     return 0;
