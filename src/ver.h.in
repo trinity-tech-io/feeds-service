@@ -24,6 +24,9 @@
 #define __VER_H__
 
 #define FEEDSD_VER "@PROJECT_VERSION@" "." "@GIT_COMMIT_ID@"
+#define FEEDSD_VERCODE ( @PROJECT_VERSION_MAJOR@ * 10000 \
+                       + @PROJECT_VERSION_MINOR@ * 100 \
+                       + @PROJECT_VERSION_PATCH@ )
 
 #define DB_VER 3U
 

@@ -583,6 +583,7 @@ typedef struct {
     uint64_t tsx_id;
     struct {
         char* version;
+        int64_t version_code;
     } result;
 } GetSrvVerResp;
 
