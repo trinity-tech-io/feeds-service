@@ -3896,11 +3896,12 @@ void hdl_get_srv_ver_req(ElaCarrier *c, const char *from, Req *base)
         .tsx_id = req->tsx_id,
         .result = {
             .version  = FEEDSD_VER,
+            .version_code  = FEEDSD_VERCODE,
         }
     };
     resp_marshal = rpc_marshal_get_srv_ver_resp(&resp);
     vlogD("get_service_version response: "
-          "{version: %s}", resp.result.version);
+          "{version: %s, version_code:%lld}", resp.result.version, resp.result.version_code);
 
 finally:
     if (resp_marshal) {

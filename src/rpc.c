@@ -5959,8 +5959,9 @@ Marshalled *rpc_marshal_get_srv_ver_resp(const GetSrvVerResp *resp)
     pack_map(pk, 3, {
         pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
-        pack_kv_map(pk, "result", 1, {
+        pack_kv_map(pk, "result", 2, {
             pack_kv_str(pk, "version", resp->result.version);
+            pack_kv_i64(pk, "version_code", resp->result.version_code);
         });
     });
 
