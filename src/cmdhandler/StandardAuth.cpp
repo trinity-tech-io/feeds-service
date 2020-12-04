@@ -187,9 +187,27 @@ int StandardAuth::onStandardSignIn(std::shared_ptr<Rpc::Request> request,
     crypto_random_nonce(nonce);
     crypto_nonce_to_str(nonce, nonceStr, sizeof(nonceStr));
 
+    auto vcPropCreater = [](Credential* vc, const char* key) -> const char* {
+        return Credential_GetProperty(vc, key);
+    };
+    auto vcPropDeleter = [](const char* ptr) -> void {
+        if(ptr != nullptr) {
+            free(const_cast<char*>(ptr));
+        }
+    };
+    auto serviceName = std::shared_ptr<const char>(vcPropCreater(feeds_vc, "name"), vcPropDeleter);
+    auto serviceDesc = std::shared_ptr<const char>(vcPropCreater(feeds_vc, "description"), vcPropDeleter);
+    auto serviceElaAddr = std::shared_ptr<const char>(vcPropCreater(feeds_vc, "elaAddress"), vcPropDeleter);
+
+    std::map<const char *, std::string> claimMap = {
+        {"nonce", std::string(nonceStr)},
+        {"name", std::string(serviceName.get() != nullptr ? serviceName.get() : "")},
+        {"description", std::string(serviceDesc.get() != nullptr ? serviceDesc.get() : "")},
+        {"elaAddress", std::string(serviceElaAddr.get() != nullptr ? serviceElaAddr.get() : "")},
+    };
     std::string challenge;
     ret = makeJwt(expiration, didStr, "DIDAuthChallenge",
-                  {{"nonce", std::string(nonceStr)}},
+                  claimMap,
                   {},
                   challenge);
     CHECK_ERROR(ret);
@@ -399,15 +417,23 @@ int StandardAuth::checkAuthToken(const std::string& userName, const std::string&
     count = Credential_GetPropertyCount(vc);
     CHECK_DIDSDK(count >= 1, ErrCode::AuthCredentialPropertyNotExists, "The credential property isn't exist.");
 
-    auto appDid = Credential_GetProperty(vc, "appDid");
-    CHECK_DIDSDK(appDid != nullptr, ErrCode::AuthCredentialPropertyAppIdNotExists, "The credential subject's id isn't exist.");
+    auto vcPropCreater = [](Credential* vc, const char* key) -> const char* {
+        return Credential_GetProperty(vc, key);
+    };
+    auto vcPropDeleter = [](const char* ptr) -> void {
+        if(ptr != nullptr) {
+            free(const_cast<char*>(ptr));
+        }
+    };
+    auto appDid = std::shared_ptr<const char>(vcPropCreater(vc, "appDid"), vcPropDeleter);
+    CHECK_DIDSDK(appDid.get() != nullptr, ErrCode::AuthCredentialPropertyAppIdNotExists, "The credential subject's id isn't exist.");
 
     bool expired = (authSecret.expiration < DateTime::Current());
     CHECK_ASSERT(expired == false, ErrCode::AuthNonceExpiredError);
 
     auto issuer = Credential_GetIssuer(vc);
     auto issuerDidStr = DID_ToString(issuer, didStrBuf, sizeof(didStrBuf));
-    credentialInfo.appDid = appDid;
+    credentialInfo.appDid = appDid.get();
     credentialInfo.userDid = issuerDidStr;
     credentialInfo.instanceDid = instanceDidStr;
 
