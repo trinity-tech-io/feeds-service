@@ -399,7 +399,7 @@ int StandardAuth::checkAuthToken(const std::string& userName, const std::string&
     count = Credential_GetPropertyCount(vc);
     CHECK_DIDSDK(count >= 1, ErrCode::AuthCredentialPropertyNotExists, "The credential property isn't exist.");
 
-    auto appDid = Credential_GetProperty(vc, "appId");
+    auto appDid = Credential_GetProperty(vc, "appDid");
     CHECK_DIDSDK(appDid != nullptr, ErrCode::AuthCredentialPropertyAppIdNotExists, "The credential subject's id isn't exist.");
 
     bool expired = (authSecret.expiration < DateTime::Current());
