@@ -62,7 +62,7 @@ int CommandHandler::config(const std::filesystem::path& dataDir,
     int ret = Listener::SetDataDir(dataDir);
     CHECK_ERROR(ret);
 
-    threadPool = std::make_shared<ThreadPool>("command-handler");
+    threadPool = ThreadPool::Create("command-handler");
     carrierHandler = carrier;
 
     cmdListener = std::move(std::vector<std::shared_ptr<Listener>> {

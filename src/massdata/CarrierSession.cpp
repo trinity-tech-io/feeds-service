@@ -173,7 +173,7 @@ CarrierSession::CarrierSession() noexcept
     , threadPool()
     , connectListener()
 {
-    threadPool = std::make_shared<ThreadPool>("carrier-session");
+    threadPool = ThreadPool::Create("carrier-session");
 }
 
 CarrierSession::~CarrierSession() noexcept

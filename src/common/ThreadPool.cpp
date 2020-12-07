@@ -13,6 +13,17 @@ namespace trinity {
 /***********************************************/
 /***** static function implement ***************/
 /***********************************************/
+std::shared_ptr<ThreadPool> ThreadPool::Create(const std::string& threadName, size_t threadCnt)
+{
+    struct Impl: ThreadPool {
+		explicit Impl(const std::string& threadName, size_t threadCnt)
+			: ThreadPool(threadName, threadCnt) {}
+		virtual ~Impl() {};
+    };
+    auto impl = std::make_shared<Impl>(threadName, threadCnt);
+
+    return impl;
+}
 
 
 /***********************************************/
@@ -26,10 +37,10 @@ ThreadPool::ThreadPool(const std::string& threadName, size_t threadCnt)
     , mTaskQueue()
     , mQuit(false)
 {
-    Log::D(Log::TAG, "Create threadpool:%s, count:%d", mThreadName.c_str(), threadCnt);
+    Log::D(Log::TAG, "Create threadpool [%s], count:%d", mThreadName.c_str(), threadCnt);
 
 	for(size_t idx = 0; idx < mThreadPool.size(); idx++) {
-		mThreadPool[idx] = std::thread(std::bind(&ThreadPool::processTaskQueue, this));
+		mThreadPool[idx] = std::thread(std::bind(&ThreadPool::processTaskQueue, this, mThreadName));
 	}
 }
 
@@ -58,7 +69,7 @@ ThreadPool::~ThreadPool()
 		}
 	}
     mThreadPool.clear();
-    Log::D(Log::TAG, "Destroy threadpool:%s", mThreadName.c_str());
+    Log::D(Log::TAG, "Destroy threadpool [%s]", mThreadName.c_str());
 }
 
 int ThreadPool::sleepMS(long milliSecond)
@@ -118,11 +129,10 @@ void ThreadPool::post(Task&& task)
 /***********************************************/
 /***** class private function implement  *******/
 /***********************************************/
-void ThreadPool::processTaskQueue(void)
+void ThreadPool::processTaskQueue(std::string threadName)
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-
 	do {
+		std::unique_lock<std::mutex> lock(mMutex);
 		//Wait until we have data or a quit signal
 		mCondition.wait(lock, [this]{
 			return (mTaskQueue.size() || mQuit);
@@ -135,20 +145,18 @@ void ThreadPool::processTaskQueue(void)
 			mTaskQueue.pop();
 
 			//unlock now that we're done messing with the queue
+			auto ptr = shared_from_this(); // hold this ptr to ignore release when task is processing
 			lock.unlock();
 
-			auto ptr = shared_from_this(); // hold this ptr to ignore release when task is processing
 			task();
 			if(ptr.use_count() == 1) { // only hold in this task, exit it.
 				break;
 			}
-
-			lock.lock();
 		}
 	} while (!mQuit);
 
 //	Platform::DetachCurrentThread();
-	Log::D(Log::TAG, "ThreadPool [%s] runnable exit.", mThreadName.c_str());
+	Log::D(Log::TAG, "ThreadPool [%s] runnable exit.", threadName.c_str());
 }
 
 } // namespace trinity
