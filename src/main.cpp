@@ -296,7 +296,7 @@ int transport_init(FeedsConfig *cfg)
         return ptr;
     };
     auto deleter = [=](ElaCarrier* ptr) -> void {
-        vlogD("Kill carrier instance.");
+        vlogD("Destroy carrier instance.");
         if(ptr != nullptr) {
             ela_kill(ptr);
         }

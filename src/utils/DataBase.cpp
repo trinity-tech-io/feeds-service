@@ -61,6 +61,8 @@ const char* DataBase::ConditionBy(ConditionField field, ConditionIdType idType)
 /* =========================================== */
 int DataBase::config(const std::filesystem::path& databaseFilePath)
 {
+    Log::D(Log::TAG, "Config database.");
+
     handler = std::make_shared<SQLite::Database>(databaseFilePath, SQLite::OPEN_READWRITE|SQLite::OPEN_CREATE);
     CHECK_ASSERT(handler != nullptr, ErrCode::DBOpenFailed);
 
@@ -76,6 +78,8 @@ void DataBase::cleanup()
 {
     db_deinit();
     DataBaseInstance.reset();
+
+    Log::D(Log::TAG, "Cleanup database.");
 }
 
 std::shared_ptr<SQLite::Database> DataBase::getHandler()
