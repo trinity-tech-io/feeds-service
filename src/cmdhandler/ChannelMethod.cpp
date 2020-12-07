@@ -68,10 +68,10 @@ int ChannelMethod::onGetMultiComments(std::shared_ptr<Rpc::Request> request,
 
     auto condBy = DataBase::ConditionBy(static_cast<DataBase::ConditionField>(params.by), DataBase::ConditionIdType::Comment);
     if(condBy != nullptr) {
-        if(params.lower_bound >= 0) {
+        if(params.lower_bound > 0) {
             sql << " AND " << condBy << " >= " << params.lower_bound;
         }
-        if(params.upper_bound >= 0) {
+        if(params.upper_bound > 0) {
             sql << " AND " << condBy << " <= " << params.upper_bound;
         }
         sql << " ORDER BY " << condBy << (params.by == DataBase::ConditionField::Id ? " ASC" : " DESC");
