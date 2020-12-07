@@ -81,6 +81,16 @@ int ChannelMethod::onGetMultiComments(std::shared_ptr<Rpc::Request> request,
     }
     sql << ";";
 
+    auto makeResponse = [&]() -> std::shared_ptr<Rpc::GetMultiCommentsResponse> {
+        auto responsePtr = Rpc::Factory::MakeResponse(request->method);
+        auto response = std::dynamic_pointer_cast<Rpc::GetMultiCommentsResponse>(responsePtr);
+        if(response != nullptr) {
+            response->version = request->version;
+            response->id = request->id;
+        }
+        return response;
+    };
+
     std::shared_ptr<Rpc::GetMultiCommentsResponse> response;
     auto commentsSize = sizeof(Rpc::GetMultiCommentsResponse) - sizeof(Rpc::GetMultiCommentsResponse::Result::comments);
     DataBase::Step step = [&](SQLite::Statement& stmt) -> int {
@@ -110,11 +120,8 @@ int ChannelMethod::onGetMultiComments(std::shared_ptr<Rpc::Request> request,
             commentsSize = sizeof(Rpc::GetMultiCommentsResponse) - sizeof(Rpc::GetMultiCommentsResponse::Result::comments);
         }
         if(response == nullptr) {
-            auto responsePtr = Rpc::Factory::MakeResponse(request->method);
-            response = std::dynamic_pointer_cast<Rpc::GetMultiCommentsResponse>(responsePtr);
+            response = makeResponse();
             CHECK_ASSERT(response != nullptr, ErrCode::RpcUnimplementedError);
-            response->version = request->version;
-            response->id = request->id;
         }
         response->result.comments.push_back(std::move(comment));
         commentsSize = nextCommentsSize;
@@ -128,10 +135,14 @@ int ChannelMethod::onGetMultiComments(std::shared_ptr<Rpc::Request> request,
     }
     CHECK_ERROR(ret);
 
-    if(response != nullptr) { // push last response
-        response->result.is_last = true;
-        responseArray.push_back(response);
+    if(response == nullptr) {
+        response = makeResponse();
+        CHECK_ASSERT(response != nullptr, ErrCode::RpcUnimplementedError);
     }
+
+    // push last response or empty response
+    response->result.is_last = true;
+    responseArray.push_back(response);
 
     return 0;
 }
