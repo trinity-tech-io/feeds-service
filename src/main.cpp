@@ -76,6 +76,8 @@ std::shared_ptr<ElaCarrier> carrier_instance;
 ElaCarrier *carrier;
 static bool stop;
 
+static void transport_deinit();
+
 static
 void on_receiving_message(ElaCarrier *c, const char *from,
                           const void *msg, size_t len, int64_t timestamp,
@@ -101,10 +103,7 @@ void idle_callback(ElaCarrier *c, void *context)
     (void)context;
 
     if (stop) {
-        // avoid clean session in idle thread, it will crash.
-        // trinity::MassDataManager::GetInstance()->cleanup();
-        carrier_instance.reset();
-        carrier = NULL;
+        transport_deinit();
         return;
     }
 
