@@ -61,6 +61,7 @@ static enum {
     VC_ISSED
 } state;
 static char *payload_buf;
+static pthread_t http_tid;
 
 typedef struct {
     UserInfo info;
@@ -327,7 +328,6 @@ int start_binding_svc(FeedsConfig *fc)
         .handler = hdl_http_req
     };
     sb_Server *http;
-    pthread_t tid;
     int rc;
 
     http = sb_new_server(&opts);
@@ -338,7 +338,7 @@ int start_binding_svc(FeedsConfig *fc)
     }
 
     http_is_running = true;
-    rc = pthread_create(&tid, NULL, http_server_routine, http);
+    rc = pthread_create(&http_tid, NULL, http_server_routine, http);
     if (rc) {
         vlogE("HTTP server failed to start");
         http_is_running = false;
@@ -348,7 +348,7 @@ int start_binding_svc(FeedsConfig *fc)
 
     vlogI("HTTP server started.");
 
-    pthread_detach(tid);
+    // pthread_detach(tid);
 
     return 0;
 }
@@ -357,6 +357,9 @@ static inline
 void stop_binding_svc()
 {
     http_is_running = false;
+
+    pthread_join(http_tid, NULL);
+    http_tid = 0;
 }
 
 static
