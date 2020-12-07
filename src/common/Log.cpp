@@ -8,6 +8,7 @@ namespace trinity {
 /***********************************************/
 /***** static variables initialize *************/
 /***********************************************/
+std::mutex Log::Mutex;
 
 /***********************************************/
 /***** static function implement ***************/
@@ -97,10 +98,14 @@ void Log::V(const char* tag, const char* format, ...)
 }
 
 std::string Log::GetFormatMethod(const std::string& prettyFunction) {
-  size_t colons = prettyFunction.find("::");
-  size_t begin = prettyFunction.substr(0,colons).rfind(" ") + 1;
-  size_t end = prettyFunction.rfind("(") - begin;
-  std::string method = prettyFunction.substr(begin,end) + "()";
+  auto colons = prettyFunction.find("::");
+  if(colons == prettyFunction.npos) {
+    return prettyFunction;
+  }
+
+  auto begin = prettyFunction.substr(0,colons).rfind(" ") + 1;
+  auto end = prettyFunction.rfind("(") - begin;
+  auto method = prettyFunction.substr(begin, end) + "()";
   return method;
 }
 
@@ -120,6 +125,8 @@ std::string Log::GetFormatMethod(const std::string& prettyFunction) {
 void Log::Print(int level, const char* tag, const char* format, va_list ap)
 {
   std::ignore = tag;
+
+  std::unique_lock<std::mutex> lock(Mutex);
 
 #ifndef NDEBUG
   auto prefix = ConvColor(level);

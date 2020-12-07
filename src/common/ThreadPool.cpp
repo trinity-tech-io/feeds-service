@@ -46,12 +46,13 @@ ThreadPool::ThreadPool(const std::string& threadName, size_t threadCnt)
 
 ThreadPool::~ThreadPool()
 {
-	std::unique_lock<std::mutex> lock(mMutex);
-	mQuit = true;
-    auto empty = std::queue<Task>();
-    std::swap(mTaskQueue, empty); // mTaskQueue.clear();
-	lock.unlock();
-	mCondition.notify_all();
+	{
+		std::unique_lock<std::mutex> lock(mMutex);
+		mQuit = true;
+		auto empty = std::queue<Task>();
+		std::swap(mTaskQueue, empty); // mTaskQueue.clear();
+		mCondition.notify_all();
+	}
 
 	// Wait for threads to finish before we exit
 	for(size_t idx = 0; idx < mThreadPool.size(); idx++) {
