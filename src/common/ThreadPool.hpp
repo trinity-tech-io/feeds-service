@@ -18,11 +18,9 @@ public:
     using Task = std::function<void()>;
 
     /*** static function and variable ***/
+    static std::shared_ptr<ThreadPool> Create(const std::string& threadName, size_t threadCnt = 1);
 
     /*** class function and variable ***/
-    explicit ThreadPool(const std::string& threadName, size_t threadCnt = 1);
-    virtual ~ThreadPool();
-
     int sleepMS(long milliSecond);
 
     // post and copy
@@ -36,15 +34,17 @@ protected:
     /*** static function and variable ***/
 
     /*** class function and variable ***/
+    explicit ThreadPool(const std::string& threadName, size_t threadCnt);
+    virtual ~ThreadPool();
+
+    void processTaskQueue(std::string threadName);
+
     std::string mThreadName;
     std::vector<std::thread> mThreadPool;
     std::mutex mMutex;
     std::condition_variable mCondition;
     std::queue<Task> mTaskQueue;
     bool mQuit;
-
-    void processTaskQueue(void);
-
 }; // class ThreadPool
 
 } // namespace trinity
