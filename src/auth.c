@@ -649,7 +649,10 @@ UserInfo *create_uinfo_from_access_token(const char *token_marshal)
         goto finally;
     }
 
-    uinfo->info.did   = (char *)JWT_GetSubject(token);
+    uinfo->info.did = (char *)JWT_GetClaim(token, "userDid");
+    if (!uinfo->info.did) {
+        uinfo->info.did   = (char *)JWT_GetSubject(token);
+    }
     uinfo->info.uid   = JWT_GetClaimAsInteger(token, "uid");
     uinfo->info.name  = (char *)JWT_GetClaim(token, "name");
     uinfo->info.email = (char *)JWT_GetClaim(token, "email");
