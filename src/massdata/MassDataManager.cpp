@@ -42,6 +42,7 @@ int MassDataManager::config(const std::filesystem::path& dataDir,
                             std::weak_ptr<ElaCarrier> carrier)
 {
     massDataDir = dataDir / MassData::MassDataDirName;
+    Log::D(Log::TAG, "Config mass data manager. Data saved to: %s", massDataDir.c_str());
 
     Log::D(Log::TAG, "Mass data saved to: %s", massDataDir.c_str());
     auto dirExists = std::filesystem::exists(massDataDir);
@@ -60,9 +61,12 @@ int MassDataManager::config(const std::filesystem::path& dataDir,
 
 void MassDataManager::cleanup()
 {
+    clearAllDataPipe();
     CarrierSession::Factory::Uninit();
 
     MassDataMgrInstance.reset();
+
+    Log::D(Log::TAG, "Cleanup mass data manager.");
 }
 
 /* =========================================== */

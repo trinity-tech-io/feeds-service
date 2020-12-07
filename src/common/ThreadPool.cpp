@@ -57,13 +57,13 @@ ThreadPool::~ThreadPool()
 	for(size_t idx = 0; idx < mThreadPool.size(); idx++) {
 		auto& it = mThreadPool[idx];
 		if(it.joinable() && it.get_id() != std::this_thread::get_id()) {
-            Log::D(Log::TAG, "ThreadPool [%s] Joining thread %d until completion. tid=%d:%d",
+            Log::D(Log::TAG, "ThreadPool [%s] Joining thread %d until completion. tid=%lld:%lld",
             		         mThreadName.c_str(), idx, it.get_id(), std::this_thread::get_id());
 			it.join();
-            Log::D(Log::TAG, "ThreadPool [%s] Joined thread %d until completion. tid=%d:%d",
+            Log::D(Log::TAG, "ThreadPool [%s] Joined thread %d until completion. tid=%lld:%lld",
             		         mThreadName.c_str(), idx, it.get_id(), std::this_thread::get_id());
 		} else {
-            Log::D(Log::TAG, "ThreadPool [%s] Ignore to Join thread %d until completion. tid=%d:%d",
+            Log::D(Log::TAG, "ThreadPool [%s] Ignore to Join thread %d until completion. tid=%lld:%lld",
             		         mThreadName.c_str(), idx, it.get_id(), std::this_thread::get_id());
 			it.detach();
 		}

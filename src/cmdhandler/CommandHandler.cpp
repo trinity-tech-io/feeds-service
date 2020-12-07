@@ -59,6 +59,7 @@ void CommandHandler::PrintElaCarrierError(const std::string& errReason)
 int CommandHandler::config(const std::filesystem::path& dataDir,
                            std::weak_ptr<ElaCarrier> carrier)
 {
+    Log::D(Log::TAG, "Config command handler.");
     int ret = Listener::SetDataDir(dataDir);
     CHECK_ERROR(ret);
 
@@ -82,6 +83,8 @@ void CommandHandler::cleanup()
     threadPool.reset();
     carrierHandler.reset();
     cmdListener.clear();
+
+    Log::D(Log::TAG, "Cleanup command handler.");
 }
 
 std::weak_ptr<ElaCarrier> CommandHandler::getCarrierHandler()
