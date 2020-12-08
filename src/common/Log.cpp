@@ -8,7 +8,6 @@ namespace trinity {
 /***********************************************/
 /***** static variables initialize *************/
 /***********************************************/
-std::mutex Log::Mutex;
 
 /***********************************************/
 /***** static function implement ***************/
@@ -125,8 +124,6 @@ std::string Log::GetFormatMethod(const std::string& prettyFunction) {
 void Log::Print(int level, const char* tag, const char* format, va_list ap)
 {
   std::ignore = tag;
-
-  std::lock_guard<decltype(Mutex)> lock(Mutex);
 
 #ifndef NDEBUG
   auto prefix = ConvColor(level);

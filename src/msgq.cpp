@@ -20,6 +20,7 @@
  * SOFTWARE.
  */
 
+#include <mutex>
 #include <ela_carrier.h>
 #include <crystal.h>
 
@@ -42,40 +43,47 @@ typedef struct {
 extern ElaCarrier *carrier;
 
 static hashtable_t *msgqs;
+static std::mutex mutex;
 
 static inline
 MsgQ *msgq_get(const char *peer)
 {
+    std::lock_guard<decltype(mutex)> lock(mutex);
     return (MsgQ*)hashtable_get(msgqs, peer, strlen(peer));
 }
 
 static inline
 MsgQ *msgq_put(MsgQ *q)
 {
+    std::lock_guard<decltype(mutex)> lock(mutex);
     return (MsgQ*)hashtable_put(msgqs, &q->he);
 }
 
 static inline
 MsgQ *msgq_rm(const char *peer)
 {
+    std::lock_guard<decltype(mutex)> lock(mutex);
     return (MsgQ*)hashtable_remove(msgqs, peer, strlen(peer));
 }
 
 static inline
 Msg *msgq_pop_head(MsgQ *q)
 {
+    std::lock_guard<decltype(mutex)> lock(mutex);
     return (Msg*)(list_is_empty(q->q) ? NULL : list_pop_head(q->q));
 }
 
 static inline
 void msgq_push_tail(MsgQ *q, Msg *m)
 {
+    std::lock_guard<decltype(mutex)> lock(mutex);
     list_push_tail(q->q, &m->le);
 }
 
 static
 void msg_dtor(void *obj)
 {
+    std::lock_guard<decltype(mutex)> lock(mutex);
     Msg *msg = (Msg*)obj;
 
     deref(msg->data);
@@ -84,6 +92,7 @@ void msg_dtor(void *obj)
 static
 Msg *msg_create(Marshalled *msg)
 {
+    std::lock_guard<decltype(mutex)> lock(mutex);
     Msg *m = (Msg*)rc_zalloc(sizeof(Msg), msg_dtor);
     if (!m)
         return NULL;
@@ -97,6 +106,7 @@ Msg *msg_create(Marshalled *msg)
 static
 void msgq_dtor(void *obj)
 {
+    std::lock_guard<decltype(mutex)> lock(mutex);
     MsgQ *q = (MsgQ*)obj;
 
     deref(q->q);
@@ -105,6 +115,7 @@ void msgq_dtor(void *obj)
 static
 MsgQ *msgq_create(const char *to)
 {
+    std::lock_guard<decltype(mutex)> lock(mutex);
     MsgQ *q = (MsgQ*)rc_zalloc(sizeof(MsgQ), msgq_dtor);
     if (!q)
         return NULL;
