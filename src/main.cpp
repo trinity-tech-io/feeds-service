@@ -74,7 +74,7 @@ static const char *resolver = "http://api.elastos.io:20606";
 size_t connecting_clients;
 std::shared_ptr<ElaCarrier> carrier_instance;
 ElaCarrier *carrier;
-static bool stop;
+static std::atomic<bool> stop;
 
 static void transport_deinit();
 

@@ -126,7 +126,7 @@ void Log::Print(int level, const char* tag, const char* format, va_list ap)
 {
   std::ignore = tag;
 
-  std::unique_lock<std::mutex> lock(Mutex);
+  std::lock_guard<decltype(Mutex)> lock(Mutex);
 
 #ifndef NDEBUG
   auto prefix = ConvColor(level);
@@ -141,7 +141,7 @@ void Log::Print(int level, const char* tag, const char* format, va_list ap)
 #endif
 }
 
-inline const char* Log::ConvColor(int level)
+const char* Log::ConvColor(int level)
 {
   const char* ret = "\033[00m";
 
