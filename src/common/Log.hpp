@@ -32,7 +32,6 @@ private:
   static void Print(int level, const char* tag, const char* format, va_list ap);
   static const char* ConvColor(int level);
 
-  static std::mutex Mutex;
   /*** class function and variable ***/
   explicit Log() = delete;
   virtual ~Log() = delete;
