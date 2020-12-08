@@ -50,7 +50,6 @@ Credential *feeds_vc;
 
 static char qrcode_path[PATH_MAX];
 static DIDStore *feeds_didstore;
-static bool http_is_running;
 static DID *feeds_did;
 static char nonce_str[NONCE_BYTES << 1];
 static char feeds_url[1024];
@@ -61,6 +60,8 @@ static enum {
     VC_ISSED
 } state;
 static char *payload_buf;
+static pthread_mutex_t http_mutex = PTHREAD_MUTEX_INITIALIZER;
+static bool http_is_running;
 static pthread_t http_tid;
 
 typedef struct {
@@ -310,8 +311,14 @@ void *http_server_routine(void *arg)
 {
     sb_Server *http = arg;
 
-    while (http_is_running)
+    bool running = true;
+    do {
         sb_poll_server(http, 10);
+
+        pthread_mutex_lock(&http_mutex);
+        running = http_is_running;
+        pthread_mutex_unlock(&http_mutex);
+    } while (running);
 
     sb_close_server(http);
 
@@ -337,8 +344,10 @@ int start_binding_svc(FeedsConfig *fc)
         return -1;
     }
 
+    pthread_mutex_lock(&http_mutex);
     http_is_running = true;
     rc = pthread_create(&http_tid, NULL, http_server_routine, http);
+    pthread_mutex_unlock(&http_mutex);
     if (rc) {
         vlogE("HTTP server failed to start");
         http_is_running = false;
@@ -356,7 +365,9 @@ int start_binding_svc(FeedsConfig *fc)
 static inline
 void stop_binding_svc()
 {
+    pthread_mutex_lock(&http_mutex);
     http_is_running = false;
+    pthread_mutex_unlock(&http_mutex);
 
     pthread_join(http_tid, NULL);
     http_tid = 0;
@@ -365,6 +376,7 @@ void stop_binding_svc()
 static
 void oinfo_clear()
 {
+    pthread_mutex_lock(&http_mutex);
     if (feeds_owner_info.did)
         free(feeds_owner_info.did);
 
@@ -373,6 +385,8 @@ void oinfo_clear()
 
     if (feeds_owner_info.email)
         free(feeds_owner_info.email);
+
+    pthread_mutex_unlock(&http_mutex);
 
     memset(&feeds_owner_info, 0, sizeof(feeds_owner_info));
 }
@@ -399,10 +413,12 @@ void did_deinit()
 static
 int oinfo_init(const UserInfo *ui)
 {
+    pthread_mutex_lock(&http_mutex);
     feeds_owner_info.uid = ui->uid;
     feeds_owner_info.did = strdup(ui->did);
     feeds_owner_info.name = strdup(ui->name);
     feeds_owner_info.email = strdup(ui->email);
+    pthread_mutex_unlock(&http_mutex);
 
     if (!feeds_owner_info.did || !feeds_owner_info.name || !feeds_owner_info.email) {
         oinfo_clear();
@@ -428,8 +444,10 @@ int oinfo_upd(const UserInfo *ui)
         return -1;
     }
 
+    pthread_mutex_lock(&http_mutex);
     free(feeds_owner_info.name);
     free(feeds_owner_info.email);
+    pthread_mutex_unlock(&http_mutex);
 
     feeds_owner_info.name = name;
     feeds_owner_info.email = email;
