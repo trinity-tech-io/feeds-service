@@ -39,6 +39,7 @@ ThreadPool::ThreadPool(const std::string& threadName, size_t threadCnt)
 {
     Log::D(Log::TAG, "Create threadpool [%s], count:%d", mThreadName.c_str(), threadCnt);
 
+	std::unique_lock<std::mutex> lock(mMutex);
 	for(size_t idx = 0; idx < mThreadPool.size(); idx++) {
 		mThreadPool[idx] = std::thread(std::bind(&ThreadPool::processTaskQueue, this, mThreadName));
 	}
@@ -116,9 +117,9 @@ void ThreadPool::post(Task&& task)
 	std::unique_lock<std::mutex> lock(mMutex);
 	mTaskQueue.push(std::move(task));
 
-	// Manual unlocking is done before notifying, to avoid waking up
-    // the waiting thread only to block again (see notify_one for details)
-	lock.unlock();
+	// // Manual unlocking is done before notifying, to avoid waking up
+    // // the waiting thread only to block again (see notify_one for details)
+	// lock.unlock();
 	mCondition.notify_all();
 }
 
