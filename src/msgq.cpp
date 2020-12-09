@@ -43,7 +43,7 @@ typedef struct {
 extern ElaCarrier *carrier;
 
 static hashtable_t *msgqs;
-static std::mutex mutex;
+static std::recursive_mutex mutex;
 
 static inline
 MsgQ *msgq_get(const char *peer)
