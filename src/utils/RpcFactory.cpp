@@ -65,8 +65,6 @@ std::shared_ptr<Request> Factory::MakeRequest(const std::string& method)
         request = std::make_shared<StandardDidAuthRequest>();
     } else if(method == Method::GetMultiComments) {
         request = std::make_shared<GetMultiCommentsRequest>();
-    } else {
-        Log::D(Log::TAG, "RPC Factory ignore to make request from method: %s.", method.c_str());
     }
 
     return request;
