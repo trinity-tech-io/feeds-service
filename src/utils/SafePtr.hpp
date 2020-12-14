@@ -8,7 +8,7 @@
 ({                                                                                                  \
     auto ptr = weakptr.lock();                                                                      \
     if(ptr.get() == nullptr) {                                                                      \
-        Log::E(Log::TAG, "Failed to get saft ptr from " #weakptr " at %s(%d)", __FILE__, __LINE__); \
+        Log::E(Log::Tag::Err, "Failed to get saft ptr from " #weakptr " at %s(%d)", __FILE__, __LINE__); \
         return trinity::ErrCode::PointerReleasedError;                                                       \
     }                                                                                               \
     ptr;                                                                                            \
@@ -18,7 +18,7 @@
 ({                                                                                                  \
     auto ptr = weakptr.lock();                                                                      \
     if(ptr.get() == nullptr) {                                                                      \
-        Log::E(Log::TAG, "Failed to get saft ptr from " #weakptr " at %s(%d)", __FILE__, __LINE__); \
+        Log::E(Log::Tag::Err, "Failed to get saft ptr from " #weakptr " at %s(%d)", __FILE__, __LINE__); \
         return;                                                                                     \
     }                                                                                               \
     ptr;                                                                                            \
@@ -28,7 +28,7 @@
 ({                                                                                                  \
     auto ptr = weakptr.lock();                                                                      \
     if(ptr.get() == nullptr) {                                                                      \
-        Log::E(Log::TAG, "Failed to get saft ptr from " #weakptr " at %s(%d)", __FILE__, __LINE__); \
+        Log::E(Log::Tag::Err, "Failed to get saft ptr from " #weakptr " at %s(%d)", __FILE__, __LINE__); \
         return retval;                                                                                     \
     }                                                                                               \
     ptr;                                                                                            \
@@ -38,7 +38,7 @@
 ({                                                                                                  \
     auto ptr = weakptr.lock();                                                                      \
     if(ptr.get() == nullptr) {                                                                      \
-        Log::E(Log::TAG, "Failed to get saft ptr from " #weakptr " at %s(%d)", __FILE__, __LINE__); \
+        Log::E(Log::Tag::Err, "Failed to get saft ptr from " #weakptr " at %s(%d)", __FILE__, __LINE__); \
         return trinity::ErrCode::PointerReleasedError;                                                       \
     }                                                                                               \
     ptr;                                                                                            \

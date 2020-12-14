@@ -26,8 +26,8 @@ namespace trinity {
 
 #define CHECK_DIDSDK(expr, errCode, errDesp) \
     if(!(expr)) { \
-        Log::E(Log::TAG, errDesp); \
-        Log::D(Log::TAG, "Did sdk errCode:0x%x, errDesc:%s", \
+        Log::E(Log::Tag::Cmd, errDesp); \
+        Log::D(Log::Tag::Cmd, "Did sdk errCode:0x%x, errDesc:%s", \
                DIDError_GetCode(), DIDError_GetMessage()); \
         CHECK_ERROR(errCode); \
     }
@@ -47,7 +47,7 @@ std::filesystem::path StandardAuth::GetLocalDocDir()
         dirExists = std::filesystem::create_directories(localDocDir);
     }
     if(dirExists == false) {
-        Log::E(Log::TAG, "No such directory: %s", localDocDir.c_str());
+        Log::E(Log::Tag::Cmd, "No such directory: %s", localDocDir.c_str());
         localDocDir.clear();
     }
 
@@ -73,7 +73,7 @@ int StandardAuth::SaveLocalDIDDocument(DID* did, DIDDocument* doc)
     CHECK_DIDSDK(docStr != nullptr, ErrCode::AuthBadDidDoc, "Failed to format did document to json.");
 
     auto docFilePath = localDocDir / DID_GetMethodSpecificId(did);
-    Log::D(Log::TAG, "Save did document to local: %s", docFilePath.c_str());
+    Log::D(Log::Tag::Cmd, "Save did document to local: %s", docFilePath.c_str());
     std::fstream docStream;
     docStream.open(docFilePath, std::ios::binary | std::ios::out);
     docStream.seekg(0);
@@ -100,7 +100,7 @@ DIDDocument* StandardAuth::LoadLocalDIDDocument(DID* did)
 
     auto localDocDir = GetLocalDocDir();
     if(localDocDir.empty() == true) {
-        Log::E(Log::TAG, "Local did document directory is not set.");
+        Log::E(Log::Tag::Cmd, "Local did document directory is not set.");
         return nullptr;
     };
 
@@ -109,7 +109,7 @@ DIDDocument* StandardAuth::LoadLocalDIDDocument(DID* did)
     if(fileExists == false) {
         return nullptr;
     }
-    // Log::D(Log::TAG, "Load did document from local: %s", docFilePath.c_str());
+    // Log::D(Log::Tag::Cmd, "Load did document from local: %s", docFilePath.c_str());
 
     auto docSize = std::filesystem::file_size(docFilePath);
     char docStr[docSize];
@@ -175,7 +175,7 @@ int StandardAuth::onStandardSignIn(std::shared_ptr<Rpc::Request> request,
     char didStrBuf[ELA_MAX_DID_LEN];
     auto didStr = DID_ToString(did, didStrBuf, sizeof(didStrBuf));
     CHECK_DIDSDK(didStr, ErrCode::AuthBadDidString, "Failed to get did string.");
-    Log::D(Log::TAG, "Sign in Did: %s", didStr);
+    Log::D(Log::Tag::Cmd, "Sign in Did: %s", didStr);
 
     int ret = SaveLocalDIDDocument(did, didDoc.get());
     CHECK_DIDSDK(ret >= 0, ErrCode::AuthSaveDocFailed, "Failed to save did document to local.");

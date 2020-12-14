@@ -5,22 +5,22 @@
 file( GLOB MASSDATA_SOURCES "*.cpp" )
 
 if(${CMAKE_VERSION} VERSION_LESS "3.12")
-    add_library(massdata STATIC ${MASSDATA_SOURCES})
+    add_library(feedsd-ext STATIC ${MASSDATA_SOURCES})
 else()
-    add_library(massdata OBJECT ${MASSDATA_SOURCES})
+    add_library(feedsd-ext OBJECT ${MASSDATA_SOURCES})
 endif()
+add_dependencies(feedsd-ext
+    cvector
+    libcrystal
+    sqlitecpp-static)
 
-target_include_directories(massdata PUBLIC
+target_include_directories(feedsd-ext PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}")
-target_include_directories(massdata PRIVATE
+target_include_directories(feedsd-ext PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
-target_link_libraries(massdata PUBLIC
+target_link_libraries(feedsd-ext PUBLIC
     utils
-    cmdhandler
-    cvector
-    libcrystal-shared
-    libelacarrier-shared
-    msgpackc)
+    sqlitecpp-static)
 
 set(CMAKE_INCLUDE_CURRENT_DIR TRUE)

@@ -42,9 +42,9 @@ int MassDataManager::config(const std::filesystem::path& dataDir,
                             std::weak_ptr<ElaCarrier> carrier)
 {
     massDataDir = dataDir / MassData::MassDataDirName;
-    Log::D(Log::TAG, "Config mass data manager. Data saved to: %s", massDataDir.c_str());
+    Log::D(Log::Tag::Msg, "Config mass data manager. Data saved to: %s", massDataDir.c_str());
 
-    Log::D(Log::TAG, "Mass data saved to: %s", massDataDir.c_str());
+    Log::D(Log::Tag::Msg, "Mass data saved to: %s", massDataDir.c_str());
     auto dirExists = std::filesystem::exists(massDataDir);
     if(dirExists == false) {
         auto dirExists = std::filesystem::create_directories(massDataDir);
@@ -66,7 +66,7 @@ void MassDataManager::cleanup()
 
     MassDataMgrInstance.reset();
 
-    Log::D(Log::TAG, "Cleanup mass data manager.");
+    Log::D(Log::Tag::Msg, "Cleanup mass data manager.");
 }
 
 /* =========================================== */
@@ -80,7 +80,7 @@ void MassDataManager::cleanup()
 void MassDataManager::onSessionRequest(std::weak_ptr<ElaCarrier> carrier,
                                        const std::string& from, const std::string& sdp)
 {
-    Log::D(Log::TAG, "Received carrier session request from %s. sdp:\n%s",
+    Log::D(Log::Tag::Msg, "Received carrier session request from %s. sdp:\n%s",
                      from.c_str(), sdp.c_str());
 
     auto dataPipe = std::make_shared<DataPipe>();
@@ -104,19 +104,19 @@ void MassDataManager::onSessionRequest(std::weak_ptr<ElaCarrier> carrier,
 
 void MassDataManager::appendDataPipe(const std::string& key, std::shared_ptr<MassDataManager::DataPipe> value)
 {
-    Log::D(Log::TAG, "append datapipe key=%s,val=%p", key.c_str(), value->session.get());
+    Log::D(Log::Tag::Msg, "append datapipe key=%s,val=%p", key.c_str(), value->session.get());
     dataPipeMap[key] = value;
 }
 
 void MassDataManager::removeDataPipe(const std::string& key)
 {
-    Log::D(Log::TAG, "remove datapipe key=%s", key.c_str());
+    Log::D(Log::Tag::Msg, "remove datapipe key=%s", key.c_str());
     dataPipeMap.erase(key);
 }
 
 void MassDataManager::clearAllDataPipe()
 {
-    Log::D(Log::TAG, "clear all datapipe.");
+    Log::D(Log::Tag::Msg, "clear all datapipe.");
     dataPipeMap.clear();
 }
 
@@ -143,7 +143,7 @@ std::shared_ptr<CarrierSession::ConnectListener> MassDataManager::makeConnectLis
         }
 
         virtual void onNotify(Notify notify, int errCode) override {
-            Log::D(Log::TAG, "Session nofify: notify:%s, errCode:%d", toString(notify), errCode);
+            Log::D(Log::Tag::Msg, "Session nofify: notify:%s, errCode:%d", toString(notify), errCode);
 
             if(notify == Notify::Closed
             || notify == Notify::Error) {
@@ -176,7 +176,7 @@ std::shared_ptr<SessionParser::OnUnpackedListener> MassDataManager::makeUnpacked
             const std::vector<uint8_t>& headData,
             const std::filesystem::path& bodyPath) -> void
     {
-        Log::D(Log::TAG, "MassData: start to process unpacked data.");
+        Log::D(Log::Tag::Msg, "MassData: start to process unpacked data.");
         auto weakPtr = this->weak_from_this();
         auto mgrPtr = SAFE_GET_PTR_NO_RETVAL(weakPtr);
 
@@ -213,7 +213,7 @@ std::shared_ptr<SessionParser::OnUnpackedListener> MassDataManager::makeUnpacked
             future.get();
         }
 
-        Log::D(Log::TAG, "MassData: finish to process unpacked data.");
+        Log::D(Log::Tag::Msg, "MassData: finish to process unpacked data.");
     });
 
     return unpackedListener;

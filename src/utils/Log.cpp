@@ -1,6 +1,6 @@
 #include "Log.hpp"
 
-#include <iostream>
+#include <sstream>
 #include <crystal/vlog.h>
 
 namespace trinity {
@@ -123,19 +123,21 @@ std::string Log::GetFormatMethod(const std::string& prettyFunction) {
 /***********************************************/
 void Log::Print(int level, const char* tag, const char* format, va_list ap)
 {
-  std::ignore = tag;
+  std::stringstream prettyFormat;
 
 #ifndef NDEBUG
   auto prefix = ConvColor(level);
-  std::cerr << prefix;
+  prettyFormat << prefix;
 #endif
 
-  vlogv(level, format, ap);
+  prettyFormat << "[" << tag << "]: " << format;
 
 #ifndef NDEBUG
   auto suffix = ConvColor(-1);
-  std::cerr << suffix;
+  prettyFormat << suffix;
 #endif
+
+  vlogv(level, prettyFormat.str().c_str(), ap);
 }
 
 const char* Log::ConvColor(int level)

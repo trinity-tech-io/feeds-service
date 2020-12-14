@@ -81,7 +81,7 @@ std::shared_ptr<Response> Factory::MakeResponse(const std::string& method)
     } else if(method == Method::GetMultiComments) {
         response = std::make_shared<GetMultiCommentsResponse>();
     } else {
-        Log::E(Log::TAG, "RPC Factory ignore to make response from method: %s.", method.c_str());
+        Log::E(Log::Tag::Rpc, "RPC Factory ignore to make response from method: %s.", method.c_str());
     }
 
     return response;

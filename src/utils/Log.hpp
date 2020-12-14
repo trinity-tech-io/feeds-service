@@ -22,7 +22,15 @@ public:
   static void V(const char* tag, const char* format, ...);
   static std::string GetFormatMethod(const std::string& prettyFunction);
 
-  static constexpr const char *TAG = "trinity";
+  struct Tag {
+    static constexpr const char *Err = "Feedsd.Err";
+    static constexpr const char *Utils = "Feedsd.Utils";
+
+    static constexpr const char *Msg = "Feedsd.Msg";
+    static constexpr const char *Rpc = "Feedsd.Rpc";
+    static constexpr const char *Cmd = "Feedsd.Cmd";
+    static constexpr const char *Db = "Feedsd.Db";
+  };
   /*** class function and variable ***/
 
 private:

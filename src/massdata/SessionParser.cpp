@@ -106,7 +106,7 @@ int SessionParser::unpackProtocol(const std::vector<uint8_t>& data, int offset)
      // protocal info has been parsed, value data is body payload, return directly.
     if(protocol != nullptr
     && protocol->info.headSize == protocol->payload->headData.size()) {
-        // Log::D(Log::TAG, "Protocol has been parsed.");
+        // Log::D(Log::Tag::Msg, "Protocol has been parsed.");
         return 0;
     }
 
@@ -123,14 +123,14 @@ int SessionParser::unpackProtocol(const std::vector<uint8_t>& data, int offset)
             }
         }
         if(garbageIdx > 0) {
-            Log::W(Log::TAG, "Remove garbage size %d", garbageIdx);
+            Log::W(Log::Tag::Msg, "Remove garbage size %d", garbageIdx);
             cachingData.erase(cachingData.begin(), cachingData.begin() + garbageIdx);
             cachingDataPrevSize -= garbageIdx; // recompute valid data of previous cache.
         }
 
         // return and parse next time if data is not enough to parse info.
         if(cachingData.size() < sizeof(Protocol::Info)) {
-            Log::D(Log::TAG, "Protocol info data is not enough.");
+            Log::D(Log::Tag::Msg, "Protocol info data is not enough.");
             return ErrCode::CarrierSessionDataNotEnough;
         }
 
@@ -151,7 +151,7 @@ int SessionParser::unpackProtocol(const std::vector<uint8_t>& data, int offset)
         auto netOrderVersion = *((typeof(protocol->info.version)*)(dataPtr));
         protocol->info.version = ntoh(netOrderVersion);
         if(protocol->info.version != Protocol::Version_01_00_00) {
-            Log::W(Log::TAG, "Unsupperted version %u", protocol->info.version);
+            Log::W(Log::Tag::Msg, "Unsupperted version %u", protocol->info.version);
             return ErrCode::CarrierSessionUnsuppertedVersion;
         }
         dataPtr += sizeof(protocol->info.version);
@@ -164,12 +164,12 @@ int SessionParser::unpackProtocol(const std::vector<uint8_t>& data, int offset)
         protocol->info.bodySize = ntoh(netOrderBodySize);
         dataPtr += sizeof(protocol->info.bodySize);
 
-        Log::D(Log::TAG, "Receiving session body start.");
+        Log::D(Log::Tag::Msg, "Receiving session body start.");
     }
 
     // return and parse next time if data is not enough to save as head data.
     if(cachingData.size() < (sizeof(protocol->info) + protocol->info.headSize)) {
-        Log::D(Log::TAG, "Protocol head data is not enough. caching size: %d", cachingData.size());
+        Log::D(Log::Tag::Msg, "Protocol head data is not enough. caching size: %d", cachingData.size());
         return ErrCode::CarrierSessionDataNotEnough;
     }
 
@@ -194,7 +194,7 @@ int SessionParser::unpackBodyData(const std::vector<uint8_t>& data, int offset,
     protocol->payload->bodyData.receivedBodySize += realSize;
 
     if(protocol->payload->bodyData.receivedBodySize == protocol->info.bodySize) {
-        Log::D(Log::TAG, "Receiving session body finished.");
+        Log::D(Log::Tag::Msg, "Receiving session body finished.");
 
         if(listener != nullptr) {
             protocol->payload->bodyData.stream.flush();

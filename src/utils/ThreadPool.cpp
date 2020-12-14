@@ -37,7 +37,7 @@ ThreadPool::ThreadPool(const std::string& threadName, size_t threadCnt)
     , mTaskQueue()
     , mQuit(false)
 {
-    Log::D(Log::TAG, "Create threadpool [%s], count:%d", mThreadName.c_str(), threadCnt);
+    Log::D(Log::Tag::Utils, "Create threadpool [%s], count:%d", mThreadName.c_str(), threadCnt);
 
 	std::unique_lock<std::mutex> lock(mMutex);
 	for(size_t idx = 0; idx < mThreadPool.size(); idx++) {
@@ -59,19 +59,19 @@ ThreadPool::~ThreadPool()
 	for(size_t idx = 0; idx < mThreadPool.size(); idx++) {
 		auto& it = mThreadPool[idx];
 		if(it.joinable() && it.get_id() != std::this_thread::get_id()) {
-            Log::D(Log::TAG, "ThreadPool [%s] Joining thread %d until completion. tid=%lld:%lld",
+            Log::D(Log::Tag::Utils, "ThreadPool [%s] Joining thread %d until completion. tid=%lld:%lld",
             		         mThreadName.c_str(), idx, it.get_id(), std::this_thread::get_id());
 			it.join();
-            Log::D(Log::TAG, "ThreadPool [%s] Joined thread %d until completion. tid=%lld:%lld",
+            Log::D(Log::Tag::Utils, "ThreadPool [%s] Joined thread %d until completion. tid=%lld:%lld",
             		         mThreadName.c_str(), idx, it.get_id(), std::this_thread::get_id());
 		} else {
-            Log::D(Log::TAG, "ThreadPool [%s] Ignore to Join thread %d until completion. tid=%lld:%lld",
+            Log::D(Log::Tag::Utils, "ThreadPool [%s] Ignore to Join thread %d until completion. tid=%lld:%lld",
             		         mThreadName.c_str(), idx, it.get_id(), std::this_thread::get_id());
 			it.detach();
 		}
 	}
     mThreadPool.clear();
-    Log::D(Log::TAG, "Destroy threadpool [%s]", mThreadName.c_str());
+    Log::D(Log::Tag::Utils, "Destroy threadpool [%s]", mThreadName.c_str());
 }
 
 int ThreadPool::sleepMS(long milliSecond)
@@ -158,7 +158,7 @@ void ThreadPool::processTaskQueue(std::string threadName)
 	} while (!mQuit);
 
 //	Platform::DetachCurrentThread();
-	Log::D(Log::TAG, "ThreadPool [%s] runnable exit.", threadName.c_str());
+	Log::D(Log::Tag::Utils, "ThreadPool [%s] runnable exit.", threadName.c_str());
 }
 
 } // namespace trinity
