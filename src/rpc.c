@@ -29,6 +29,8 @@
 #include "rpc.h"
 #include "err.h"
 
+#define TAG_RPC "[Feedsd.Rpc ]: "
+
 #define map_sz     via.map.size
 #define map_key(i) via.map.ptr[i].key
 #define map_val(i) via.map.ptr[i].val
@@ -172,7 +174,7 @@ int unmarshal_decl_owner_req(const msgpack_object *req, Req **req_unmarshal)
     });
 
     if (!nonce || !nonce->str_sz || !owner_did || !owner_did->str_sz) {
-        vlogE("Invalid declare_owner request.");
+        vlogE(TAG_RPC "Invalid declare_owner request.");
         return -1;
     }
 
@@ -263,7 +265,7 @@ int unmarshal_iss_vc_req(const msgpack_object *req, Req **req_unmarshal)
     });
 
     if (!vc || !vc->str_sz) {
-        vlogE("Invalid issue_credential request.");
+        vlogE(TAG_RPC "Invalid issue_credential request.");
         return -1;
     }
 
@@ -305,7 +307,7 @@ int unmarshal_update_vc_req(const msgpack_object *req, Req **req_unmarshal)
     });
 
     if (!tk || !tk->str_sz || !vc || !vc->str_sz) {
-        vlogE("Invalid update_credential request.");
+        vlogE(TAG_RPC "Invalid update_credential request.");
         return -1;
     }
 
@@ -349,7 +351,7 @@ int unmarshal_signin_req_chal_req(const msgpack_object *req, Req **req_unmarshal
     });
 
     if (!iss || !iss->str_sz || !vc_req) {
-        vlogE("Invalid signin_request_challenge request.");
+        vlogE(TAG_RPC "Invalid signin_request_challenge request.");
         return -1;
     }
 
@@ -442,7 +444,7 @@ int unmarshal_create_chan_req(const msgpack_object *req, Req **req_unmarshal)
 
     if (!tk || !tk->str_sz || !name || !name->str_sz ||
         !intro || !intro->str_sz || !avatar || !avatar->bin_sz) {
-        vlogE("Invalid create_channel request.");
+        vlogE(TAG_RPC "Invalid create_channel request.");
         return -1;
     }
 
@@ -498,7 +500,7 @@ int unmarshal_upd_chan_req(const msgpack_object *req, Req **req_unmarshal)
 
     if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
         !name || !name->str_sz || !intro || !intro->str_sz || !avatar || !avatar->bin_sz) {
-        vlogE("Invalid update_feedinfo request.");
+        vlogE(TAG_RPC "Invalid update_feedinfo request.");
         return -1;
     }
 
@@ -551,7 +553,7 @@ int unmarshal_pub_post_req(const msgpack_object *req, Req **req_unmarshal)
 
     if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
         !content || !content->bin_sz) {
-        vlogE("Invalid publish_post request.");
+        vlogE(TAG_RPC "Invalid publish_post request.");
         return -1;
     }
 
@@ -600,7 +602,7 @@ int unmarshal_declare_post_req(const msgpack_object *req, Req **req_unmarshal)
 
     if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
         !content || !content->bin_sz) {
-        vlogE("Invalid declare_post request.");
+        vlogE(TAG_RPC "Invalid declare_post request.");
         return -1;
     }
 
@@ -649,7 +651,7 @@ int unmarshal_notify_post_req(const msgpack_object *req, Req **req_unmarshal)
     if (!tk || !tk->str_sz
     || !chan_id || !chan_id_is_valid(chan_id->u64_val)
     || !post_id || !post_id_is_valid(post_id->u64_val)) {
-        vlogE("Invalid notify_post request.");
+        vlogE(TAG_RPC "Invalid notify_post request.");
         return -1;
     }
 
@@ -697,7 +699,7 @@ int unmarshal_edit_post_req(const msgpack_object *req, Req **req_unmarshal)
 
     if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
         !post_id || !post_id_is_valid(post_id->u64_val) || !content || !content->bin_sz) {
-        vlogE("Invalid edit_post request.");
+        vlogE(TAG_RPC "Invalid edit_post request.");
         return -1;
     }
 
@@ -745,7 +747,7 @@ int unmarshal_del_post_req(const msgpack_object *req, Req **req_unmarshal)
 
     if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
         !post_id || !post_id_is_valid(post_id->u64_val)) {
-        vlogE("Invalid delete_post request.");
+        vlogE(TAG_RPC "Invalid delete_post request.");
         return -1;
     }
 
@@ -796,7 +798,7 @@ int unmarshal_post_cmt_req(const msgpack_object *req, Req **req_unmarshal)
     if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
         !post_id || !post_id_is_valid(post_id->u64_val) ||
         !cmt_id || !content || !content->bin_sz) {
-        vlogE("Invalid post_comment request.");
+        vlogE(TAG_RPC "Invalid post_comment request.");
         return -1;
     }
 
@@ -853,7 +855,7 @@ int unmarshal_edit_cmt_req(const msgpack_object *req, Req **req_unmarshal)
         !post_id || !post_id_is_valid(post_id->u64_val) ||
         !id || !cmt_id_is_valid(id->u64_val) ||
         !cmt_id || !content || !content->bin_sz) {
-        vlogE("Invalid edit_comment request.");
+        vlogE(TAG_RPC "Invalid edit_comment request.");
         return -1;
     }
 
@@ -905,7 +907,7 @@ int unmarshal_del_cmt_req(const msgpack_object *req, Req **req_unmarshal)
 
     if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
         !post_id || !post_id_is_valid(post_id->u64_val) || !id || !cmt_id_is_valid(id->u64_val)) {
-        vlogE("Invalid delete_comment request.");
+        vlogE(TAG_RPC "Invalid delete_comment request.");
         return -1;
     }
 
@@ -954,7 +956,7 @@ int unmarshal_block_cmt_req(const msgpack_object *req, Req **req_unmarshal)
 
     if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
         !post_id || !post_id_is_valid(post_id->u64_val) || !cmt_id || !cmt_id_is_valid(cmt_id->u64_val)) {
-        vlogE("Invalid block_comment request.");
+        vlogE(TAG_RPC "Invalid block_comment request.");
         return -1;
     }
 
@@ -1003,7 +1005,7 @@ int unmarshal_unblock_cmt_req(const msgpack_object *req, Req **req_unmarshal)
 
     if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
         !post_id || !post_id_is_valid(post_id->u64_val) || !cmt_id || !cmt_id_is_valid(cmt_id->u64_val)) {
-        vlogE("Invalid block_comment request.");
+        vlogE(TAG_RPC "Invalid block_comment request.");
         return -1;
     }
 
@@ -1052,7 +1054,7 @@ int unmarshal_post_like_req(const msgpack_object *req, Req **req_unmarshal)
 
     if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
         !post_id || !post_id_is_valid(post_id->u64_val) || !cmt_id) {
-        vlogE("Invalid post_like request.");
+        vlogE(TAG_RPC "Invalid post_like request.");
         return -1;
     }
 
@@ -1101,7 +1103,7 @@ int unmarshal_post_unlike_req(const msgpack_object *req, Req **req_unmarshal)
 
     if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
         !post_id || !post_id_is_valid(post_id->u64_val) || !cmt_id) {
-        vlogE("Invalid post_like request.");
+        vlogE(TAG_RPC "Invalid post_like request.");
         return -1;
     }
 
@@ -1151,7 +1153,7 @@ int unmarshal_get_my_chans_req(const msgpack_object *req, Req **req_unmarshal)
     });
 
     if (!tk || !tk->str_sz || !by || !qry_fld_is_valid(by->u64_val) || !upper || !lower || !maxcnt) {
-        vlogE("Invalid get_my_channels request.");
+        vlogE(TAG_RPC "Invalid get_my_channels request.");
         return -1;
     }
 
@@ -1202,7 +1204,7 @@ int unmarshal_get_my_chans_meta_req(const msgpack_object *req, Req **req_unmarsh
     });
 
     if (!tk || !tk->str_sz || !by || !qry_fld_is_valid(by->u64_val) || !upper || !lower || !maxcnt) {
-        vlogE("Invalid get_my_channels_metadata request.");
+        vlogE(TAG_RPC "Invalid get_my_channels_metadata request.");
         return -1;
     }
 
@@ -1253,7 +1255,7 @@ int unmarshal_get_chans_req(const msgpack_object *req, Req **req_unmarshal)
     });
 
     if (!tk || !tk->str_sz || !by || !qry_fld_is_valid(by->u64_val) || !upper || !lower || !maxcnt) {
-        vlogE("Invalid get_channels request.");
+        vlogE(TAG_RPC "Invalid get_channels request.");
         return -1;
     }
 
@@ -1298,7 +1300,7 @@ int unmarshal_get_chan_dtl_req(const msgpack_object *req, Req **req_unmarshal)
     });
 
     if (!tk || !tk->str_sz || !id || !chan_id_is_valid(id->u64_val)) {
-        vlogE("Invalid get_channel_detail request.");
+        vlogE(TAG_RPC "Invalid get_channel_detail request.");
         return -1;
     }
 
@@ -1346,7 +1348,7 @@ int unmarshal_get_sub_chans_req(const msgpack_object *req, Req **req_unmarshal)
     });
 
     if (!tk || !tk->str_sz || !by || !qry_fld_is_valid(by->u64_val) || !upper || !lower || !maxcnt) {
-        vlogE("Invalid get_subscribed_channels request.");
+        vlogE(TAG_RPC "Invalid get_subscribed_channels request.");
         return -1;
     }
 
@@ -1400,7 +1402,7 @@ int unmarshal_get_posts_req(const msgpack_object *req, Req **req_unmarshal)
 
     if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
         !by || !qry_fld_is_valid(by->u64_val) || !upper || !lower || !maxcnt) {
-        vlogE("Invalid get_posts request.");
+        vlogE(TAG_RPC "Invalid get_posts request.");
         return -1;
     }
 
@@ -1455,7 +1457,7 @@ int unmarshal_get_posts_lac_req(const msgpack_object *req, Req **req_unmarshal)
 
     if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
         !by || !qry_fld_is_valid(by->u64_val) || !upper || !lower || !maxcnt) {
-        vlogE("Invalid get_posts_likes_and_comments request.");
+        vlogE(TAG_RPC "Invalid get_posts_likes_and_comments request.");
         return -1;
     }
 
@@ -1508,7 +1510,7 @@ int unmarshal_get_liked_posts_req(const msgpack_object *req, Req **req_unmarshal
 
     if (!tk || !tk->str_sz || !by || !qry_fld_is_valid(by->u64_val) ||
         !upper || !lower || !maxcnt) {
-        vlogE("Invalid get_liked_posts request.");
+        vlogE(TAG_RPC "Invalid get_liked_posts request.");
         return -1;
     }
 
@@ -1565,7 +1567,7 @@ int unmarshal_get_cmts_req(const msgpack_object *req, Req **req_unmarshal)
     if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
         !post_id || !post_id_is_valid(post_id->u64_val) ||
         !by || !qry_fld_is_valid(by->u64_val) || !upper || !lower || !maxcnt) {
-        vlogE("Invalid get_comments request.");
+        vlogE(TAG_RPC "Invalid get_comments request.");
         return -1;
     }
 
@@ -1624,7 +1626,7 @@ int unmarshal_get_cmts_likes_req(const msgpack_object *req, Req **req_unmarshal)
     if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
         !post_id || !post_id_is_valid(post_id->u64_val) ||
         !by || !qry_fld_is_valid(by->u64_val) || !upper || !lower || !maxcnt) {
-        vlogE("Invalid get_comments_likes request.");
+        vlogE(TAG_RPC "Invalid get_comments_likes request.");
         return -1;
     }
 
@@ -1669,7 +1671,7 @@ int unmarshal_get_stats_req(const msgpack_object *req, Req **req_unmarshal)
     });
 
     if (!tk || !tk->str_sz) {
-        vlogE("Invalid get_statistics request.");
+        vlogE(TAG_RPC "Invalid get_statistics request.");
         return -1;
     }
 
@@ -1710,7 +1712,7 @@ int unmarshal_sub_chan_req(const msgpack_object *req, Req **req_unmarshal)
     });
 
     if (!tk || !tk->str_sz || !id || !chan_id_is_valid(id->u64_val)) {
-        vlogE("Invalid subscribe_channel request.");
+        vlogE(TAG_RPC "Invalid subscribe_channel request.");
         return -1;
     }
 
@@ -1752,7 +1754,7 @@ int unmarshal_unsub_chan_req(const msgpack_object *req, Req **req_unmarshal)
     });
 
     if (!tk || !tk->str_sz || !id || !chan_id_is_valid(id->u64_val)) {
-        vlogE("Invalid unsubscribe_channel request.");
+        vlogE(TAG_RPC "Invalid unsubscribe_channel request.");
         return -1;
     }
 
@@ -1792,7 +1794,7 @@ int unmarshal_enbl_notif_req(const msgpack_object *req, Req **req_unmarshal)
     });
 
     if (!tk || !tk->str_sz) {
-        vlogE("Invalid enable_notification request.");
+        vlogE(TAG_RPC "Invalid enable_notification request.");
         return -1;
     }
 
@@ -1839,7 +1841,7 @@ int unmarshal_set_binary_req(const msgpack_object *req, Req **req_unmarshal)
     });
 
     if (!tk || !tk->str_sz || !key || !key->str_sz) {
-        vlogE("Invalid set_binary request.");
+        vlogE(TAG_RPC "Invalid set_binary request.");
         return -1;
     }
 
@@ -1894,7 +1896,7 @@ int unmarshal_get_binary_req(const msgpack_object *req, Req **req_unmarshal)
     });
 
     if (!tk || !tk->str_sz || !key || !key->str_sz) {
-        vlogE("Invalid get_binary request.");
+        vlogE(TAG_RPC "Invalid get_binary request.");
         return -1;
     }
 
@@ -1981,7 +1983,7 @@ int unmarshal_report_illegal_cmt_req(const msgpack_object *req, Req **req_unmars
     if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
         !post_id || !post_id_is_valid(post_id->u64_val) || !cmt_id ||
         !reasons || !reasons->str_sz) {
-        vlogE("Invalid report_illegal_cmt request.");
+        vlogE(TAG_RPC "Invalid report_illegal_cmt request.");
         return -1;
     }
 
@@ -2034,7 +2036,7 @@ int unmarshal_get_reported_cmts_req(const msgpack_object *req, Req **req_unmarsh
 
     if (!tk || !tk->str_sz ||
         !by || !qry_fld_is_valid(by->u64_val) || !upper || !lower || !maxcnt) {
-        vlogE("Invalid get_reported_comments request.");
+        vlogE(TAG_RPC "Invalid get_reported_comments request.");
         return -1;
     }
 
@@ -2145,13 +2147,13 @@ int rpc_unmarshal_req(const void *rpc, size_t len, Req **req)
 
     msgpack_unpacked_init(&msgpack);
     if (msgpack_unpack_next(&msgpack, rpc, len, NULL) != MSGPACK_UNPACK_SUCCESS) {
-        vlogE("Decoding msgpack failed.");
+        vlogE(TAG_RPC "Decoding msgpack failed.");
         return -1;
     }
 
     obj = msgpack.data;
     if (obj.type != MSGPACK_OBJECT_MAP) {
-        vlogE("Not a msgpack map.");
+        vlogE(TAG_RPC "Not a msgpack map.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
     }
@@ -2165,7 +2167,7 @@ int rpc_unmarshal_req(const void *rpc, size_t len, Req **req)
     if (!version || !version->str_sz ||
         !method || !method->str_sz ||
         !tsx_id) {
-        vlogE("No version/method/id field.");
+        vlogE(TAG_RPC "No version/method/id field.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
     }
@@ -2177,7 +2179,7 @@ int rpc_unmarshal_req(const void *rpc, size_t len, Req **req)
         req_parsers = req_parsers_1_0;
         req_parsers_size = sizeof(req_parsers_1_0) / sizeof(*req_parsers_1_0);
     } else {
-        vlogE("Unsupported version field.");
+        vlogE(TAG_RPC "Unsupported version field.");
         rc = unmarshal_unknown_req(&obj, req);
         msgpack_unpacked_destroy(&msgpack);
         return -3;
@@ -2191,7 +2193,7 @@ int rpc_unmarshal_req(const void *rpc, size_t len, Req **req)
         }
     }
 
-    vlogE("Not a valid method.");
+    vlogE(TAG_RPC "Not a valid method.");
     rc = unmarshal_unknown_req(&obj, req);
     msgpack_unpacked_destroy(&msgpack);
     return rc < 0 ? -1 : -2;
@@ -2229,7 +2231,7 @@ int unmarshal_new_post_notif(const msgpack_object *notif, Notif **notif_unmarsha
     if (!chan_id || !chan_id_is_valid(chan_id->u64_val) ||
         !post_id || !post_id_is_valid(post_id->u64_val) ||
         !content || !content->bin_sz || !created_at) {
-        vlogE("Invalid new_post notification.");
+        vlogE(TAG_RPC "Invalid new_post notification.");
         return -1;
     }
 
@@ -2292,7 +2294,7 @@ int unmarshal_new_cmt_notif(const msgpack_object *notif, Notif **notif_unmarshal
         !id || !cmt_id_is_valid(id->u64_val) ||
         !cmt_id || !user_name || !user_name->str_sz ||
         !content || !content->bin_sz || !created_at) {
-        vlogE("Invalid new_comment notification.");
+        vlogE(TAG_RPC "Invalid new_comment notification.");
         return -1;
     }
 
@@ -2355,7 +2357,7 @@ int unmarshal_new_like_notif(const msgpack_object *notif, Notif **notif_unmarsha
     if (!chan_id || !chan_id_is_valid(chan_id->u64_val) ||
         !post_id || !post_id_is_valid(post_id->u64_val) ||
         !user_name || !user_name->str_sz || !user_did || !user_did->str_sz || !cnt) {
-        vlogE("Invalid new_like notification.");
+        vlogE(TAG_RPC "Invalid new_like notification.");
         return -1;
     }
 
@@ -2409,7 +2411,7 @@ int unmarshal_new_sub_notif(const msgpack_object *notif, Notif **notif_unmarshal
 
     if (!chan_id || !chan_id_is_valid(chan_id->u64_val) ||
         !user_name || !user_name->str_sz || !user_did || !user_did->str_sz) {
-        vlogE("Invalid new_subscription notification.");
+        vlogE(TAG_RPC "Invalid new_subscription notification.");
         return -1;
     }
 
@@ -2453,13 +2455,13 @@ int rpc_unmarshal_notif_or_resp_id(const void *rpc, size_t len, Notif **notif, u
 
     msgpack_unpacked_init(&msgpack);
     if (msgpack_unpack_next(&msgpack, rpc, len, NULL) != MSGPACK_UNPACK_SUCCESS) {
-        vlogE("Decoding msgpack failed.");
+        vlogE(TAG_RPC "Decoding msgpack failed.");
         return -1;
     }
 
     obj = msgpack.data;
     if (obj.type != MSGPACK_OBJECT_MAP) {
-        vlogE("Not a msgpack map.");
+        vlogE(TAG_RPC "Not a msgpack map.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
     }
@@ -2494,7 +2496,7 @@ int rpc_unmarshal_notif_or_resp_id(const void *rpc, size_t len, Notif **notif, u
         }
     }
 
-    vlogE("Not a valid method.");
+    vlogE(TAG_RPC "Not a valid method.");
     msgpack_unpacked_destroy(&msgpack);
     return -1;
 }
@@ -2556,7 +2558,7 @@ int rpc_unmarshal_decl_owner_resp(DeclOwnerResp **resp, ErrResp **err)
                      !memcmp(phase->str_val, "did_imported", phase->str_sz)) ?
                     (did && tsx_payload && tsx_payload->str_sz) :
                     (!did && !tsx_payload))) {
-        vlogE("Invalid declare_owner response.");
+        vlogE(TAG_RPC "Invalid declare_owner response.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
     }
@@ -2608,7 +2610,7 @@ int rpc_unmarshal_imp_did_resp(ImpDIDResp **resp, ErrResp **err)
     });
 
     if (!did || !tsx_payload || !tsx_payload->str_sz) {
-        vlogE("Invalid import_did response.");
+        vlogE(TAG_RPC "Invalid import_did response.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
     }
@@ -2715,7 +2717,7 @@ int rpc_unmarshal_signin_req_chal_resp(SigninReqChalResp **resp, ErrResp **err)
     });
 
     if (!vc_req || !jws || !jws->str_sz || (vc && !vc->str_sz)) {
-        vlogE("Invalid sigin_request_challenge response.");
+        vlogE(TAG_RPC "Invalid sigin_request_challenge response.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
     }
@@ -2766,7 +2768,7 @@ int rpc_unmarshal_signin_conf_chal_resp(SigninConfChalResp **resp, ErrResp **err
     });
 
     if (!tk || !tk->str_sz || !exp) {
-        vlogE("Invalid signin_confirm_challenge response.");
+        vlogE(TAG_RPC "Invalid signin_confirm_challenge response.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
     }
@@ -2808,7 +2810,7 @@ int rpc_unmarshal_create_chan_resp(CreateChanResp **resp, ErrResp **err)
     });
 
     if (!chan_id) {
-        vlogE("Invalid create_channel response.");
+        vlogE(TAG_RPC "Invalid create_channel response.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
     }
@@ -2848,7 +2850,7 @@ int rpc_unmarshal_pub_post_resp(PubPostResp **resp, ErrResp **err)
     });
 
     if (!post_id) {
-        vlogE("Invalid publish_post response.");
+        vlogE(TAG_RPC "Invalid publish_post response.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
     }
@@ -2888,7 +2890,7 @@ int rpc_unmarshal_declare_post_resp(DeclarePostResp **resp, ErrResp **err)
     });
 
     if (!post_id) {
-        vlogE("Invalid declare_post response.");
+        vlogE(TAG_RPC "Invalid declare_post response.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
     }
@@ -2928,7 +2930,7 @@ int rpc_unmarshal_post_cmt_resp(PostCmtResp **resp, ErrResp **err)
     });
 
     if (!cmt_id) {
-        vlogE("Invalid post_comment response.");
+        vlogE(TAG_RPC "Invalid post_comment response.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
     }
@@ -2966,7 +2968,7 @@ int rpc_unmarshal_post_like_resp(PostLikeResp **resp, ErrResp **err)
     });
 
     if (!result) {
-        vlogE("Invalid post_like response.");
+        vlogE(TAG_RPC "Invalid post_like response.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
     }
@@ -3003,7 +3005,7 @@ int rpc_unmarshal_post_unlike_resp(PostUnlikeResp **resp, ErrResp **err)
     });
 
     if (!result) {
-        vlogE("Invalid post_unlike response.");
+        vlogE(TAG_RPC "Invalid post_unlike response.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
     }
@@ -3056,7 +3058,7 @@ int rpc_unmarshal_get_my_chans_resp(GetMyChansResp **resp, ErrResp **err)
     });
 
     if (!is_last || !chans) {
-        vlogE("Invalid get_my_channels response: invalid result.");
+        vlogE(TAG_RPC "Invalid get_my_channels response: invalid result.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
     }
@@ -3089,7 +3091,7 @@ int rpc_unmarshal_get_my_chans_resp(GetMyChansResp **resp, ErrResp **err)
 
         if (!chan_id || !name || !name->str_sz || !intro || !intro->str_sz ||
             !subs || !avatar || !avatar->bin_sz) {
-            vlogE("Invalid get_my_channels response: invalid result element.");
+            vlogE(TAG_RPC "Invalid get_my_channels response: invalid result element.");
             msgpack_unpacked_destroy(&msgpack);
             deref(tmp);
             return -1;
@@ -3152,7 +3154,7 @@ int rpc_unmarshal_get_my_chans_meta_resp(GetMyChansMetaResp **resp, ErrResp **er
     });
 
     if (!result) {
-        vlogE("Invalid get_my_channels_metadata response: invalid result.");
+        vlogE(TAG_RPC "Invalid get_my_channels_metadata response: invalid result.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
     }
@@ -3176,7 +3178,7 @@ int rpc_unmarshal_get_my_chans_meta_resp(GetMyChansMetaResp **resp, ErrResp **er
         });
 
         if (!chan_id || !subs) {
-            vlogE("Invalid get_my_channels_metadata response: invalid result element.");
+            vlogE(TAG_RPC "Invalid get_my_channels_metadata response: invalid result element.");
             msgpack_unpacked_destroy(&msgpack);
             deref(tmp);
             return -1;
@@ -3242,7 +3244,7 @@ int rpc_unmarshal_get_chans_resp(GetChansResp **resp, ErrResp **err)
     });
 
     if (!is_last || !chans) {
-        vlogE("Invalid get_channels response: invalid result.");
+        vlogE(TAG_RPC "Invalid get_channels response: invalid result.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
     }
@@ -3282,7 +3284,7 @@ int rpc_unmarshal_get_chans_resp(GetChansResp **resp, ErrResp **err)
         if (!chan_id || !name || !name->str_sz || !intro || !intro->str_sz ||
             !owner_name || !owner_name->str_sz || !owner_did || !owner_did->str_sz ||
             !subs || !upd_at || !avatar || !avatar->bin_sz) {
-            vlogE("Invalid get_channels response: invalid result element.");
+            vlogE(TAG_RPC "Invalid get_channels response: invalid result element.");
             msgpack_unpacked_destroy(&msgpack);
             deref(tmp);
             return -1;
@@ -3364,7 +3366,7 @@ int rpc_unmarshal_get_chan_dtl_resp(GetChanDtlResp **resp, ErrResp **err)
     if (!chan_id || !name || !name->str_sz || !intro || !intro->str_sz ||
         !owner_name || !owner_name->str_sz || !owner_did || !owner_did->str_sz ||
         !subs || !upd_at || !avatar || !avatar->bin_sz) {
-        vlogE("Invalid get_channel_detail response.");
+        vlogE(TAG_RPC "Invalid get_channel_detail response.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
     }
@@ -3437,7 +3439,7 @@ int rpc_unmarshal_get_sub_chans_resp(GetSubChansResp **resp, ErrResp **err)
     });
 
     if (!is_last || !chans) {
-        vlogE("Invalid get_subscribed_channels response: invalid result.");
+        vlogE(TAG_RPC "Invalid get_subscribed_channels response: invalid result.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
     }
@@ -3477,7 +3479,7 @@ int rpc_unmarshal_get_sub_chans_resp(GetSubChansResp **resp, ErrResp **err)
         if (!chan_id || !name || !name->str_sz || !intro || !intro->str_sz ||
             !owner_name || !owner_name->str_sz || !owner_did || !owner_did->str_sz ||
             !subs || !upd_at || !avatar || !avatar->bin_sz) {
-            vlogE("Invalid get_subscribed_channels response: invalid result element.");
+            vlogE(TAG_RPC "Invalid get_subscribed_channels response: invalid result element.");
             msgpack_unpacked_destroy(&msgpack);
             deref(tmp);
             return -1;
@@ -3551,7 +3553,7 @@ int rpc_unmarshal_get_posts_resp(GetPostsResp **resp, ErrResp **err)
     });
 
     if (!is_last || !posts) {
-        vlogE("Invalid get_posts response: invalid result.");
+        vlogE(TAG_RPC "Invalid get_posts response: invalid result.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
     }
@@ -3587,7 +3589,7 @@ int rpc_unmarshal_get_posts_resp(GetPostsResp **resp, ErrResp **err)
         if (!chan_id || !chan_id_is_valid(chan_id->u64_val) ||
             !post_id || !post_id_is_valid(post_id->u64_val) ||
             !content || !content->bin_sz || !cmts || !likes || !created_at) {
-            vlogE("Invalid get_posts response: invalid result element.");
+            vlogE(TAG_RPC "Invalid get_posts response: invalid result element.");
             msgpack_unpacked_destroy(&msgpack);
             deref(tmp);
             return -1;
@@ -3652,7 +3654,7 @@ int rpc_unmarshal_get_liked_posts_resp(GetLikedPostsResp **resp, ErrResp **err)
     });
 
     if (!is_last || !posts) {
-        vlogE("Invalid get_liked_posts response: invalid result.");
+        vlogE(TAG_RPC "Invalid get_liked_posts response: invalid result.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
     }
@@ -3688,7 +3690,7 @@ int rpc_unmarshal_get_liked_posts_resp(GetLikedPostsResp **resp, ErrResp **err)
         if (!chan_id || !chan_id_is_valid(chan_id->u64_val) ||
             !post_id || !post_id_is_valid(post_id->u64_val) ||
             !content || !content->bin_sz || !cmts || !likes || !created_at) {
-            vlogE("Invalid get_liked_posts response: invalid result element.");
+            vlogE(TAG_RPC "Invalid get_liked_posts response: invalid result element.");
             msgpack_unpacked_destroy(&msgpack);
             deref(tmp);
             return -1;
@@ -3753,7 +3755,7 @@ int rpc_unmarshal_get_cmts_resp(GetCmtsResp **resp, ErrResp **err)
     });
 
     if (!is_last || !cmts) {
-        vlogE("Invalid get_comments response: invalid result.");
+        vlogE(TAG_RPC "Invalid get_comments response: invalid result.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
     }
@@ -3795,7 +3797,7 @@ int rpc_unmarshal_get_cmts_resp(GetCmtsResp **resp, ErrResp **err)
             !id || !cmt_id_is_valid(id->u64_val) ||
             !user_name || !user_name->str_sz ||
             !content || !content->bin_sz || !likes || !created_at) {
-            vlogE("Invalid get_comments response: invalid result element.");
+            vlogE(TAG_RPC "Invalid get_comments response: invalid result element.");
             msgpack_unpacked_destroy(&msgpack);
             deref(tmp);
             return -1;
@@ -3855,7 +3857,7 @@ int rpc_unmarshal_get_stats_resp(GetStatsResp **resp, ErrResp **err)
     });
 
     if (!did || !did->str_sz || !conn_cs || !total_cs) {
-        vlogE("Invalid get_statistics response.");
+        vlogE(TAG_RPC "Invalid get_statistics response.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
     }
@@ -3896,7 +3898,7 @@ int rpc_unmarshal_sub_chan_resp(SubChanResp **resp, ErrResp **err)
     });
 
     if (!result) {
-        vlogE("Invalid subscribe_channel response.");
+        vlogE(TAG_RPC "Invalid subscribe_channel response.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
     }
@@ -3933,7 +3935,7 @@ int rpc_unmarshal_unsub_chan_resp(UnsubChanResp **resp, ErrResp **err)
     });
 
     if (!result) {
-        vlogE("Invalid unsubscribe_channel response.");
+        vlogE(TAG_RPC "Invalid unsubscribe_channel response.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
     }
@@ -3970,7 +3972,7 @@ int rpc_unmarshal_enbl_notif_resp(EnblNotifResp **resp, ErrResp **err)
     });
 
     if (!result) {
-        vlogE("Invalid enable_notification response.");
+        vlogE(TAG_RPC "Invalid enable_notification response.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
     }
@@ -6167,7 +6169,7 @@ Marshalled *rpc_marshal_resp(const char* method, const Resp *resp)
         }
     }
 
-    vlogE("RespSerializer: not a valid method.");
+    vlogE(TAG_RPC "RespSerializer: not a valid method.");
     return NULL;
 }
 

@@ -70,6 +70,8 @@ extern "C" {
 #undef new
 }
 
+#define TAG_MAIN "[Feedsd.Main]: "
+
 static const char *resolver = "http://api.elastos.io:20606";
 size_t connecting_clients;
 std::shared_ptr<ElaCarrier> carrier_instance;
@@ -90,7 +92,7 @@ void on_receiving_message(ElaCarrier *c, const char *from,
     (void)offline;
     (void)context;
 
-    vlogD("received message: %s", msg);
+    vlogD(TAG_MAIN "received message: %s", msg);
     auto msgptr = reinterpret_cast<uint8_t*>(const_cast<void*>(msg));
     auto data = std::vector<uint8_t>(msgptr, msgptr + len);
     std::ignore = trinity::CommandHandler::GetInstance()->received(from, data);
@@ -114,7 +116,7 @@ static
 void on_connection_status(ElaCarrier *carrier,
                           ElaConnectionStatus status, void *context)
 {
-    vlogI("carrier %s", status == ElaConnectionStatus_Connected ?
+    vlogI(TAG_MAIN "carrier %s", status == ElaConnectionStatus_Connected ?
                                 "connected" : "disconnected");
     if(status != ElaConnectionStatus_Connected) 
             trinity::MassDataManager::GetInstance()->clearAllDataPipe();
@@ -127,7 +129,7 @@ void friend_connection_callback(ElaCarrier *c, const char *friend_id,
     (void)c;
     (void)context;
 
-    vlogI("[%s] %s", friend_id, status == ElaConnectionStatus_Connected ?
+    vlogI(TAG_MAIN "[%s] %s", friend_id, status == ElaConnectionStatus_Connected ?
                                 "connected" : "disconnected");
 
     if (status == ElaConnectionStatus_Connected) {
@@ -150,7 +152,7 @@ void friend_request_callback(ElaCarrier *c, const char *user_id,
     (void)hello;
     (void)context;
 
-    vlogI("Received friend request from [%s]", user_id);
+    vlogI(TAG_MAIN "Received friend request from [%s]", user_id);
     ela_accept_friend(c, user_id);
 }
 
@@ -291,12 +293,12 @@ int transport_init(FeedsConfig *cfg)
     DIDBackend_InitializeDefault(resolver, cfg->didcache_dir);
 
     auto creater = [&]() -> ElaCarrier* {
-        vlogD("Create carrier instance.");
+        vlogD(TAG_MAIN "Create carrier instance.");
         auto ptr = ela_new(&cfg->carrier_opts, &callbacks, NULL);
         return ptr;
     };
     auto deleter = [=](ElaCarrier* ptr) -> void {
-        vlogD("Destroy carrier instance.");
+        vlogD(TAG_MAIN "Destroy carrier instance.");
         if(ptr != nullptr) {
             ela_kill(ptr);
         }
@@ -304,22 +306,22 @@ int transport_init(FeedsConfig *cfg)
     carrier_instance = std::shared_ptr<ElaCarrier>(creater(), deleter);
     carrier = carrier_instance.get();
     if (!carrier) {
-        vlogE("Creating carrier instance failed");
+        vlogE(TAG_MAIN "Creating carrier instance failed");
         goto failure;
     }
 
     rc = trinity::CommandHandler::GetInstance()->config(cfg->data_dir, carrier_instance);
     if(rc < 0) {
-        vlogE("Config command handler failed");
+        vlogE(TAG_MAIN "Config command handler failed");
         goto failure;
     }
     rc = trinity::MassDataManager::GetInstance()->config(cfg->data_dir, carrier_instance);
     if(rc < 0) {
-        vlogE("Carrier session init failed");
+        vlogE(TAG_MAIN "Carrier session init failed");
         goto failure;
     }
 
-    vlogI("Transport module initialized.");
+    vlogI(TAG_MAIN "Transport module initialized.");
 
     return 0;
 
@@ -390,14 +392,14 @@ int main(int argc, char *argv[])
 
     cfg_file = get_cfg_file(cfg_file, default_cfg_files);
     if (!cfg_file) {
-        vlogE("Missing config file.");
+        vlogE(TAG_MAIN "Missing config file.");
         usage();
         return -1;
     }
 
     memset(&cfg, 0, sizeof(cfg));
     if (!load_cfg(cfg_file, &cfg)) {
-        vlogE("Loading configure failed!");
+        vlogE(TAG_MAIN "Loading configure failed!");
         return -1;
     }
 
@@ -458,21 +460,21 @@ int main(int argc, char *argv[])
     signal(SIGSEGV, print_backtrace);
     signal(SIGABRT, print_backtrace);
 
-    vlogI("Feedsd version: %s", FEEDSD_VER);
-    vlogI("Carrier node identities:");
-    vlogI("  Node ID  : %s", ela_get_nodeid(carrier, buf, sizeof(buf)));
-    vlogI("  User ID  : %s", ela_get_userid(carrier, buf, sizeof(buf)));
-    vlogI("  Address  : %s", ela_get_address(carrier, buf, sizeof(buf)));
+    vlogI(TAG_MAIN "Feedsd version: %s", FEEDSD_VER);
+    vlogI(TAG_MAIN "Carrier node identities:");
+    vlogI(TAG_MAIN "  Node ID  : %s", ela_get_nodeid(carrier, buf, sizeof(buf)));
+    vlogI(TAG_MAIN "  User ID  : %s", ela_get_userid(carrier, buf, sizeof(buf)));
+    vlogI(TAG_MAIN "  Address  : %s", ela_get_address(carrier, buf, sizeof(buf)));
     if (feeds_owner_info.did && feeds_owner_info.did[0])
-        vlogI("  Owner DID: %s", feeds_owner_info.did);
+        vlogI(TAG_MAIN "  Owner DID: %s", feeds_owner_info.did);
     if (feeds_did_str[0])
-        vlogI("  Feeds DID: %s", feeds_did_str);
+        vlogI(TAG_MAIN "  Feeds DID: %s", feeds_did_str);
 
     if (!did_is_ready())
-        vlogI("Visit http://YOUR-IP-ADDRESS:%s using your browser to start binding process."
+        vlogI(TAG_MAIN "Visit http://YOUR-IP-ADDRESS:%s using your browser to start binding process."
                "Verification code:[%s]", cfg.http_port, did_get_nonce());
     else
-        vlogI("Visiting http://YOUR-IP-ADDRESS:%s with your browser to retrieve the QRcode "
+        vlogI(TAG_MAIN "Visiting http://YOUR-IP-ADDRESS:%s with your browser to retrieve the QRcode "
                "of feeds URL", cfg.http_port);
     free_cfg(&cfg);
 

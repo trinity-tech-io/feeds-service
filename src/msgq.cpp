@@ -28,6 +28,8 @@
 #include <CommandHandler.hpp>
 #include "msgq.h"
 
+#define TAG_MSG "[Feedsd.Msg ]: "
+
 typedef struct {
     hash_entry_t he;
     char peer[ELA_MAX_ID_LEN + 1];
@@ -144,17 +146,17 @@ void on_msg_receipt(int64_t msgid, ElaReceiptState state, void *context)
     (void)msgid;
     (void)state;
 
-    vlogD("Message [%" PRIi64 "] to [%s] receipt status: %s", msgid, q->peer,
+    vlogD(TAG_MSG "Message [%" PRIi64 "] to [%s] receipt status: %s", msgid, q->peer,
           state == ElaReceipt_ByFriend ? "received" :
                                          state == ElaReceipt_Offline ? "friend offline" : "error");
 
     if (q->depr) {
-        vlogD("Message queue is deprecated.");
+        vlogD(TAG_MSG "Message queue is deprecated.");
         goto finally;
     }
 
     if (!(m = msgq_pop_head(q))) {
-        vlogD("Transport channel becomes idle.");
+        vlogD(TAG_MSG "Transport channel becomes idle.");
         deref(msgq_rm(q->peer));
         goto finally;
     }
@@ -177,11 +179,11 @@ int msgq_enq(const char *to, Marshalled *msg)
 
     q = msgq_get(to);
     if (q) {
-        vlogD("Transport channel[%s] is busy, put in message queue.", to);
+        vlogD(TAG_MSG "Transport channel[%s] is busy, put in message queue.", to);
 
         m = msg_create(msg);
         if (!m) {
-            vlogE("Creating message failed.");
+            vlogE(TAG_MSG "Creating message failed.");
             goto finally;
         }
 
@@ -192,7 +194,7 @@ int msgq_enq(const char *to, Marshalled *msg)
 
     q = msgq_create(to);
     if (!q) {
-        vlogE("Creating message queue failed.");
+        vlogE(TAG_MSG "Creating message queue failed.");
         goto finally;
     }
 
@@ -214,7 +216,7 @@ void msgq_peer_offline(const char *peer)
     MsgQ *q = msgq_rm(peer);
 
     if (q) {
-        vlogD("Set message queue[%s] deprecated.", q->peer);
+        vlogD(TAG_MSG "Set message queue[%s] deprecated.", q->peer);
         q->depr = true;
     }
 
@@ -225,11 +227,11 @@ int msgq_init()
 {
     msgqs = hashtable_create(8, 0, NULL, NULL);
     if (!msgqs) {
-        vlogE("Creating message queues failed");
+        vlogE(TAG_MSG "Creating message queues failed");
         return -1;
     }
 
-    vlogI("Message queue module initialized.");
+    vlogI(TAG_MSG "Message queue module initialized.");
 
     return 0;
 }
