@@ -19,8 +19,8 @@ target_include_directories(cmdhandler PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
 target_link_libraries(cmdhandler PUBLIC
-    common
     cvector
+    feedsd-ext
     libcrystal-shared
     libelacarrier-shared
     utils)

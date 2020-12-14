@@ -46,12 +46,12 @@ int MassData::saveBinData(const std::filesystem::path &massDataDir,
                           const std::filesystem::path &contentFilePath)
 {
     auto setBinReq = std::reinterpret_pointer_cast<SetBinaryReq>(req);
-    Log::D(Log::TAG, "Request params:");
-    Log::D(Log::TAG, "    access_token: %s", setBinReq->params.tk);
-    Log::D(Log::TAG, "    key: %s", setBinReq->params.key);
-    Log::D(Log::TAG, "    algo: %s", setBinReq->params.algo);
-    Log::D(Log::TAG, "    checksum: %s", setBinReq->params.checksum);
-    Log::D(Log::TAG, "    content_size: %d", setBinReq->params.content_sz);
+    Log::D(Log::Tag::Cmd, "Request params:");
+    Log::D(Log::Tag::Cmd, "    access_token: %s", setBinReq->params.tk);
+    Log::D(Log::Tag::Cmd, "    key: %s", setBinReq->params.key);
+    Log::D(Log::Tag::Cmd, "    algo: %s", setBinReq->params.algo);
+    Log::D(Log::Tag::Cmd, "    checksum: %s", setBinReq->params.checksum);
+    Log::D(Log::Tag::Cmd, "    content_size: %d", setBinReq->params.content_sz);
 
     auto setBinResp = std::make_shared<SetBinaryResp>();
     setBinResp->tsx_id = setBinReq->tsx_id;
@@ -61,7 +61,7 @@ int MassData::saveBinData(const std::filesystem::path &massDataDir,
     }
 
     auto keyPath = massDataDir / setBinReq->params.key;
-    Log::V(Log::TAG, "Resave %s to %s.", contentFilePath.c_str(), keyPath.c_str());
+    Log::V(Log::Tag::Cmd, "Resave %s to %s.", contentFilePath.c_str(), keyPath.c_str());
     std::error_code ec;
     std::filesystem::rename(contentFilePath, keyPath, ec); // noexcept
     if(ec.value() != 0) {
@@ -69,8 +69,8 @@ int MassData::saveBinData(const std::filesystem::path &massDataDir,
     }
 
     setBinResp->result.key = setBinReq->params.key;
-    Log::D(Log::TAG, "Response result:");
-    Log::D(Log::TAG, "    key: %s", setBinResp->result.key);
+    Log::D(Log::Tag::Cmd, "Response result:");
+    Log::D(Log::Tag::Cmd, "    key: %s", setBinResp->result.key);
 
     resp = std::reinterpret_pointer_cast<Resp>(setBinResp);
 
@@ -83,14 +83,14 @@ int MassData::loadBinData(const std::filesystem::path &massDataDir,
                           std::filesystem::path &contentFilePath)
 {
     auto getBinReq = std::reinterpret_pointer_cast<GetBinaryReq>(req);
-    Log::D(Log::TAG, "    access_token: %s", getBinReq->params.tk);
-    Log::D(Log::TAG, "    key: %s", getBinReq->params.key);
+    Log::D(Log::Tag::Cmd, "    access_token: %s", getBinReq->params.tk);
+    Log::D(Log::Tag::Cmd, "    key: %s", getBinReq->params.key);
 
     auto getBinResp = std::make_shared<GetBinaryResp>();
     getBinResp->tsx_id = getBinReq->tsx_id;
 
     auto keyPath = massDataDir / getBinReq->params.key;
-    Log::V(Log::TAG, "Try to load %s.", keyPath.c_str());
+    Log::V(Log::Tag::Cmd, "Try to load %s.", keyPath.c_str());
     if(std::filesystem::exists(keyPath) == false) {
         CHECK_ERROR(ErrCode::FileNotExistsError);
     }
@@ -102,11 +102,11 @@ int MassData::loadBinData(const std::filesystem::path &massDataDir,
     getBinResp->result.checksum = const_cast<char*>("");
     getBinResp->result.content = nullptr;
     getBinResp->result.content_sz = 0;
-    Log::D(Log::TAG, "Response result:");
-    Log::D(Log::TAG, "    key: %s", getBinResp->result.key);
-    Log::D(Log::TAG, "    algo: %s", getBinResp->result.algo);
-    Log::D(Log::TAG, "    checksum: %s", getBinResp->result.checksum);
-    Log::D(Log::TAG, "    content_path: %s", contentFilePath.c_str());
+    Log::D(Log::Tag::Cmd, "Response result:");
+    Log::D(Log::Tag::Cmd, "    key: %s", getBinResp->result.key);
+    Log::D(Log::Tag::Cmd, "    algo: %s", getBinResp->result.algo);
+    Log::D(Log::Tag::Cmd, "    checksum: %s", getBinResp->result.checksum);
+    Log::D(Log::Tag::Cmd, "    content_path: %s", contentFilePath.c_str());
 
     resp = std::reinterpret_pointer_cast<Resp>(getBinResp);
 

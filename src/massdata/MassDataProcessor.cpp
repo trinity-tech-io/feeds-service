@@ -48,7 +48,7 @@ int MassDataProcessor::dispose(const std::vector<uint8_t>& headData,
     std::shared_ptr<Resp> resp;
     int ret = CommandHandler::GetInstance()->unpackRequest(headData, req);
     if(ret >= 0) {
-        Log::D(Log::TAG, "Mass data processor: dispose method [%s]", req->method);
+        Log::D(Log::Tag::Msg, "Mass data processor: dispose method [%s]", req->method);
         ret = ErrCode::UnimplementedError;
         for (const auto& it : mothodHandleMap) {
             if (std::strcmp(it.first, req->method) != 0) {

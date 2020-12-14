@@ -2,25 +2,33 @@
 # message(STATUS "openssl include path: ${pkg-openssl_INCLUDE_DIRS}")
 # message(STATUS "openssl library path: ${pkg-openssl_STATIC_LDFLAGS}")
 
-file( GLOB MASSDATA_SOURCES "*.cpp" )
+add_subdirectory(platform)
+
+file( GLOB UTILS_SOURCES "*.c" "*.cpp")
 
 if(${CMAKE_VERSION} VERSION_LESS "3.12")
-    add_library(utils STATIC ${MASSDATA_SOURCES})
+    add_library(utils STATIC ${UTILS_SOURCES})
 else()
-    add_library(utils OBJECT ${MASSDATA_SOURCES})
+    add_library(utils OBJECT ${UTILS_SOURCES})
 endif()
+
 add_dependencies(utils
-    cvector
-    libcrystal
-    sqlitecpp-static)
+    libcrystal)
 
 target_include_directories(utils PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}")
-target_include_directories(utils PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/..")
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${pkg-openssl_INCLUDE_DIRS}"
+    "${FEEDS_INT_DIST_DIR}/include")
 
 target_link_libraries(utils PUBLIC
-    common
-    sqlitecpp-static)
+    platform)
+if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
+    target_link_libraries(utils PUBLIC
+    stdc++fs)
+elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "Android")
+    target_link_libraries(utils PUBLIC
+    log)
+endif()
+
 
 set(CMAKE_INCLUDE_CURRENT_DIR TRUE)

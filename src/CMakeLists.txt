@@ -170,12 +170,12 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
 endif()
 
 add_subdirectory(cmdhandler)
-add_subdirectory(common)
+add_subdirectory(feedsd-ext)
 add_subdirectory(massdata)
 add_subdirectory(utils)
 target_link_libraries(feedsd
-    common
-    platform
     cmdhandler
+    feedsd-ext
     massdata
+    platform
     utils)
