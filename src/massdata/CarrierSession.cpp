@@ -40,7 +40,7 @@ int CarrierSession::Factory::Init(
             ElaCarrier *carrier, const char *from,
             const char *bundle, const char *sdp, size_t len, void *context)
     {
-        Log::D(Log::TAG, "Carrier session request callback!");
+        Log::D(Log::Tag::Msg, "Carrier session request callback!");
         OnRequestListener(CarrierHandler, from, sdp);            
     };
     ret = ela_session_set_callback(ptr.get(), nullptr, onSessionRequest, nullptr);
@@ -116,7 +116,7 @@ void CarrierSession::disconnect()
 
 int64_t CarrierSession::sendData(const std::vector<uint8_t>& data)
 {
-    Log::D(Log::TAG, "CarrierSession send vector data, len: %d", data.size());
+    Log::D(Log::Tag::Msg, "CarrierSession send vector data, len: %d", data.size());
 
     const int step = 2048;
     for(int idx = 0; idx < data.size(); idx+=step) {
@@ -138,7 +138,7 @@ int64_t CarrierSession::sendData(std::iostream& data)
     data.seekg(0, data.end);
     int dataSize = data.tellg();
     data.seekg(0, data.beg);
-    Log::D(Log::TAG, "CarrierSession send stream data, len: %d", dataSize);
+    Log::D(Log::Tag::Msg, "CarrierSession send stream data, len: %d", dataSize);
 
     const int step = 2048;
     uint8_t buf[step];
@@ -193,7 +193,7 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
     auto deleter = [=](ElaSession* ptr) -> void {
         if(ptr != nullptr) {
             ela_session_close(ptr);
-            Log::D(Log::TAG, "Destroy an ela carrier session with %s, stream %d", peerId.c_str(), sessionStreamId);
+            Log::D(Log::Tag::Msg, "Destroy an ela carrier session with %s, stream %d", peerId.c_str(), sessionStreamId);
         }
     };
     sessionHandler = std::shared_ptr<ElaSession>(creater(), deleter);
@@ -207,11 +207,11 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
             ElaStreamState state, void *context)
     {
         auto thiz = reinterpret_cast<CarrierSession*>(context);
-        Log::D(Log::TAG, "CarrierSession state change to %d at session stream %d", state, stream);
+        Log::D(Log::Tag::Msg, "CarrierSession state change to %d at session stream %d", state, stream);
         auto weakPtr = thiz->weak_from_this();
         auto carrierSession = weakPtr.lock();
         if(carrierSession == nullptr) {
-            Log::D(Log::TAG, "CarrierSession has been released");
+            Log::D(Log::Tag::Msg, "CarrierSession has been released");
             return;
         }
 
@@ -281,7 +281,7 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
     }
     CHECK_ERROR(ret);
     sessionStreamId = ret;
-    Log::D(Log::TAG, "Create a new ela carrier session with %s stream %d", peerId.c_str(), sessionStreamId);
+    Log::D(Log::Tag::Msg, "Create a new ela carrier session with %s stream %d", peerId.c_str(), sessionStreamId);
 
     return 0;
 }

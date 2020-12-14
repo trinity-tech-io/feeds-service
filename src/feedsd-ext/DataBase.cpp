@@ -61,7 +61,7 @@ const char* DataBase::ConditionBy(ConditionField field, ConditionIdType idType)
 /* =========================================== */
 int DataBase::config(const std::filesystem::path& databaseFilePath)
 {
-    Log::D(Log::TAG, "Config database.");
+    Log::D(Log::Tag::Db, "Config database.");
 
     handler = std::make_shared<SQLite::Database>(databaseFilePath, SQLite::OPEN_READWRITE|SQLite::OPEN_CREATE);
     CHECK_ASSERT(handler != nullptr, ErrCode::DBOpenFailed);
@@ -79,7 +79,7 @@ void DataBase::cleanup()
     db_deinit();
     DataBaseInstance.reset();
 
-    Log::D(Log::TAG, "Cleanup database.");
+    Log::D(Log::Tag::Db, "Cleanup database.");
 }
 
 std::shared_ptr<SQLite::Database> DataBase::getHandler()
@@ -90,7 +90,7 @@ std::shared_ptr<SQLite::Database> DataBase::getHandler()
 int DataBase::executeStep(const std::string& sql, Step& step)
 {
     try {
-        Log::D(Log::TAG, "DataBase sql: %s", sql.c_str());
+        Log::D(Log::Tag::Db, "DataBase sql: %s", sql.c_str());
         SQLite::Statement stmt(*handler, sql);
 
         while (stmt.executeStep()) {
@@ -98,7 +98,7 @@ int DataBase::executeStep(const std::string& sql, Step& step)
             CHECK_ERROR(ret);
         }
     } catch (SQLite::Exception& e) {
-        Log::E(Log::TAG, "DataBase exec failed. exception: %s", e.what());
+        Log::E(Log::Tag::Db, "DataBase exec failed. exception: %s", e.what());
         CHECK_ERROR(ErrCode::DBException);
     }
 

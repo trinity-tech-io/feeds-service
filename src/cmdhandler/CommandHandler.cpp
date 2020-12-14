@@ -49,7 +49,7 @@ void CommandHandler::PrintElaCarrierError(const std::string& errReason)
     char errStr[1024] = {0};
     ela_get_strerror(errCode, errStr, sizeof(errStr));
 
-    Log::E(Log::TAG, "%s. carrier native error desc is %s(0x%x)",
+    Log::E(Log::Tag::Cmd, "%s. carrier native error desc is %s(0x%x)",
                      errReason.c_str(), errStr, errCode);
 }
 
@@ -59,7 +59,7 @@ void CommandHandler::PrintElaCarrierError(const std::string& errReason)
 int CommandHandler::config(const std::filesystem::path& dataDir,
                            std::weak_ptr<ElaCarrier> carrier)
 {
-    Log::D(Log::TAG, "Config command handler.");
+    Log::D(Log::Tag::Cmd, "Config command handler.");
     int ret = Listener::SetDataDir(dataDir);
     CHECK_ERROR(ret);
 
@@ -84,7 +84,7 @@ void CommandHandler::cleanup()
     carrierHandler.reset();
     cmdListener.clear();
 
-    Log::D(Log::TAG, "Cleanup command handler.");
+    Log::D(Log::Tag::Cmd, "Cleanup command handler.");
 }
 
 std::weak_ptr<ElaCarrier> CommandHandler::getCarrierHandler()
@@ -123,7 +123,7 @@ int CommandHandler::send(const std::string &to, const std::vector<uint8_t> &data
            return;
        }
 
-       Log::D(Log::TAG, "Success send message to [%s].", to.c_str());
+       Log::D(Log::Tag::Cmd, "Success send message to [%s].", to.c_str());
     });
 
     return 0;
@@ -135,7 +135,7 @@ int CommandHandler::process(const std::string& from, const std::vector<uint8_t>&
     std::shared_ptr<Resp> resp;
     int ret = unpackRequest(data, req);
     if(ret >= 0) {
-        Log::D(Log::TAG, "Command handler dispose method:%s, tsx_id:%llu, from:%s", req->method, req->tsx_id, from.c_str());
+        Log::D(Log::Tag::Cmd, "Command handler dispose method:%s, tsx_id:%llu, from:%s", req->method, req->tsx_id, from.c_str());
         ret = ErrCode::UnimplementedError;
         for (const auto& it : cmdListener) {
             ret = it->onDispose(from, req, resp);
@@ -223,7 +223,7 @@ int CommandHandler::unpackRequest(const std::vector<uint8_t>& data,
         ret = ErrCode::UnknownError;
     }
     if(ret < 0) {
-        Log::W(Log::TAG, "Failed to unmarshal request: %s", data.data());
+        Log::W(Log::Tag::Cmd, "Failed to unmarshal request: %s", data.data());
     }
     CHECK_ERROR(ret);
 
@@ -243,9 +243,9 @@ int CommandHandler::packResponse(const std::shared_ptr<Req>& req,
         CHECK_ASSERT(req != nullptr, ErrCode::CmdUnknownReqFailed);
         auto errDesp = ErrCode::ToString(errCode);
         marshalBuf = rpc_marshal_err(req->tsx_id, errCode, errDesp.c_str());
-        Log::D(Log::TAG, "Response error:");
-        Log::D(Log::TAG, "    code: %d", errCode);
-        Log::D(Log::TAG, "    message: %s", errDesp.c_str());
+        Log::D(Log::Tag::Cmd, "Response error:");
+        Log::D(Log::Tag::Cmd, "    code: %d", errCode);
+        Log::D(Log::Tag::Cmd, "    message: %s", errDesp.c_str());
     }
     auto deleter = [](void* ptr) -> void {
         deref(ptr);
@@ -289,7 +289,7 @@ int CommandHandler::Listener::checkAccessible(Accessible accessible, const std::
 
 #ifdef NDEBUG
     int ret = ErrCode::UnknownError;
-    Log::D(Log::TAG, "Checking request accessible.");
+    Log::D(Log::Tag::Cmd, "Checking request accessible.");
     if (accessible == Accessible::Owner) {
         ret = isOwner(accessToken);
     } else if (accessible == Accessible::Member) {
@@ -299,7 +299,7 @@ int CommandHandler::Listener::checkAccessible(Accessible accessible, const std::
     }
     CHECK_ERROR(ret);
 #else
-    Log::W(Log::TAG, "Debug: Ignore to check request accessible.");
+    Log::W(Log::Tag::Cmd, "Debug: Ignore to check request accessible.");
 #endif
 
     return 0;
@@ -336,8 +336,8 @@ int CommandHandler::Listener::onDispose(std::shared_ptr<Rpc::Request> request,
             continue;
         }
 
-        Log::D(Log::TAG, "Request:");
-        Log::D(Log::TAG, "  ->  %s", request->str().c_str());
+        Log::D(Log::Tag::Cmd, "Request:");
+        Log::D(Log::Tag::Cmd, "  ->  %s", request->str().c_str());
 
         std::string accessToken;
         auto requestTokenPtr = std::dynamic_pointer_cast<Rpc::RequestWithToken>(request);
@@ -350,9 +350,9 @@ int CommandHandler::Listener::onDispose(std::shared_ptr<Rpc::Request> request,
         ret = it.second.callback(request, responseArray);
         CHECK_ERROR(ret);
 
-        Log::D(Log::TAG, "Response:");
+        Log::D(Log::Tag::Cmd, "Response:");
         for(const auto& response: responseArray) {
-            Log::D(Log::TAG, "  ->  %s", response->str().c_str());
+            Log::D(Log::Tag::Cmd, "  ->  %s", response->str().c_str());
         }
         return ret;
     }
@@ -367,7 +367,7 @@ int CommandHandler::Listener::isOwner(const std::string& accessToken)
     CHECK_ERROR(ret);
 
     if (user_id_is_owner(userInfo->uid) == false) {
-        Log::E(Log::TAG, "Mass data processor: request access while not being owner.");
+        Log::E(Log::Tag::Cmd, "Mass data processor: request access while not being owner.");
         CHECK_ERROR(ErrCode::NotAuthorizedError);
     }
 
@@ -386,7 +386,7 @@ int CommandHandler::Listener::isMember(const std::string& accessToken)
 int CommandHandler::Listener::getUserInfo(const std::string& accessToken, std::shared_ptr<UserInfo>& userInfo)
 {
     if (did_is_ready() == false) {
-        Log::E(Log::TAG, "Mass data processor: Feeds DID is not ready.");
+        Log::E(Log::Tag::Cmd, "Mass data processor: Feeds DID is not ready.");
         CHECK_ERROR(ErrCode::DidNotReady);
     }
 
@@ -399,7 +399,7 @@ int CommandHandler::Listener::getUserInfo(const std::string& accessToken, std::s
     };
     userInfo = std::shared_ptr<UserInfo>(creater(), deleter);
     if (userInfo == nullptr) {
-        Log::E(Log::TAG, "Invalid access token: %s.", accessToken.c_str());
+        Log::E(Log::Tag::Cmd, "Invalid access token: %s.", accessToken.c_str());
         CHECK_ERROR(ErrCode::InvalidAccessToken);
     }
 
