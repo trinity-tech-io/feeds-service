@@ -24,7 +24,7 @@ public:
 
   struct Tag {
     static constexpr const char *Err = "Feedsd.Err";
-    static constexpr const char *Utils = "Feedsd.Utils";
+    static constexpr const char *Util = "Feedsd.Util";
 
     static constexpr const char *Msg = "Feedsd.Msg";
     static constexpr const char *Rpc = "Feedsd.Rpc";

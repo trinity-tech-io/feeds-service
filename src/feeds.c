@@ -31,6 +31,8 @@
 #include "db.h"
 #include "ver.h"
 
+#define TAG_CMD "[Feedsd.Cmd ]: "
+
 extern ElaCarrier *carrier;
 extern size_t connecting_clients;
 
@@ -215,7 +217,7 @@ int load_chans_from_db()
 
     it = db_iter_chans(&qc);
     if (!it) {
-        vlogE("Loading channels from database failed");
+        vlogE(TAG_CMD"Loading channels from database failed");
         return -1;
     }
 
@@ -243,25 +245,25 @@ int feeds_init(FeedsConfig *cfg)
 
     chans_by_name = hashtable_create(8, 0, NULL, NULL);
     if (!chans_by_name) {
-        vlogE("Creating channels by name failed");
+        vlogE(TAG_CMD"Creating channels by name failed");
         goto failure;
     }
 
     chans_by_id = hashtable_create(8, 0, NULL, u64_cmp);
     if (!chans_by_id) {
-        vlogE("Creating channels by id failed");
+        vlogE(TAG_CMD"Creating channels by id failed");
         goto failure;
     }
 
     ass = hashtable_create(8, 0, NULL, u64_cmp);
     if (!ass) {
-        vlogE("Creating active subscribers failed");
+        vlogE(TAG_CMD "Creating active subscribers failed");
         goto failure;
     }
 
     nds = hashtable_create(8, 0, NULL, NULL);
     if (!nds) {
-        vlogE("Creating notification destinations failed");
+        vlogE(TAG_CMD "Creating notification destinations failed");
         goto failure;
     }
 
@@ -269,7 +271,7 @@ int feeds_init(FeedsConfig *cfg)
     if (rc < 0)
         goto failure;
 
-    vlogI("Feeds module initialized.");
+    vlogI(TAG_CMD "Feeds module initialized.");
     return 0;
 
 failure:
@@ -300,7 +302,7 @@ void notify_of_chan_upd(const char *peer, const ChanInfo *ci)
     if (!notif_marshal)
         return;
 
-    vlogD("Sending channel update notification to [%s]: {channel_id: %" PRIu64 "}", peer, ci->chan_id);
+    vlogD(TAG_CMD "Sending channel update notification to [%s]: {channel_id: %" PRIu64 "}", peer, ci->chan_id);
     msgq_enq(peer, notif_marshal);
     deref(notif_marshal);
 }
@@ -320,7 +322,7 @@ void notify_of_new_post(const char *peer, const PostInfo *pi)
     if (!notif_marshal)
         return;
 
-    vlogD("Sending new post notification to [%s]: " "{channel_id: %" PRIu64 ", post_id: %" PRIu64 "}",
+    vlogD(TAG_CMD "Sending new post notification to [%s]: " "{channel_id: %" PRIu64 ", post_id: %" PRIu64 "}",
           peer, pi->chan_id, pi->post_id);
     msgq_enq(peer, notif_marshal);
     deref(notif_marshal);
@@ -341,7 +343,7 @@ void notify_of_post_upd(const char *peer, const PostInfo *pi)
     if (!notif_marshal)
         return;
 
-    vlogD("Sending post update notification to [%s]: "
+    vlogD(TAG_CMD "Sending post update notification to [%s]: "
           "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", status: %s, content_len: %zu"
           ", comments: %" PRIu64 ", likes: %" PRIu64 ", created_at: %" PRIu64
           ", updated_at: %" PRIu64 "}",
@@ -366,7 +368,7 @@ void notify_of_new_cmt(const char *peer, const CmtInfo *ci)
     if (!notif_marshal)
         return;
 
-    vlogD("Sending new comment notification to [%s]: "
+    vlogD(TAG_CMD "Sending new comment notification to [%s]: "
           "{channel_id: %" PRIu64 ", post_id: %" PRIu64
           ", comment_id: %" PRIu64 ", refcomment_id: %" PRIu64 "}",
           peer, ci->chan_id, ci->post_id, ci->cmt_id, ci->reply_to_cmt);
@@ -389,7 +391,7 @@ void notify_of_cmt_upd(const char *peer, const CmtInfo *ci)
     if (!notif_marshal)
         return;
 
-    vlogD("Sending comment_update notification to [%s]: "
+    vlogD(TAG_CMD "Sending comment_update notification to [%s]: "
           "{channel_id: %" PRIu64 ", post_id: %" PRIu64
           ", comment_id: %" PRIu64 ", refcomment_id: %" PRIu64 ", status: %s}",
           peer, ci->chan_id, ci->post_id, ci->cmt_id, ci->reply_to_cmt, cmt_stat_str(ci->stat));
@@ -412,7 +414,7 @@ void notify_of_new_like(const char *peer, const LikeInfo *li)
     if (!notif_marshal)
         return;
 
-    vlogD("Sending new like notification to [%s]: "
+    vlogD(TAG_CMD "Sending new like notification to [%s]: "
           "{channel_id: %" PRIu64 ", post_id: %" PRIu64
           ", comment_id: %" PRIu64 ", user_name: %s, user_did: %s, total_count: %" PRIu64 "}",
           peer, li->chan_id, li->post_id, li->cmt_id, li->user.name, li->user.did, li->total_cnt);
@@ -436,7 +438,7 @@ void notify_of_new_sub(const char *peer, const uint64_t chan_id, const UserInfo 
     if (!notif_marshal)
         return;
 
-    vlogD("Sending new subscription notification to [%s]: "
+    vlogD(TAG_CMD "Sending new subscription notification to [%s]: "
           "{channel_id: %" PRIu64 ", user_name: %s, user_did: %s}",
           peer, chan_id, uinfo->name, uinfo->did);
     msgq_enq(peer, notif_marshal);
@@ -458,7 +460,7 @@ void notify_of_stats_changed(const char *peer, uint64_t total_clients)
     if (!notif_marshal)
         return;
 
-    vlogD("Sending statistics changed notification to [%s]: " "{total_clients: %" PRIu64 "}",
+    vlogD(TAG_CMD "Sending statistics changed notification to [%s]: " "{total_clients: %" PRIu64 "}",
           peer, total_clients);
     msgq_enq(peer, notif_marshal);
     deref(notif_marshal);
@@ -479,7 +481,7 @@ void notify_of_report_cmt(const char *peer, const ReportedCmtInfo *li)
     if (!notif_marshal)
         return;
 
-    vlogD("Sending new like notification to [%s]: "
+    vlogD(TAG_CMD "Sending new like notification to [%s]: "
           "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", comment_id: %" PRIu64
           ", reporter_name: %s, reporter_did: %s, reasons: %s created_at: %" PRIu64 "}",
           peer, li->chan_id, li->post_id, li->cmt_id,
@@ -663,18 +665,18 @@ void hdl_create_chan_req(ElaCarrier *c, const char *from, Req *base)
     Chan *chan = NULL;
     int rc;
 
-    vlogD("Received create_channel request from [%s]: "
+    vlogD(TAG_CMD "Received create_channel request from [%s]: "
           "{access_token: %s, name: %s, introduction: %s, avatar_length: %zu}",
           from, req->params.tk, req->params.name, req->params.intro, req->params.sz);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -684,7 +686,7 @@ void hdl_create_chan_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (!user_id_is_owner(uinfo->uid)) {
-        vlogE("Creating channel while not being owner.");
+        vlogE(TAG_CMD "Creating channel while not being owner.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_AUTHORIZED
@@ -694,7 +696,7 @@ void hdl_create_chan_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (chan_exist_by_name(req->params.name)) {
-        vlogE("Creating an existing channel.");
+        vlogE(TAG_CMD "Creating an existing channel.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ALREADY_EXISTS
@@ -705,7 +707,7 @@ void hdl_create_chan_req(ElaCarrier *c, const char *from, Req *base)
 
     chan = chan_create(&ci);
     if (!chan) {
-        vlogE("Creating channel failed.");
+        vlogE(TAG_CMD "Creating channel failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -716,7 +718,7 @@ void hdl_create_chan_req(ElaCarrier *c, const char *from, Req *base)
 
     rc = db_create_chan(&ci);
     if (rc < 0) {
-        vlogE("Adding channel to database failed.");
+        vlogE(TAG_CMD "Adding channel to database failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -727,7 +729,7 @@ void hdl_create_chan_req(ElaCarrier *c, const char *from, Req *base)
 
     chan_put(chan);
     ++nxt_chan_id;
-    vlogI("Channel [%" PRIu64 "] created.", ci.chan_id);
+    vlogI(TAG_CMD "Channel [%" PRIu64 "] created.", ci.chan_id);
 
     {
         CreateChanResp resp = {
@@ -737,7 +739,7 @@ void hdl_create_chan_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_create_chan_resp(&resp);
-        vlogD("Sending create_channel response: "
+        vlogD(TAG_CMD "Sending create_channel response: "
               "{id: %" PRIu64 "}", ci.chan_id);
     }
 
@@ -762,18 +764,18 @@ void hdl_upd_chan_req(ElaCarrier *c, const char *from, Req *base)
     ChanInfo ci;
     int rc;
 
-    vlogD("Received update_feedinfo request from [%s]: "
+    vlogD(TAG_CMD "Received update_feedinfo request from [%s]: "
           "{access_token: %s, channel_id: %" PRIu64 ", name: %s, introduction: %s, avatar_length: %zu}",
           from, req->params.tk, req->params.chan_id, req->params.name, req->params.intro, req->params.sz);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -783,7 +785,7 @@ void hdl_upd_chan_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (!user_id_is_owner(uinfo->uid)) {
-        vlogE("Creating channel while not being owner.");
+        vlogE(TAG_CMD "Creating channel while not being owner.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_AUTHORIZED
@@ -794,7 +796,7 @@ void hdl_upd_chan_req(ElaCarrier *c, const char *from, Req *base)
 
     chan = chan_get_by_id(req->params.chan_id);
     if (!chan) {
-        vlogE("Channel to update does not exist.");
+        vlogE(TAG_CMD "Channel to update does not exist.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -805,7 +807,7 @@ void hdl_upd_chan_req(ElaCarrier *c, const char *from, Req *base)
 
     if (strcmp(chan->info.name, req->params.name) &&
         chan_exist_by_name(req->params.name)) {
-        vlogE("Channel name to update already exists.");
+        vlogE(TAG_CMD "Channel name to update already exists.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ALREADY_EXISTS
@@ -826,7 +828,7 @@ void hdl_upd_chan_req(ElaCarrier *c, const char *from, Req *base)
     ci.len          = req->params.sz;
     chan_upd = chan_create_upd(chan, &ci);
     if (!chan_upd) {
-        vlogE("Creating updated channel failed.");
+        vlogE(TAG_CMD "Creating updated channel failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -837,7 +839,7 @@ void hdl_upd_chan_req(ElaCarrier *c, const char *from, Req *base)
 
     rc = db_upd_chan(&ci);
     if (rc < 0) {
-        vlogE("Updating channel to database failed.");
+        vlogE(TAG_CMD "Updating channel to database failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -847,14 +849,14 @@ void hdl_upd_chan_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     chan_sub(chan_upd, chan);
-    vlogI("Channel [%" PRIu64 "] updated.", ci.chan_id);
+    vlogI(TAG_CMD "Channel [%" PRIu64 "] updated.", ci.chan_id);
 
     {
         UpdChanResp resp = {
             .tsx_id = req->tsx_id,
         };
         resp_marshal = rpc_marshal_upd_chan_resp(&resp);
-        vlogD("Sending update_feedinfo response.");
+        vlogD(TAG_CMD "Sending update_feedinfo response.");
     }
 
     list_foreach(chan->aspcs, aspc) {
@@ -887,18 +889,18 @@ void hdl_pub_post_req(ElaCarrier *c, const char *from, Req *base)
     time_t now;
     int rc;
 
-    vlogD("Received publish_post request from [%s]: "
+    vlogD(TAG_CMD "Received publish_post request from [%s]: "
           "{access_token: %s, channel_id: %" PRIu64 ", content_length: %zu}",
           from, req->params.tk, req->params.chan_id, req->params.sz);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -908,7 +910,7 @@ void hdl_pub_post_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (!user_id_is_owner(uinfo->uid)) {
-        vlogE("Publishing post while not being owner.");
+        vlogE(TAG_CMD "Publishing post while not being owner.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_AUTHORIZED
@@ -919,7 +921,7 @@ void hdl_pub_post_req(ElaCarrier *c, const char *from, Req *base)
 
     chan = chan_get_by_id(req->params.chan_id);
     if (!chan) {
-        vlogE("Publishing post on non-existent channel.");
+        vlogE(TAG_CMD "Publishing post on non-existent channel.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -939,7 +941,7 @@ void hdl_pub_post_req(ElaCarrier *c, const char *from, Req *base)
 
     rc = db_add_post(&new_post);
     if (rc < 0) {
-        vlogE("Inserting post into database failed.");
+        vlogE(TAG_CMD "Inserting post into database failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -949,7 +951,7 @@ void hdl_pub_post_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     ++chan->info.next_post_id;
-    vlogI("Post [%" PRIu64 "] on channel [%" PRIu64 "] created.", new_post.post_id, new_post.chan_id);
+    vlogI(TAG_CMD "Post [%" PRIu64 "] on channel [%" PRIu64 "] created.", new_post.post_id, new_post.chan_id);
 
     {
         PubPostResp resp = {
@@ -959,7 +961,7 @@ void hdl_pub_post_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_pub_post_resp(&resp);
-        vlogD("Sending publish_post response: "
+        vlogD(TAG_CMD "Sending publish_post response: "
               "{id: %" PRIu64 "}", new_post.post_id);
     }
 
@@ -992,18 +994,18 @@ void hdl_declare_post_req(ElaCarrier *c, const char *from, Req *base)
     time_t now;
     int rc;
 
-    vlogD("Received declare_post request from [%s]: "
+    vlogD(TAG_CMD "Received declare_post request from [%s]: "
           "{access_token: %s, channel_id: %" PRIu64 ", content_length: %zu}",
           from, req->params.tk, req->params.chan_id, req->params.sz);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -1013,7 +1015,7 @@ void hdl_declare_post_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (!user_id_is_owner(uinfo->uid)) {
-        vlogE("Declareing post while not being owner.");
+        vlogE(TAG_CMD "Declareing post while not being owner.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_AUTHORIZED
@@ -1024,7 +1026,7 @@ void hdl_declare_post_req(ElaCarrier *c, const char *from, Req *base)
 
     chan = chan_get_by_id(req->params.chan_id);
     if (!chan) {
-        vlogE("Declareing post on non-existent channel.");
+        vlogE(TAG_CMD "Declareing post on non-existent channel.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -1044,7 +1046,7 @@ void hdl_declare_post_req(ElaCarrier *c, const char *from, Req *base)
 
     rc = db_add_post(&new_post);
     if (rc < 0) {
-        vlogE("Inserting post into database failed.");
+        vlogE(TAG_CMD "Inserting post into database failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -1054,7 +1056,7 @@ void hdl_declare_post_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     ++chan->info.next_post_id;
-    vlogI("Declare %s post [%" PRIu64 "] on channel [%" PRIu64 "] created.",
+    vlogI(TAG_CMD "Declare %s post [%" PRIu64 "] on channel [%" PRIu64 "] created.",
           post_stat_str(new_post.stat), new_post.post_id, new_post.chan_id);
 
     {
@@ -1065,7 +1067,7 @@ void hdl_declare_post_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_declare_post_resp(&resp);
-        vlogD("Sending declare_post response: "
+        vlogD(TAG_CMD "Sending declare_post response: "
               "{id: %" PRIu64 "}", new_post.post_id);
     }
 
@@ -1099,18 +1101,18 @@ void hdl_notify_post_req(ElaCarrier *c, const char *from, Req *base)
     PostInfo post_notify;
     int rc;
 
-    vlogI("Received notify_post request from [%s]: "
+    vlogI(TAG_CMD "Received notify_post request from [%s]: "
           "{access_token: %s, channel_id: %" PRIu64 ", post_id: %" PRIu64 "}",
           from, req->params.tk, req->params.chan_id, req->params.post_id);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -1120,7 +1122,7 @@ void hdl_notify_post_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (!user_id_is_owner(uinfo->uid)) {
-        vlogE("Editing post while not being owner.");
+        vlogE(TAG_CMD "Editing post while not being owner.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_AUTHORIZED
@@ -1131,7 +1133,7 @@ void hdl_notify_post_req(ElaCarrier *c, const char *from, Req *base)
 
     chan = chan_get_by_id(req->params.chan_id);
     if (!chan) {
-        vlogE("Notifying non-existent post: invalid channel id.");
+        vlogE(TAG_CMD "Notifying non-existent post: invalid channel id.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -1142,7 +1144,7 @@ void hdl_notify_post_req(ElaCarrier *c, const char *from, Req *base)
 
     rc = db_get_post_status(req->params.chan_id, req->params.post_id);
     if (rc < 0) {
-        vlogE("Notifying non-existent post: invalid post id.");
+        vlogE(TAG_CMD "Notifying non-existent post: invalid post id.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -1151,7 +1153,7 @@ void hdl_notify_post_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
     if(rc == POST_DELETED) {
-        vlogE("Notifying post: invalid post id.");
+        vlogE(TAG_CMD "Notifying post: invalid post id.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_WRONG_STATE
@@ -1167,7 +1169,7 @@ void hdl_notify_post_req(ElaCarrier *c, const char *from, Req *base)
 
     rc = db_set_post_status(&post_notify);
     if (rc < 0) {
-        vlogE("Notifying post in database failed.");
+        vlogE(TAG_CMD "Notifying post in database failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -1176,19 +1178,19 @@ void hdl_notify_post_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    vlogI("Post [%" PRIu64 "] on channel [%" PRIu64 "] updated.", post_notify.post_id, post_notify.chan_id);
+    vlogI(TAG_CMD "Post [%" PRIu64 "] on channel [%" PRIu64 "] updated.", post_notify.post_id, post_notify.chan_id);
 
     {
         NotifyPostResp resp = {
             .tsx_id = req->tsx_id,
         };
         resp_marshal = rpc_marshal_notify_post_resp(&resp);
-        vlogD("Sending notifyete_post response");
+        vlogD(TAG_CMD "Sending notifyete_post response");
     }
 
     rc = db_get_post(post_notify.chan_id, post_notify.post_id, &post_notify);
     if (rc < 0) {
-        vlogE("Notifying get post in database failed.");
+        vlogE(TAG_CMD "Notifying get post in database failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -1227,18 +1229,18 @@ void hdl_edit_post_req(ElaCarrier *c, const char *from, Req *base)
     PostInfo post_mod;
     int rc;
 
-    vlogD("Received edit_post request from [%s]: "
+    vlogD(TAG_CMD "Received edit_post request from [%s]: "
           "{access_token: %s, channel_id: %" PRIu64 ", post_id: %" PRIu64 ", content_length: %zu}",
           from, req->params.tk, req->params.chan_id, req->params.post_id, req->params.sz);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -1248,7 +1250,7 @@ void hdl_edit_post_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (!user_id_is_owner(uinfo->uid)) {
-        vlogE("Editing post while not being owner.");
+        vlogE(TAG_CMD "Editing post while not being owner.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_AUTHORIZED
@@ -1259,7 +1261,7 @@ void hdl_edit_post_req(ElaCarrier *c, const char *from, Req *base)
 
     chan = chan_get_by_id(req->params.chan_id);
     if (!chan) {
-        vlogE("Editing non-existent post: invalid channel id.");
+        vlogE(TAG_CMD "Editing non-existent post: invalid channel id.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -1269,7 +1271,7 @@ void hdl_edit_post_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if ((rc = db_post_is_avail(req->params.chan_id, req->params.post_id)) < 0 || !rc) {
-        vlogE("Editing non-existent post: invalid post id.");
+        vlogE(TAG_CMD "Editing non-existent post: invalid post id.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -1288,7 +1290,7 @@ void hdl_edit_post_req(ElaCarrier *c, const char *from, Req *base)
 
     rc = db_upd_post(&post_mod);
     if (rc < 0) {
-        vlogE("Updating post in database failed.");
+        vlogE(TAG_CMD "Updating post in database failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -1297,14 +1299,14 @@ void hdl_edit_post_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    vlogI("Post [%" PRIu64 "] on channel [%" PRIu64 "] updated.", post_mod.post_id, post_mod.chan_id);
+    vlogI(TAG_CMD "Post [%" PRIu64 "] on channel [%" PRIu64 "] updated.", post_mod.post_id, post_mod.chan_id);
 
     {
         EditPostResp resp = {
             .tsx_id = req->tsx_id,
         };
         resp_marshal = rpc_marshal_edit_post_resp(&resp);
-        vlogD("Sending edit_post response");
+        vlogD(TAG_CMD "Sending edit_post response");
     }
 
     list_foreach(chan->aspcs, aspc) {
@@ -1335,18 +1337,18 @@ void hdl_del_post_req(ElaCarrier *c, const char *from, Req *base)
     PostInfo post_del;
     int rc;
 
-    vlogD("Received delete_post request from [%s]: "
+    vlogD(TAG_CMD "Received delete_post request from [%s]: "
           "{access_token: %s, channel_id: %" PRIu64 ", post_id: %" PRIu64 "}",
           from, req->params.tk, req->params.chan_id, req->params.post_id);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -1356,7 +1358,7 @@ void hdl_del_post_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (!user_id_is_owner(uinfo->uid)) {
-        vlogE("Editing post while not being owner.");
+        vlogE(TAG_CMD "Editing post while not being owner.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_AUTHORIZED
@@ -1367,7 +1369,7 @@ void hdl_del_post_req(ElaCarrier *c, const char *from, Req *base)
 
     chan = chan_get_by_id(req->params.chan_id);
     if (!chan) {
-        vlogE("Deleting non-existent post: invalid channel id.");
+        vlogE(TAG_CMD "Deleting non-existent post: invalid channel id.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -1377,7 +1379,7 @@ void hdl_del_post_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if ((rc = db_post_is_avail(req->params.chan_id, req->params.post_id)) < 0 || !rc) {
-        vlogE("Deleting non-existent post: invalid post id.");
+        vlogE(TAG_CMD "Deleting non-existent post: invalid post id.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -1394,7 +1396,7 @@ void hdl_del_post_req(ElaCarrier *c, const char *from, Req *base)
 
     rc = db_set_post_status(&post_del);
     if (rc < 0) {
-        vlogE("Deleting post in database failed.");
+        vlogE(TAG_CMD "Deleting post in database failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -1403,14 +1405,14 @@ void hdl_del_post_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    vlogI("Post [%" PRIu64 "] on channel [%" PRIu64 "] updated.", post_del.post_id, post_del.chan_id);
+    vlogI(TAG_CMD "Post [%" PRIu64 "] on channel [%" PRIu64 "] updated.", post_del.post_id, post_del.chan_id);
 
     {
         DelPostResp resp = {
             .tsx_id = req->tsx_id,
         };
         resp_marshal = rpc_marshal_del_post_resp(&resp);
-        vlogD("Sending delete_post response");
+        vlogD(TAG_CMD "Sending delete_post response");
     }
 
     list_foreach(chan->aspcs, aspc) {
@@ -1442,19 +1444,19 @@ void hdl_post_cmt_req(ElaCarrier *c, const char *from, Req *base)
     time_t now;
     int rc;
 
-    vlogD("Received post_comment request from [%s]: "
+    vlogD(TAG_CMD "Received post_comment request from [%s]: "
           "{access_token: %s, channel_id: %" PRIu64
           ", post_id: %" PRIu64 ", comment_id: %" PRIu64 ", content_length: %zu}",
           from, req->params.tk, req->params.chan_id, req->params.post_id, req->params.cmt_id, req->params.sz);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -1465,7 +1467,7 @@ void hdl_post_cmt_req(ElaCarrier *c, const char *from, Req *base)
 
     chan = chan_get_by_id(req->params.chan_id);
     if (!chan) {
-        vlogE("Posting comment on non-existent channel");
+        vlogE(TAG_CMD "Posting comment on non-existent channel");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -1475,7 +1477,7 @@ void hdl_post_cmt_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (req->params.post_id >= chan->info.next_post_id) {
-        vlogE("Posting comment on non-existent post");
+        vlogE(TAG_CMD "Posting comment on non-existent post");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -1488,7 +1490,7 @@ void hdl_post_cmt_req(ElaCarrier *c, const char *from, Req *base)
         ((rc = db_cmt_exists(req->params.chan_id,
                              req->params.post_id,
                              req->params.cmt_id)) < 0 || !rc)) {
-        vlogE("Posting comment on non-existent post");
+        vlogE(TAG_CMD "Posting comment on non-existent post");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -1509,7 +1511,7 @@ void hdl_post_cmt_req(ElaCarrier *c, const char *from, Req *base)
 
     rc = db_add_cmt(&new_cmt, &new_cmt.cmt_id);
     if (rc < 0) {
-        vlogE("Adding comment to database failed");
+        vlogE(TAG_CMD "Adding comment to database failed");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -1518,7 +1520,7 @@ void hdl_post_cmt_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    vlogI("Comment [%" PRIu64 "] on channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] created by [%s]",
+    vlogI(TAG_CMD "Comment [%" PRIu64 "] on channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] created by [%s]",
           new_cmt.cmt_id, new_cmt.chan_id, new_cmt.post_id, new_cmt.reply_to_cmt, new_cmt.user.did);
 
     {
@@ -1529,7 +1531,7 @@ void hdl_post_cmt_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_post_cmt_resp(&resp);
-        vlogD("Sending post_comment response: {id: %" PRIu64 "}", new_cmt.cmt_id);
+        vlogD(TAG_CMD "Sending post_comment response: {id: %" PRIu64 "}", new_cmt.cmt_id);
     }
 
     list_foreach(chan->aspcs, aspc) {
@@ -1561,20 +1563,20 @@ void hdl_edit_cmt_req(ElaCarrier *c, const char *from, Req *base)
     CmtInfo cmt_mod;
     int rc;
 
-    vlogD("Received edit_comment request from [%s]: "
+    vlogD(TAG_CMD "Received edit_comment request from [%s]: "
           "{access_token: %s, channel_id: %" PRIu64
           ", post_id: %" PRIu64 ", id: %" PRIu64 ", comment_id: %" PRIu64 ", content_length: %zu}",
           from, req->params.tk, req->params.chan_id, req->params.post_id, req->params.id,
           req->params.cmt_id, req->params.sz);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -1585,7 +1587,7 @@ void hdl_edit_cmt_req(ElaCarrier *c, const char *from, Req *base)
 
     chan = chan_get_by_id(req->params.chan_id);
     if (!chan) {
-        vlogE("Editing comment on non-existent channel");
+        vlogE(TAG_CMD "Editing comment on non-existent channel");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -1595,7 +1597,7 @@ void hdl_edit_cmt_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (req->params.post_id >= chan->info.next_post_id) {
-        vlogE("Editing comment on non-existent post");
+        vlogE(TAG_CMD "Editing comment on non-existent post");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -1607,7 +1609,7 @@ void hdl_edit_cmt_req(ElaCarrier *c, const char *from, Req *base)
     if ((rc = db_cmt_is_avail(req->params.chan_id,
                               req->params.post_id,
                               req->params.id)) < 0 || !rc) {
-        vlogE("Editing unavailable comment");
+        vlogE(TAG_CMD "Editing unavailable comment");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -1620,7 +1622,7 @@ void hdl_edit_cmt_req(ElaCarrier *c, const char *from, Req *base)
                          req->params.post_id,
                          req->params.id,
                          &cmt_uid)) < 0 || cmt_uid != uinfo->uid) {
-        vlogE("Editing other's comment");
+        vlogE(TAG_CMD "Editing other's comment");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_AUTHORIZED
@@ -1633,7 +1635,7 @@ void hdl_edit_cmt_req(ElaCarrier *c, const char *from, Req *base)
         ((rc = db_cmt_exists(req->params.chan_id,
                              req->params.post_id,
                              req->params.cmt_id)) < 0 || !rc)) {
-        vlogE("Editing comment to reply to non-existent comment");
+        vlogE(TAG_CMD "Editing comment to reply to non-existent comment");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -1655,7 +1657,7 @@ void hdl_edit_cmt_req(ElaCarrier *c, const char *from, Req *base)
 
     rc = db_upd_cmt(&cmt_mod);
     if (rc < 0) {
-        vlogE("Updating comment in database failed");
+        vlogE(TAG_CMD "Updating comment in database failed");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -1664,7 +1666,7 @@ void hdl_edit_cmt_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    vlogI("Comment [%" PRIu64 "] on channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] updated by [%s].",
+    vlogI(TAG_CMD "Comment [%" PRIu64 "] on channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] updated by [%s].",
           cmt_mod.cmt_id, cmt_mod.chan_id, cmt_mod.post_id, cmt_mod.reply_to_cmt, cmt_mod.user.did);
 
     {
@@ -1672,7 +1674,7 @@ void hdl_edit_cmt_req(ElaCarrier *c, const char *from, Req *base)
             .tsx_id = req->tsx_id,
         };
         resp_marshal = rpc_marshal_edit_cmt_resp(&resp);
-        vlogD("Sending edit_comment response");
+        vlogD(TAG_CMD "Sending edit_comment response");
     }
 
     list_foreach(chan->aspcs, aspc) {
@@ -1704,18 +1706,18 @@ void hdl_del_cmt_req(ElaCarrier *c, const char *from, Req *base)
     CmtInfo cmt_del;
     int rc;
 
-    vlogD("Received delete_comment request from [%s]: {access_token: %s, channel_id: %" PRIu64
+    vlogD(TAG_CMD "Received delete_comment request from [%s]: {access_token: %s, channel_id: %" PRIu64
           ", post_id: %" PRIu64 ", id: %" PRIu64 "}",
           from, req->params.tk, req->params.chan_id, req->params.post_id, req->params.id);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -1726,7 +1728,7 @@ void hdl_del_cmt_req(ElaCarrier *c, const char *from, Req *base)
 
     chan = chan_get_by_id(req->params.chan_id);
     if (!chan) {
-        vlogE("Deleting comment on non-existent channel");
+        vlogE(TAG_CMD "Deleting comment on non-existent channel");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -1736,7 +1738,7 @@ void hdl_del_cmt_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (req->params.post_id >= chan->info.next_post_id) {
-        vlogE("Deleting comment on non-existent post");
+        vlogE(TAG_CMD "Deleting comment on non-existent post");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -1748,7 +1750,7 @@ void hdl_del_cmt_req(ElaCarrier *c, const char *from, Req *base)
     if ((rc = db_cmt_is_avail(req->params.chan_id,
                               req->params.post_id,
                               req->params.id)) < 0 || !rc) {
-        vlogE("Deleting unavailable comment");
+        vlogE(TAG_CMD "Deleting unavailable comment");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -1761,7 +1763,7 @@ void hdl_del_cmt_req(ElaCarrier *c, const char *from, Req *base)
                          req->params.post_id,
                          req->params.id,
                          &cmt_uid)) < 0 || cmt_uid != uinfo->uid) {
-        vlogE("Deleting other's comment");
+        vlogE(TAG_CMD "Deleting other's comment");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_AUTHORIZED
@@ -1780,7 +1782,7 @@ void hdl_del_cmt_req(ElaCarrier *c, const char *from, Req *base)
 
     rc = db_set_cmt_status(&cmt_del);
     if (rc < 0) {
-        vlogE("Deleting comment in database failed");
+        vlogE(TAG_CMD "Deleting comment in database failed");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -1789,7 +1791,7 @@ void hdl_del_cmt_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    vlogI("Channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] deleted by [%s].",
+    vlogI(TAG_CMD "Channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] deleted by [%s].",
           cmt_del.chan_id, cmt_del.post_id, cmt_del.cmt_id, cmt_del.user.did);
 
     {
@@ -1797,7 +1799,7 @@ void hdl_del_cmt_req(ElaCarrier *c, const char *from, Req *base)
             .tsx_id = req->tsx_id,
         };
         resp_marshal = rpc_marshal_del_cmt_resp(&resp);
-        vlogD("Sending delete_comment response");
+        vlogD(TAG_CMD "Sending delete_comment response");
     }
 
     list_foreach(chan->aspcs, aspc) {
@@ -1829,18 +1831,18 @@ void hdl_block_cmt_req(ElaCarrier *c, const char *from, Req *base)
     CmtInfo cmt_block;
     int rc;
 
-    vlogD("Received block_comment request from [%s]: {access_token: %s, channel_id: %" PRIu64
+    vlogD(TAG_CMD "Received block_comment request from [%s]: {access_token: %s, channel_id: %" PRIu64
           ", post_id: %" PRIu64 ", comment_id: %" PRIu64 "}",
           from, req->params.tk, req->params.chan_id, req->params.post_id, req->params.cmt_id);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -1851,7 +1853,7 @@ void hdl_block_cmt_req(ElaCarrier *c, const char *from, Req *base)
 
     chan = chan_get_by_id(req->params.chan_id);
     if (!chan) {
-        vlogE("Blocking comment on non-existent channel");
+        vlogE(TAG_CMD "Blocking comment on non-existent channel");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -1861,7 +1863,7 @@ void hdl_block_cmt_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (req->params.post_id >= chan->info.next_post_id) {
-        vlogE("Blocking comment on non-existent post");
+        vlogE(TAG_CMD "Blocking comment on non-existent post");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -1873,7 +1875,7 @@ void hdl_block_cmt_req(ElaCarrier *c, const char *from, Req *base)
     if ((rc = db_cmt_exists(req->params.chan_id,
                             req->params.post_id,
                             req->params.cmt_id)) < 0 || !rc) {
-        vlogE("Blocking unavailable comment");
+        vlogE(TAG_CMD "Blocking unavailable comment");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -1886,7 +1888,7 @@ void hdl_block_cmt_req(ElaCarrier *c, const char *from, Req *base)
                          req->params.post_id,
                          req->params.cmt_id,
                          &cmt_uid)) < 0 || cmt_uid != uinfo->uid) {
-        vlogE("Blocking other's comment");
+        vlogE(TAG_CMD "Blocking other's comment");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_AUTHORIZED
@@ -1905,7 +1907,7 @@ void hdl_block_cmt_req(ElaCarrier *c, const char *from, Req *base)
 
     rc = db_set_cmt_status(&cmt_block);
     if (rc < 0) {
-        vlogE("Blocking comment in database failed");
+        vlogE(TAG_CMD "Blocking comment in database failed");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -1914,7 +1916,7 @@ void hdl_block_cmt_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    vlogI("Channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] blocked by [%s].",
+    vlogI(TAG_CMD "Channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] blocked by [%s].",
           cmt_block.chan_id, cmt_block.post_id, cmt_block.cmt_id, cmt_block.user.did);
 
     {
@@ -1922,7 +1924,7 @@ void hdl_block_cmt_req(ElaCarrier *c, const char *from, Req *base)
             .tsx_id = req->tsx_id,
         };
         resp_marshal = rpc_marshal_block_cmt_resp(&resp);
-        vlogD("Sending block_comment response");
+        vlogD(TAG_CMD "Sending block_comment response");
     }
 
     list_foreach(chan->aspcs, aspc) {
@@ -1954,18 +1956,18 @@ void hdl_unblock_cmt_req(ElaCarrier *c, const char *from, Req *base)
     CmtInfo cmt_unblock;
     int rc;
 
-    vlogD("Received unblock_comment request from [%s]: {access_token: %s, channel_id: %" PRIu64
+    vlogD(TAG_CMD "Received unblock_comment request from [%s]: {access_token: %s, channel_id: %" PRIu64
           ", post_id: %" PRIu64 ", comment_id: %" PRIu64 "}",
           from, req->params.tk, req->params.chan_id, req->params.post_id, req->params.cmt_id);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -1976,7 +1978,7 @@ void hdl_unblock_cmt_req(ElaCarrier *c, const char *from, Req *base)
 
     chan = chan_get_by_id(req->params.chan_id);
     if (!chan) {
-        vlogE("Unblocking comment on non-existent channel");
+        vlogE(TAG_CMD "Unblocking comment on non-existent channel");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -1986,7 +1988,7 @@ void hdl_unblock_cmt_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (req->params.post_id >= chan->info.next_post_id) {
-        vlogE("Unblocking comment on non-existent post");
+        vlogE(TAG_CMD "Unblocking comment on non-existent post");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -1998,7 +2000,7 @@ void hdl_unblock_cmt_req(ElaCarrier *c, const char *from, Req *base)
     if ((rc = db_cmt_exists(req->params.chan_id,
                             req->params.post_id,
                             req->params.cmt_id)) < 0 || !rc) {
-        vlogE("Unblocking unavailable comment");
+        vlogE(TAG_CMD "Unblocking unavailable comment");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -2011,7 +2013,7 @@ void hdl_unblock_cmt_req(ElaCarrier *c, const char *from, Req *base)
                          req->params.post_id,
                          req->params.cmt_id,
                          &cmt_uid)) < 0 || cmt_uid != uinfo->uid) {
-        vlogE("Unblocking other's comment");
+        vlogE(TAG_CMD "Unblocking other's comment");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_AUTHORIZED
@@ -2030,7 +2032,7 @@ void hdl_unblock_cmt_req(ElaCarrier *c, const char *from, Req *base)
 
     rc = db_set_cmt_status(&cmt_unblock);
     if (rc < 0) {
-        vlogE("Unblocking comment in database failed");
+        vlogE(TAG_CMD "Unblocking comment in database failed");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -2039,7 +2041,7 @@ void hdl_unblock_cmt_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    vlogI("Channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] unblocked by [%s].",
+    vlogI(TAG_CMD "Channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] unblocked by [%s].",
           cmt_unblock.chan_id, cmt_unblock.post_id, cmt_unblock.cmt_id, cmt_unblock.user.did);
 
     {
@@ -2047,7 +2049,7 @@ void hdl_unblock_cmt_req(ElaCarrier *c, const char *from, Req *base)
             .tsx_id = req->tsx_id,
         };
         resp_marshal = rpc_marshal_unblock_cmt_resp(&resp);
-        vlogD("Sending unblock_comment response");
+        vlogD(TAG_CMD "Sending unblock_comment response");
     }
 
     list_foreach(chan->aspcs, aspc) {
@@ -2078,19 +2080,19 @@ void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base)
     LikeInfo li;
     int rc;
 
-    vlogD("Received post_like request from [%s]: "
+    vlogD(TAG_CMD "Received post_like request from [%s]: "
           "{access_token: %s, channel_id: %" PRIu64
           ", post_id: %" PRIu64 ", comment_id: %" PRIu64 "}",
           from, req->params.tk, req->params.chan_id, req->params.post_id, req->params.cmt_id);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -2101,7 +2103,7 @@ void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base)
 
     chan = chan_get_by_id(req->params.chan_id);
     if (!chan) {
-        vlogE("Posting like on non-existent channel");
+        vlogE(TAG_CMD "Posting like on non-existent channel");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -2111,7 +2113,7 @@ void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (req->params.post_id >= chan->info.next_post_id) {
-        vlogE("Posting like on non-existent post");
+        vlogE(TAG_CMD "Posting like on non-existent post");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -2124,7 +2126,7 @@ void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base)
         ((rc = db_cmt_exists(req->params.chan_id,
                              req->params.post_id,
                              req->params.cmt_id)) < 0 || !rc)) {
-        vlogE("Posting like on non-existent comment");
+        vlogE(TAG_CMD "Posting like on non-existent comment");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -2136,7 +2138,7 @@ void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base)
     if ((rc = db_like_exists(uinfo->uid, req->params.chan_id,
                              req->params.post_id, req->params.cmt_id)) < 0 ||
         rc > 0) {
-        vlogE("Posting like on liked subject");
+        vlogE(TAG_CMD "Posting like on liked subject");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_WRONG_STATE
@@ -2147,7 +2149,7 @@ void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base)
 
     rc = db_add_like(uinfo->uid, req->params.chan_id, req->params.post_id, req->params.cmt_id, &li.total_cnt);
     if (rc < 0) {
-        vlogE("Adding like to database failed");
+        vlogE(TAG_CMD "Adding like to database failed");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -2156,7 +2158,7 @@ void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    vlogI("Like on channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] by [%s].",
+    vlogI(TAG_CMD "Like on channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] by [%s].",
           req->params.chan_id, req->params.post_id, req->params.cmt_id, uinfo->did);
 
     {
@@ -2164,7 +2166,7 @@ void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base)
             .tsx_id = req->tsx_id
         };
         resp_marshal = rpc_marshal_post_like_resp(&resp);
-        vlogD("Sending post_like response.");
+        vlogD(TAG_CMD "Sending post_like response.");
     }
 
     li.chan_id = req->params.chan_id;
@@ -2197,19 +2199,19 @@ void hdl_post_unlike_req(ElaCarrier *c, const char *from, Req *base)
     Chan *chan = NULL;
     int rc;
 
-    vlogD("Received post_unlike request from [%s]: "
+    vlogD(TAG_CMD "Received post_unlike request from [%s]: "
           "{access_token: %s, channel_id: %" PRIu64
           ", post_id: %" PRIu64 ", comment_id: %" PRIu64 "}",
           from, req->params.tk, req->params.chan_id, req->params.post_id, req->params.cmt_id);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -2220,7 +2222,7 @@ void hdl_post_unlike_req(ElaCarrier *c, const char *from, Req *base)
 
     chan = chan_get_by_id(req->params.chan_id);
     if (!chan) {
-        vlogE("Posting unlike on non-existent channel");
+        vlogE(TAG_CMD "Posting unlike on non-existent channel");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -2232,7 +2234,7 @@ void hdl_post_unlike_req(ElaCarrier *c, const char *from, Req *base)
     if ((rc = db_like_exists(uinfo->uid, req->params.chan_id,
                              req->params.post_id, req->params.cmt_id)) < 0 ||
         !rc) {
-        vlogE("Posting unlike on unliked subject");
+        vlogE(TAG_CMD "Posting unlike on unliked subject");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_WRONG_STATE
@@ -2243,7 +2245,7 @@ void hdl_post_unlike_req(ElaCarrier *c, const char *from, Req *base)
 
     rc = db_rm_like(uinfo->uid, req->params.chan_id, req->params.post_id, req->params.cmt_id);
     if (rc < 0) {
-        vlogE("Removing like to database failed");
+        vlogE(TAG_CMD "Removing like to database failed");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -2252,7 +2254,7 @@ void hdl_post_unlike_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    vlogI("Unlike on channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] by [%s].",
+    vlogI(TAG_CMD "Unlike on channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] by [%s].",
           req->params.chan_id, req->params.post_id, req->params.cmt_id, uinfo->did);
 
     {
@@ -2260,7 +2262,7 @@ void hdl_post_unlike_req(ElaCarrier *c, const char *from, Req *base)
             .tsx_id = req->tsx_id
         };
         resp_marshal = rpc_marshal_post_unlike_resp(&resp);
-        vlogD("Sending post_unlike response.");
+        vlogD(TAG_CMD "Sending post_unlike response.");
     }
 
 finally:
@@ -2283,19 +2285,19 @@ void hdl_get_my_chans_req(ElaCarrier *c, const char *from, Req *base)
     ChanInfo *cinfo;
     int rc;
 
-    vlogD("Received get_my_channels request from [%s]: "
+    vlogD(TAG_CMD "Received get_my_channels request from [%s]: "
           "{access_token: %s, by: %" PRIu64 ", upper_bound: %" PRIu64
           ", lower_bound: %" PRIu64 ", max_count: %" PRIu64 "}",
           from, req->params.tk, req->params.qc.by, req->params.qc.upper, req->params.qc.lower, req->params.qc.maxcnt);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -2305,7 +2307,7 @@ void hdl_get_my_chans_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (!user_id_is_owner(uinfo->uid)) {
-        vlogE("Getting owned channels while not being owner.");
+        vlogE(TAG_CMD "Getting owned channels while not being owner.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_AUTHORIZED
@@ -2316,7 +2318,7 @@ void hdl_get_my_chans_req(ElaCarrier *c, const char *from, Req *base)
 
     it = db_iter_chans(&req->params.qc);
     if (!it) {
-        vlogE("Getting owned channels from database failed");
+        vlogE(TAG_CMD "Getting owned channels from database failed");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -2327,13 +2329,13 @@ void hdl_get_my_chans_req(ElaCarrier *c, const char *from, Req *base)
 
     foreach_db_obj(cinfo) {
         cvector_push_back(cinfos, ref(cinfo));
-        vlogD("Retrieved channel: "
+        vlogD(TAG_CMD "Retrieved channel: "
               "{channel_id: %" PRIu64 ", name: %s, introduction: %s, subscribers: %" PRIu64
               ", avatar_length: %zu}",
               cinfo->chan_id, cinfo->name, cinfo->intro, cinfo->subs, cinfo->len);
     }
     if (rc < 0) {
-        vlogE("Iterating owned channels failed");
+        vlogE(TAG_CMD "Iterating owned channels failed");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -2356,7 +2358,7 @@ void hdl_get_my_chans_req(ElaCarrier *c, const char *from, Req *base)
                 }
             };
             resp_marshal = rpc_marshal_get_my_chans_resp(&resp);
-            vlogD("Sending get_my_channels response.");
+            vlogD(TAG_CMD "Sending get_my_channels response.");
             goto finally;
         }
 
@@ -2376,7 +2378,7 @@ void hdl_get_my_chans_req(ElaCarrier *c, const char *from, Req *base)
             };
             resp_marshal = rpc_marshal_get_my_chans_resp(&resp);
 
-            vlogD("Sending get_my_channels response.");
+            vlogD(TAG_CMD "Sending get_my_channels response.");
 
             rc = msgq_enq(from, resp_marshal);
             deref(resp_marshal);
@@ -2416,19 +2418,19 @@ void hdl_get_my_chans_meta_req(ElaCarrier *c, const char *from, Req *base)
     ChanInfo *cinfo;
     int rc;
 
-    vlogD("Received get_my_channels_metadata request from [%s]: "
+    vlogD(TAG_CMD "Received get_my_channels_metadata request from [%s]: "
           "{access_token: %s, by: %" PRIu64 ", upper_bound: %" PRIu64
           ", lower_bound: %" PRIu64 ", max_count: %" PRIu64 "}",
           from, req->params.tk, req->params.qc.by, req->params.qc.upper, req->params.qc.lower, req->params.qc.maxcnt);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -2438,7 +2440,7 @@ void hdl_get_my_chans_meta_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (!user_id_is_owner(uinfo->uid)) {
-        vlogE("Getting owned channels metadata while not being owner.");
+        vlogE(TAG_CMD "Getting owned channels metadata while not being owner.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_AUTHORIZED
@@ -2449,7 +2451,7 @@ void hdl_get_my_chans_meta_req(ElaCarrier *c, const char *from, Req *base)
 
     it = db_iter_chans(&req->params.qc);
     if (!it) {
-        vlogE("Getting owned channels metadata from database failed");
+        vlogE(TAG_CMD "Getting owned channels metadata from database failed");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -2460,11 +2462,11 @@ void hdl_get_my_chans_meta_req(ElaCarrier *c, const char *from, Req *base)
 
     foreach_db_obj(cinfo) {
         cvector_push_back(cinfos, ref(cinfo));
-        vlogD("Retrieved channel: "
+        vlogD(TAG_CMD "Retrieved channel: "
               "{channel_id: %" PRIu64 ", subscribers: %" PRIu64 "}", cinfo->chan_id, cinfo->subs);
     }
     if (rc < 0) {
-        vlogE("Iterating owned channels metadata failed");
+        vlogE(TAG_CMD "Iterating owned channels metadata failed");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -2481,7 +2483,7 @@ void hdl_get_my_chans_meta_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_get_my_chans_meta_resp(&resp);
-        vlogD("Sending get_my_channels_metadata response.");
+        vlogD(TAG_CMD "Sending get_my_channels_metadata response.");
     }
 
 finally:
@@ -2509,19 +2511,19 @@ void hdl_get_chans_req(ElaCarrier *c, const char *from, Req *base)
     ChanInfo *cinfo;
     int rc;
 
-    vlogD("Received get_channels request from [%s]: "
+    vlogD(TAG_CMD "Received get_channels request from [%s]: "
           "{access_token: %s, by: %" PRIu64 ", upper_bound: %" PRIu64
           ", lower_bound: %" PRIu64 ", max_count: %" PRIu64 "}",
           from, req->params.tk, req->params.qc.by, req->params.qc.upper, req->params.qc.lower, req->params.qc.maxcnt);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -2532,7 +2534,7 @@ void hdl_get_chans_req(ElaCarrier *c, const char *from, Req *base)
 
     it = db_iter_chans(&req->params.qc);
     if (!it) {
-        vlogE("Getting channels from database failed.");
+        vlogE(TAG_CMD "Getting channels from database failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -2543,7 +2545,7 @@ void hdl_get_chans_req(ElaCarrier *c, const char *from, Req *base)
 
     foreach_db_obj(cinfo) {
         cvector_push_back(cinfos, ref(cinfo));
-        vlogD("Retrieved channel: "
+        vlogD(TAG_CMD "Retrieved channel: "
               "{channel_id: %" PRIu64 ", name: %s, introduction: %s, "
               "owner_name: %s, owner_did: %s, subscribers: %" PRIu64 ", last_update: %" PRIu64
               ", avatar_length: %zu}",
@@ -2551,7 +2553,7 @@ void hdl_get_chans_req(ElaCarrier *c, const char *from, Req *base)
               cinfo->owner->did, cinfo->subs, cinfo->upd_at, cinfo->len);
     }
     if (rc < 0) {
-        vlogE("Iterating channels failed.");
+        vlogE(TAG_CMD "Iterating channels failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -2574,7 +2576,7 @@ void hdl_get_chans_req(ElaCarrier *c, const char *from, Req *base)
                 }
             };
             resp_marshal = rpc_marshal_get_chans_resp(&resp);
-            vlogD("Sending get_channels response.");
+            vlogD(TAG_CMD "Sending get_channels response.");
             goto finally;
         }
 
@@ -2594,7 +2596,7 @@ void hdl_get_chans_req(ElaCarrier *c, const char *from, Req *base)
             };
             resp_marshal = rpc_marshal_get_chans_resp(&resp);
 
-            vlogD("Sending get_channels response.");
+            vlogD(TAG_CMD "Sending get_channels response.");
 
             rc = msgq_enq(from, resp_marshal);
             deref(resp_marshal);
@@ -2631,17 +2633,17 @@ void hdl_get_chan_dtl_req(ElaCarrier *c, const char *from, Req *base)
     UserInfo *uinfo = NULL;
     Chan *chan = NULL;
 
-    vlogD("Received get_channel_detail request from [%s]: "
+    vlogD(TAG_CMD "Received get_channel_detail request from [%s]: "
           "{access_token: %s, id: %" PRIu64 "}", from, req->params.tk, req->params.id);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -2651,7 +2653,7 @@ void hdl_get_chan_dtl_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (!(chan = chan_get_by_id(req->params.id))) {
-        vlogE("Getting detail on non-existent channel");
+        vlogE(TAG_CMD "Getting detail on non-existent channel");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -2668,7 +2670,7 @@ void hdl_get_chan_dtl_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_get_chan_dtl_resp(&resp);
-        vlogD("Sending get_channel_detail response: "
+        vlogD(TAG_CMD "Sending get_channel_detail response: "
               "{channel_id: %" PRIu64 ", name: %s, introduction: %s, "
               "owner_name: %s, owner_did: %s, subscribers: %" PRIu64
               ", last_update: %" PRIu64 ", avatar_length: %zu}",
@@ -2695,19 +2697,19 @@ void hdl_get_sub_chans_req(ElaCarrier *c, const char *from, Req *base)
     ChanInfo *cinfo;
     int rc;
 
-    vlogD("Received get_subscribed_channels request from [%s]: "
+    vlogD(TAG_CMD "Received get_subscribed_channels request from [%s]: "
           "{access_token: %s, by: %" PRIu64 ", upper_bound: %" PRIu64
           ", lower_bound: %" PRIu64 ", max_count: %" PRIu64 "}",
           from, req->params.tk, req->params.qc.by, req->params.qc.upper, req->params.qc.lower, req->params.qc.maxcnt);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -2718,7 +2720,7 @@ void hdl_get_sub_chans_req(ElaCarrier *c, const char *from, Req *base)
 
     it = db_iter_sub_chans(uinfo->uid, &req->params.qc);
     if (!it) {
-        vlogE("Getting subscribed channels from database failed.");
+        vlogE(TAG_CMD "Getting subscribed channels from database failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -2729,14 +2731,14 @@ void hdl_get_sub_chans_req(ElaCarrier *c, const char *from, Req *base)
 
     foreach_db_obj(cinfo) {
         cvector_push_back(cinfos, ref(cinfo));
-        vlogD("Retrieved channel: "
+        vlogD(TAG_CMD "Retrieved channel: "
               "{channel_id: %" PRIu64 ", name: %s, introduction: %s, owner_name: %s, "
               "owner_did: %s, subscribers: %" PRIu64 ", last_update: %" PRIu64 ", avatar_length: %zu}",
               cinfo->chan_id, cinfo->name, cinfo->intro, cinfo->owner->name,
               cinfo->owner->did, cinfo->subs, cinfo->upd_at, cinfo->len);
     }
     if (rc < 0) {
-        vlogE("Iterating subscribed channels failed.");
+        vlogE(TAG_CMD "Iterating subscribed channels failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -2759,7 +2761,7 @@ void hdl_get_sub_chans_req(ElaCarrier *c, const char *from, Req *base)
                 }
             };
             resp_marshal = rpc_marshal_get_sub_chans_resp(&resp);
-            vlogD("Sending get_subscribed_channels response.");
+            vlogD(TAG_CMD "Sending get_subscribed_channels response.");
             goto finally;
         }
 
@@ -2779,7 +2781,7 @@ void hdl_get_sub_chans_req(ElaCarrier *c, const char *from, Req *base)
             };
             resp_marshal = rpc_marshal_get_sub_chans_resp(&resp);
 
-            vlogD("Sending get_subscribed_channels response.");
+            vlogD(TAG_CMD "Sending get_subscribed_channels response.");
 
             rc = msgq_enq(from, resp_marshal);
             deref(resp_marshal);
@@ -2819,20 +2821,20 @@ void hdl_get_posts_req(ElaCarrier *c, const char *from, Req *base)
     PostInfo *pinfo;
     int rc;
 
-    vlogD("Received get_posts request from [%s]: "
+    vlogD(TAG_CMD "Received get_posts request from [%s]: "
           "{access_token: %s, channel_id: %" PRIu64 ", by: %" PRIu64
           ", upper_bound: %" PRIu64 ", lower_bound: %" PRIu64 ", max_count: %" PRIu64 "}",
           from, req->params.tk, req->params.chan_id, req->params.qc.by,
           req->params.qc.upper, req->params.qc.lower, req->params.qc.maxcnt);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -2842,7 +2844,7 @@ void hdl_get_posts_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (!chan_exist_by_id(req->params.chan_id)) {
-        vlogE("Getting posts from non-existent channel");
+        vlogE(TAG_CMD "Getting posts from non-existent channel");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -2853,7 +2855,7 @@ void hdl_get_posts_req(ElaCarrier *c, const char *from, Req *base)
 
     it = db_iter_posts(req->params.chan_id, &req->params.qc);
     if (!it) {
-        vlogE("Getting posts from database failed.");
+        vlogE(TAG_CMD "Getting posts from database failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -2864,14 +2866,14 @@ void hdl_get_posts_req(ElaCarrier *c, const char *from, Req *base)
 
     foreach_db_obj(pinfo) {
         cvector_push_back(pinfos, ref(pinfo));
-        vlogD("Retrieved post: "
+        vlogD(TAG_CMD "Retrieved post: "
               "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", status: %s, comments: %" PRIu64
               ", likes: %" PRIu64 ", created_at: %" PRIu64 ", updated_at: %" PRIu64 ", content_length: %zu}",
               pinfo->chan_id, pinfo->post_id, post_stat_str(pinfo->stat), pinfo->cmts,
               pinfo->likes, pinfo->created_at, pinfo->upd_at, pinfo->len);
     }
     if (rc < 0) {
-        vlogE("Iterating posts failed.");
+        vlogE(TAG_CMD "Iterating posts failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -2894,7 +2896,7 @@ void hdl_get_posts_req(ElaCarrier *c, const char *from, Req *base)
                 }
             };
             resp_marshal = rpc_marshal_get_posts_resp(&resp);
-            vlogD("Sending get_posts response.");
+            vlogD(TAG_CMD "Sending get_posts response.");
             goto finally;
         }
 
@@ -2914,7 +2916,7 @@ void hdl_get_posts_req(ElaCarrier *c, const char *from, Req *base)
             };
             resp_marshal = rpc_marshal_get_posts_resp(&resp);
 
-            vlogD("Sending get_posts response.");
+            vlogD(TAG_CMD "Sending get_posts response.");
 
             rc = msgq_enq(from, resp_marshal);
             deref(resp_marshal);
@@ -2954,20 +2956,20 @@ void hdl_get_posts_lac_req(ElaCarrier *c, const char *from, Req *base)
     PostInfo *pinfo;
     int rc;
 
-    vlogD("Received get_posts_likes_and_comments request from [%s]: "
+    vlogD(TAG_CMD "Received get_posts_likes_and_comments request from [%s]: "
           "{access_token: %s, channel_id: %" PRIu64 ", by: %" PRIu64
           ", upper_bound: %" PRIu64 ", lower_bound: %" PRIu64 ", max_count: %" PRIu64 "}",
           from, req->params.tk, req->params.chan_id, req->params.qc.by,
           req->params.qc.upper, req->params.qc.lower, req->params.qc.maxcnt);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -2977,7 +2979,7 @@ void hdl_get_posts_lac_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (!chan_exist_by_id(req->params.chan_id)) {
-        vlogE("Getting posts likes and comments from non-existent channel");
+        vlogE(TAG_CMD "Getting posts likes and comments from non-existent channel");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -2988,7 +2990,7 @@ void hdl_get_posts_lac_req(ElaCarrier *c, const char *from, Req *base)
 
     it = db_iter_posts_lac(req->params.chan_id, &req->params.qc);
     if (!it) {
-        vlogE("Getting posts likes and comments from database failed.");
+        vlogE(TAG_CMD "Getting posts likes and comments from database failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -2999,12 +3001,12 @@ void hdl_get_posts_lac_req(ElaCarrier *c, const char *from, Req *base)
 
     foreach_db_obj(pinfo) {
         cvector_push_back(pinfos, ref(pinfo));
-        vlogD("Retrieved post likes and comments: "
+        vlogD(TAG_CMD "Retrieved post likes and comments: "
               "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", comments: %" PRIu64 ", likes: %" PRIu64 "}",
               pinfo->chan_id, pinfo->post_id, pinfo->cmts, pinfo->likes);
     }
     if (rc < 0) {
-        vlogE("Iterating posts likes and comments failed.");
+        vlogE(TAG_CMD "Iterating posts likes and comments failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -3021,7 +3023,7 @@ void hdl_get_posts_lac_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_get_posts_lac_resp(&resp);
-        vlogD("Sending get_posts_likes_and_comments response.");
+        vlogD(TAG_CMD "Sending get_posts_likes_and_comments response.");
     }
 
 finally:
@@ -3049,19 +3051,19 @@ void hdl_get_liked_posts_req(ElaCarrier *c, const char *from, Req *base)
     PostInfo *pinfo;
     int rc;
 
-    vlogD("Received get_liked_posts request from [%s]: "
+    vlogD(TAG_CMD "Received get_liked_posts request from [%s]: "
           "{access_token: %s, by: %" PRIu64 ", upper_bound: %" PRIu64
           ", lower_bound: %" PRIu64 ", max_count: %" PRIu64 "}",
           from, req->params.tk, req->params.qc.by, req->params.qc.upper, req->params.qc.lower, req->params.qc.maxcnt);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -3072,7 +3074,7 @@ void hdl_get_liked_posts_req(ElaCarrier *c, const char *from, Req *base)
 
     it = db_iter_liked_posts(uinfo->uid, &req->params.qc);
     if (!it) {
-        vlogE("Getting liked posts from database failed.");
+        vlogE(TAG_CMD "Getting liked posts from database failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -3083,13 +3085,13 @@ void hdl_get_liked_posts_req(ElaCarrier *c, const char *from, Req *base)
 
     foreach_db_obj(pinfo) {
         cvector_push_back(pinfos, ref(pinfo));
-        vlogD("Retrieved post: "
+        vlogD(TAG_CMD "Retrieved post: "
               "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", comments: %" PRIu64
               ", likes: %" PRIu64 ", created_at: %" PRIu64 ", content_length: %zu}",
               pinfo->chan_id, pinfo->post_id, pinfo->cmts, pinfo->likes, pinfo->created_at, pinfo->len);
     }
     if (rc < 0) {
-        vlogE("Iterating posts failed.");
+        vlogE(TAG_CMD "Iterating posts failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -3112,7 +3114,7 @@ void hdl_get_liked_posts_req(ElaCarrier *c, const char *from, Req *base)
                 }
             };
             resp_marshal = rpc_marshal_get_liked_posts_resp(&resp);
-            vlogD("Sending get_liked_posts response.");
+            vlogD(TAG_CMD "Sending get_liked_posts response.");
             goto finally;
         }
 
@@ -3132,7 +3134,7 @@ void hdl_get_liked_posts_req(ElaCarrier *c, const char *from, Req *base)
             };
             resp_marshal = rpc_marshal_get_liked_posts_resp(&resp);
 
-            vlogD("Sending get_liked_posts response.");
+            vlogD(TAG_CMD "Sending get_liked_posts response.");
 
             rc = msgq_enq(from, resp_marshal);
             deref(resp_marshal);
@@ -3173,20 +3175,20 @@ void hdl_get_cmts_req(ElaCarrier *c, const char *from, Req *base)
     CmtInfo *cinfo;
     int rc;
 
-    vlogD("Received get_comments request from [%s]: "
+    vlogD(TAG_CMD "Received get_comments request from [%s]: "
           "{access_token: %s, channel_id: %" PRIu64 ", post_id: %" PRIu64 ", by: %" PRIu64
           ", upper_bound: %" PRIu64 ", lower_bound: %" PRIu64 ", max_count: %" PRIu64 "}",
           from, req->params.tk, req->params.chan_id, req->params.post_id,
           req->params.qc.by, req->params.qc.upper, req->params.qc.lower, req->params.qc.maxcnt);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -3196,7 +3198,7 @@ void hdl_get_cmts_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (!(chan = chan_get_by_id(req->params.chan_id))) {
-        vlogE("Getting comments from non-existent channel");
+        vlogE(TAG_CMD "Getting comments from non-existent channel");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -3206,7 +3208,7 @@ void hdl_get_cmts_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (req->params.post_id >= chan->info.next_post_id) {
-        vlogE("Getting comment from non-existent post");
+        vlogE(TAG_CMD "Getting comment from non-existent post");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -3217,7 +3219,7 @@ void hdl_get_cmts_req(ElaCarrier *c, const char *from, Req *base)
 
     it = db_iter_cmts(req->params.chan_id, req->params.post_id, &req->params.qc);
     if (!it) {
-        vlogE("Getting comments from database failed.");
+        vlogE(TAG_CMD "Getting comments from database failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -3228,7 +3230,7 @@ void hdl_get_cmts_req(ElaCarrier *c, const char *from, Req *base)
 
     foreach_db_obj(cinfo) {
         cvector_push_back(cinfos, ref(cinfo));
-        vlogD("Retrieved comment: "
+        vlogD(TAG_CMD "Retrieved comment: "
               "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", comment_id: %" PRIu64
               ",status: %s, refcomment_id: %" PRIu64 ", user_name: %s, user_did: %s, likes: %"
               PRIu64 ", created_at: %" PRIu64 "updated_at: %" PRIu64 ", content_length: %zu}",
@@ -3237,7 +3239,7 @@ void hdl_get_cmts_req(ElaCarrier *c, const char *from, Req *base)
               cinfo->upd_at, cinfo->len);
     }
     if (rc < 0) {
-        vlogE("Iterating comments failed.");
+        vlogE(TAG_CMD "Iterating comments failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -3260,7 +3262,7 @@ void hdl_get_cmts_req(ElaCarrier *c, const char *from, Req *base)
                 }
             };
             resp_marshal = rpc_marshal_get_cmts_resp(&resp);
-            vlogD("Sending get_comments response.");
+            vlogD(TAG_CMD "Sending get_comments response.");
             goto finally;
         }
 
@@ -3280,7 +3282,7 @@ void hdl_get_cmts_req(ElaCarrier *c, const char *from, Req *base)
             };
             resp_marshal = rpc_marshal_get_cmts_resp(&resp);
 
-            vlogD("Sending get_comments response.");
+            vlogD(TAG_CMD "Sending get_comments response.");
 
             rc = msgq_enq(from, resp_marshal);
             deref(resp_marshal);
@@ -3322,20 +3324,20 @@ void hdl_get_cmts_likes_req(ElaCarrier *c, const char *from, Req *base)
     CmtInfo *cinfo;
     int rc;
 
-    vlogD("Received get_comments_likes request from [%s]: "
+    vlogD(TAG_CMD "Received get_comments_likes request from [%s]: "
           "{access_token: %s, channel_id: %" PRIu64 ", post_id: %" PRIu64 ", by: %" PRIu64
               ", upper_bound: %" PRIu64 ", lower_bound: %" PRIu64 ", max_count: %" PRIu64 "}",
           from, req->params.tk, req->params.chan_id, req->params.post_id,
           req->params.qc.by, req->params.qc.upper, req->params.qc.lower, req->params.qc.maxcnt);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -3345,7 +3347,7 @@ void hdl_get_cmts_likes_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (!(chan = chan_get_by_id(req->params.chan_id))) {
-        vlogE("Getting comments likes from non-existent channel");
+        vlogE(TAG_CMD "Getting comments likes from non-existent channel");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -3355,7 +3357,7 @@ void hdl_get_cmts_likes_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (req->params.post_id >= chan->info.next_post_id) {
-        vlogE("Getting comment likes from non-existent post");
+        vlogE(TAG_CMD "Getting comment likes from non-existent post");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -3366,7 +3368,7 @@ void hdl_get_cmts_likes_req(ElaCarrier *c, const char *from, Req *base)
 
     it = db_iter_cmts_likes(req->params.chan_id, req->params.post_id, &req->params.qc);
     if (!it) {
-        vlogE("Getting comments likes from database failed.");
+        vlogE(TAG_CMD "Getting comments likes from database failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -3377,12 +3379,12 @@ void hdl_get_cmts_likes_req(ElaCarrier *c, const char *from, Req *base)
 
     foreach_db_obj(cinfo) {
         cvector_push_back(cinfos, ref(cinfo));
-        vlogD("Retrieved comment: "
+        vlogD(TAG_CMD "Retrieved comment: "
               "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", comment_id: %" PRIu64 "likes: %" PRIu64 "}",
               cinfo->chan_id, cinfo->post_id, cinfo->cmt_id, cinfo->likes);
     }
     if (rc < 0) {
-        vlogE("Iterating comments likes failed.");
+        vlogE(TAG_CMD "Iterating comments likes failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -3399,7 +3401,7 @@ void hdl_get_cmts_likes_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_get_cmts_likes_resp(&resp);
-        vlogD("Sending get_comments_likes response.");
+        vlogD(TAG_CMD "Sending get_comments_likes response.");
     }
 
 finally:
@@ -3425,17 +3427,17 @@ void hdl_get_stats_req(ElaCarrier *c, const char *from, Req *base)
     UserInfo *uinfo = NULL;
     int total_clients;
 
-    vlogD("Received get_statistics request from [%s]: "
+    vlogD(TAG_CMD "Received get_statistics request from [%s]: "
           "{access_token: %s}", from, req->params.tk);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -3446,7 +3448,7 @@ void hdl_get_stats_req(ElaCarrier *c, const char *from, Req *base)
 
     total_clients = db_get_user_count();
     if(total_clients < 0) {
-        vlogE("DB get user count failed.");
+        vlogE(TAG_CMD "DB get user count failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_DB_ERROR
@@ -3465,7 +3467,7 @@ void hdl_get_stats_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_get_stats_resp(&resp);
-        vlogD("Sending get_statistics response: "
+        vlogD(TAG_CMD "Sending get_statistics response: "
               "{did: %s, connecting_clients: %zu, total_clients: %zu}",
               feeds_owner_info.did, connecting_clients, total_clients);
     }
@@ -3489,17 +3491,17 @@ void hdl_sub_chan_req(ElaCarrier *c, const char *from, Req *base)
     Chan *chan = NULL;
     int rc;
 
-    vlogD("Received subscribe_channel request from [%s]: "
+    vlogD(TAG_CMD "Received subscribe_channel request from [%s]: "
           "{access_token: %s, channel_id: %" PRIu64 "}", from, req->params.tk, req->params.id);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -3510,7 +3512,7 @@ void hdl_sub_chan_req(ElaCarrier *c, const char *from, Req *base)
 
     chan = chan_get_by_id(req->params.id);
     if (!chan) {
-        vlogE("Subscribing non-existent channel");
+        vlogE(TAG_CMD "Subscribing non-existent channel");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -3520,7 +3522,7 @@ void hdl_sub_chan_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if ((rc = db_is_suber(uinfo->uid, req->params.id)) < 0 || rc) {
-        vlogE("Subscribing subscribed channel");
+        vlogE(TAG_CMD "Subscribing subscribed channel");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_WRONG_STATE
@@ -3533,7 +3535,7 @@ void hdl_sub_chan_req(ElaCarrier *c, const char *from, Req *base)
     if (as) {
         aspc = aspc_create(as, chan);
         if (!aspc) {
-            vlogE("Creating channel active subscriber failed.");
+            vlogE(TAG_CMD "Creating channel active subscriber failed.");
             ErrResp resp = {
                 .tsx_id = req->tsx_id,
                 .ec     = ERR_INTERNAL_ERROR
@@ -3545,7 +3547,7 @@ void hdl_sub_chan_req(ElaCarrier *c, const char *from, Req *base)
 
     rc = db_add_sub(uinfo->uid, req->params.id);
     if (rc < 0) {
-        vlogE("Adding subscription to database failed");
+        vlogE(TAG_CMD "Adding subscription to database failed");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -3558,14 +3560,14 @@ void hdl_sub_chan_req(ElaCarrier *c, const char *from, Req *base)
         aspc_put(aspc);
 
     ++chan->info.subs;
-    vlogI("[%s] subscribed to channel [%" PRIu64 "]", uinfo->did, req->params.id);
+    vlogI(TAG_CMD "[%s] subscribed to channel [%" PRIu64 "]", uinfo->did, req->params.id);
 
     {
         SubChanResp resp = {
             .tsx_id = req->tsx_id,
         };
         resp_marshal = rpc_marshal_sub_chan_resp(&resp);
-        vlogD("Sending subscribe_channel response.");
+        vlogD(TAG_CMD "Sending subscribe_channel response.");
     }
 
     if ((owner = as_get(OWNER_USER_ID))) {
@@ -3596,17 +3598,17 @@ void hdl_unsub_chan_req(ElaCarrier *c, const char *from, Req *base)
     Chan *chan = NULL;
     int rc;
 
-    vlogD("Received unsubscribe_channel request from [%s]: "
+    vlogD(TAG_CMD "Received unsubscribe_channel request from [%s]: "
           "{access_token: %s, channel_id%" PRIu64 "}", from, req->params.tk, req->params.id);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -3617,7 +3619,7 @@ void hdl_unsub_chan_req(ElaCarrier *c, const char *from, Req *base)
 
     chan = chan_get_by_id(req->params.id);
     if (!chan) {
-        vlogE("Unsubscribing non-existent channel");
+        vlogE(TAG_CMD "Unsubscribing non-existent channel");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -3627,7 +3629,7 @@ void hdl_unsub_chan_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if ((rc = db_is_suber(uinfo->uid, req->params.id)) < 0 || !rc) {
-        vlogE("Unsubscribing non-existent subscription");
+        vlogE(TAG_CMD "Unsubscribing non-existent subscription");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_WRONG_STATE
@@ -3638,7 +3640,7 @@ void hdl_unsub_chan_req(ElaCarrier *c, const char *from, Req *base)
 
     rc = db_unsub(uinfo->uid, req->params.id);
     if (rc < 0) {
-        vlogE("Removing subscription from database failed");
+        vlogE(TAG_CMD "Removing subscription from database failed");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -3649,14 +3651,14 @@ void hdl_unsub_chan_req(ElaCarrier *c, const char *from, Req *base)
 
     deref(aspc_remove(uinfo->uid, chan));
     --chan->info.subs;
-    vlogI("[%s] unsubscribed channel [%" PRIu64 "]", uinfo->did, req->params.id);
+    vlogI(TAG_CMD "[%s] unsubscribed channel [%" PRIu64 "]", uinfo->did, req->params.id);
 
     {
         UnsubChanResp resp = {
             .tsx_id = req->tsx_id,
         };
         resp_marshal = rpc_marshal_unsub_chan_resp(&resp);
-        vlogD("Sending unsubscribe_channel response.");
+        vlogD(TAG_CMD "Sending unsubscribe_channel response.");
     }
 
 finally:
@@ -3681,7 +3683,7 @@ NotifDest *nd_create(const char *node_id)
 {
     NotifDest *nd = rc_zalloc(sizeof(NotifDest), nd_dtor);
     if (!nd) {
-        vlogE("Creating Notification Destination failed.");
+        vlogE(TAG_CMD "Creating Notification Destination failed.");
         return NULL;
     }
 
@@ -3738,17 +3740,17 @@ void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base)
     };
     int rc;
 
-    vlogD("Received enable_notification request from [%s]: "
+    vlogD(TAG_CMD "Received enable_notification request from [%s]: "
           "{access_token: %s}", from, req->params.tk);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -3759,12 +3761,12 @@ void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base)
 
     as = as_get(uinfo->uid);
     if (as && ndpas_exist(as, from)) {
-        vlogE("Already enabled notification");
+        vlogE(TAG_CMD "Already enabled notification");
         goto success_resp;
     } else if (!as) {
         as = as_create(uinfo->uid);
         if (!as) {
-            vlogE("Creating active subscriber failed.");
+            vlogE(TAG_CMD "Creating active subscriber failed.");
             rc = ERR_INTERNAL_ERROR;
             ErrResp resp = {
                 .tsx_id = req->tsx_id,
@@ -3780,7 +3782,7 @@ void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base)
     if (!nd) {
         nd = nd_create(from);
         if (!nd) {
-            vlogE("Creating notification destination failed.");
+            vlogE(TAG_CMD "Creating notification destination failed.");
             rc = ERR_INTERNAL_ERROR;
             ErrResp resp = {
                 .tsx_id = req->tsx_id,
@@ -3794,7 +3796,7 @@ void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base)
 
     ndpas = ndpas_create(as, nd);
     if (!ndpas) {
-        vlogE("Creating notification destination per active subscriber failed.");
+        vlogE(TAG_CMD "Creating notification destination per active subscriber failed.");
         rc = ERR_INTERNAL_ERROR;
         ErrResp resp = {
             .tsx_id = req->tsx_id,
@@ -3810,7 +3812,7 @@ void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base)
 
         it = db_iter_sub_chans(uinfo->uid, &qc);
         if (!it) {
-            vlogE("Getting subscribed channels from database failed.");
+            vlogE(TAG_CMD "Getting subscribed channels from database failed.");
             ErrResp resp = {
                 .tsx_id = req->tsx_id,
                 .ec     = ERR_INTERNAL_ERROR
@@ -3822,10 +3824,10 @@ void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base)
         foreach_db_obj(cinfo) {
             Chan *chan = chan_get_by_id(cinfo->chan_id);
             ActiveSuberPerChan *aspc = aspc_create(as, chan);
-            vlogD("Enabling notification of channel [%" PRIu64 "] for [%s]", chan->info.chan_id, uinfo->did);
+            vlogD(TAG_CMD "Enabling notification of channel [%" PRIu64 "] for [%s]", chan->info.chan_id, uinfo->did);
             deref(chan);
             if (!aspc) {
-                vlogE("Creating channel active subscriber failed.");
+                vlogE(TAG_CMD "Creating channel active subscriber failed.");
                 ErrResp resp = {
                     .tsx_id = req->tsx_id,
                     .ec     = ERR_INTERNAL_ERROR
@@ -3839,7 +3841,7 @@ void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base)
         }
         deref(it);
         if (rc < 0) {
-            vlogE("Iterating subscribed channels failed.");
+            vlogE(TAG_CMD "Iterating subscribed channels failed.");
             ErrResp resp = {
                 .tsx_id = req->tsx_id,
                 .ec     = ERR_INTERNAL_ERROR
@@ -3865,7 +3867,7 @@ success_resp:
             .tsx_id = req->tsx_id,
         };
         resp_marshal = rpc_marshal_enbl_notif_resp(&resp);
-        vlogD("Sending enable_notification response.");
+        vlogD(TAG_CMD "Sending enable_notification response.");
     }
 
 finally:
@@ -3890,7 +3892,7 @@ void hdl_get_srv_ver_req(ElaCarrier *c, const char *from, Req *base)
     Marshalled *resp_marshal = NULL;
     int rc;
 
-    vlogD("Received get_service_version request from [%s]: ", from);
+    vlogD(TAG_CMD "Received get_service_version request from [%s]: ", from);
 
     GetSrvVerResp resp = {
         .tsx_id = req->tsx_id,
@@ -3900,7 +3902,7 @@ void hdl_get_srv_ver_req(ElaCarrier *c, const char *from, Req *base)
         }
     };
     resp_marshal = rpc_marshal_get_srv_ver_resp(&resp);
-    vlogD("get_service_version response: "
+    vlogD(TAG_CMD "get_service_version response: "
           "{version: %s, version_code:%lld}", resp.result.version, resp.result.version_code);
 
 finally:
@@ -3922,20 +3924,20 @@ void hdl_report_illegal_cmt_req(ElaCarrier *c, const char *from, Req *base)
     ReportedCmtInfo li;
     int rc;
 
-    vlogD("Received report_illegal_cmt request from [%s]: "
+    vlogD(TAG_CMD "Received report_illegal_cmt request from [%s]: "
           "{access_token: %s, channel_id: %" PRIu64
           ", post_id: %" PRIu64 ", comment_id: %" PRIu64 "}"
           ", reasons: %s",
           from, req->params.tk, req->params.chan_id, req->params.post_id, req->params.cmt_id, req->params.reasons);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -3946,7 +3948,7 @@ void hdl_report_illegal_cmt_req(ElaCarrier *c, const char *from, Req *base)
 
     chan = chan_get_by_id(req->params.chan_id);
     if (!chan) {
-        vlogE("Reporting illegal comment on non-existent channel");
+        vlogE(TAG_CMD "Reporting illegal comment on non-existent channel");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -3956,7 +3958,7 @@ void hdl_report_illegal_cmt_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (req->params.post_id >= chan->info.next_post_id) {
-        vlogE("Reporting illegal comment on non-existent post");
+        vlogE(TAG_CMD "Reporting illegal comment on non-existent post");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -3969,7 +3971,7 @@ void hdl_report_illegal_cmt_req(ElaCarrier *c, const char *from, Req *base)
         ((rc = db_cmt_exists(req->params.chan_id,
                              req->params.post_id,
                              req->params.cmt_id)) < 0 || !rc)) {
-        vlogE("Reporting illegal comment on non-existent comment");
+        vlogE(TAG_CMD "Reporting illegal comment on non-existent comment");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_EXIST
@@ -3981,7 +3983,7 @@ void hdl_report_illegal_cmt_req(ElaCarrier *c, const char *from, Req *base)
     if ((rc = db_like_exists(uinfo->uid, req->params.chan_id,
                              req->params.post_id, req->params.cmt_id)) < 0 ||
         rc > 0) {
-        vlogE("Reporting illegal comment on liked subject");
+        vlogE(TAG_CMD "Reporting illegal comment on liked subject");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_WRONG_STATE
@@ -3993,7 +3995,7 @@ void hdl_report_illegal_cmt_req(ElaCarrier *c, const char *from, Req *base)
     rc = db_add_reported_cmts(req->params.chan_id, req->params.post_id, req->params.cmt_id,
                               uinfo->uid, req->params.reasons);
     if (rc < 0) {
-        vlogE("Adding reported_comment to database failed");
+        vlogE(TAG_CMD "Adding reported_comment to database failed");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -4002,7 +4004,7 @@ void hdl_report_illegal_cmt_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    vlogI("Reported illegal on channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] by [%s], reasons: %s.",
+    vlogI(TAG_CMD "Reported illegal on channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] by [%s], reasons: %s.",
           req->params.chan_id, req->params.post_id, req->params.cmt_id, uinfo->did, req->params.reasons);
 
     {
@@ -4010,7 +4012,7 @@ void hdl_report_illegal_cmt_req(ElaCarrier *c, const char *from, Req *base)
             .tsx_id = req->tsx_id
         };
         resp_marshal = rpc_marshal_report_illegal_cmt_resp(&resp);
-        vlogD("Sending report_illegal_cmt response.");
+        vlogD(TAG_CMD "Sending report_illegal_cmt response.");
     }
 
     li.chan_id = req->params.chan_id;
@@ -4047,20 +4049,20 @@ void hdl_get_reported_cmts_req(ElaCarrier *c, const char *from, Req *base)
     ReportedCmtInfo *rcinfo;
     int rc;
 
-    vlogD("Received get_comments request from [%s]: "
+    vlogD(TAG_CMD "Received get_comments request from [%s]: "
           "{access_token: %s, by: %" PRIu64
           ", upper_bound: %" PRIu64 ", lower_bound: %" PRIu64 ", max_count: %" PRIu64 "}",
           from, req->params.tk, req->params.qc.by,
           req->params.qc.upper, req->params.qc.lower, req->params.qc.maxcnt);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_CMD "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_CMD "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -4070,7 +4072,7 @@ void hdl_get_reported_cmts_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (!user_id_is_owner(uinfo->uid)) {
-        vlogE("Get reported owner while not being owner.");
+        vlogE(TAG_CMD "Get reported owner while not being owner.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_AUTHORIZED
@@ -4081,7 +4083,7 @@ void hdl_get_reported_cmts_req(ElaCarrier *c, const char *from, Req *base)
 
     it = db_iter_reported_cmts(&req->params.qc);
     if (!it) {
-        vlogE("Getting reported_comments from database failed.");
+        vlogE(TAG_CMD "Getting reported_comments from database failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -4092,7 +4094,7 @@ void hdl_get_reported_cmts_req(ElaCarrier *c, const char *from, Req *base)
 
     foreach_db_obj(rcinfo) {
         cvector_push_back(rcinfos, ref(rcinfo));
-        vlogD("Retrieved comment: "
+        vlogD(TAG_CMD "Retrieved comment: "
               "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", comment_id: %" PRIu64
               ", reporter_name: %s, reporter_did: %s, reasons:%s"
               ", created_at: %" PRIu64 "}",
@@ -4101,7 +4103,7 @@ void hdl_get_reported_cmts_req(ElaCarrier *c, const char *from, Req *base)
               rcinfo->created_at);
     }
     if (rc < 0) {
-        vlogE("Iterating comments failed.");
+        vlogE(TAG_CMD "Iterating comments failed.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -4124,7 +4126,7 @@ void hdl_get_reported_cmts_req(ElaCarrier *c, const char *from, Req *base)
                 }
             };
             resp_marshal = rpc_marshal_get_reported_cmts_resp(&resp);
-            vlogD("Sending get_reported_comments empty response.");
+            vlogD(TAG_CMD "Sending get_reported_comments empty response.");
             goto finally;
         }
 
@@ -4144,7 +4146,7 @@ void hdl_get_reported_cmts_req(ElaCarrier *c, const char *from, Req *base)
             };
             resp_marshal = rpc_marshal_get_reported_cmts_resp(&resp);
 
-            vlogD("Sending get_reported_comments response.");
+            vlogD(TAG_CMD "Sending get_reported_comments response.");
 
             rc = msgq_enq(from, resp_marshal);
             deref(resp_marshal);
@@ -4183,7 +4185,7 @@ void hdl_unknown_req(ElaCarrier *c, const char *from, Req *base)
         .ec     = ERR_UNKNOWN_METHOD
     };
 
-    vlogD("Received %s(unknown) request from [%s]", base->method, from);
+    vlogD(TAG_CMD "Received %s(unknown) request from [%s]", base->method, from);
 
     resp_marshal = rpc_marshal_err_resp(&resp);
     if (resp_marshal) {

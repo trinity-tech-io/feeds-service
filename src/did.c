@@ -38,6 +38,7 @@
 #include "db.h"
 
 #define VC_FRAG "credential"
+#define TAG_AUTH "[Feedsd.Auth]: "
 
 extern ElaCarrier *carrier;
 
@@ -119,7 +120,7 @@ void gen_feeds_url()
     if (state < VC_ISSED)
         sprintf(feeds_url + strlen(feeds_url), "/%s", nonce_str);
 
-    vlogI("Generate feeds URL: %s", feeds_url);
+    vlogI(TAG_AUTH "Generate feeds URL: %s", feeds_url);
 }
 
 #define INCHES_PER_METER (100.0/2.54)
@@ -148,14 +149,14 @@ int qrencode(const char *intext, const char *outfile)
     realwidth = (qrcode->width + margin * 2) * size;
     row = (unsigned char *)malloc((realwidth + 7) / 8);
     if (row == NULL) {
-        vlogE("OOM");
+        vlogE(TAG_AUTH "OOM");
         QRcode_free(qrcode);
         return -1;
     }
 
     fp = fopen(outfile, "wb");
     if (fp == NULL) {
-        vlogE("Failed to create file: %s", outfile);
+        vlogE(TAG_AUTH "Failed to create file: %s", outfile);
         free(row);
         QRcode_free(qrcode);
         return -1;
@@ -163,7 +164,7 @@ int qrencode(const char *intext, const char *outfile)
 
     png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
     if (png_ptr == NULL) {
-        vlogE("Failed to initialize PNG writer.");
+        vlogE(TAG_AUTH "Failed to initialize PNG writer.");
         fclose(fp);
         free(row);
         QRcode_free(qrcode);
@@ -172,7 +173,7 @@ int qrencode(const char *intext, const char *outfile)
 
     info_ptr = png_create_info_struct(png_ptr);
     if (info_ptr == NULL) {
-        vlogE("Failed to initialize PNG write.");
+        vlogE(TAG_AUTH "Failed to initialize PNG write.");
         png_destroy_write_struct(&png_ptr, NULL);
         fclose(fp);
         free(row);
@@ -181,7 +182,7 @@ int qrencode(const char *intext, const char *outfile)
     }
 
     if (setjmp(png_jmpbuf(png_ptr))) {
-        vlogE("Failed to write PNG image.");
+        vlogE(TAG_AUTH "Failed to write PNG image.");
         png_destroy_write_struct(&png_ptr, &info_ptr);
         fclose(fp);
         free(row);
@@ -191,7 +192,7 @@ int qrencode(const char *intext, const char *outfile)
 
     palette = (png_colorp) malloc(sizeof(png_color) * 2);
     if (palette == NULL) {
-        vlogE("Failed to allocate memory.");
+        vlogE(TAG_AUTH "Failed to allocate memory.");
         png_destroy_write_struct(&png_ptr, &info_ptr);
         fclose(fp);
         free(row);
@@ -277,8 +278,8 @@ int hdl_http_req(sb_Event *ev)
     if (ev->type != SB_EV_REQUEST)
         return SB_RES_OK;
 
-    vlogI("Received HTTP request to path[%s]", ev->path);
-    vlogI("Return HTTP response: %s", feeds_url);
+    vlogI(TAG_AUTH "Received HTTP request to path[%s]", ev->path);
+    vlogI(TAG_AUTH "Return HTTP response: %s", feeds_url);
 
     rc = qrencode(feeds_url, qrcode_path);
     if (rc < 0)
@@ -286,13 +287,13 @@ int hdl_http_req(sb_Event *ev)
 
     rc = sb_send_header(ev->stream, "Content-Type", "image/png");
     if (rc < 0) {
-        vlogE("Sending HTTP header failed.");
+        vlogE(TAG_AUTH "Sending HTTP header failed.");
         goto finally;
     }
 
     rc = sb_send_file(ev->stream, qrcode_path);
     if (rc < 0) {
-        vlogE("Sending HTTP body failed.");
+        vlogE(TAG_AUTH "Sending HTTP body failed.");
         goto finally;
     }
 
@@ -339,7 +340,7 @@ int start_binding_svc(FeedsConfig *fc)
 
     http = sb_new_server(&opts);
     if (!http) {
-        vlogE("Creating HTTP server instance failed: %s:%s is in use.",
+        vlogE(TAG_AUTH "Creating HTTP server instance failed: %s:%s is in use.",
               fc->http_ip, fc->http_port);
         return -1;
     }
@@ -349,13 +350,13 @@ int start_binding_svc(FeedsConfig *fc)
     rc = pthread_create(&http_tid, NULL, http_server_routine, http);
     pthread_mutex_unlock(&http_mutex);
     if (rc) {
-        vlogE("HTTP server failed to start");
+        vlogE(TAG_AUTH "HTTP server failed to start");
         http_is_running = false;
         sb_close_server(http);
         return -1;
     }
 
-    vlogI("HTTP server started.");
+    vlogI(TAG_AUTH "HTTP server started.");
 
     // pthread_detach(tid);
 
@@ -434,12 +435,12 @@ int oinfo_upd(const UserInfo *ui)
     char *email = strdup(ui->email);
 
     if (!name) {
-        vlogE("OOM");
+        vlogE(TAG_AUTH "OOM");
         return -1;
     }
 
     if (!email) {
-        vlogE("OOM");
+        vlogE(TAG_AUTH "OOM");
         free(name);
         return -1;
     }
@@ -490,19 +491,19 @@ int did_init(FeedsConfig *cfg)
 
     feeds_storepass = strdup(cfg->didstore_passwd);
     if (!feeds_storepass) {
-        vlogE("OOM.");
+        vlogE(TAG_AUTH "OOM.");
         goto failure;
     }
 
     feeds_didstore = DIDStore_Open(cfg->didstore_dir, &adapter);
     if (!feeds_didstore) {
-        vlogE("Opening DID store failed: %s", DIDError_GetMessage());
+        vlogE(TAG_AUTH "Opening DID store failed: %s", DIDError_GetMessage());
         goto failure;
     }
 
     rc = db_get_owner(&ui);
     if (rc < 0) {
-        vlogE("Getting owner from database failed.");
+        vlogE(TAG_AUTH "Getting owner from database failed.");
         goto failure;
     }
 
@@ -513,11 +514,11 @@ int did_init(FeedsConfig *cfg)
 
     rc = oinfo_init(ui);
     if (rc < 0) {
-        vlogE("Initializing feeds owner info failed.");
+        vlogE(TAG_AUTH "Initializing feeds owner info failed.");
         goto failure;
     }
 
-    vlogI("Owner declared: [%s]", feeds_owner_info.did);
+    vlogI(TAG_AUTH "Owner declared: [%s]", feeds_owner_info.did);
 
     if (!DIDStore_ContainsPrivateIdentity(feeds_didstore)) {
         state_set(OWNER_DECLED);
@@ -535,11 +536,11 @@ int did_init(FeedsConfig *cfg)
     feeeds_auth_key_url = DIDDocument_GetDefaultPublicKey(feeds_doc);
     DIDBackend_SetLocalResolveHandle(local_resolver);
 
-    vlogI("DID imported: [%s]", feeds_did_str);
+    vlogI(TAG_AUTH "DID imported: [%s]", feeds_did_str);
 
     vc_url = DIDURL_NewByDid(feeds_did, VC_FRAG);
     if (!vc_url) {
-        vlogE("Getting VC URL failed: %s", DIDError_GetMessage());
+        vlogE(TAG_AUTH "Getting VC URL failed: %s", DIDError_GetMessage());
         goto failure;
     }
 
@@ -549,7 +550,7 @@ int did_init(FeedsConfig *cfg)
         goto finally;
     }
 
-    vlogI("Credential issued, ready to serve.");
+    vlogI(TAG_AUTH "Credential issued, ready to serve.");
     state_set(VC_ISSED);
 
     goto finally;
@@ -589,7 +590,7 @@ char *gen_tsx_payload()
                         feeeds_auth_key_url, true);
     DIDBackend_SetLocalResolveHandle(local_resolver);
     if (!payload_buf)
-        vlogE("Failed to generate transaction payload: %s", DIDError_GetMessage());
+        vlogE(TAG_AUTH "Failed to generate transaction payload: %s", DIDError_GetMessage());
 
     return payload_buf;
 }
@@ -614,7 +615,7 @@ void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base)
         .email = "NA"
     };
 
-    vlogD("Received declare_owner request from [%s]: "
+    vlogD(TAG_AUTH "Received declare_owner request from [%s]: "
           "{nonce: %s, owner_did: %s}", from, req->params.nonce, req->params.owner_did);
 
     if (state == NO_OWNER) {
@@ -637,7 +638,7 @@ void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base)
             goto finally;
         }
 
-        vlogI("Owner declared: [%s].", req->params.owner_did);
+        vlogI(TAG_AUTH "Owner declared: [%s].", req->params.owner_did);
         state_set(OWNER_DECLED);
 
         {
@@ -650,11 +651,11 @@ void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base)
                 }
             };
             resp_marshal = rpc_marshal_decl_owner_resp(&resp);
-            vlogD("Sending declare_owner response to [%s]: "
+            vlogD(TAG_AUTH "Sending declare_owner response to [%s]: "
                   "{phase: %s, did: nil, transaction_payload: nil}", from, resp.result.phase);
         }
     } else if (strcmp(req->params.owner_did, feeds_owner_info.did)) {
-        vlogE("Owner mismatch. Expected: [%s], actual: [%s]", feeds_owner_info.did, req->params.owner_did);
+        vlogE(TAG_AUTH "Owner mismatch. Expected: [%s], actual: [%s]", feeds_owner_info.did, req->params.owner_did);
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_AUTHORIZED
@@ -670,7 +671,7 @@ void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_decl_owner_resp(&resp);
-        vlogD("Sending declare_owner response to [%s]: "
+        vlogD(TAG_AUTH "Sending declare_owner response to [%s]: "
               "{phase: %s, did: nil, transaction_payload: nil}", from, resp.result.phase);
     } else if (state == DID_IMPED) {
         DeclOwnerResp resp = {
@@ -692,7 +693,7 @@ void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base)
         }
 
         resp_marshal = rpc_marshal_decl_owner_resp(&resp);
-        vlogD("Sending declare_owner response to [%s]: "
+        vlogD(TAG_AUTH "Sending declare_owner response to [%s]: "
               "{phase: %s, did: %s, transaction_payload: %s}",
               from, resp.result.phase, resp.result.did, resp.result.tsx_payload);
         clear_tsx_payload();
@@ -706,7 +707,7 @@ void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base)
             }
         };
         resp_marshal = rpc_marshal_decl_owner_resp(&resp);
-        vlogD("Sending declare_owner response to [%s]: "
+        vlogD(TAG_AUTH "Sending declare_owner response to [%s]: "
               "{phase: %s, did: nil, transaction_payload: nil}", from, resp.result.phase);
     }
 
@@ -724,21 +725,21 @@ void hdl_imp_did_req(ElaCarrier *c, const char *from, Req *base)
     char *mnemo_gen = NULL;
     int rc;
 
-    vlogD("Received import_did request from [%s]: "
+    vlogD(TAG_AUTH "Received import_did request from [%s]: "
           "{mnemonic: %s, passphrase: %s, index: %" PRIu64 "}",
           from, req->params.mnemo ? req->params.mnemo : "nil",
           req->params.passphrase ? req->params.passphrase : "nil",
           req->params.idx);
 
     if (state != OWNER_DECLED) {
-        vlogE("Importing DID in a wrong state. Current state: %s", state_str());
+        vlogE(TAG_AUTH "Importing DID in a wrong state. Current state: %s", state_str());
         return;
     }
 
     if (!req->params.mnemo) {
         mnemo_gen = (char *)Mnemonic_Generate("english");
         if (!mnemo_gen) {
-            vlogE("Generating mnemonic failed: %s", DIDError_GetMessage());
+            vlogE(TAG_AUTH "Generating mnemonic failed: %s", DIDError_GetMessage());
             ErrResp resp = {
                 .tsx_id = req->tsx_id,
                 .ec     = ERR_INTERNAL_ERROR
@@ -753,7 +754,7 @@ void hdl_imp_did_req(ElaCarrier *c, const char *from, Req *base)
                                       req->params.passphrase ? req->params.passphrase : "",
                                       "english", true);
     if (rc < 0) {
-        vlogE("Initializing DID store private identity failed: %s", DIDError_GetMessage());
+        vlogE(TAG_AUTH "Initializing DID store private identity failed: %s", DIDError_GetMessage());
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -764,7 +765,7 @@ void hdl_imp_did_req(ElaCarrier *c, const char *from, Req *base)
 
     feeds_doc = DIDStore_NewDIDByIndex(feeds_didstore, feeds_storepass, req->params.idx, NULL);
     if (!feeds_doc) {
-        vlogE("Newing DID in DID store failed: %s", DIDError_GetMessage());
+        vlogE(TAG_AUTH "Newing DID in DID store failed: %s", DIDError_GetMessage());
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -778,7 +779,7 @@ void hdl_imp_did_req(ElaCarrier *c, const char *from, Req *base)
     feeeds_auth_key_url = DIDDocument_GetDefaultPublicKey(feeds_doc);
     DIDBackend_SetLocalResolveHandle(local_resolver);
 
-    vlogI("DID imported: [%s].", feeds_did_str);
+    vlogI(TAG_AUTH "DID imported: [%s].", feeds_did_str);
     state_set(DID_IMPED);
 
     {
@@ -800,7 +801,7 @@ void hdl_imp_did_req(ElaCarrier *c, const char *from, Req *base)
         }
 
         resp_marshal = rpc_marshal_imp_did_resp(&resp);
-        vlogD("Sending import_did response to [%s]: {did: %s, transaction_payload: %s}",
+        vlogD(TAG_AUTH "Sending import_did response to [%s]: {did: %s, transaction_payload: %s}",
               from, resp.result.did, resp.result.tsx_payload);
         clear_tsx_payload();
     }
@@ -823,7 +824,7 @@ Marshalled *process_vc_req(const char *from, IssVCReq *req)
     Credential *vc = NULL;
 
     if (state != DID_IMPED && state != VC_ISSED) {
-        vlogE("Process credential in a wrong state. Current state: %s", state_str());
+        vlogE(TAG_AUTH "Process credential in a wrong state. Current state: %s", state_str());
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_WRONG_STATE
@@ -834,7 +835,7 @@ Marshalled *process_vc_req(const char *from, IssVCReq *req)
 
     vc_url = DIDURL_NewByDid(feeds_did, VC_FRAG);
     if (!vc_url) {
-        vlogE("Getting VC URL failed: %s", DIDError_GetMessage());
+        vlogE(TAG_AUTH "Getting VC URL failed: %s", DIDError_GetMessage());
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -845,7 +846,7 @@ Marshalled *process_vc_req(const char *from, IssVCReq *req)
 
     vc = Credential_FromJson(req->params.vc, feeds_did);
     if (!vc) {
-        vlogE("Unmarshalling credential failed: %s", DIDError_GetMessage());
+        vlogE(TAG_AUTH "Unmarshalling credential failed: %s", DIDError_GetMessage());
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INVALID_PARAMS
@@ -855,7 +856,7 @@ Marshalled *process_vc_req(const char *from, IssVCReq *req)
     }
 
     if (!Credential_IsValid(vc)) {
-        vlogE("Credential is invalid: %s", DIDError_GetMessage());
+        vlogE(TAG_AUTH "Credential is invalid: %s", DIDError_GetMessage());
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INVALID_PARAMS
@@ -868,7 +869,7 @@ Marshalled *process_vc_req(const char *from, IssVCReq *req)
         char vc_url_str[ELA_MAX_DIDURL_LEN];
         char vc_id[ELA_MAX_DIDURL_LEN];
 
-        vlogE("Credential ID mismatch. Expected: [%s], actual: [%s]",
+        vlogE(TAG_AUTH "Credential ID mismatch. Expected: [%s], actual: [%s]",
               DIDURL_ToString(vc_url, vc_url_str, sizeof(vc_url_str), true),
               DIDURL_ToString(Credential_GetId(vc), vc_id, sizeof(vc_id), true));
 
@@ -883,7 +884,7 @@ Marshalled *process_vc_req(const char *from, IssVCReq *req)
     if (!DID_Equals(Credential_GetOwner(vc), feeds_did)) {
         char vc_owner_did[ELA_MAX_DID_LEN];
 
-        vlogE("Credential owner mismatch. Expected: [%s], actual: [%s]",
+        vlogE(TAG_AUTH "Credential owner mismatch. Expected: [%s], actual: [%s]",
               feeds_did_str, DID_ToString(Credential_GetOwner(vc), vc_owner_did, sizeof(vc_owner_did)));
 
         ErrResp resp = {
@@ -895,7 +896,7 @@ Marshalled *process_vc_req(const char *from, IssVCReq *req)
     }
 
     if (strcmp(DID_ToString(Credential_GetIssuer(vc), iss_did, sizeof(iss_did)), feeds_owner_info.did)) {
-        vlogE("Credential issuer mismatch. Expected: [%s], actual: [%s]", feeds_owner_info.did, iss_did);
+        vlogE(TAG_AUTH "Credential issuer mismatch. Expected: [%s], actual: [%s]", feeds_owner_info.did, iss_did);
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INVALID_PARAMS
@@ -906,7 +907,7 @@ Marshalled *process_vc_req(const char *from, IssVCReq *req)
 
     if (state == VC_ISSED &&
         Credential_GetIssuanceDate(vc) <= Credential_GetIssuanceDate(feeds_vc)) {
-        vlogE("New credential issued before the current one. Current: %" PRIu64 ", new: %" PRIu64,
+        vlogE(TAG_AUTH "New credential issued before the current one. Current: %" PRIu64 ", new: %" PRIu64,
               (uint64_t)Credential_GetIssuanceDate(feeds_vc),
               (uint64_t)Credential_GetIssuanceDate(vc));
         ErrResp resp = {
@@ -918,7 +919,7 @@ Marshalled *process_vc_req(const char *from, IssVCReq *req)
     }
 
     if (DIDStore_StoreCredential(feeds_didstore, vc) < 0) {
-        vlogE("Storing credential failed: %s", DIDError_GetMessage());
+        vlogE(TAG_AUTH "Storing credential failed: %s", DIDError_GetMessage());
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_INTERNAL_ERROR
@@ -933,10 +934,10 @@ Marshalled *process_vc_req(const char *from, IssVCReq *req)
     vc = NULL;
 
     if (state == DID_IMPED) {
-        vlogI("Credential issued, ready to serve.");
+        vlogI(TAG_AUTH "Credential issued, ready to serve.");
         state_set(VC_ISSED);
     } else
-        vlogI("Credential updated.");
+        vlogI(TAG_AUTH "Credential updated.");
 
 finally:
     if (vc)
@@ -952,7 +953,7 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
     IssVCReq *req = (IssVCReq *)base;
     Marshalled *resp_marshal = NULL;
 
-    vlogD("Received issue_credential request from [%s]: "
+    vlogD(TAG_AUTH "Received issue_credential request from [%s]: "
           "{credential: %s}", from, req->params.vc);
 
     resp_marshal = process_vc_req(from, req);
@@ -964,7 +965,7 @@ void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
             .tsx_id = req->tsx_id,
         };
         resp_marshal = rpc_marshal_iss_vc_resp(&resp);
-        vlogD("Sending issue_credential response.");
+        vlogD(TAG_AUTH "Sending issue_credential response.");
     }
 
 finally:
@@ -980,17 +981,17 @@ void hdl_update_vc_req(ElaCarrier *c, const char *from, Req *base)
     UpdateVCReq *req = (UpdateVCReq *)base;
     Marshalled *resp_marshal = NULL;
 
-    vlogD("Received update_credential request from [%s]: "
+    vlogD(TAG_AUTH "Received update_credential request from [%s]: "
           "{credential: %s}", from, req->params.vc);
 
     if (!did_is_ready()) {
-        vlogE("Feeds DID is not ready.");
+        vlogE(TAG_AUTH "Feeds DID is not ready.");
         return;
     }
 
     uinfo = create_uinfo_from_access_token(req->params.tk);
     if (!uinfo) {
-        vlogE("Invalid access token.");
+        vlogE(TAG_AUTH "Invalid access token.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_ACCESS_TOKEN_EXP
@@ -1000,7 +1001,7 @@ void hdl_update_vc_req(ElaCarrier *c, const char *from, Req *base)
     }
 
     if (!user_id_is_owner(uinfo->uid)) {
-        vlogE("Update credential while not being owner.");
+        vlogE(TAG_AUTH "Update credential while not being owner.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
             .ec     = ERR_NOT_AUTHORIZED
@@ -1023,7 +1024,7 @@ void hdl_update_vc_req(ElaCarrier *c, const char *from, Req *base)
             .tsx_id = req->tsx_id,
         };
         resp_marshal = rpc_marshal_update_vc_resp(&resp);
-        vlogD("Sending update_credential response.");
+        vlogD(TAG_AUTH "Sending update_credential response.");
     }
 
 finally:

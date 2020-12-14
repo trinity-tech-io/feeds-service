@@ -1,5 +1,6 @@
 #include "Log.hpp"
 
+#include <iomanip>
 #include <sstream>
 #include <crystal/vlog.h>
 
@@ -130,7 +131,8 @@ void Log::Print(int level, const char* tag, const char* format, va_list ap)
   prettyFormat << prefix;
 #endif
 
-  prettyFormat << "[" << tag << "]: " << format;
+  prettyFormat << "[" << std::left << std::setw(11) << tag << "]: ";
+  prettyFormat << format;
 
 #ifndef NDEBUG
   auto suffix = ConvColor(-1);
