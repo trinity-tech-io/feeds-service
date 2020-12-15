@@ -16,6 +16,8 @@ public:
         static constexpr const char* StandardSignIn = "standard_sign_in";
         static constexpr const char* StandardDidAuth = "standard_did_auth";
         static constexpr const char* GetMultiComments = "get_multi_comments";
+        static constexpr const char* GetMultiLikesAndCommentsCount = "get_multi_likes_and_comments_count";
+        static constexpr const char* GetMultiSubscribersCount = "get_multi_subscribers_count";
     };
 
     /*** static function and variable ***/
