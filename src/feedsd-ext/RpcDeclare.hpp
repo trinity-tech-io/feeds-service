@@ -118,6 +118,75 @@ struct GetMultiCommentsResponse : Response {
                           MSGPACK_RESPONSE_ARGS, result);
 };
 
+struct GetMultiLikesAndCommentsCountRequest : RequestWithToken {
+    struct Params : RequestWithToken::Params {
+        int64_t channel_id = -1;
+        int64_t post_id = -1;
+        int64_t by = -1;
+        int64_t upper_bound = -1;
+        int64_t lower_bound = -1;
+        int64_t max_count = -1;
+        MSGPACK_DEFINE(MSGPACK_REQUEST_TOKEN_ARGS,
+                       channel_id, post_id, by, upper_bound, lower_bound, max_count);
+    };
+
+    Params params;
+    MSGPACK_DEFINE_WITHTOKEN(GetMultiLikesAndCommentsCountRequest, params.access_token,
+                             MSGPACK_REQUEST_ARGS, params)
+};
+
+struct GetMultiLikesAndCommentsCountResponse : Response {
+    struct Result {
+        struct Post {
+            int64_t channel_id = -1;
+            int64_t post_id = -1;
+            int64_t comments_count = -1;
+            int64_t likes_count = -1;
+
+            MSGPACK_DEFINE(channel_id, post_id, comments_count, likes_count);
+        };
+
+        bool is_last = false;
+        std::vector<Post> posts;
+        MSGPACK_DEFINE(is_last, posts);
+    };
+
+    Result result;
+    MSGPACK_DEFINE_STRUCT(GetMultiLikesAndCommentsCountResponse,
+                          MSGPACK_RESPONSE_ARGS, result);
+};
+
+struct GetMultiSubscribersCountRequest : RequestWithToken {
+    struct Params : RequestWithToken::Params {
+        int64_t channel_id = -1;
+        MSGPACK_DEFINE(MSGPACK_REQUEST_TOKEN_ARGS, channel_id);
+    };
+
+    Params params;
+    MSGPACK_DEFINE_WITHTOKEN(GetMultiSubscribersCountRequest, params.access_token,
+                             MSGPACK_REQUEST_ARGS, params)
+};
+
+struct GetMultiSubscribersCountResponse : Response {
+    struct Result {
+        struct Channel {
+            int64_t channel_id = -1;
+            int64_t subscribers_count = -1;
+
+            MSGPACK_DEFINE(channel_id, subscribers_count);
+        };
+
+        bool is_last = false;
+        std::vector<Channel> channels;
+        MSGPACK_DEFINE(is_last, channels);
+    };
+
+    Result result;
+    MSGPACK_DEFINE_STRUCT(GetMultiSubscribersCountResponse,
+                          MSGPACK_RESPONSE_ARGS, result);
+};
+
+
 } // namespace Rpc
 } // namespace trinity
 
