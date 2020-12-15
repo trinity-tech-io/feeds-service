@@ -65,6 +65,10 @@ std::shared_ptr<Request> Factory::MakeRequest(const std::string& method)
         request = std::make_shared<StandardDidAuthRequest>();
     } else if(method == Method::GetMultiComments) {
         request = std::make_shared<GetMultiCommentsRequest>();
+    } else if(method == Method::GetMultiLikesAndCommentsCount) {
+        request = std::make_shared<GetMultiLikesAndCommentsCountRequest>();
+    } else if(method == Method::GetMultiSubscribersCount) {
+        request = std::make_shared<GetMultiSubscribersCountRequest>();
     }
 
     return request;
@@ -80,6 +84,10 @@ std::shared_ptr<Response> Factory::MakeResponse(const std::string& method)
         response = std::make_shared<StandardDidAuthResponse>();
     } else if(method == Method::GetMultiComments) {
         response = std::make_shared<GetMultiCommentsResponse>();
+    } else if(method == Method::GetMultiLikesAndCommentsCount) {
+        response = std::make_shared<GetMultiLikesAndCommentsCountResponse>();
+    } else if(method == Method::GetMultiSubscribersCount) {
+        response = std::make_shared<GetMultiSubscribersCountResponse>();
     } else {
         Log::E(Log::Tag::Rpc, "RPC Factory ignore to make response from method: %s.", method.c_str());
     }
