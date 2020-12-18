@@ -29,6 +29,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <libgen.h>
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -194,8 +195,6 @@ void usage(void)
 static const char *default_cfg_files[] = {
     "./" CONFIG_NAME,
     "../etc/feedsd/" CONFIG_NAME,
-    "/usr/local/etc/feedsd/" CONFIG_NAME,
-    "/etc/feedsd/" CONFIG_NAME,
     NULL
 };
 
@@ -333,6 +332,7 @@ failure:
 int main(int argc, char *argv[])
 {
     char buf[ELA_MAX_ADDRESS_LEN + 1];
+    char *work_dir = NULL;
     const char *cfg_file = NULL;
     int wait_for_attach = 0;
     FeedsConfig cfg;
@@ -398,10 +398,13 @@ int main(int argc, char *argv[])
     }
 
     memset(&cfg, 0, sizeof(cfg));
+    vlogI(TAG_MAIN "Loading config file from: %s", cfg_file);
     if (!load_cfg(cfg_file, &cfg)) {
         vlogE(TAG_MAIN "Loading configure failed!");
         return -1;
     }
+    vlogI(TAG_MAIN "Data save to: %s", cfg.data_dir);
+    vlogI(TAG_MAIN "Log save to: %s", cfg.carrier_opts.log_file);
 
     rc = transport_init(&cfg);
     if (rc < 0) {

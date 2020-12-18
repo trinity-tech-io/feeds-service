@@ -129,9 +129,14 @@ DIDDocument* StandardAuth::LoadLocalDIDDocument(DID* did)
 StandardAuth::StandardAuth()
 {
     using namespace std::placeholders;
-    std::map<const char*, AdvancedHandler> advancedHandlerMap {
-        {Rpc::Factory::Method::StandardSignIn,  {std::bind(&StandardAuth::onStandardSignIn, this, _1, _2), Accessible::Anyone}},
-        {Rpc::Factory::Method::StandardDidAuth, {std::bind(&StandardAuth::onStandardDidAuth, this, _1, _2), Accessible::Anyone}},
+    std::map<const char *, AdvancedHandler> advancedHandlerMap{
+        {
+            Rpc::Factory::Method::StandardSignIn,
+            {std::bind(&StandardAuth::onStandardSignIn, this, _1, _2), Accessible::Anyone}
+        }, {
+            Rpc::Factory::Method::StandardDidAuth,
+            {std::bind(&StandardAuth::onStandardDidAuth, this, _1, _2), Accessible::Anyone}
+        },
     };
 
     setHandleMap({}, advancedHandlerMap);

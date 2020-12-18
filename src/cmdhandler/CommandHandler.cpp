@@ -5,6 +5,7 @@
 #include <LegacyMethod.hpp>
 #include <MassData.hpp>
 #include <SafePtr.hpp>
+#include <ServiceMethod.hpp>
 #include <StandardAuth.hpp>
 #include <ThreadPool.hpp>
 
@@ -70,6 +71,7 @@ int CommandHandler::config(const std::filesystem::path& dataDir,
         std::make_shared<LegacyMethod>(),
         std::make_shared<ChannelMethod>(),
         std::make_shared<MassData>(dataDir / MassData::MassDataDirName),
+        std::make_shared<ServiceMethod>(dataDir / CacheDirName),
         std::make_shared<StandardAuth>(),
     });
 
@@ -143,9 +145,7 @@ int CommandHandler::process(const std::string& from, const std::vector<uint8_t>&
                 break;
             }
         }
-        if(ret == ErrCode::UnimplementedError) { // return if unimplemented.
-            return ret;
-        } else if(ret == ErrCode::CompletelyFinishedNotify) { // return if process totally finished.
+        if(ret == ErrCode::CompletelyFinishedNotify) { // return if process totally finished.
             return 0;
         }
     }
@@ -182,6 +182,9 @@ int CommandHandler::processAdvance(const std::string& from, const std::vector<ui
         if (ret != ErrCode::UnimplementedError) {
             break;
         }
+    }
+    if(responseArray.size() <= 0) {
+        return ErrCode::UnimplementedError;
     }
 
     for (const auto &response : responseArray) {

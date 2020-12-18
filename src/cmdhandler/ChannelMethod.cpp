@@ -24,9 +24,16 @@ ChannelMethod::ChannelMethod()
 {
     using namespace std::placeholders;
     std::map<const char*, AdvancedHandler> advancedHandlerMap {
-        {Rpc::Factory::Method::GetMultiComments,  {std::bind(&ChannelMethod::onGetMultiComments, this, _1, _2), Accessible::Member}},
-        {Rpc::Factory::Method::GetMultiLikesAndCommentsCount,  {std::bind(&ChannelMethod::onGetMultiLikesAndCommentsCount, this, _1, _2), Accessible::Member}},
-        {Rpc::Factory::Method::GetMultiSubscribersCount,  {std::bind(&ChannelMethod::onGetMultiSubscribersCount, this, _1, _2), Accessible::Member}},
+        {
+            Rpc::Factory::Method::GetMultiComments,
+            {std::bind(&ChannelMethod::onGetMultiComments, this, _1, _2), Accessible::Member}
+        }, {
+            Rpc::Factory::Method::GetMultiLikesAndCommentsCount,
+            {std::bind(&ChannelMethod::onGetMultiLikesAndCommentsCount, this, _1, _2), Accessible::Member}
+        }, {
+            Rpc::Factory::Method::GetMultiSubscribersCount,
+            {std::bind(&ChannelMethod::onGetMultiSubscribersCount, this, _1, _2), Accessible::Member}
+        },
     };
 
     setHandleMap({}, advancedHandlerMap);
