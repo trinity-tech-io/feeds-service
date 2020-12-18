@@ -88,7 +88,7 @@ target_link_libraries(feedsd
     config
     libcrystal-shared
     libelacarrier-shared
-    libeladid-shared
+    eladid
     libqrencode-static
     cvector
     mkdirs
@@ -99,7 +99,7 @@ target_link_libraries(feedsd
 
 set(FEEDSD_LISTEN_IP 0.0.0.0)
 if(CMAKE_SYSTEM_NAME STREQUAL Linux)
-    set(FEEDSD_LOG_DIR /var/log/feedsd)
+    set(FEEDSD_LOG_DIR /${FEEDS_INT_ROOT_DIR}/log)
     set(FEEDSD_DATA_DIR /var/lib/feedsd)
 else()
     set(FEEDSD_LOG_DIR ~/.feedsd)
@@ -110,21 +110,29 @@ configure_file(feedsd.conf.in feedsd.conf @ONLY
     NEWLINE_STYLE UNIX)
 
 install(TARGETS feedsd
-    RUNTIME DESTINATION bin
-    ARCHIVE DESTINATION lib
-    LIBRARY DESTINATION lib
+    RUNTIME DESTINATION ${FEEDS_INT_ROOT_DIR}/bin
     COMPONENT main)
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/feedsd.conf
-    DESTINATION etc/feedsd
+    DESTINATION ${FEEDS_INT_ROOT_DIR}/etc/feedsd
+    COMPONENT main)
+
+add_custom_target(symlink ALL
+    COMMAND ${CMAKE_COMMAND} -E create_symlink ${PROJECT_VERSION} current)
+file(INSTALL ${CMAKE_CURRENT_BINARY_DIR}/current
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/${FEEDS_INT_RUNTIME_DIR})
+
+install(PROGRAMS ${CMAKE_SOURCE_DIR}/scripts/feedsd.sh
+    DESTINATION bin
+    RENAME feedsd
     COMPONENT main)
 
 if(CMAKE_SYSTEM_NAME STREQUAL Linux)
-    install(FILES ${CMAKE_SOURCE_DIR}/scripts/feedsd.service
+    install(FILES ${CMAKE_SOURCE_DIR}/debian/feedsd.service
         DESTINATION lib/systemd/system
         COMPONENT main)
 
-    install(PROGRAMS ${CMAKE_SOURCE_DIR}/scripts/feedsd.sh
+    install(PROGRAMS ${CMAKE_SOURCE_DIR}/debian/feedsd.init
         DESTINATION etc/init.d
         RENAME feedsd
         COMPONENT main)
@@ -134,6 +142,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
     set(CPACK_GENERATOR DEB)
 
     set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
+    set(CPACK_PACKAGE_RELEASE ${PROJECT_VERSION_CODE})
     set(CPACK_PACKAGE_DESCRIPTION "Feeds Service Distribution Packages")
     set(CPACK_PACKAGE_VENDOR trinity-tech.io)
     set(CPACK_PACKAGE_CONTACT lifayi@trinity-tech.io)
@@ -169,6 +178,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
     include(CPack)
 endif()
 
+add_subdirectory(autoupdate)
 add_subdirectory(cmdhandler)
 add_subdirectory(feedsd-ext)
 add_subdirectory(massdata)
