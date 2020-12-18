@@ -9,6 +9,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+set(FEEDS_INT_RUNTIME_DIR var/lib/feedsd/runtime)
+set(FEEDS_INT_ROOT_DIR ${FEEDS_INT_RUNTIME_DIR}/${PROJECT_VERSION})
 include(FeedsDefaults)
 include(AddSubModule)
 include(GitCommitId)

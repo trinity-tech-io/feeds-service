@@ -9,7 +9,7 @@ chperms() {
 	if ! OVERRIDE=`dpkg-statoverride --list $4 2>&1`; then
 		if [ -e $4 ]; then
 			chown $1:$2 $4
-			chmod $3 $4
+			chmod -R $3 $4
 		fi
 	fi
 }
@@ -34,10 +34,16 @@ case "$1" in
         mkdir /var/log/feedsd
     fi
 
-    chperms feedsd feedsd 0775 /var/lib/feedsd
+    FEEDSD_VERSION=$(dpkg -s $DPKG_MAINTSCRIPT_PACKAGE | sed -n 's/^Version: //p')
+    ln -sf "$FEEDSD_VERSION" /var/lib/feedsd/runtime/current
+    if [ -e "/etc/feedsd" ]; then
+        mv "/etc/feedsd" /var/lib/feedsd/runtime/current/etc/
+    fi
 
+    chperms feedsd feedsd 0775 /var/lib/feedsd
     chperms feedsd feedsd 0775 /var/log/feedsd
   ;;
+  configure)
 esac
 
 # Automatically added by dh_systemd_enable
