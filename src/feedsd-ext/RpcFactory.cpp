@@ -69,6 +69,8 @@ std::shared_ptr<Request> Factory::MakeRequest(const std::string& method)
         request = std::make_shared<GetMultiLikesAndCommentsCountRequest>();
     } else if(method == Method::GetMultiSubscribersCount) {
         request = std::make_shared<GetMultiSubscribersCountRequest>();
+    } else if(method == Method::AutoUpdateService) {
+        request = std::make_shared<AutoUpdateServiceRequest>();
     }
 
     return request;
@@ -88,6 +90,8 @@ std::shared_ptr<Response> Factory::MakeResponse(const std::string& method)
         response = std::make_shared<GetMultiLikesAndCommentsCountResponse>();
     } else if(method == Method::GetMultiSubscribersCount) {
         response = std::make_shared<GetMultiSubscribersCountResponse>();
+    } else if(method == Method::AutoUpdateService) {
+        response = std::make_shared<AutoUpdateServiceResponse>();
     } else {
         Log::E(Log::Tag::Rpc, "RPC Factory ignore to make response from method: %s.", method.c_str());
     }

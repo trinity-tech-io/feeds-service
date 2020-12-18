@@ -26,8 +26,13 @@ MassData::MassData(const std::filesystem::path& massDataDir)
 {
     using namespace std::placeholders;
     std::map<const char*, NormalHandler> normalHandlerMap {
-        {Method::SetBinary, {std::bind(&MassData::onSetBinary, this, _1, _2), Accessible::Owner}},
-        {Method::GetBinary, {std::bind(&MassData::onGetBinary, this, _1, _2), Accessible::Member}},
+        {
+            Method::SetBinary,
+            {std::bind(&MassData::onSetBinary, this, _1, _2), Accessible::Owner}
+        }, {
+            Method::GetBinary,
+            {std::bind(&MassData::onGetBinary, this, _1, _2), Accessible::Member}
+        },
     };
 
     setHandleMap(normalHandlerMap, {});

@@ -186,6 +186,27 @@ struct GetMultiSubscribersCountResponse : Response {
                           MSGPACK_RESPONSE_ARGS, result);
 };
 
+struct AutoUpdateServiceRequest : RequestWithToken {
+    struct Params : RequestWithToken::Params {
+        int64_t latest_version_code = -1;
+        std::string base_url;
+        std::string darwin_name;
+        std::string ubuntu_1804_name;
+        std::string ubuntu_2004_name;
+        std::string raspberrypi_name;
+        MSGPACK_DEFINE(MSGPACK_REQUEST_TOKEN_ARGS,
+                       base_url, darwin_name, ubuntu_1804_name, ubuntu_2004_name, raspberrypi_name);
+    };
+
+    Params params;
+    MSGPACK_DEFINE_WITHTOKEN(AutoUpdateServiceRequest, params.access_token,
+                             MSGPACK_REQUEST_ARGS, params)
+};
+
+struct AutoUpdateServiceResponse : Response {
+    MSGPACK_DEFINE_STRUCT(AutoUpdateServiceResponse,
+                          MSGPACK_RESPONSE_ARGS);
+};
 
 } // namespace Rpc
 } // namespace trinity
