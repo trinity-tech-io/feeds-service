@@ -13,6 +13,7 @@
 
 #include <execinfo.h>
 #include <sstream>
+#include <sys/sysctl.h>
 #include <sys/utsname.h>
 #include <unistd.h>
 #include <uuid/uuid.h>
@@ -29,6 +30,30 @@ namespace trinity {
 /***********************************************/
 /***** static function implement ***************/
 /***********************************************/
+std::string PlatformDarwin::GetProductName()
+{
+    return "MacOSX";
+}
+
+std::string PlatformDarwin::GetProductVersion()
+{
+    char version[256];
+    size_t size = sizeof(version);
+    int ret = sysctlbyname("kern.osproductversion", version, &size, NULL, 0);
+    if(ret < 0) {
+        Log::E(Log::Tag::Util, "Failed to get product version, errno=%d", errno);
+        return "0";
+    }
+
+    return version;
+}
+
+int PlatformDarwin::UnpackUpgradeTarball(const std::filesystem::path& from,
+                                         const std::filesystem::path& to)
+{
+    return -1;
+}
+
 std::string PlatformDarwin::GetBacktrace() {
     void* addrlist[512];
     int addrlen = backtrace( addrlist, sizeof( addrlist ) / sizeof( void* ));

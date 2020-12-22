@@ -80,9 +80,10 @@ add_dependencies(feedsd
     sqlitecpp-static
     cvector
     mkdirs
-    sandbird)
+    sandbird
+    current-symlink)
 
-target_link_libraries(feedsd
+target_link_libraries(feedsd PRIVATE
     msgpackc
     sqlite3
     config
@@ -117,7 +118,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/feedsd.conf
     DESTINATION ${FEEDS_INT_ROOT_DIR}/etc/feedsd
     COMPONENT main)
 
-add_custom_target(symlink ALL
+add_custom_target(current-symlink ALL
     COMMAND ${CMAKE_COMMAND} -E create_symlink ${PROJECT_VERSION} current)
 file(INSTALL ${CMAKE_CURRENT_BINARY_DIR}/current
     DESTINATION ${CMAKE_INSTALL_PREFIX}/${FEEDS_INT_RUNTIME_DIR})
@@ -183,7 +184,8 @@ add_subdirectory(cmdhandler)
 add_subdirectory(feedsd-ext)
 add_subdirectory(massdata)
 add_subdirectory(utils)
-target_link_libraries(feedsd
+target_link_libraries(feedsd PRIVATE
+    autoupdate
     cmdhandler
     feedsd-ext
     massdata

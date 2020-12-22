@@ -186,25 +186,48 @@ struct GetMultiSubscribersCountResponse : Response {
                           MSGPACK_RESPONSE_ARGS, result);
 };
 
-struct AutoUpdateServiceRequest : RequestWithToken {
+struct DownloadNewServiceRequest : RequestWithToken {
     struct Params : RequestWithToken::Params {
-        int64_t latest_version_code = -1;
+        struct Tarball {
+            std::string name;
+            int64_t size;
+            std::string md5;
+            MSGPACK_DEFINE(name, size, md5);
+        };
+        
+        int64_t new_version_code = -1;
         std::string base_url;
-        std::string darwin_name;
-        std::string ubuntu_1804_name;
-        std::string ubuntu_2004_name;
-        std::string raspberrypi_name;
-        MSGPACK_DEFINE(MSGPACK_REQUEST_TOKEN_ARGS,
-                       base_url, darwin_name, ubuntu_1804_name, ubuntu_2004_name, raspberrypi_name);
+        Tarball macosx;
+        Tarball ubuntu_1804;
+        Tarball ubuntu_2004;
+        Tarball raspberrypi;
+        MSGPACK_DEFINE(MSGPACK_REQUEST_TOKEN_ARGS, new_version_code,
+                       base_url, macosx, ubuntu_1804, ubuntu_2004, raspberrypi);
     };
 
     Params params;
-    MSGPACK_DEFINE_WITHTOKEN(AutoUpdateServiceRequest, params.access_token,
+    MSGPACK_DEFINE_WITHTOKEN(DownloadNewServiceRequest, params.access_token,
                              MSGPACK_REQUEST_ARGS, params)
 };
 
-struct AutoUpdateServiceResponse : Response {
-    MSGPACK_DEFINE_STRUCT(AutoUpdateServiceResponse,
+struct DownloadNewServiceResponse : Response {
+    MSGPACK_DEFINE_STRUCT(DownloadNewServiceResponse,
+                          MSGPACK_RESPONSE_ARGS);
+};
+
+struct StartNewServiceRequest : RequestWithToken {
+    struct Params : RequestWithToken::Params {
+        int64_t new_version_code = -1;
+        MSGPACK_DEFINE(MSGPACK_REQUEST_TOKEN_ARGS, new_version_code);
+    };
+
+    Params params;
+    MSGPACK_DEFINE_WITHTOKEN(StartNewServiceRequest, params.access_token,
+                             MSGPACK_REQUEST_ARGS, params)
+};
+
+struct StartNewServiceResponse : Response {
+    MSGPACK_DEFINE_STRUCT(StartNewServiceResponse,
                           MSGPACK_RESPONSE_ARGS);
 };
 

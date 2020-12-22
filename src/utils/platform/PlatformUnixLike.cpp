@@ -10,6 +10,9 @@
 #include "PlatformUnixLike.hpp"
 
 #include <execinfo.h>
+#include <fstream>
+#include <iterator>
+#include <regex>
 #include <sstream>
 #include <sys/utsname.h>
 #include <unistd.h>
@@ -26,6 +29,40 @@ namespace trinity {
 /***********************************************/
 /***** static function implement ***************/
 /***********************************************/
+std::string PlatformUnixLike::GetProductName()
+{
+    std::ifstream releaseFile("/etc/lsb-release");
+    std::stringstream content;
+    content << releaseFile.rdbuf();
+
+    std::string result = content.str();
+    result = std::regex_replace(result, std::regex("\n"), " ");
+    result = std::regex_replace(result, std::regex(".*DISTRIB_ID="), "");
+    result = std::regex_replace(result, std::regex(" .*"), "");
+
+    return result;
+}
+
+std::string PlatformUnixLike::GetProductVersion()
+{
+    std::ifstream releaseFile("/etc/lsb-release");
+    std::stringstream content;
+    content << releaseFile.rdbuf();
+
+    std::string result = content.str();
+    result = std::regex_replace(result, std::regex("\n"), " ");
+    result = std::regex_replace(result, std::regex(".*DISTRIB_RELEASE="), "");
+    result = std::regex_replace(result, std::regex(" .*"), "");
+
+    return result;
+}
+
+int PlatformUnixLike::UnpackUpgradeTarball(const std::filesystem::path& from,
+                                           const std::filesystem::path& to)
+{
+    return -1;
+}
+
 std::string PlatformUnixLike::GetBacktrace() {
     void* addrlist[512];
     int addrlen = backtrace( addrlist, sizeof( addrlist ) / sizeof( void* ));
