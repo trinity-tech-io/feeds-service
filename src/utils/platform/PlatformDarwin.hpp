@@ -16,6 +16,7 @@
 #if !(TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
 
 #include <string>
+#include <StdFileSystem.hpp>
 
 namespace trinity {
 
@@ -24,7 +25,11 @@ public:
     /*** type define ***/
 
     /*** static function and variable ***/
-    static void DetachCurrentThread() { /* NOUSE */ }
+    static std::string GetProductName();
+    static std::string GetProductVersion();
+
+    static int UnpackUpgradeTarball(const std::filesystem::path& from,
+                                    const std::filesystem::path& to);
 
     static std::string GetBacktrace();
     /*** class function and variable ***/

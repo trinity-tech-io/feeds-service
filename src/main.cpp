@@ -397,8 +397,8 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    memset(&cfg, 0, sizeof(cfg));
     vlogI(TAG_MAIN "Loading config file from: %s", cfg_file);
+    memset(&cfg, 0, sizeof(cfg));
     if (!load_cfg(cfg_file, &cfg)) {
         vlogE(TAG_MAIN "Loading configure failed!");
         return -1;

@@ -3,6 +3,7 @@
 
 #include <string>
 #include <functional>
+#include <Log.hpp>
 
 extern "C" {
 #include "err.h"
@@ -81,6 +82,8 @@ public:
     constexpr static const int OutOfMemoryError                 = -111;
     constexpr static const int CompletelyFinishedNotify         = -112;
     constexpr static const int DirectoryNotExistsError          = -113;
+    constexpr static const int BadFileSize                      = -114;
+    constexpr static const int BadFileMd5                       = -115;
 
     constexpr static const int DidNotReady                      = -120;
     constexpr static const int InvalidAccessToken               = -121;
@@ -158,6 +161,21 @@ public:
     constexpr static const int MsgPackUnknownRequest               = -235;
 
     constexpr static const int RpcUnimplementedError               = -250;
+
+    constexpr static const int HttpClientCurlErrStart              = -300;
+    constexpr static const int HttpClientCurlErrEnd                = -450;
+    constexpr static const int HttpClientUnknownError              = -451;
+    constexpr static const int HttpClientHeaderNotFound            = -452;
+    constexpr static const int HttpClientNullArgument              = -453;
+    constexpr static const int HttpClientBadArgument               = -454;
+    constexpr static const int HttpClientUrlNotExists              = -455;
+    constexpr static const int HttpClientUserCanceled              = -456;
+    constexpr static const int HttpClientIOFailed                  = -457;
+    constexpr static const int HttpClientNetFailed                 = -458;
+
+    constexpr static const int AutoUpdateAlreadyNewest             = -480;
+    constexpr static const int AutoUpdateUnsuppertProduct          = -481;
+
 
     // constexpr static const int CarrierIndex                  = -1000;
     constexpr static const int StdSystemErrorIndex              = -2000;

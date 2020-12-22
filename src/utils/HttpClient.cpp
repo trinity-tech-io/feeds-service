@@ -5,15 +5,14 @@
 #include <iostream>
 #include <future>
 
-#if 0
 #include <curl/curl.h>
+#include <ErrCode.hpp>
 #include <Log.hpp>
 
 #define CHECK_CURL(curl_code) \
 	if(curl_code != CURLE_OK) { \
-		int errcode = (ErrCode::CurlBaseCode + (-curl_code)); \
-		Log::E(Log::Tag::Util, "Failed to call %s, return %d.", FORMAT_METHOD, errcode); \
-		return errcode; \
+		Log::E(Log::Tag::Util, "Failed to call curl, curl error desc is: %s(%d).", curl_easy_strerror(curl_code), curl_code); \
+		CHECK_ERROR(ErrCode::HttpClientCurlErrStart + (-curl_code)); \
 	}
 
 namespace trinity {
@@ -27,61 +26,6 @@ bool HttpClient::gIsGlobalInitialized = false;
 /* =========================================== */
 /* === static function implement ============= */
 /* =========================================== */
-int HttpClient::InitGlobal()
-{
-	std::unique_lock<std::mutex> lock(gMutex);
-    if(gIsGlobalInitialized == true) {
-        return 0;
-    }
-
-	CURLcode curle;
-	curle = curl_global_init(CURL_GLOBAL_ALL);
-	CHECK_CURL(curle);
-
-	//curl_global_cleanup(); // never called
-    gIsGlobalInitialized = true;
-	return 0;
-}
-
-std::vector<int> HttpClient::MultiGet(std::vector<std::shared_ptr<HttpClient>>& httpClientList)
-{
-	std::vector<std::future<int>> futureList;
-	for(auto& httpClient: httpClientList) {
-		auto future = std::async(std::launch::async, std::bind(&HttpClient::syncGet, httpClient));
-		futureList.push_back(std::move(future));
-	}
-	for(auto& future: futureList) {
-		future.wait();
-	}
-
-	std::vector<int> retList;
-	for(auto& future: futureList) {
-		retList.push_back(future.get());
-	}
-
-	return retList;
-}
-
-std::vector<int> HttpClient::MultiPost(std::map<std::shared_ptr<HttpClient>, std::shared_ptr<std::string>>& httpClientList)
-{
-	std::vector<std::future<int>> futureList;
-	for(auto& [httpClient, body]: httpClientList) {
-		auto func = static_cast<int (HttpClient::*)(const std::string&)>(&HttpClient::syncPost);
-		auto future = std::async(std::launch::async, std::bind(func, httpClient, *body));
-		futureList.push_back(std::move(future));
-	}
-	for(auto& future: futureList) {
-		future.wait();
-	}
-
-	std::vector<int> retList;
-	for(auto& future: futureList) {
-		retList.push_back(future.get());
-	}
-
-	return retList;
-}
-
 
 /* =========================================== */
 /* === class public function implement  ====== */
@@ -94,7 +38,7 @@ HttpClient::HttpClient()
 	, mRespStatus(-1)
 	, mRespReason()
 	, mRespHeaders()
-	, mRespBody()
+	, mBody()
 {
 }
 
@@ -105,12 +49,12 @@ HttpClient::~HttpClient()
 int HttpClient::url(const std::string& url)
 {
 	if(url.empty() == true) {
-		return ErrCode::NullArgument;
+		return ErrCode::HttpClientNullArgument;
 	}
 
 	if(url.compare(0, std::strlen(SCHEME_HTTP), SCHEME_HTTP) != 0
 	&& url.compare(0, std::strlen(SCHEME_HTTPS), SCHEME_HTTPS) != 0) {
-		return ErrCode::BadArgument;
+		return ErrCode::HttpClientBadArgument;
 	}
 
 	mUrl = url;
@@ -131,7 +75,7 @@ int HttpClient::setHeader(const std::string& name, const std::string& value)
 {
 	int ret = 0;
 	if(name.empty() == true) {
-		return ErrCode::NullArgument;
+		return ErrCode::HttpClientNullArgument;
 	}
 
 	auto found = mReqHeaders.find(name);
@@ -151,7 +95,7 @@ int HttpClient::setConnectTimeout(unsigned long milliSecond)
 	return 0;
 }
 
-int HttpClient::syncGet()
+int HttpClient::syncGet(std::shared_ptr<std::ostream> body)
 {
 	int ret;
 	CURLcode curle;
@@ -166,7 +110,7 @@ int HttpClient::syncGet()
 	mRespStatus = -1;
 	mRespReason.clear();
 	mRespHeaders.clear();
-	mRespBody = std::stringstream();
+	mBody = body;
 
 	curle = curl_easy_perform(curlHandlePtr.get());
 	CHECK_CURL(curle);
@@ -175,47 +119,6 @@ int HttpClient::syncGet()
 	CHECK_CURL(curle);
 
 	return 0;
-}
-
-int HttpClient::syncPost(const int8_t* body, int size)
-{
-	int ret;
-	CURLcode curle;
-	std::shared_ptr<CURL> curlHandlePtr;
-	std::shared_ptr<struct curl_slist> curlHeadersPtr;
-
-	ret = makeCurl(curlHandlePtr, curlHeadersPtr);
-	if(ret < 0) {
-		return ret;
-	}
-
-	mRespStatus = -1;
-	mRespReason.clear();
-	mRespHeaders.clear();
-	mRespBody = std::stringstream();
-
-	curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_POSTFIELDS, body);
-	CHECK_CURL(curle);
-
-	curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_POSTFIELDSIZE, size);
-	CHECK_CURL(curle);
-
-	curle = curl_easy_perform(curlHandlePtr.get());
-	CHECK_CURL(curle);
-
-	curle = curl_easy_getinfo(curlHandlePtr.get(), CURLINFO_RESPONSE_CODE, &mRespStatus);
-	CHECK_CURL(curle);
-
-	return 0;
-}
-
-int HttpClient::syncPost(const std::string& body)
-{
-	int ret = 0;
-
-	ret = syncPost(reinterpret_cast<const int8_t*>(body.data()), (int)body.size());
-
-	return ret;
 }
 
 void HttpClient::cancel()
@@ -233,7 +136,7 @@ int HttpClient::getResponseHeaders(HeaderMap& headers) const
 {
 	headers.clear();
 	if((200 <= mRespStatus && mRespStatus < 300) == false) {
-		return ErrCode::NetFailed;
+		return ErrCode::HttpClientNetFailed;
 	}
 
 	headers = mRespHeaders;
@@ -245,48 +148,15 @@ int HttpClient::getResponseHeader(const std::string& name, HeaderValue& value) c
 {
 	value.clear();
 	if((200 <= mRespStatus && mRespStatus < 300) == false) {
-		return ErrCode::NetFailed;
+		return ErrCode::HttpClientNetFailed;
 	}
 	auto found = mRespHeaders.find(name);
 	if(found == mRespHeaders.end()) {
-		return ErrCode::NotFound;
+		return ErrCode::HttpClientHeaderNotFound;
 	}
 
 	value = found->second;
 	auto size = found->second.size();
-
-	return (int)size;
-}
-
-int HttpClient::getResponseBody(std::shared_ptr<int8_t>& body)
-{
-	body.reset();
-	if((200 <= mRespStatus && mRespStatus < 300) == false) {
-		return ErrCode::NetFailed;
-	}
-
-	mRespBody.seekg(0, mRespBody.end);
-	auto size = mRespBody.tellg();
-	mRespBody.seekg(0, mRespBody.beg);
-
-	body = std::shared_ptr<int8_t>(new int8_t[size], std::default_delete<int8_t[]>());
-	mRespBody.read(reinterpret_cast<char*>(body.get()), size);
-
-	return (int)size;
-}
-
-int HttpClient::getResponseBody(std::string& body)
-{
-	body.clear();
-	if((200 <= mRespStatus && mRespStatus < 300) == false) {
-		return ErrCode::NetFailed;
-	}
-
-	body = mRespBody.str();
-
-	mRespBody.seekg(0, mRespBody.end);
-	auto size = mRespBody.tellg();
-	mRespBody.seekg(0, mRespBody.beg);
 
 	return (int)size;
 }
@@ -330,7 +200,9 @@ size_t HttpClient::CurlWriteCallback(char* buffer, size_t size, size_t nitems, v
 	HttpClient* httpClient = static_cast<HttpClient*>(userdata);
 	size_t length = size * nitems;
 
-	httpClient->mRespBody.write(buffer, length);
+	if(httpClient->mBody.get() != nullptr) {
+		httpClient->mBody->write(buffer, length);
+	}
 
 	return length;
 }
@@ -362,7 +234,7 @@ int HttpClient::makeCurl(std::shared_ptr<void>& curlHandlePtr, std::shared_ptr<s
 
 	CURL* curlHandle = curl_easy_init();
 	if(curlHandle == nullptr) {
-		return (ErrCode::CurlBaseCode);
+		return (ErrCode::HttpClientCurlErrStart);
 	}
 	auto curlHandleDeleter = [](CURL* ptr) -> void {
 		curl_easy_cleanup(ptr);
@@ -373,7 +245,7 @@ int HttpClient::makeCurl(std::shared_ptr<void>& curlHandlePtr, std::shared_ptr<s
 	CHECK_CURL(curle);
 
 	if(mUrl.empty() == true) {
-		return ErrCode::UrlNotExists;
+		return ErrCode::HttpClientUrlNotExists;
 	}
     Log::I(Log::Tag::Util, "HttpClient::makeCurl() url=%s", mUrl.c_str());
 	curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_URL, mUrl.c_str());
@@ -442,7 +314,7 @@ int HttpClient::makeCurl(std::shared_ptr<void>& curlHandlePtr, std::shared_ptr<s
 int HttpClient::addHeader(HeaderMap& headers, const std::string& name, const std::string& value) const
 {
 	if(name.empty() == true) {
-		return ErrCode::NullArgument;
+		return ErrCode::HttpClientNullArgument;
 	}
 
 	auto found = headers.find(name);
@@ -457,5 +329,3 @@ int HttpClient::addHeader(HeaderMap& headers, const std::string& name, const std
 }
 
 } // namespace trinity
-
-#endif

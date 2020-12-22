@@ -22,11 +22,13 @@ public:
     /*** type define ***/
 
     /*** static function and variable ***/
-    static std::string GetBacktrace();
-    // static int GetCurrentDevId(std::string& devId);
-    // static int GetCurrentDevName(std::string& devName);
+    static std::string GetProductName();
+    static std::string GetProductVersion();
 
-    // static void SetCurrentDevId(const std::string& devId) { /* NOUSE */ }
+    static int UnpackUpgradeTarball(const std::filesystem::path& from,
+                                    const std::filesystem::path& to);
+
+    static std::string GetBacktrace();
     /*** class function and variable ***/
 
 private:

@@ -3,6 +3,7 @@
 #include <AutoUpdate.hpp>
 #include <ErrCode.hpp>
 #include <Log.hpp>
+#include <Platform.hpp>
 
 namespace trinity {
 
@@ -23,8 +24,8 @@ ServiceMethod::ServiceMethod(const std::filesystem::path& cacheDir)
     using namespace std::placeholders;
     std::map<const char*, AdvancedHandler> advancedHandlerMap {
         {
-            Rpc::Factory::Method::AutoUpdateService,
-            {std::bind(&ServiceMethod::onAutoUpdateService, this, _1, _2), Accessible::Owner}
+            Rpc::Factory::Method::DownloadNewService,
+            {std::bind(&ServiceMethod::onDownloadNewService, this, _1, _2), Accessible::Owner}
         },
     };
 
@@ -43,10 +44,10 @@ ServiceMethod::~ServiceMethod()
 /* =========================================== */
 /* === class private function implement  ===== */
 /* =========================================== */
-int ServiceMethod::onAutoUpdateService(std::shared_ptr<Rpc::Request> request,
-                                       std::vector<std::shared_ptr<Rpc::Response>>& responseArray)
+int ServiceMethod::onDownloadNewService(std::shared_ptr<Rpc::Request> request,
+                                        std::vector<std::shared_ptr<Rpc::Response>>& responseArray)
 {
-    auto requestPtr = std::dynamic_pointer_cast<Rpc::AutoUpdateServiceRequest>(request);
+    auto requestPtr = std::dynamic_pointer_cast<Rpc::DownloadNewServiceRequest>(request);
     CHECK_ASSERT(requestPtr != nullptr, ErrCode::InvalidArgument);
     const auto& params = requestPtr->params;
     responseArray.clear();
@@ -54,16 +55,44 @@ int ServiceMethod::onAutoUpdateService(std::shared_ptr<Rpc::Request> request,
     bool validArgus = ( params.access_token.empty() == false);
     CHECK_ASSERT(validArgus, ErrCode::InvalidArgument);
 
+    int needUpdate = AutoUpdate::GetInstance()->needUpdate(params.new_version_code);
+    CHECK_ERROR(needUpdate);
+
+    const Rpc::DownloadNewServiceRequest::Params::Tarball* tarball = nullptr;
+    auto osName = Platform::GetProductName();
+    if(osName == "MacOSX") {
+        tarball = &params.macosx;
+    } else if(osName == "Ubuntu") {
+        auto osVer = Platform::GetProductVersion();
+        if(osVer == "18.04") {
+            tarball = &params.ubuntu_1804;
+        } else if(osVer == "20.04") {
+            tarball = &params.ubuntu_2004;
+        }
+    } else if(osName == "RaspberryPi") { // TODO: RaspberryPi is wrong name
+        tarball = &params.raspberrypi;
+    }
+    Log::D(Log::Tag::Cmd, "Updating feeds service to %lld on %s", params.new_version_code, osName.c_str());
+    CHECK_ASSERT(tarball != nullptr, ErrCode::AutoUpdateUnsuppertProduct);
+    std::string tarballUrl = params.base_url + "/" + tarball->name;
+
+    auto resultCallback = [](int errCode) {
+
+    };
+
+    int ret = AutoUpdate::GetInstance()->asyncDownloadTarball(tarballUrl, cacheDir,
+                                                              tarball->name, tarball->size, tarball->md5,
+                                                              resultCallback);
+    CHECK_ERROR(ret);
+
     // push last response or empty response
     auto responsePtr = Rpc::Factory::MakeResponse(request->method);
-    auto response = std::dynamic_pointer_cast<Rpc::AutoUpdateServiceResponse>(responsePtr);
-    if(response != nullptr) {
-        response->version = request->version;
-        response->id = request->id;
-    }
+    auto response = std::dynamic_pointer_cast<Rpc::DownloadNewServiceResponse>(responsePtr);
+    response->version = request->version;
+    response->id = request->id;
     responseArray.push_back(response);
 
-    return -1;
+    return 0;
 }
 
 } // namespace trinity

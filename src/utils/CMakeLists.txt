@@ -1,7 +1,3 @@
-# pkg_search_module(pkg-openssl REQUIRED openssl)
-# message(STATUS "openssl include path: ${pkg-openssl_INCLUDE_DIRS}")
-# message(STATUS "openssl library path: ${pkg-openssl_STATIC_LDFLAGS}")
-
 add_subdirectory(platform)
 
 file( GLOB UTILS_SOURCES "*.c" "*.cpp")
@@ -12,15 +8,13 @@ else()
     add_library(utils OBJECT ${UTILS_SOURCES})
 endif()
 
-add_dependencies(utils
-    libcrystal)
-
 target_include_directories(utils PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}"
-    "${pkg-openssl_INCLUDE_DIRS}"
     "${FEEDS_INT_DIST_DIR}/include")
 
 target_link_libraries(utils PUBLIC
+    ssl
+    libcurl
     platform)
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
     target_link_libraries(utils PUBLIC
@@ -30,5 +24,9 @@ elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "Android")
     log)
 endif()
 
+add_dependencies(utils
+    libcrystal
+    libressl
+    libcurl)
 
 set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
