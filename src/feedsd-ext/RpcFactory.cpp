@@ -71,6 +71,8 @@ std::shared_ptr<Request> Factory::MakeRequest(const std::string& method)
         request = std::make_shared<GetMultiSubscribersCountRequest>();
     } else if(method == Method::DownloadNewService) {
         request = std::make_shared<DownloadNewServiceRequest>();
+    } else if(method == Method::StartNewService) {
+        request = std::make_shared<StartNewServiceRequest>();
     }
 
     return request;
@@ -92,6 +94,8 @@ std::shared_ptr<Response> Factory::MakeResponse(const std::string& method)
         response = std::make_shared<GetMultiSubscribersCountResponse>();
     } else if(method == Method::DownloadNewService) {
         response = std::make_shared<DownloadNewServiceResponse>();
+    } else if(method == Method::StartNewService) {
+        response = std::make_shared<StartNewServiceResponse>();
     } else {
         Log::E(Log::Tag::Rpc, "RPC Factory ignore to make response from method: %s.", method.c_str());
     }

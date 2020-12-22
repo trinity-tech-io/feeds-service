@@ -20,9 +20,9 @@ public:
     int needUpdate(int64_t newVerCode);
     int asyncDownloadTarball(const std::string& url,
                              const std::filesystem::path& cacheDir,
-                             const std::string &name,
+                             const std::string& name,
                              int64_t size,
-                             const std::string md5,
+                             const std::string& md5,
                              const std::function<void(int errCode)>& resultCallback);
 
 protected:
@@ -44,11 +44,11 @@ private:
 
     int downloadTarball(const std::string &url,
                         const std::filesystem::path& cacheDir,
-                        const std::string &name,
+                        const std::string& name,
                         int64_t size,
-                        const std::string md5,
+                        const std::string& md5,
                         const std::function<void(int errCode)> &resultCallback);
-    int checkTarball(const std::string &filepath, int64_t size, const std::string md5);
+    int checkTarball(const std::filesystem::path& filepath, int64_t size, const std::string& md5);
 
     std::shared_ptr<ThreadPool> threadPool;
 };
