@@ -76,7 +76,7 @@ std::string MD5::MakeHexString(const std::vector<uint8_t>& data)
     std::ostringstream ss;
 
     ss << std::hex << std::setfill('0');
-    ss << std::uppercase;
+    // ss << std::uppercase;
 
     for(const auto it: data) {
         ss << std::setw(2) << static_cast<int>(it);

@@ -95,4 +95,26 @@ int ServiceMethod::onDownloadNewService(std::shared_ptr<Rpc::Request> request,
     return 0;
 }
 
+int ServiceMethod::onStartNewService(std::shared_ptr<Rpc::Request> request,
+                                        std::vector<std::shared_ptr<Rpc::Response>>& responseArray)
+{
+    auto requestPtr = std::dynamic_pointer_cast<Rpc::StartNewServiceRequest>(request);
+    CHECK_ASSERT(requestPtr != nullptr, ErrCode::InvalidArgument);
+    const auto& params = requestPtr->params;
+    responseArray.clear();
+
+    bool validArgus = ( params.access_token.empty() == false);
+    CHECK_ASSERT(validArgus, ErrCode::InvalidArgument);
+
+
+    // push last response or empty response
+    auto responsePtr = Rpc::Factory::MakeResponse(request->method);
+    auto response = std::dynamic_pointer_cast<Rpc::StartNewServiceResponse>(responsePtr);
+    response->version = request->version;
+    response->id = request->id;
+    responseArray.push_back(response);
+
+    return 0;
+}
+
 } // namespace trinity

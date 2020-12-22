@@ -11,6 +11,7 @@
 
 #include "PlatformDarwin.hpp"
 
+#include <array>
 #include <execinfo.h>
 #include <sstream>
 #include <sys/sysctl.h>
@@ -51,7 +52,12 @@ std::string PlatformDarwin::GetProductVersion()
 int PlatformDarwin::UnpackUpgradeTarball(const std::filesystem::path& from,
                                          const std::filesystem::path& to)
 {
-    return -1;
+    std::string cmdline = std::string("unzip -o ") + from.c_str() + " -d " + to.c_str();
+
+    int ret = std::system(cmdline.c_str());
+    CHECK_ASSERT(ret == 0, ErrCode::ExecSystemCommendFailed);
+    
+    return 0;
 }
 
 std::string PlatformDarwin::GetBacktrace() {

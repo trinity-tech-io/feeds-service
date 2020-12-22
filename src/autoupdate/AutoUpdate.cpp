@@ -54,9 +54,9 @@ int AutoUpdate::needUpdate(int64_t newVerCode)
 
 int AutoUpdate::asyncDownloadTarball(const std::string& url,
                                      const std::filesystem::path& cacheDir,
-                                     const std::string &name,
+                                     const std::string& name,
                                      int64_t size,
-                                     const std::string md5,
+                                     const std::string& md5,
                                      const std::function<void(int errCode)>& resultCallback)
 {
     if(threadPool.get() == nullptr) {
@@ -80,20 +80,13 @@ int AutoUpdate::asyncDownloadTarball(const std::string& url,
 /* =========================================== */
 int AutoUpdate::downloadTarball(const std::string& url,
                                 const std::filesystem::path& cacheDir,
-                                const std::string &name,
+                                const std::string& name,
                                 int64_t size,
-                                const std::string md5,
+                                const std::string& md5,
                                 const std::function<void(int errCode)>& resultCallback)
 {
-    Log::D(Log::Tag::AU, "Downloading update tarball from %s.", url.c_str());
     auto autoUpdateCacheDir = cacheDir / "autoupdate";
     auto autoUpdateFilePath = autoUpdateCacheDir / name;
-
-    int ret = checkTarball(autoUpdateFilePath, size, md5);
-    if(ret == 0) {
-        resultCallback(0);
-        return 0;
-    }
 
     auto dirExists = std::filesystem::exists(autoUpdateCacheDir);
     if(dirExists == false) {
@@ -101,26 +94,40 @@ int AutoUpdate::downloadTarball(const std::string& url,
     }
     CHECK_ASSERT(dirExists, ErrCode::FileNotExistsError);
 
-    HttpClient httpClient;
-    ret = httpClient.url(url);
-    CHECK_ERROR_WITHNOTIFY(ret, resultCallback);
+    int ret = checkTarball(autoUpdateFilePath, size, md5);
+    if(ret != 0) {
+        Log::D(Log::Tag::AU, "Downloading update tarball from %s.", url.c_str());
+        HttpClient httpClient;
+        ret = httpClient.url(url);
+        CHECK_ERROR_WITHNOTIFY(ret, resultCallback);
 
-    auto body = std::make_shared<std::ofstream>(autoUpdateFilePath);
-    ret = httpClient.syncGet(body);
-    CHECK_ERROR_WITHNOTIFY(ret, resultCallback);
+        auto tarballStream = std::make_shared<std::ofstream>(autoUpdateFilePath);
+        ret = httpClient.syncGet(tarballStream);
+        CHECK_ERROR_WITHNOTIFY(ret, resultCallback);
+        tarballStream->flush();
+        tarballStream->close();
 
-    ret = checkTarball(autoUpdateFilePath, size, md5);
+        ret = checkTarball(autoUpdateFilePath, size, md5);
+        CHECK_ERROR_WITHNOTIFY(ret, resultCallback);
+    }
+
+    Log::D(Log::Tag::AU, "Unpacking update tarball from %s.", autoUpdateFilePath.c_str());
+    auto autoUpdateFileDir = autoUpdateCacheDir / md5;
+    ret = Platform::UnpackUpgradeTarball(autoUpdateFilePath, autoUpdateFileDir);
     CHECK_ERROR_WITHNOTIFY(ret, resultCallback);
 
     return 0;
 }
 
-int AutoUpdate::checkTarball(const std::string &filepath, int64_t size, const std::string md5)
+int AutoUpdate::checkTarball(const std::filesystem::path& filepath, int64_t size, const std::string& md5)
 {
+    Log::D(Log::Tag::AU, "Checking tarball from:%s, size:%lld, md5:%s.", filepath.c_str(), size, md5.c_str());
     auto fileExists = std::filesystem::exists(filepath);
-    CHECK_ASSERT(fileExists, ErrCode::FileNotExistsError);
+    if(fileExists == false) {
+        return ErrCode::FileNotExistsError;
+    }
 
-    auto fileSize = std::filesystem::file_size(filepath);
+    int64_t fileSize = std::filesystem::file_size(filepath);
     CHECK_ASSERT(fileSize == size, ErrCode::BadFileSize);
 
     auto fileMd5 = MD5::Get(filepath);

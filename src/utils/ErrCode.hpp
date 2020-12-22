@@ -84,6 +84,7 @@ public:
     constexpr static const int DirectoryNotExistsError          = -113;
     constexpr static const int BadFileSize                      = -114;
     constexpr static const int BadFileMd5                       = -115;
+    constexpr static const int ExecSystemCommendFailed          = -116;
 
     constexpr static const int DidNotReady                      = -120;
     constexpr static const int InvalidAccessToken               = -121;
