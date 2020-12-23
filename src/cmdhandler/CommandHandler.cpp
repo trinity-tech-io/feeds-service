@@ -57,7 +57,8 @@ void CommandHandler::PrintElaCarrierError(const std::string& errReason)
 /* =========================================== */
 /* === class public function implement  ====== */
 /* =========================================== */
-int CommandHandler::config(const std::filesystem::path& dataDir,
+int CommandHandler::config(const std::filesystem::path &execPath,
+                           const std::filesystem::path& dataDir,
                            std::weak_ptr<ElaCarrier> carrier)
 {
     Log::D(Log::Tag::Cmd, "Config command handler.");
@@ -71,7 +72,7 @@ int CommandHandler::config(const std::filesystem::path& dataDir,
         std::make_shared<LegacyMethod>(),
         std::make_shared<ChannelMethod>(),
         std::make_shared<MassData>(dataDir / MassData::MassDataDirName),
-        std::make_shared<ServiceMethod>(dataDir / CacheDirName),
+        std::make_shared<ServiceMethod>(dataDir / CacheDirName, execPath),
         std::make_shared<StandardAuth>(),
     });
 

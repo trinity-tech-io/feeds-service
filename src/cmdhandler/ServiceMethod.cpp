@@ -18,8 +18,10 @@ namespace trinity {
 /* =========================================== */
 /* === class public function implement  ====== */
 /* =========================================== */
-ServiceMethod::ServiceMethod(const std::filesystem::path& cacheDir)
+ServiceMethod::ServiceMethod(const std::filesystem::path &cacheDir,
+                             const std::filesystem::path &execPath)
     : cacheDir(cacheDir)
+    , execPath(execPath)
 {
     using namespace std::placeholders;
     std::map<const char*, AdvancedHandler> advancedHandlerMap {
@@ -58,6 +60,11 @@ int ServiceMethod::onDownloadNewService(std::shared_ptr<Rpc::Request> request,
     int needUpdate = AutoUpdate::GetInstance()->needUpdate(params.new_version_code);
     CHECK_ERROR(needUpdate);
 
+    auto execAbsPath = std::filesystem::absolute(execPath);
+    auto runtimePath = execAbsPath.parent_path().parent_path().parent_path(); // remove [current/bin/feedsd]
+    auto dirExists = std::filesystem::exists(runtimePath);
+    CHECK_ASSERT(dirExists, ErrCode::AutoUpdateBadRuntimeDir);
+
     const Rpc::DownloadNewServiceRequest::Params::Tarball* tarball = nullptr;
     auto osName = Platform::GetProductName();
     if(osName == "MacOSX") {
@@ -80,7 +87,7 @@ int ServiceMethod::onDownloadNewService(std::shared_ptr<Rpc::Request> request,
 
     };
 
-    int ret = AutoUpdate::GetInstance()->asyncDownloadTarball(tarballUrl, cacheDir,
+    int ret = AutoUpdate::GetInstance()->asyncDownloadTarball(params.new_version_code, tarballUrl, runtimePath, cacheDir,
                                                               tarball->name, tarball->size, tarball->md5,
                                                               resultCallback);
     CHECK_ERROR(ret);
@@ -106,6 +113,8 @@ int ServiceMethod::onStartNewService(std::shared_ptr<Rpc::Request> request,
     bool validArgus = ( params.access_token.empty() == false);
     CHECK_ASSERT(validArgus, ErrCode::InvalidArgument);
 
+    int ret = AutoUpdate::GetInstance()->startTarball(params.new_version_code);
+    CHECK_ERROR(ret);
 
     // push last response or empty response
     auto responsePtr = Rpc::Factory::MakeResponse(request->method);

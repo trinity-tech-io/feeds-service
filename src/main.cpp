@@ -277,7 +277,7 @@ void transport_deinit()
 }
 
 static
-int transport_init(FeedsConfig *cfg)
+int transport_init(const char* execPath, FeedsConfig *cfg)
 {
     int rc;
     ElaCallbacks callbacks;
@@ -309,7 +309,7 @@ int transport_init(FeedsConfig *cfg)
         goto failure;
     }
 
-    rc = trinity::CommandHandler::GetInstance()->config(cfg->data_dir, carrier_instance);
+    rc = trinity::CommandHandler::GetInstance()->config(execPath, cfg->data_dir, carrier_instance);
     if(rc < 0) {
         vlogE(TAG_MAIN "Config command handler failed");
         goto failure;
@@ -406,7 +406,7 @@ int main(int argc, char *argv[])
     vlogI(TAG_MAIN "Data save to: %s", cfg.data_dir);
     vlogI(TAG_MAIN "Log save to: %s", cfg.carrier_opts.log_file);
 
-    rc = transport_init(&cfg);
+    rc = transport_init(argv[0], &cfg);
     if (rc < 0) {
         free_cfg(&cfg);
         return -1;
