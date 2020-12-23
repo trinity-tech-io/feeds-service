@@ -79,8 +79,9 @@ public:
     static constexpr const char* CacheDirName = "cache";
 
     /*** class function and variable ***/
-    int config(const std::filesystem::path &dataDir,
-                std::weak_ptr<ElaCarrier> carrier);
+    int config(const std::filesystem::path &execPath,
+               const std::filesystem::path &dataDir,
+               std::weak_ptr<ElaCarrier> carrier);
     void cleanup();
 
     std::weak_ptr<ElaCarrier> getCarrierHandler();

@@ -18,12 +18,15 @@ public:
 
     /*** class function and variable ***/
     int needUpdate(int64_t newVerCode);
-    int asyncDownloadTarball(const std::string& url,
-                             const std::filesystem::path& cacheDir,
-                             const std::string& name,
+    int asyncDownloadTarball(int64_t verCode,
+                             const std::string &url,
+                             const std::filesystem::path &runtimeDir,
+                             const std::filesystem::path &cacheDir,
+                             const std::string &name,
                              int64_t size,
-                             const std::string& md5,
-                             const std::function<void(int errCode)>& resultCallback);
+                             const std::string &md5,
+                             const std::function<void(int errCode)> &resultCallback);
+    int startTarball(int64_t verCode);
 
 protected:
     /*** type define ***/
@@ -42,11 +45,13 @@ private:
     explicit AutoUpdate() = default;
     virtual ~AutoUpdate() = default;
 
-    int downloadTarball(const std::string &url,
-                        const std::filesystem::path& cacheDir,
-                        const std::string& name,
+    int downloadTarball(int64_t verCode,
+                        const std::string &url,
+                        const std::filesystem::path &runtimeDir,
+                        const std::filesystem::path &cacheDir,
+                        const std::string &name,
                         int64_t size,
-                        const std::string& md5,
+                        const std::string &md5,
                         const std::function<void(int errCode)> &resultCallback);
     int checkTarball(const std::filesystem::path& filepath, int64_t size, const std::string& md5);
 

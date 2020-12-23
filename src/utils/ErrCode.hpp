@@ -176,6 +176,9 @@ public:
 
     constexpr static const int AutoUpdateAlreadyNewest             = -480;
     constexpr static const int AutoUpdateUnsuppertProduct          = -481;
+    constexpr static const int AutoUpdateBadRuntimeDir             = -482;
+    constexpr static const int AutoUpdateMoveTarballFailed         = -483;
+    constexpr static const int AutoUpdateBadTarball                = -484;
 
 
     // constexpr static const int CarrierIndex                  = -1000;

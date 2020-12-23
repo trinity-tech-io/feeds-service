@@ -16,7 +16,8 @@ public:
     /*** static function and variable ***/
 
     /*** class function and variable ***/
-    explicit ServiceMethod(const std::filesystem::path& cacheDir);
+    explicit ServiceMethod(const std::filesystem::path &cacheDir,
+                           const std::filesystem::path &execPath);
     virtual ~ServiceMethod();
 
 protected:
@@ -38,6 +39,7 @@ private:
                           std::vector<std::shared_ptr<Rpc::Response>>& responseArray);
 
     std::filesystem::path cacheDir;
+    std::filesystem::path execPath;
 };
 
 /***********************************************/

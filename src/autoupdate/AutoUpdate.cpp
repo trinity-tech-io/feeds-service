@@ -52,22 +52,31 @@ int AutoUpdate::needUpdate(int64_t newVerCode)
     return 0;
 }
 
-int AutoUpdate::asyncDownloadTarball(const std::string& url,
-                                     const std::filesystem::path& cacheDir,
-                                     const std::string& name,
+int AutoUpdate::asyncDownloadTarball(int64_t verCode,
+                                     const std::string &url,
+                                     const std::filesystem::path &runtimeDir,
+                                     const std::filesystem::path &cacheDir,
+                                     const std::string &name,
                                      int64_t size,
-                                     const std::string& md5,
-                                     const std::function<void(int errCode)>& resultCallback)
+                                     const std::string &md5,
+                                     const std::function<void(int errCode)> &resultCallback)
 {
     if(threadPool.get() == nullptr) {
         threadPool = ThreadPool::Create("autoupdate");
     }
 
     threadPool->post([=] {
-        downloadTarball(url, cacheDir, name, size, md5, resultCallback);
+        downloadTarball(verCode, url, runtimeDir, cacheDir,
+                        name, size, md5,
+                        resultCallback);
     });
 
     return 0;
+}
+
+int AutoUpdate::startTarball(int64_t verCode)
+{
+
 }
 
 /* =========================================== */
@@ -78,12 +87,14 @@ int AutoUpdate::asyncDownloadTarball(const std::string& url,
 /* =========================================== */
 /* === class private function implement  ===== */
 /* =========================================== */
-int AutoUpdate::downloadTarball(const std::string& url,
-                                const std::filesystem::path& cacheDir,
-                                const std::string& name,
+int AutoUpdate::downloadTarball(int64_t verCode,
+                                const std::string &url,
+                                const std::filesystem::path &runtimeDir,
+                                const std::filesystem::path &cacheDir,
+                                const std::string &name,
                                 int64_t size,
-                                const std::string& md5,
-                                const std::function<void(int errCode)>& resultCallback)
+                                const std::string &md5,
+                                const std::function<void(int errCode)> &resultCallback)
 {
     auto autoUpdateCacheDir = cacheDir / "autoupdate";
     auto autoUpdateFilePath = autoUpdateCacheDir / name;
@@ -116,6 +127,28 @@ int AutoUpdate::downloadTarball(const std::string& url,
     ret = Platform::UnpackUpgradeTarball(autoUpdateFilePath, autoUpdateFileDir);
     CHECK_ERROR_WITHNOTIFY(ret, resultCallback);
 
+    ret = ErrCode::AutoUpdateBadTarball;
+    auto verCodeStr = std::to_string(verCode);
+    for(const auto& it: std::filesystem::recursive_directory_iterator(autoUpdateFileDir)) {
+        if(it.path().filename() != std::to_string(verCode)) {
+            continue;
+        }
+
+        ret = 0;
+        std::error_code ec;
+        std::filesystem::remove_all(runtimeDir / verCodeStr, ec); // noexcept
+        std::filesystem::rename(it.path(), runtimeDir / verCodeStr, ec); // noexcept
+        if (ec.value() != 0) {
+            Log::E(Log::Tag::AU, "Failed to move %s ==> %s. err: %s(%d)",
+                                 it.path().c_str(), (runtimeDir / verCodeStr).c_str(),
+                                 ec.message().c_str(), ec.value());
+            ret = ErrCode::AutoUpdateMoveTarballFailed;
+        }
+        break;
+    }
+    CHECK_ERROR_WITHNOTIFY(ret, resultCallback);
+
+    resultCallback(0);
     return 0;
 }
 
