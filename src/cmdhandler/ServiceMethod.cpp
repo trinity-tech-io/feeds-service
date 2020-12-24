@@ -29,6 +29,10 @@ ServiceMethod::ServiceMethod(const std::filesystem::path &cacheDir,
             Rpc::Factory::Method::DownloadNewService,
             {std::bind(&ServiceMethod::onDownloadNewService, this, _1, _2), Accessible::Owner}
         },
+        {
+            Rpc::Factory::Method::StartNewService,
+            {std::bind(&ServiceMethod::onStartNewService, this, _1, _2), Accessible::Owner}
+        },
     };
 
     setHandleMap({}, advancedHandlerMap);
@@ -113,7 +117,12 @@ int ServiceMethod::onStartNewService(std::shared_ptr<Rpc::Request> request,
     bool validArgus = ( params.access_token.empty() == false);
     CHECK_ASSERT(validArgus, ErrCode::InvalidArgument);
 
-    int ret = AutoUpdate::GetInstance()->startTarball(params.new_version_code);
+    auto execAbsPath = std::filesystem::absolute(execPath);
+    auto runtimePath = execAbsPath.parent_path().parent_path().parent_path(); // remove [current/bin/feedsd]
+    auto dirExists = std::filesystem::exists(runtimePath);
+    CHECK_ASSERT(dirExists, ErrCode::AutoUpdateBadRuntimeDir);
+
+    int ret = AutoUpdate::GetInstance()->startTarball(runtimePath, params.new_version_code);
     CHECK_ERROR(ret);
 
     // push last response or empty response

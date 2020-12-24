@@ -2,12 +2,10 @@
 # message(STATUS "openssl include path: ${pkg-openssl_INCLUDE_DIRS}")
 # message(STATUS "openssl library path: ${pkg-openssl_STATIC_LDFLAGS}")
 
-file( GLOB MASSDATA_SOURCES "*.cpp" )
-
 if(${CMAKE_VERSION} VERSION_LESS "3.12")
-    add_library(autoupdate STATIC ${MASSDATA_SOURCES})
+    add_library(autoupdate STATIC AutoUpdate.cpp)
 else()
-    add_library(autoupdate OBJECT ${MASSDATA_SOURCES})
+    add_library(autoupdate OBJECT AutoUpdate.cpp)
 endif()
 
 target_include_directories(autoupdate PUBLIC
@@ -17,3 +15,14 @@ target_link_libraries(autoupdate PUBLIC
     utils)
 
 set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
+
+add_executable(feedsd.updatehelper
+    AutoUpdateHelper.cpp)
+
+target_link_libraries(feedsd.updatehelper PUBLIC
+    platform
+    utils)
+
+install(TARGETS feedsd.updatehelper
+    RUNTIME DESTINATION ${FEEDS_INT_ROOT_DIR}/bin
+    COMPONENT main)

@@ -26,7 +26,8 @@ public:
                              int64_t size,
                              const std::string &md5,
                              const std::function<void(int errCode)> &resultCallback);
-    int startTarball(int64_t verCode);
+    int startTarball(const std::filesystem::path &runtimeDir,
+                     int64_t verCode);
 
 protected:
     /*** type define ***/
