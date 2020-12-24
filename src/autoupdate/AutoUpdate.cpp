@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <ver.h>
+#include <unistd.h>
 #include <ErrCode.hpp>
 #include <HttpClient.hpp>
 #include <MD5.hpp>
@@ -74,9 +75,24 @@ int AutoUpdate::asyncDownloadTarball(int64_t verCode,
     return 0;
 }
 
-int AutoUpdate::startTarball(int64_t verCode)
+int AutoUpdate::startTarball(const std::filesystem::path &runtimeDir,
+                             int64_t verCode)
 {
+    auto verCodeStr = std::to_string(verCode);
+    auto updateHelper = runtimeDir / verCodeStr / "bin" / "feedsd.updatehelper";
+    auto fileExists = std::filesystem::exists(updateHelper);
+    if(fileExists == false) {
+        updateHelper = runtimeDir / "current" / "bin" / "feedsd.updatehelper";
+        fileExists = std::filesystem::exists(updateHelper);
+    }
+    Log::I(Log::Tag::AU, "Update helper is %s", updateHelper.c_str());
+    CHECK_ASSERT(fileExists, ErrCode::FileNotExistsError);
 
+    auto cmdline = "'" + updateHelper.string() + "' '" + runtimeDir.string() + "' " + verCodeStr + " &";
+    int ret = std::system(cmdline.c_str());
+    CHECK_ASSERT(ret == 0, ErrCode::ExecSystemCommendFailed);
+
+    return 0;
 }
 
 /* =========================================== */
@@ -160,7 +176,12 @@ int AutoUpdate::checkTarball(const std::filesystem::path& filepath, int64_t size
         return ErrCode::FileNotExistsError;
     }
 
-    int64_t fileSize = std::filesystem::file_size(filepath);
+    std::error_code ec;
+    int64_t fileSize = std::filesystem::file_size(filepath, ec);
+    if (ec.value() != 0) {
+        Log::E(Log::Tag::AU, "Failed get file size %s. err: %s(%d)",
+                                filepath.c_str(), ec.message().c_str(), ec.value());
+    }
     CHECK_ASSERT(fileSize == size, ErrCode::BadFileSize);
 
     auto fileMd5 = MD5::Get(filepath);
