@@ -6,17 +6,41 @@
 namespace trinity {
 namespace Rpc {
 
-struct Request {
+struct Base {
+    virtual void pack(msgpack::sbuffer& buf) = 0;
+    virtual void unpack(const msgpack::object& obj) = 0;
+    virtual std::string str() = 0;
+    DECLARE_DEFAULT_STRUCT(Base);
+};
+
+struct Request : Base {
     std::string version;
     std::string method;
     int64_t id = -1;
     MSGPACK_DEFINE_STRUCT(Request, MSGPACK_REQUEST_ARGS);
 };
 
-struct Response {
+struct Response : Base {
     std::string version;
     int64_t id = -1;
     MSGPACK_DEFINE_STRUCT(Response, MSGPACK_RESPONSE_ARGS);
+};
+
+struct Notify : Base {
+    std::string version;
+    std::string method;
+    MSGPACK_DEFINE_STRUCT(Notify, MSGPACK_NOTIFY_ARGS);
+};
+
+struct Error : Response {
+    struct Detail {
+        int64_t code;
+        std::string message;
+        MSGPACK_DEFINE(code, message);
+    };
+
+    Detail error;
+    MSGPACK_DEFINE_STRUCT(Error, MSGPACK_RESPONSE_ARGS, error);
 };
 
 struct RequestWithToken : Request {
@@ -215,6 +239,12 @@ struct DownloadNewServiceResponse : Response {
                           MSGPACK_RESPONSE_ARGS);
 };
 
+
+struct DownloadNewServiceNotify : Notify {
+    MSGPACK_DEFINE_STRUCT(DownloadNewServiceNotify,
+                          MSGPACK_NOTIFY_ARGS);
+};
+
 struct StartNewServiceRequest : RequestWithToken {
     struct Params : RequestWithToken::Params {
         int64_t new_version_code = -1;
@@ -229,6 +259,11 @@ struct StartNewServiceRequest : RequestWithToken {
 struct StartNewServiceResponse : Response {
     MSGPACK_DEFINE_STRUCT(StartNewServiceResponse,
                           MSGPACK_RESPONSE_ARGS);
+};
+
+struct StartNewServiceNotify : Notify {
+    MSGPACK_DEFINE_STRUCT(StartNewServiceNotify,
+                          MSGPACK_NOTIFY_ARGS);
 };
 
 } // namespace Rpc

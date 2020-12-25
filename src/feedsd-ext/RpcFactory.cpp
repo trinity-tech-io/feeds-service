@@ -18,7 +18,7 @@ namespace Rpc {
 /* =========================================== */
 /* === static function implement ============= */
 /* =========================================== */
-int Factory::Unmarshal(const std::vector<uint8_t>& data, std::shared_ptr<Request>& request)
+int Factory::Unmarshal(const std::vector<uint8_t>& data, std::shared_ptr<Rpc::Base>& rpc)
 {
     auto mpUnpackHandle = msgpack::unpack(reinterpret_cast<const char*>(data.data()), data.size());
     const msgpack::object& mpRoot = mpUnpackHandle.get();
@@ -32,22 +32,23 @@ int Factory::Unmarshal(const std::vector<uint8_t>& data, std::shared_ptr<Request
     CHECK_ASSERT(method.empty() == false, ErrCode::MsgPackInvalidValue);
 
     int processed = 0;
-    request = MakeRequest(method);
+    auto request = MakeRequest(method);
     if(request == nullptr) {
         request = std::make_shared<Request>();
         processed = ErrCode::UnimplementedError;
     }
     request->unpack(mpRoot);
     CHECK_ASSERT(request->method.empty() == false, ErrCode::MsgPackParseFailed);
+    rpc = request;
 
     return processed;
 }
 
-int Factory::Marshal(const std::shared_ptr<Response>& response, std::vector<uint8_t>& data)
+int Factory::Marshal(const std::shared_ptr<Rpc::Base>& rpc, std::vector<uint8_t>& data)
 {
     msgpack::sbuffer mpBuf;
 
-    response->pack(mpBuf);
+    rpc->pack(mpBuf);
 
     auto mpBufPtr = reinterpret_cast<uint8_t*>(mpBuf.data());
     data = {mpBufPtr, mpBufPtr + mpBuf.size()};
@@ -75,6 +76,11 @@ std::shared_ptr<Request> Factory::MakeRequest(const std::string& method)
         request = std::make_shared<StartNewServiceRequest>();
     }
 
+    if(request != nullptr) {
+        request->version = "1.0";
+        request->method = method;
+    }
+
     return request;
 }
 
@@ -100,7 +106,39 @@ std::shared_ptr<Response> Factory::MakeResponse(const std::string& method)
         Log::E(Log::Tag::Rpc, "RPC Factory ignore to make response from method: %s.", method.c_str());
     }
 
+    response->version = "1.0";
+
     return response;
+}
+
+std::shared_ptr<Notify> Factory::MakeNotify(const std::string& method)
+{
+    std::shared_ptr<Notify> notify;
+
+    if(method == Method::DownloadNewService) {
+        notify = std::make_shared<DownloadNewServiceNotify>();
+    } else if(method == Method::StartNewService) {
+        notify = std::make_shared<StartNewServiceNotify>();
+    } else {
+        Log::E(Log::Tag::Rpc, "RPC Factory ignore to make notify from method: %s.", method.c_str());
+    }
+
+    notify->version = "1.0";
+    notify->method = method;
+
+    return notify;
+}
+
+std::shared_ptr<Error> Factory::MakeError(int errCode)
+{
+    std::shared_ptr<Error> error = std::make_shared<Error>();
+
+    error->version = "1.0";
+
+    error->error.code = errCode;
+    error->error.message = ErrCode::ToString(errCode);
+
+    return error;
 }
 
 /* =========================================== */
