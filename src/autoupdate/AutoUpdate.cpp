@@ -76,7 +76,8 @@ int AutoUpdate::asyncDownloadTarball(int64_t verCode,
 }
 
 int AutoUpdate::startTarball(const std::filesystem::path &runtimeDir,
-                             int64_t verCode)
+                             int64_t verCode,
+                             const std::string &launchCmd)
 {
     auto verCodeStr = std::to_string(verCode);
     auto updateHelper = runtimeDir / verCodeStr / "bin" / "feedsd.updatehelper";
@@ -88,8 +89,15 @@ int AutoUpdate::startTarball(const std::filesystem::path &runtimeDir,
     Log::I(Log::Tag::AU, "Update helper is %s", updateHelper.c_str());
     CHECK_ASSERT(fileExists, ErrCode::FileNotExistsError);
 
-    auto cmdline = "'" + updateHelper.string() + "' '" + runtimeDir.string() + "' " + verCodeStr + " &";
-    int ret = std::system(cmdline.c_str());
+    std::stringstream cmdline;
+    cmdline << "'" << updateHelper.string() << "'";
+    cmdline << " '" << runtimeDir.string() << "'";
+    cmdline << " " << verCodeStr;
+    cmdline << " " << std::to_string(getpid());
+    cmdline << " '" << launchCmd << "'";
+    cmdline << " &";
+
+    int ret = std::system(cmdline.str().c_str());
     CHECK_ASSERT(ret == 0, ErrCode::ExecSystemCommendFailed);
 
     return 0;

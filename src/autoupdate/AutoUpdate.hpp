@@ -27,7 +27,8 @@ public:
                              const std::string &md5,
                              const std::function<void(int errCode)> &resultCallback);
     int startTarball(const std::filesystem::path &runtimeDir,
-                     int64_t verCode);
+                     int64_t verCode,
+                     const std::string& launchCmd);
 
 protected:
     /*** type define ***/
