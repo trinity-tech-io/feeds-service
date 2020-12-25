@@ -75,12 +75,12 @@ public:
 
     /*** static function and variable ***/
     static std::shared_ptr<CommandHandler> GetInstance();
-    static void PrintElaCarrierError(const std::string &errReason);
+    static void PrintElaCarrierError(const std::string& errReason);
     static constexpr const char* CacheDirName = "cache";
 
     /*** class function and variable ***/
-    int config(const std::filesystem::path &execPath,
-               const std::filesystem::path &dataDir,
+    int config(const std::vector<const char*>& execArgv,
+               const std::filesystem::path& dataDir,
                std::weak_ptr<ElaCarrier> carrier);
     void cleanup();
 

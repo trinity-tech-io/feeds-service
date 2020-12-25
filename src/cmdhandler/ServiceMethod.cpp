@@ -18,10 +18,10 @@ namespace trinity {
 /* =========================================== */
 /* === class public function implement  ====== */
 /* =========================================== */
-ServiceMethod::ServiceMethod(const std::filesystem::path &cacheDir,
-                             const std::filesystem::path &execPath)
+ServiceMethod::ServiceMethod(const std::filesystem::path& cacheDir,
+                             const std::vector<const char*>& execArgv)
     : cacheDir(cacheDir)
-    , execPath(execPath)
+    , execArgv(execArgv)
 {
     using namespace std::placeholders;
     std::map<const char*, AdvancedHandler> advancedHandlerMap {
@@ -64,7 +64,7 @@ int ServiceMethod::onDownloadNewService(std::shared_ptr<Rpc::Request> request,
     int needUpdate = AutoUpdate::GetInstance()->needUpdate(params.new_version_code);
     CHECK_ERROR(needUpdate);
 
-    auto execAbsPath = std::filesystem::absolute(execPath);
+    auto execAbsPath = std::filesystem::absolute(execArgv[0]);
     auto runtimePath = execAbsPath.parent_path().parent_path().parent_path(); // remove [current/bin/feedsd]
     auto dirExists = std::filesystem::exists(runtimePath);
     CHECK_ASSERT(dirExists, ErrCode::AutoUpdateBadRuntimeDir);
@@ -117,12 +117,16 @@ int ServiceMethod::onStartNewService(std::shared_ptr<Rpc::Request> request,
     bool validArgus = ( params.access_token.empty() == false);
     CHECK_ASSERT(validArgus, ErrCode::InvalidArgument);
 
-    auto execAbsPath = std::filesystem::absolute(execPath);
+    auto execAbsPath = std::filesystem::absolute(execArgv[0]);
     auto runtimePath = execAbsPath.parent_path().parent_path().parent_path(); // remove [current/bin/feedsd]
     auto dirExists = std::filesystem::exists(runtimePath);
     CHECK_ASSERT(dirExists, ErrCode::AutoUpdateBadRuntimeDir);
 
-    int ret = AutoUpdate::GetInstance()->startTarball(runtimePath, params.new_version_code);
+    std::stringstream launchCmd;
+    for(const auto& it: execArgv) {
+        launchCmd << "'" << it << "' ";
+    }
+    int ret = AutoUpdate::GetInstance()->startTarball(runtimePath, params.new_version_code, launchCmd.str());
     CHECK_ERROR(ret);
 
     // push last response or empty response

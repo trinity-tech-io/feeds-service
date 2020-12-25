@@ -322,6 +322,7 @@ void *http_server_routine(void *arg)
     } while (running);
 
     sb_close_server(http);
+    vlogI(TAG_AUTH "HTTP server stoped.");
 
     return NULL;
 }

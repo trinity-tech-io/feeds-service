@@ -277,7 +277,7 @@ void transport_deinit()
 }
 
 static
-int transport_init(const char* execPath, FeedsConfig *cfg)
+int transport_init(const std::vector<const char*> execArgv, FeedsConfig *cfg)
 {
     int rc;
     ElaCallbacks callbacks;
@@ -309,7 +309,7 @@ int transport_init(const char* execPath, FeedsConfig *cfg)
         goto failure;
     }
 
-    rc = trinity::CommandHandler::GetInstance()->config(execPath, cfg->data_dir, carrier_instance);
+    rc = trinity::CommandHandler::GetInstance()->config(execArgv, cfg->data_dir, carrier_instance);
     if(rc < 0) {
         vlogE(TAG_MAIN "Config command handler failed");
         goto failure;
@@ -397,6 +397,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    vlogI(TAG_MAIN "Feedsd version: %s", FEEDSD_VER);
     vlogI(TAG_MAIN "Loading config file from: %s", cfg_file);
     memset(&cfg, 0, sizeof(cfg));
     if (!load_cfg(cfg_file, &cfg)) {
@@ -406,7 +407,12 @@ int main(int argc, char *argv[])
     vlogI(TAG_MAIN "Data save to: %s", cfg.data_dir);
     vlogI(TAG_MAIN "Log save to: %s", cfg.carrier_opts.log_file);
 
-    rc = transport_init(argv[0], &cfg);
+    std::vector<const char*> execArgv;
+    for(auto idx = 0; idx < argc; idx++) {
+        execArgv.push_back(argv[idx]);
+    }
+
+    rc = transport_init(execArgv, &cfg);
     if (rc < 0) {
         free_cfg(&cfg);
         return -1;
@@ -463,7 +469,6 @@ int main(int argc, char *argv[])
     signal(SIGSEGV, print_backtrace);
     signal(SIGABRT, print_backtrace);
 
-    vlogI(TAG_MAIN "Feedsd version: %s", FEEDSD_VER);
     vlogI(TAG_MAIN "Carrier node identities:");
     vlogI(TAG_MAIN "  Node ID  : %s", ela_get_nodeid(carrier, buf, sizeof(buf)));
     vlogI(TAG_MAIN "  User ID  : %s", ela_get_userid(carrier, buf, sizeof(buf)));
