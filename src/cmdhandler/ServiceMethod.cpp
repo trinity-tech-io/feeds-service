@@ -87,10 +87,19 @@ int ServiceMethod::onDownloadNewService(std::shared_ptr<Rpc::Request> request,
     CHECK_ASSERT(tarball != nullptr, ErrCode::AutoUpdateUnsuppertProduct);
     std::string tarballUrl = params.base_url + "/" + tarball->name;
 
-    auto resultCallback = [](int errCode) {
-
+    auto resultCallback = [this, method=requestPtr->method, id=requestPtr->id](int errCode) {
+        Log::I(Log::Tag::Cmd, "Download new service return %d", errCode);
+        int ret;
+        if(errCode < 0) {
+            auto error = Rpc::Factory::MakeError(errCode);
+            error->id = id;
+            // ret = this->error(to, error); // TODO
+        } else {
+            auto content = Rpc::Factory::MakeNotify(method);
+            ret = this->notify(Accessible::Owner, content);
+        }
+        CHECK_RETVAL(ret);
     };
-
     int ret = AutoUpdate::GetInstance()->asyncDownloadTarball(params.new_version_code, tarballUrl, runtimePath, cacheDir,
                                                               tarball->name, tarball->size, tarball->md5,
                                                               resultCallback);

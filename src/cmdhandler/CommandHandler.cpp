@@ -14,6 +14,7 @@ extern "C" {
 #define new fix_cpp_keyword_new
 #include <auth.h>
 #include <did.h>
+#include <feeds.h>
 #undef new
 }
 
@@ -172,12 +173,14 @@ int CommandHandler::processAdvance(const std::string& from, const std::vector<ui
     std::shared_ptr<Rpc::Request> request;
     std::vector<std::shared_ptr<Rpc::Response>> responseArray;
 
-    int ret = Rpc::Factory::Unmarshal(data, request);
+    std::shared_ptr<Rpc::Base> rpc;
+    int ret = Rpc::Factory::Unmarshal(data, rpc);
     if(ret == ErrCode::UnimplementedError) {
         return ret;
     }
     CHECK_ERROR(ret);
 
+    request = std::dynamic_pointer_cast<Rpc::Request>(rpc);
     for (const auto& it : cmdListener) {
         ret = it->onDispose(request, responseArray);
         if (ret != ErrCode::UnimplementedError) {
@@ -362,6 +365,31 @@ int CommandHandler::Listener::onDispose(std::shared_ptr<Rpc::Request> request,
     }
 
     return ErrCode::UnimplementedError;
+}
+
+int CommandHandler::Listener::notify(Accessible accessible, std::shared_ptr<Rpc::Notify> notify)
+{
+    std::vector<uint8_t> data;
+    int ret = Rpc::Factory::Marshal(notify, data);
+    CHECK_ERROR(ret);
+
+    Marshalled* marshalledNoti = (Marshalled*)rc_zalloc(sizeof(Marshalled) + data.size(), NULL);
+    marshalledNoti->data = marshalledNoti + 1;
+    marshalledNoti->sz = data.size();
+    memcpy(marshalledNoti->data, data.data(), data.size());
+
+    if(accessible == Accessible::Owner) {
+        notify_to_owner(notify->method.c_str(), marshalledNoti);
+    } else if(accessible == Accessible::Member) {
+        notify_to_member(notify->method.c_str(), marshalledNoti);
+    } else {
+        deref(marshalledNoti);
+        CHECK_ERROR(ErrCode::InvalidArgument);
+    }
+
+    deref(marshalledNoti);
+
+    return 0;
 }
 
 int CommandHandler::Listener::isOwner(const std::string& accessToken)

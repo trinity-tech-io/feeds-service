@@ -41,6 +41,8 @@
 #define MSGPACK_RESPONSE_ARGS \
     version, id
 
+#define MSGPACK_NOTIFY_ARGS \
+    version, method
 
 #endif /* _FEEDS_MSGPACK_EXTENSION_HPP_ */
 

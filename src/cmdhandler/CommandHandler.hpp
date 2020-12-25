@@ -59,6 +59,9 @@ public:
                               std::shared_ptr<Resp>& resp);
         virtual int onDispose(std::shared_ptr<Rpc::Request> request,
                               std::vector<std::shared_ptr<Rpc::Response>>& responseArray);
+
+        virtual int notify(Accessible accessible, std::shared_ptr<Rpc::Notify> notify);
+
     private:
         static int SetDataDir(const std::filesystem::path& dataDir);
         static std::filesystem::path DataDir;
