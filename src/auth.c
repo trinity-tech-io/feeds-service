@@ -25,7 +25,7 @@
 #include <crystal.h>
 #include <ela_jwt.h>
 #include <ela_did.h>
-#include <ela_carrier.h>
+#include <carrier.h>
 
 #include "auth.h"
 #include "msgq.h"
@@ -54,7 +54,7 @@ typedef struct {
     bool vc_req;
 } Login;
 
-extern ElaCarrier *carrier;
+extern Carrier *carrier;
 
 static hashtable_t *pending_logins;
 
@@ -143,7 +143,7 @@ char *gen_chal(const char *realm, const char *nonce)
     return chal_marshal;
 }
 
-void hdl_signin_req_chal_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_signin_req_chal_req(Carrier *c, const char *from, Req *base)
 {
     SigninReqChalReq *req = (SigninReqChalReq *)base;
     Marshalled *resp_marshal = NULL;
@@ -182,7 +182,7 @@ void hdl_signin_req_chal_req(ElaCarrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    chal = gen_chal(ela_get_nodeid(c, nid, sizeof(nid)), login->nonce);
+    chal = gen_chal(carrier_get_nodeid(c, nid, sizeof(nid)), login->nonce);
     if (!chal) {
         ErrResp resp = {
             .tsx_id = req->tsx_id,
@@ -271,7 +271,7 @@ bool chal_resp_is_valid(JWT *chan_resp, Login **l)
         return false;
     }
 
-    if (strcmp(Presentation_GetRealm(vp), ela_get_nodeid(carrier, nid, sizeof(nid)))) {
+    if (strcmp(Presentation_GetRealm(vp), carrier_get_nodeid(carrier, nid, sizeof(nid)))) {
         vlogE(TAG_AUTH "Invalid challenge response realm. expected: [%s], actual: [%s]",
               nid, Presentation_GetRealm(vp));
         Presentation_Destroy(vp);
@@ -406,7 +406,7 @@ UserInfo *create_uinfo_from_vc(const char *did, Credential *vc)
     return &uinfo->info;
 }
 
-void hdl_signin_conf_chal_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_signin_conf_chal_req(Carrier *c, const char *from, Req *base)
 {
     SigninConfChalReq *req = (SigninConfChalReq *)base;
     Marshalled *resp_marshal = NULL;

@@ -21,7 +21,7 @@
  */
 
 #include <mutex>
-#include <ela_carrier.h>
+#include <carrier.h>
 #include <crystal.h>
 
 #undef static_assert // fix double conflict between crystal and std functional
@@ -32,7 +32,7 @@
 
 typedef struct {
     hash_entry_t he;
-    char peer[ELA_MAX_ID_LEN + 1];
+    char peer[CARRIER_MAX_ID_LEN + 1];
     list_t *q;
     bool depr;
 } MsgQ;
@@ -42,7 +42,7 @@ typedef struct {
     Marshalled *data;
 } Msg;
 
-extern ElaCarrier *carrier;
+extern Carrier *carrier;
 
 static hashtable_t *msgqs;
 static std::recursive_mutex mutex;
@@ -137,7 +137,7 @@ MsgQ *msgq_create(const char *to)
 }
 
 static
-void on_msg_receipt(int64_t msgid, ElaReceiptState state, void *context)
+void on_msg_receipt(uint32_t msgid, CarrierReceiptState state, void *context)
 {
     MsgQ *q = (MsgQ*)context;
     Msg *m = NULL;
@@ -147,8 +147,8 @@ void on_msg_receipt(int64_t msgid, ElaReceiptState state, void *context)
     (void)state;
 
     vlogD(TAG_MSG "Message [%" PRIi64 "] to [%s] receipt status: %s", msgid, q->peer,
-          state == ElaReceipt_ByFriend ? "received" :
-                                         state == ElaReceipt_Offline ? "friend offline" : "error");
+          state == CarrierReceipt_ByFriend ? "received" :
+                   state == CarrierReceipt_Offline ? "friend offline" : "error");
 
     if (q->depr) {
         vlogD(TAG_MSG "Message queue is deprecated.");

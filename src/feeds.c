@@ -33,7 +33,7 @@
 
 #define TAG_CMD "[Feedsd.Cmd ]: "
 
-extern ElaCarrier *carrier;
+extern Carrier *carrier;
 extern size_t connecting_clients;
 
 typedef struct {
@@ -645,7 +645,7 @@ ActiveSuberPerChan *aspc_remove(uint64_t uid, Chan *chan)
     return aspc;
 }
 
-void hdl_create_chan_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_create_chan_req(Carrier *c, const char *from, Req *base)
 {
     CreateChanReq *req = (CreateChanReq *)base;
     ChanInfo ci = {
@@ -752,7 +752,7 @@ finally:
     deref(chan);
 }
 
-void hdl_upd_chan_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_upd_chan_req(Carrier *c, const char *from, Req *base)
 {
     UpdChanReq *req = (UpdChanReq *)base;
     Marshalled *resp_marshal = NULL;
@@ -877,7 +877,7 @@ finally:
     deref(chan_upd);
 }
 
-void hdl_pub_post_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_pub_post_req(Carrier *c, const char *from, Req *base)
 {
     PubPostReq *req = (PubPostReq *)base;
     Marshalled *resp_marshal = NULL;
@@ -982,7 +982,7 @@ finally:
     deref(chan);
 }
 
-void hdl_declare_post_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_declare_post_req(Carrier *c, const char *from, Req *base)
 {
     DeclarePostReq *req = (DeclarePostReq *)base;
     Marshalled *resp_marshal = NULL;
@@ -1090,7 +1090,7 @@ finally:
     deref(chan);
 }
 
-void hdl_notify_post_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_notify_post_req(Carrier *c, const char *from, Req *base)
 {
     NotifyPostReq *req = (NotifyPostReq *)base;
     Marshalled *resp_marshal = NULL;
@@ -1218,7 +1218,7 @@ finally:
     deref(chan);
 }
 
-void hdl_edit_post_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_edit_post_req(Carrier *c, const char *from, Req *base)
 {
     EditPostReq *req = (EditPostReq *)base;
     Marshalled *resp_marshal = NULL;
@@ -1326,7 +1326,7 @@ finally:
     deref(chan);
 }
 
-void hdl_del_post_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_del_post_req(Carrier *c, const char *from, Req *base)
 {
     DelPostReq *req = (DelPostReq *)base;
     Marshalled *resp_marshal = NULL;
@@ -1432,7 +1432,7 @@ finally:
     deref(chan);
 }
 
-void hdl_post_cmt_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_post_cmt_req(Carrier *c, const char *from, Req *base)
 {
     PostCmtReq *req = (PostCmtReq *)base;
     Marshalled *resp_marshal = NULL;
@@ -1551,7 +1551,7 @@ finally:
     deref(chan);
 }
 
-void hdl_edit_cmt_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_edit_cmt_req(Carrier *c, const char *from, Req *base)
 {
     EditCmtReq *req = (EditCmtReq *)base;
     Marshalled *resp_marshal = NULL;
@@ -1694,7 +1694,7 @@ finally:
     deref(chan);
 }
 
-void hdl_del_cmt_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_del_cmt_req(Carrier *c, const char *from, Req *base)
 {
     DelCmtReq *req = (DelCmtReq *)base;
     Marshalled *resp_marshal = NULL;
@@ -1819,7 +1819,7 @@ finally:
     deref(chan);
 }
 
-void hdl_block_cmt_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_block_cmt_req(Carrier *c, const char *from, Req *base)
 {
     BlockCmtReq *req = (BlockCmtReq *)base;
     Marshalled *resp_marshal = NULL;
@@ -1944,7 +1944,7 @@ finally:
     deref(chan);
 }
 
-void hdl_unblock_cmt_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_unblock_cmt_req(Carrier *c, const char *from, Req *base)
 {
     UnblockCmtReq *req = (UnblockCmtReq *)base;
     Marshalled *resp_marshal = NULL;
@@ -2069,7 +2069,7 @@ finally:
     deref(chan);
 }
 
-void hdl_post_like_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_post_like_req(Carrier *c, const char *from, Req *base)
 {
     PostLikeReq *req = (PostLikeReq *)base;
     Marshalled *resp_marshal = NULL;
@@ -2191,7 +2191,7 @@ finally:
     deref(chan);
 }
 
-void hdl_post_unlike_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_post_unlike_req(Carrier *c, const char *from, Req *base)
 {
     PostUnlikeReq *req = (PostUnlikeReq *)base;
     Marshalled *resp_marshal = NULL;
@@ -2275,7 +2275,7 @@ finally:
 }
 
 #define MAX_CONTENT_LEN (ELA_MAX_APP_BULKMSG_LEN - 100 * 1024)
-void hdl_get_my_chans_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_get_my_chans_req(Carrier *c, const char *from, Req *base)
 {
     GetMyChansReq *req = (GetMyChansReq *)base;
     cvector_vector_type(ChanInfo *) cinfos = NULL;
@@ -2408,7 +2408,7 @@ finally:
     deref(it);
 }
 
-void hdl_get_my_chans_meta_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_get_my_chans_meta_req(Carrier *c, const char *from, Req *base)
 {
     GetMyChansMetaReq *req = (GetMyChansMetaReq *)base;
     cvector_vector_type(ChanInfo *) cinfos = NULL;
@@ -2501,7 +2501,7 @@ finally:
     deref(it);
 }
 
-void hdl_get_chans_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_get_chans_req(Carrier *c, const char *from, Req *base)
 {
     GetChansReq *req = (GetChansReq *)base;
     cvector_vector_type(ChanInfo *) cinfos = NULL;
@@ -2626,7 +2626,7 @@ finally:
     deref(it);
 }
 
-void hdl_get_chan_dtl_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_get_chan_dtl_req(Carrier *c, const char *from, Req *base)
 {
     GetChanDtlReq *req = (GetChanDtlReq *)base;
     Marshalled *resp_marshal = NULL;
@@ -2687,7 +2687,7 @@ finally:
     deref(chan);
 }
 
-void hdl_get_sub_chans_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_get_sub_chans_req(Carrier *c, const char *from, Req *base)
 {
     GetSubChansReq *req = (GetSubChansReq *)base;
     cvector_vector_type(ChanInfo *) cinfos = NULL;
@@ -2811,7 +2811,7 @@ finally:
     deref(it);
 }
 
-void hdl_get_posts_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_get_posts_req(Carrier *c, const char *from, Req *base)
 {
     GetPostsReq *req = (GetPostsReq *)base;
     cvector_vector_type(PostInfo *) pinfos = NULL;
@@ -2946,7 +2946,7 @@ finally:
     deref(it);
 }
 
-void hdl_get_posts_lac_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_get_posts_lac_req(Carrier *c, const char *from, Req *base)
 {
     GetPostsLACReq *req = (GetPostsLACReq *)base;
     cvector_vector_type(PostInfo *) pinfos = NULL;
@@ -3041,7 +3041,7 @@ finally:
     deref(it);
 }
 
-void hdl_get_liked_posts_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_get_liked_posts_req(Carrier *c, const char *from, Req *base)
 {
     GetLikedPostsReq *req = (GetLikedPostsReq *)base;
     cvector_vector_type(PostInfo *) pinfos = NULL;
@@ -3164,7 +3164,7 @@ finally:
     deref(it);
 }
 
-void hdl_get_cmts_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_get_cmts_req(Carrier *c, const char *from, Req *base)
 {
     GetCmtsReq *req = (GetCmtsReq *)base;
     cvector_vector_type(CmtInfo *) cinfos = NULL;
@@ -3313,7 +3313,7 @@ finally:
     deref(it);
 }
 
-void hdl_get_cmts_likes_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_get_cmts_likes_req(Carrier *c, const char *from, Req *base)
 {
     GetCmtsLikesReq *req = (GetCmtsLikesReq *)base;
     cvector_vector_type(CmtInfo *) cinfos = NULL;
@@ -3420,7 +3420,7 @@ finally:
     deref(it);
 }
 
-void hdl_get_stats_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_get_stats_req(Carrier *c, const char *from, Req *base)
 {
     GetStatsReq *req = (GetStatsReq *)base;
     Marshalled *resp_marshal = NULL;
@@ -3480,7 +3480,7 @@ finally:
     deref(uinfo);
 }
 
-void hdl_sub_chan_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_sub_chan_req(Carrier *c, const char *from, Req *base)
 {
     SubChanReq *req = (SubChanReq *)base;
     ActiveSuberPerChan *aspc = NULL;
@@ -3590,7 +3590,7 @@ finally:
     deref(as);
 }
 
-void hdl_unsub_chan_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_unsub_chan_req(Carrier *c, const char *from, Req *base)
 {
     UnsubChanReq *req = (UnsubChanReq *)base;
     Marshalled *resp_marshal = NULL;
@@ -3720,7 +3720,7 @@ NotifDestPerActiveSuber *ndpas_create(ActiveSuber *as, NotifDest *nd)
     return ndpas;
 }
 
-void hdl_enbl_notif_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_enbl_notif_req(Carrier *c, const char *from, Req *base)
 {
     EnblNotifReq *req = (EnblNotifReq *)base;
     cvector_vector_type(ActiveSuberPerChan *) aspcs = NULL;
@@ -3886,7 +3886,7 @@ finally:
     deref(uinfo);
 }
 
-void hdl_get_srv_ver_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_get_srv_ver_req(Carrier *c, const char *from, Req *base)
 {
     GetSrvVerReq *req = (GetSrvVerReq *)base;
     Marshalled *resp_marshal = NULL;
@@ -3912,7 +3912,7 @@ finally:
     }
 }
 
-void hdl_report_illegal_cmt_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_report_illegal_cmt_req(Carrier *c, const char *from, Req *base)
 {
     ReportIllegalCmtReq *req = (ReportIllegalCmtReq *)base;
     Marshalled *resp_marshal = NULL;
@@ -4038,7 +4038,7 @@ finally:
     deref(owner);
 }
 
-void hdl_get_reported_cmts_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_get_reported_cmts_req(Carrier *c, const char *from, Req *base)
 {
     GetReportedCmtsReq *req = (GetReportedCmtsReq *)base;
     cvector_vector_type(ReportedCmtInfo *) rcinfos = NULL;
@@ -4177,7 +4177,7 @@ finally:
     deref(it);
 }
 
-void hdl_unknown_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_unknown_req(Carrier *c, const char *from, Req *base)
 {
     Marshalled *resp_marshal;
     ErrResp resp = {
