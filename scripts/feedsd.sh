@@ -15,13 +15,7 @@ if [ ! -f "$RUNTIME" ]; then
 	exit 1;
 fi
 
-CONFIG_FILE="../etc/feedsd/feedsd.conf";
-if [ -f "$SCRIPT_DIR/feedsd.conf" ]; then
-	CONFIG_FILE="$SCRIPT_DIR/feedsd.conf";
-fi
-
 RUNTIME_DIR=$(dirname "$RUNTIME");
 cd "$RUNTIME_DIR";
-pwd;
-"$RUNTIME" --config="$CONFIG_FILE";
+"$RUNTIME" $@;
 exit 0;
