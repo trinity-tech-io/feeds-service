@@ -23,11 +23,11 @@
 #ifndef __CFG_H__
 #define __CFG_H__
 
-#include <ela_carrier.h>
+#include <carrier.h>
 #include <ela_did.h>
 
 typedef struct {
-    ElaOptions carrier_opts;
+    CarrierOptions carrier_opts;
     char *data_dir;
     char *didcache_dir;
     char *didstore_dir;

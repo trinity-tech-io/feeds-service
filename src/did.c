@@ -40,7 +40,7 @@
 #define VC_FRAG "credential"
 #define TAG_AUTH "[Feedsd.Auth]: "
 
-extern ElaCarrier *carrier;
+extern Carrier *carrier;
 
 char feeds_did_str[ELA_MAX_DID_LEN];
 DIDURL *feeeds_auth_key_url;
@@ -114,7 +114,7 @@ void gen_feeds_url()
     if (state >= DID_IMPED)
         sprintf(feeds_url + rc, "%s/", feeds_did_str);
 
-    ela_get_address(carrier, feeds_url + strlen(feeds_url),
+    carrier_get_address(carrier, feeds_url + strlen(feeds_url),
                     sizeof(feeds_url) - strlen(feeds_url));
 
     if (state < VC_ISSED)
@@ -605,7 +605,7 @@ void clear_tsx_payload()
     }
 }
 
-void hdl_decl_owner_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_decl_owner_req(Carrier *c, const char *from, Req *base)
 {
     DeclOwnerReq *req = (DeclOwnerReq *)base;
     Marshalled *resp_marshal = NULL;
@@ -719,7 +719,7 @@ finally:
     }
 }
 
-void hdl_imp_did_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_imp_did_req(Carrier *c, const char *from, Req *base)
 {
     ImpDIDReq *req = (ImpDIDReq *)base;
     Marshalled *resp_marshal = NULL;
@@ -949,7 +949,7 @@ finally:
     return resp_marshal;
 }
 
-void hdl_iss_vc_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_iss_vc_req(Carrier *c, const char *from, Req *base)
 {
     IssVCReq *req = (IssVCReq *)base;
     Marshalled *resp_marshal = NULL;
@@ -976,7 +976,7 @@ finally:
     }
 }
 
-void hdl_update_vc_req(ElaCarrier *c, const char *from, Req *base)
+void hdl_update_vc_req(Carrier *c, const char *from, Req *base)
 {
     UserInfo *uinfo = NULL;
     UpdateVCReq *req = (UpdateVCReq *)base;

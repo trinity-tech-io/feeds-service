@@ -1,8 +1,8 @@
-#include "CarrierSession.hpp"
+#include "CarrierSessionHelper.hpp"
 
 #include <functional>
-#include <ela_carrier.h>
-#include <ela_session.h>
+#include <carrier.h>
+#include <carrier_session.h>
 #include <CommandHandler.hpp>
 #include <DateTime.hpp>
 #include <SafePtr.hpp>
@@ -14,21 +14,21 @@ namespace trinity {
 /* =========================================== */
 /* === static variables initialize =========== */
 /* =========================================== */
-std::weak_ptr<ElaCarrier> CarrierSession::Factory::CarrierHandler;
-std::function<CarrierSession::Factory::OnRequest> CarrierSession::Factory::OnRequestListener;
+std::weak_ptr<Carrier> CarrierSessionHelper::Factory::CarrierHandler;
+std::function<CarrierSessionHelper::Factory::OnRequest> CarrierSessionHelper::Factory::OnRequestListener;
 
 /* =========================================== */
 /* === static function implement ============= */
 /* =========================================== */
-int CarrierSession::Factory::Init(
-        std::weak_ptr<ElaCarrier> carrier,
+int CarrierSessionHelper::Factory::Init(
+        std::weak_ptr<Carrier> carrier,
         const std::function<OnRequest>& listener)
 {
     auto ptr = SAFE_GET_PTR(carrier);
 
-    int ret = ela_session_init(ptr.get());
+    int ret = carrier_session_init(ptr.get());
     if (ret < 0) {
-        CommandHandler::PrintElaCarrierError("Failed to new carrier session!");
+        CommandHandler::PrintCarrierError("Failed to new carrier session!");
         ret = ErrCode::CarrierSessionInitFailed;
     }
     CHECK_ERROR(ret);
@@ -37,15 +37,15 @@ int CarrierSession::Factory::Init(
     OnRequestListener = listener;
 
     auto onSessionRequest = [](
-            ElaCarrier *carrier, const char *from,
+            Carrier *carrier, const char *from,
             const char *bundle, const char *sdp, size_t len, void *context)
     {
         Log::D(Log::Tag::Msg, "Carrier session request callback!");
         OnRequestListener(CarrierHandler, from, sdp);            
     };
-    ret = ela_session_set_callback(ptr.get(), nullptr, onSessionRequest, nullptr);
+    ret = carrier_session_set_callback(ptr.get(), nullptr, onSessionRequest, nullptr);
     if (ret < 0) {
-        CommandHandler::PrintElaCarrierError("Failed to set carrier session callback!");
+        CommandHandler::PrintCarrierError("Failed to set carrier session callback!");
         ret = ErrCode::CarrierSessionInitFailed;
     }
     CHECK_ERROR(ret);
@@ -53,18 +53,18 @@ int CarrierSession::Factory::Init(
     return 0;
 }
 
-void CarrierSession::Factory::Uninit()
+void CarrierSessionHelper::Factory::Uninit()
 {
     auto carrier = CarrierHandler.lock();
     if(carrier.get() != nullptr) {
-        ela_session_cleanup(carrier.get());
+        carrier_session_cleanup(carrier.get());
     }
     CarrierHandler.reset();
 }
 
-std::shared_ptr<CarrierSession> CarrierSession::Factory::Create()
+std::shared_ptr<CarrierSessionHelper> CarrierSessionHelper::Factory::Create()
 {
-    struct Impl: CarrierSession {
+    struct Impl: CarrierSessionHelper {
     };
     auto impl = std::make_shared<Impl>();
 
@@ -74,12 +74,12 @@ std::shared_ptr<CarrierSession> CarrierSession::Factory::Create()
 /* =========================================== */
 /* === class public function implement  ====== */
 /* =========================================== */
-void CarrierSession::setSdp(const std::string& sdp)
+void CarrierSessionHelper::setSdp(const std::string& sdp)
 {
     this->sessionSdp = sdp;
 }
 
-int CarrierSession::allowConnectAsync(
+int CarrierSessionHelper::allowConnectAsync(
         const std::string& peerId,
         std::shared_ptr<ConnectListener> listener)
 {
@@ -95,13 +95,13 @@ int CarrierSession::allowConnectAsync(
     return 0;
 }
 
-void CarrierSession::disconnect()
+void CarrierSessionHelper::disconnect()
 {
     if(sessionHandler == nullptr) {
         return;
     }
 
-    ela_session_remove_stream(sessionHandler.get(), sessionStreamId);
+    carrier_session_remove_stream(sessionHandler.get(), sessionStreamId);
     sessionHandler.reset();
 
     sessionStreamId = -1;
@@ -114,17 +114,17 @@ void CarrierSession::disconnect()
     // sessionPeerId.clear();
 }
 
-int64_t CarrierSession::sendData(const std::vector<uint8_t>& data)
+int64_t CarrierSessionHelper::sendData(const std::vector<uint8_t>& data)
 {
-    Log::D(Log::Tag::Msg, "CarrierSession send vector data, len: %d", data.size());
+    Log::D(Log::Tag::Msg, "CarrierSessionHelper send vector data, len: %d", data.size());
 
     const int step = 2048;
     for(int idx = 0; idx < data.size(); idx+=step) {
         int sendSize = step < (data.size() - idx) ? step : (data.size() - idx);
-        int ret = ela_stream_write(sessionHandler.get(), sessionStreamId,
+        int ret = carrier_stream_write(sessionHandler.get(), sessionStreamId,
                                    data.data() + idx, sendSize);
         if (ret < 0) {
-            CommandHandler::PrintElaCarrierError("Failed to send vector data through carrier session!");
+            CommandHandler::PrintCarrierError("Failed to send vector data through carrier session!");
             ret = ErrCode::CarrierSessionSendFailed;
         }
         CHECK_ERROR(ret);
@@ -133,12 +133,12 @@ int64_t CarrierSession::sendData(const std::vector<uint8_t>& data)
     return data.size();
 }
 
-int64_t CarrierSession::sendData(std::iostream& data)
+int64_t CarrierSessionHelper::sendData(std::iostream& data)
 {
     data.seekg(0, data.end);
     int dataSize = data.tellg();
     data.seekg(0, data.beg);
-    Log::D(Log::Tag::Msg, "CarrierSession send stream data, len: %d", dataSize);
+    Log::D(Log::Tag::Msg, "CarrierSessionHelper send stream data, len: %d", dataSize);
 
     const int step = 2048;
     uint8_t buf[step];
@@ -146,10 +146,10 @@ int64_t CarrierSession::sendData(std::iostream& data)
         int sendSize = step < (dataSize - idx) ? step : (dataSize - idx);
         data.read(reinterpret_cast<char*>(buf), sendSize);
 
-        int ret = ela_stream_write(sessionHandler.get(), sessionStreamId,
+        int ret = carrier_stream_write(sessionHandler.get(), sessionStreamId,
                                    buf, sendSize);
         if (ret < 0) {
-            CommandHandler::PrintElaCarrierError("Failed to send stream data through carrier session!");
+            CommandHandler::PrintCarrierError("Failed to send stream data through carrier session!");
             ret = ErrCode::CarrierSessionSendFailed;
         }
         CHECK_ERROR(ret);
@@ -166,7 +166,7 @@ int64_t CarrierSession::sendData(std::iostream& data)
 /* =========================================== */
 /* === class private function implement  ===== */
 /* =========================================== */
-CarrierSession::CarrierSession() noexcept
+CarrierSessionHelper::CarrierSessionHelper() noexcept
     : sessionHandler()
     , sessionStreamId(-1)
     , sessionSdp()
@@ -176,55 +176,55 @@ CarrierSession::CarrierSession() noexcept
     threadPool = ThreadPool::Create("carrier-session");
 }
 
-CarrierSession::~CarrierSession() noexcept
+CarrierSessionHelper::~CarrierSessionHelper() noexcept
 {
     connectListener = nullptr; // fix dead loop issue.
     disconnect();
 }
 
-int CarrierSession::makeSessionAndStream(const std::string& peerId)
+int CarrierSessionHelper::makeSessionAndStream(const std::string& peerId)
 {
     auto carrier = SAFE_GET_PTR(Factory::CarrierHandler);
 
-    auto creater = [&]() -> ElaSession* {
-        auto ptr = ela_session_new(carrier.get(), peerId.c_str());
+    auto creater = [&]() -> CarrierSession* {
+        auto ptr = carrier_session_new(carrier.get(), peerId.c_str());
         return ptr;
     };
-    auto deleter = [=](ElaSession* ptr) -> void {
+    auto deleter = [=](CarrierSession* ptr) -> void {
         if(ptr != nullptr) {
-            ela_session_close(ptr);
+            carrier_session_close(ptr);
             Log::D(Log::Tag::Msg, "Destroy an ela carrier session with %s, stream %d", peerId.c_str(), sessionStreamId);
         }
     };
-    sessionHandler = std::shared_ptr<ElaSession>(creater(), deleter);
+    sessionHandler = std::shared_ptr<CarrierSession>(creater(), deleter);
     if (sessionHandler == nullptr) {
-        CommandHandler::PrintElaCarrierError("Failed to new carrier session!");
+        CommandHandler::PrintCarrierError("Failed to new carrier session!");
     }
     CHECK_ASSERT(sessionHandler != nullptr, ErrCode::CarrierSessionCreateFailed);
 
     auto onStateChanged = [](
-            ElaSession *session, int stream,
-            ElaStreamState state, void *context)
+            CarrierSession *session, int stream,
+            CarrierStreamState state, void *context)
     {
-        auto thiz = reinterpret_cast<CarrierSession*>(context);
-        Log::D(Log::Tag::Msg, "CarrierSession state change to %d at session stream %d", state, stream);
+        auto thiz = reinterpret_cast<CarrierSessionHelper*>(context);
+        Log::D(Log::Tag::Msg, "CarrierSessionHelper state change to %d at session stream %d", state, stream);
         auto weakPtr = thiz->weak_from_this();
         auto carrierSession = weakPtr.lock();
         if(carrierSession == nullptr) {
-            Log::D(Log::Tag::Msg, "CarrierSession has been released");
+            Log::D(Log::Tag::Msg, "CarrierSessionHelper has been released");
             return;
         }
 
         ConnectListener::Notify notify = static_cast<ConnectListener::Notify>(-1);
         int ret = 0;
         switch (state) {
-        case ElaStreamState_initialized:
+        case CarrierStreamState_initialized:
             ret = carrierSession->replySession();
             if(ret < 0) {
                 notify = ConnectListener::Notify::Error;
             }
             break;
-        case ElaStreamState_transport_ready:
+        case CarrierStreamState_transport_ready:
             // wait for request complete if sdp is not set.
             if(carrierSession->sessionSdp.empty() == true) {
                 break;
@@ -234,15 +234,15 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
                 notify = ConnectListener::Notify::Error;
             }
             break;
-        case ElaStreamState_connected:
+        case CarrierStreamState_connected:
             notify = ConnectListener::Notify::Connected;
             break;
-        case ElaStreamState_closed:
+        case CarrierStreamState_closed:
             notify = ConnectListener::Notify::Closed;
             break;
-        case ElaStreamState_failed:
+        case CarrierStreamState_failed:
             notify = ConnectListener::Notify::Error;
-            CommandHandler::PrintElaCarrierError("Carrier session state change to failed!");
+            CommandHandler::PrintCarrierError("Carrier session state change to failed!");
             ret = ErrCode::CarrierSessionErrorExists;
             break;
         default:
@@ -254,10 +254,10 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
         }
     };
     auto onReceivedData = [](
-            ElaSession *session, int stream,
+            CarrierSession *session, int stream,
             const void *data, size_t len, void *context)
     {
-        auto thiz = reinterpret_cast<CarrierSession*>(context);
+        auto thiz = reinterpret_cast<CarrierSessionHelper*>(context);
         auto weakPtr = thiz->weak_from_this();
         auto carrierSession = SAFE_GET_PTR_NO_RETVAL(weakPtr);
 
@@ -269,14 +269,14 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
             });
         }
     };
-    sessionStreamCallbacks = std::make_shared<ElaStreamCallbacks>();
+    sessionStreamCallbacks = std::make_shared<CarrierStreamCallbacks>();
     sessionStreamCallbacks->state_changed = onStateChanged;
     sessionStreamCallbacks->stream_data = onReceivedData;
-    int ret = ela_session_add_stream(sessionHandler.get(),
-                                     ElaStreamType_application, ELA_STREAM_RELIABLE,
+    int ret = carrier_session_add_stream(sessionHandler.get(),
+                                     CarrierStreamType_application, ELA_STREAM_RELIABLE,
                                      sessionStreamCallbacks.get(), this);
     if (ret < 0) {
-        CommandHandler::PrintElaCarrierError("Failed to add stream!");
+        CommandHandler::PrintCarrierError("Failed to add stream!");
         ret = ErrCode::CarrierSessionAddStreamFailed;
     }
     CHECK_ERROR(ret);
@@ -286,11 +286,11 @@ int CarrierSession::makeSessionAndStream(const std::string& peerId)
     return 0;
 }
 
-int CarrierSession::replySession()
+int CarrierSessionHelper::replySession()
 {
-    int ret= ela_session_reply_request(sessionHandler.get(), nullptr, 0, nullptr);
+    int ret= carrier_session_reply_request(sessionHandler.get(), nullptr, 0, nullptr);
     if (ret < 0) {
-        CommandHandler::PrintElaCarrierError("Failed to reply carrier session!");
+        CommandHandler::PrintCarrierError("Failed to reply carrier session!");
         ret = ErrCode::CarrierSessionConnectFailed;
     }
     CHECK_ERROR(ret);
@@ -298,11 +298,11 @@ int CarrierSession::replySession()
     return 0;
 }
 
-int CarrierSession::startSession()
+int CarrierSessionHelper::startSession()
 {
-    int ret = ela_session_start(sessionHandler.get(), sessionSdp.c_str(), sessionSdp.length());
+    int ret = carrier_session_start(sessionHandler.get(), sessionSdp.c_str(), sessionSdp.length());
     if (ret < 0) {
-        CommandHandler::PrintElaCarrierError("Failed to start carrier session!");
+        CommandHandler::PrintCarrierError("Failed to start carrier session!");
         ret = ErrCode::CarrierSessionStartFailed;
     }
     CHECK_ERROR(ret);
@@ -310,7 +310,7 @@ int CarrierSession::startSession()
     return 0;
 }
 
-void CarrierSession::connectNotify(ConnectListener::Notify notify, int errCode)
+void CarrierSessionHelper::connectNotify(ConnectListener::Notify notify, int errCode)
 {
     if(connectListener == nullptr) {
         return;
@@ -321,7 +321,7 @@ void CarrierSession::connectNotify(ConnectListener::Notify notify, int errCode)
     });
 }
 
-const char* CarrierSession::ConnectListener::toString(ConnectListener::Notify notify)
+const char* CarrierSessionHelper::ConnectListener::toString(ConnectListener::Notify notify)
 {
     const char* notifyStr[] = {
         "Connected",

@@ -20,7 +20,7 @@ namespace trinity {
 /* =========================================== */
 static struct {
     const char *method;
-    void (*hdlr)(ElaCarrier *c, const char *from, Req *base);
+    void (*hdlr)(Carrier *c, const char *from, Req *base);
 } method_hdlrs[] = {
     {"declare_owner"               , hdl_decl_owner_req         },
     {"import_did"                  , hdl_imp_did_req            },

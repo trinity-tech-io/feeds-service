@@ -20,7 +20,7 @@ target_link_libraries(massdata PUBLIC
     cmdhandler
     cvector
     libcrystal-shared
-    libelacarrier-shared
+    libcarrier-shared
     msgpackc)
 
 set(CMAKE_INCLUDE_CURRENT_DIR TRUE)

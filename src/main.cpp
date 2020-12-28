@@ -57,7 +57,7 @@
 
 extern "C" {
 #define new fix_cpp_keyword_new
-#include <ela_carrier.h>
+#include <carrier.h>
 #include <crystal.h>
 
 #include "feeds.h"
@@ -75,14 +75,14 @@ extern "C" {
 
 static const char *resolver = "http://api.elastos.io:20606";
 size_t connecting_clients;
-std::shared_ptr<ElaCarrier> carrier_instance;
-ElaCarrier *carrier;
+std::shared_ptr<Carrier> carrier_instance;
+Carrier *carrier;
 static std::atomic<bool> stop;
 
 static void transport_deinit();
 
 static
-void on_receiving_message(ElaCarrier *c, const char *from,
+void on_receiving_message(Carrier *c, const char *from,
                           const void *msg, size_t len, int64_t timestamp,
                           bool offline, void *context)
 {
@@ -100,7 +100,7 @@ void on_receiving_message(ElaCarrier *c, const char *from,
 }
 
 static
-void idle_callback(ElaCarrier *c, void *context)
+void idle_callback(Carrier *c, void *context)
 {
     (void)c;
     (void)context;
@@ -114,26 +114,26 @@ void idle_callback(ElaCarrier *c, void *context)
 }
 
 static
-void on_connection_status(ElaCarrier *carrier,
-                          ElaConnectionStatus status, void *context)
+void on_connection_status(Carrier *carrier,
+                          CarrierConnectionStatus status, void *context)
 {
-    vlogI(TAG_MAIN "carrier %s", status == ElaConnectionStatus_Connected ?
+    vlogI(TAG_MAIN "carrier %s", status == CarrierConnectionStatus_Connected ?
                                 "connected" : "disconnected");
-    if(status != ElaConnectionStatus_Connected) 
+    if(status != CarrierConnectionStatus_Connected) 
             trinity::MassDataManager::GetInstance()->clearAllDataPipe();
 }
 
 static
-void friend_connection_callback(ElaCarrier *c, const char *friend_id,
-                                ElaConnectionStatus status, void *context)
+void friend_connection_callback(Carrier *c, const char *friend_id,
+                                CarrierConnectionStatus status, void *context)
 {
     (void)c;
     (void)context;
 
-    vlogI(TAG_MAIN "[%s] %s", friend_id, status == ElaConnectionStatus_Connected ?
+    vlogI(TAG_MAIN "[%s] %s", friend_id, status == CarrierConnectionStatus_Connected ?
                                 "connected" : "disconnected");
 
-    if (status == ElaConnectionStatus_Connected) {
+    if (status == CarrierConnectionStatus_Connected) {
         ++connecting_clients;
         return;
     } else
@@ -145,8 +145,8 @@ void friend_connection_callback(ElaCarrier *c, const char *friend_id,
 }
 
 static
-void friend_request_callback(ElaCarrier *c, const char *user_id,
-                             const ElaUserInfo *info, const char *hello,
+void friend_request_callback(Carrier *c, const char *user_id,
+                             const CarrierUserInfo *info, const char *hello,
                              void *context)
 {
     (void)info;
@@ -154,7 +154,7 @@ void friend_request_callback(ElaCarrier *c, const char *user_id,
     (void)context;
 
     vlogI(TAG_MAIN "Received friend request from [%s]", user_id);
-    ela_accept_friend(c, user_id);
+    carrier_accept_friend(c, user_id);
 }
 
 #ifdef HAVE_SYS_RESOURCE_H
@@ -175,7 +175,7 @@ int sys_coredump_set(bool enable)
 static
 void usage(void)
 {
-    printf("Elastos feeds service.\n");
+    printf("Feeds service.\n");
     printf("Usage: feedsd [OPTION]...\n");
     printf("\n");
     printf("First run options:\n");
@@ -284,7 +284,7 @@ static
 int transport_init(const std::vector<const char*> execArgv, FeedsConfig *cfg)
 {
     int rc;
-    ElaCallbacks callbacks;
+    CarrierCallbacks callbacks;
 
     memset(&callbacks, 0, sizeof(callbacks));
     callbacks.idle = idle_callback;
@@ -295,18 +295,18 @@ int transport_init(const std::vector<const char*> execArgv, FeedsConfig *cfg)
 
     DIDBackend_InitializeDefault(resolver, cfg->didcache_dir);
 
-    auto creater = [&]() -> ElaCarrier* {
+    auto creater = [&]() -> Carrier* {
         vlogD(TAG_MAIN "Create carrier instance.");
-        auto ptr = ela_new(&cfg->carrier_opts, &callbacks, NULL);
+        auto ptr = carrier_new(&cfg->carrier_opts, &callbacks, NULL);
         return ptr;
     };
-    auto deleter = [=](ElaCarrier* ptr) -> void {
+    auto deleter = [=](Carrier* ptr) -> void {
         vlogD(TAG_MAIN "Destroy carrier instance.");
         if(ptr != nullptr) {
-            ela_kill(ptr);
+            carrier_kill(ptr);
         }
     };
-    carrier_instance = std::shared_ptr<ElaCarrier>(creater(), deleter);
+    carrier_instance = std::shared_ptr<Carrier>(creater(), deleter);
     carrier = carrier_instance.get();
     if (!carrier) {
         vlogE(TAG_MAIN "Creating carrier instance failed");
@@ -335,7 +335,7 @@ failure:
 
 int main(int argc, char *argv[])
 {
-    char buf[ELA_MAX_ADDRESS_LEN + 1];
+    char buf[CARRIER_MAX_ADDRESS_LEN + 1];
     char *work_dir = NULL;
     const char *cfg_file = NULL;
     int wait_for_attach = 0;
@@ -479,9 +479,9 @@ int main(int argc, char *argv[])
     signal(SIGABRT, print_backtrace);
 
     vlogI(TAG_MAIN "Carrier node identities:");
-    vlogI(TAG_MAIN "  Node ID  : %s", ela_get_nodeid(carrier, buf, sizeof(buf)));
-    vlogI(TAG_MAIN "  User ID  : %s", ela_get_userid(carrier, buf, sizeof(buf)));
-    vlogI(TAG_MAIN "  Address  : %s", ela_get_address(carrier, buf, sizeof(buf)));
+    vlogI(TAG_MAIN "  Node ID  : %s", carrier_get_nodeid(carrier, buf, sizeof(buf)));
+    vlogI(TAG_MAIN "  User ID  : %s", carrier_get_userid(carrier, buf, sizeof(buf)));
+    vlogI(TAG_MAIN "  Address  : %s", carrier_get_address(carrier, buf, sizeof(buf)));
     if (feeds_owner_info.did && feeds_owner_info.did[0])
         vlogI(TAG_MAIN "  Owner DID: %s", feeds_owner_info.did);
     if (feeds_did_str[0])
@@ -506,7 +506,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    rc = ela_run(carrier, 10);
+    rc = carrier_run(carrier, 10);
 
     feeds_deinit();
     auth_deinit();

@@ -1,11 +1,10 @@
 #include "MassDataManager.hpp"
 
 #include <cassert>
-#include <ela_carrier.h>
-#include <ela_session.h>
+#include <carrier.h>
 #include <functional>
 #include <SafePtr.hpp>
-#include "CarrierSession.hpp"
+#include "CarrierSessionHelper.hpp"
 #include "MassDataProcessor.hpp"
 #include "SessionParser.hpp"
 #include "DateTime.hpp"
@@ -39,7 +38,7 @@ std::shared_ptr<MassDataManager> MassDataManager::GetInstance()
 /* === class public function implement  ====== */
 /* =========================================== */
 int MassDataManager::config(const std::filesystem::path& dataDir,
-                            std::weak_ptr<ElaCarrier> carrier)
+                            std::weak_ptr<Carrier> carrier)
 {
     massDataDir = dataDir / MassData::MassDataDirName;
     Log::D(Log::Tag::Msg, "Config mass data manager. Data saved to: %s", massDataDir.c_str());
@@ -52,7 +51,7 @@ int MassDataManager::config(const std::filesystem::path& dataDir,
     }
 
     using namespace std::placeholders;
-    int ret = CarrierSession::Factory::Init(carrier,
+    int ret = CarrierSessionHelper::Factory::Init(carrier,
                                             std::bind(&MassDataManager::onSessionRequest, this, _1, _2, _3));
     CHECK_ERROR(ret);
 
@@ -62,7 +61,7 @@ int MassDataManager::config(const std::filesystem::path& dataDir,
 void MassDataManager::cleanup()
 {
     clearAllDataPipe();
-    CarrierSession::Factory::Uninit();
+    CarrierSessionHelper::Factory::Uninit();
 
     MassDataMgrInstance.reset();
 
@@ -77,14 +76,14 @@ void MassDataManager::cleanup()
 /* =========================================== */
 /* === class private function implement  ===== */
 /* =========================================== */
-void MassDataManager::onSessionRequest(std::weak_ptr<ElaCarrier> carrier,
+void MassDataManager::onSessionRequest(std::weak_ptr<Carrier> carrier,
                                        const std::string& from, const std::string& sdp)
 {
     Log::D(Log::Tag::Msg, "Received carrier session request from %s. sdp:\n%s",
                      from.c_str(), sdp.c_str());
 
     auto dataPipe = std::make_shared<DataPipe>();
-    dataPipe->session = CarrierSession::Factory::Create();
+    dataPipe->session = CarrierSessionHelper::Factory::Create();
     dataPipe->parser = std::make_shared<SessionParser>();
     dataPipe->processor = std::make_shared<MassDataProcessor>(massDataDir);
 
@@ -131,9 +130,9 @@ std::shared_ptr<MassDataManager::DataPipe> MassDataManager::find(const std::stri
     return value; 
 }
 
-std::shared_ptr<CarrierSession::ConnectListener> MassDataManager::makeConnectListener(const std::string& peerId,
+std::shared_ptr<CarrierSessionHelper::ConnectListener> MassDataManager::makeConnectListener(const std::string& peerId,
                                                                                       std::shared_ptr<SessionParser::OnUnpackedListener> unpackedListener) {
-    struct SessionListener: CarrierSession::ConnectListener {
+    struct SessionListener: CarrierSessionHelper::ConnectListener {
         explicit SessionListener(std::weak_ptr<MassDataManager> mgr,
                                  const std::string& peerId,
                                  std::shared_ptr<SessionParser::OnUnpackedListener> unpackedListener) {
