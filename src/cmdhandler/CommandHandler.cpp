@@ -187,14 +187,27 @@ int CommandHandler::processAdvance(const std::string& from, const std::vector<ui
             break;
         }
     }
-    if(responseArray.size() <= 0) {
-        return ErrCode::UnimplementedError;
+    if(ret == ErrCode::UnimplementedError) {
+        return ret;
+    }
+    if(ret < 0) {
+        auto error = Rpc::Factory::MakeError(ret);
+        std::vector<uint8_t> respData;
+        ret = Rpc::Factory::Marshal(error, respData);
+        CHECK_ERROR(ret);
+
+        Marshalled* marshalledResp = (Marshalled*)rc_zalloc(sizeof(Marshalled) + respData.size(), NULL);
+        marshalledResp->data = marshalledResp + 1;
+        marshalledResp->sz = respData.size();
+        memcpy(marshalledResp->data, respData.data(), respData.size());
+
+        msgq_enq(from.c_str(), marshalledResp);
+        deref(marshalledResp);
     }
 
     for (const auto &response : responseArray) {
-        auto errCode = ret;
         std::vector<uint8_t> respData;
-        int ret = Rpc::Factory::Marshal(response, respData);
+        ret = Rpc::Factory::Marshal(response, respData);
         CHECK_ERROR(ret);
 
         Marshalled* marshalledResp = (Marshalled*)rc_zalloc(sizeof(Marshalled) + respData.size(), NULL);
