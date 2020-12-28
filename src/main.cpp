@@ -188,6 +188,8 @@ void usage(void)
     printf("Debugging options:\n");
     printf("      --debug               Wait for debugger attach after start.\n");
     printf("\n");
+    printf("  -v, --version             Print version.\n");
+    printf("\n");
 }
 
 #define CONFIG_NAME "feedsd.conf"
@@ -346,6 +348,7 @@ int main(int argc, char *argv[])
         { "config",      required_argument,  NULL, 'c' },
         { "debug",       no_argument,        NULL, 5 },
         { "help",        no_argument,        NULL, 'h' },
+        { "version",     no_argument,        NULL, 'v' },
         { NULL,          0,                  NULL, 0 }
     };
 
@@ -353,7 +356,7 @@ int main(int argc, char *argv[])
     sys_coredump_set(true);
 #endif
 
-    while ((opt = getopt_long(argc, argv, "dc:h?", options, &idx)) != -1) {
+    while ((opt = getopt_long(argc, argv, "dc:hv?", options, &idx)) != -1) {
         switch (opt) {
         case 'd':
             daemon = 1;
@@ -372,6 +375,10 @@ int main(int argc, char *argv[])
         case 5:
             wait_for_attach = 1;
             break;
+
+        case 'v':
+            printf("%s", FEEDSD_VER);
+            exit(0);
 
         case 'h':
         case '?':
