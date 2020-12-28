@@ -8,31 +8,31 @@
 #include <string>
 #include <vector>
 
-struct ElaCarrier;
-struct ElaSession;
-struct ElaStreamCallbacks;
+struct Carrier;
+struct CarrierSession;
+struct CarrierStreamCallbacks;
 
 namespace trinity {
 
 class ThreadPool;
 
-class CarrierSession : public std::enable_shared_from_this<CarrierSession> {
+class CarrierSessionHelper : public std::enable_shared_from_this<CarrierSessionHelper> {
 public:
     /*** type define ***/
     class Factory {
     public:
-        using OnRequest = void(std::weak_ptr<ElaCarrier> carrier,
+        using OnRequest = void(std::weak_ptr<Carrier> carrier,
                              const std::string& from, const std::string& sdp);
 
-        static int Init(std::weak_ptr<ElaCarrier> carrier, const std::function<OnRequest>& listener);
+        static int Init(std::weak_ptr<Carrier> carrier, const std::function<OnRequest>& listener);
         static void Uninit();
-        static std::shared_ptr<CarrierSession> Create();
+        static std::shared_ptr<CarrierSessionHelper> Create();
 
     private:
-        static std::weak_ptr<ElaCarrier> CarrierHandler;
+        static std::weak_ptr<Carrier> CarrierHandler;
         static std::function<OnRequest> OnRequestListener;
 
-        friend CarrierSession;
+        friend CarrierSessionHelper;
     };
 
     class ConnectListener {
@@ -73,8 +73,8 @@ private:
     /*** static function and variable ***/
 
     /*** class function and variable ***/
-    explicit CarrierSession() noexcept;
-    virtual ~CarrierSession() noexcept;
+    explicit CarrierSessionHelper() noexcept;
+    virtual ~CarrierSessionHelper() noexcept;
 
     int makeSessionAndStream(const std::string& peerId);
     int replySession();
@@ -82,9 +82,9 @@ private:
 
     void connectNotify(ConnectListener::Notify notify, int errCode);
 
-    std::shared_ptr<ElaSession> sessionHandler;
+    std::shared_ptr<CarrierSession> sessionHandler;
     int sessionStreamId;
-    std::shared_ptr<ElaStreamCallbacks> sessionStreamCallbacks;
+    std::shared_ptr<CarrierStreamCallbacks> sessionStreamCallbacks;
     std::string sessionSdp;
     std::shared_ptr<ThreadPool> threadPool; // avoid session thread pending when send mass data.
     std::shared_ptr<ConnectListener> connectListener;

@@ -1,8 +1,7 @@
 #include "MassDataProcessor.hpp"
 
 #include <cstring>
-#include <ela_carrier.h>
-#include <ela_session.h>
+#include <carrier.h>
 #include <functional>
 #include <SafePtr.hpp>
 
