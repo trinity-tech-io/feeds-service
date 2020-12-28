@@ -6,7 +6,6 @@
 #include <map>
 #include <string>
 #include <vector>
-#include <CarrierSession.hpp>
 #include <MassData.hpp>
 #include <SessionParser.hpp>
 #include <StdFileSystem.hpp>

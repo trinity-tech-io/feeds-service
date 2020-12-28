@@ -6,14 +6,12 @@ ExternalProject_Add(
     Elastos.NET.Carrier.Native.SDK
 
     PREFIX ${FEEDS_DEPS_BUILD_PREFIX}
-    URL https://github.com/elastos/Elastos.NET.Carrier.Native.SDK/archive/release-v5.6.3.tar.gz
-    URL_HASH SHA256=6ad79b6e78c56018b48910b98211010878cbfe40a1f7088ef239441bb78146bb
-    DOWNLOAD_NAME Elastos.NET.Carrier.Native.SDK-release-v5.6.3.tar.gz
+    URL https://github.com/elastos/Elastos.NET.Carrier.Native.SDK/archive/release-v6.0.2.tar.gz
+    URL_HASH SHA256=badfe2bd51ce13ee2192b93a42c0c19396d700f452703fdc9c2a80ffe3279dc5
+    DOWNLOAD_NAME Elastos.NET.Carrier.Native.SDK-release-v6.0.2.tar.gz
     DOWNLOAD_DIR ${FEEDS_DEPS_TARBALL_DIR}
     DOWNLOAD_NO_PROGRESS 1
     LOG_DOWNLOAD FALSE
-
-    PATCH_COMMAND ${PATCH_EXE} -s -p1 < ${CMAKE_CURRENT_LIST_DIR}/carrier.patch
 
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${FEEDS_INT_DIST_DIR}
         -DENABLE_SHARED=TRUE
@@ -24,9 +22,9 @@ ExternalProject_Add(
         ${EXTERNAL_CMAKE_PROJECT_ADDITIONAL_ARGS}
 )
 
-export_shared_library(elacarrier)
-export_shared_library(elasession)
+export_shared_library(carrier)
+export_shared_library(carriersession)
 
-add_library(libelacarrier-shared INTERFACE)
-target_link_libraries(libelacarrier-shared INTERFACE elacarrier elasession libcrystal-shared)
-target_include_directories(libelacarrier-shared INTERFACE ${FEEDS_INT_DIST_DIR}/include)
+add_library(libcarrier-shared INTERFACE)
+target_link_libraries(libcarrier-shared INTERFACE carrier carriersession libcrystal-shared)
+target_include_directories(libcarrier-shared INTERFACE ${FEEDS_INT_DIST_DIR}/include)

@@ -87,7 +87,7 @@ target_link_libraries(feedsd PRIVATE
     sqlite3
     config
     libcrystal-shared
-    libelacarrier-shared
+    libcarrier-shared
     eladid
     libqrencode-static
     cvector

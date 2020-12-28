@@ -44,12 +44,12 @@ std::shared_ptr<CommandHandler> CommandHandler::GetInstance()
     return CmdHandlerInstance;
 }
 
-void CommandHandler::PrintElaCarrierError(const std::string& errReason)
+void CommandHandler::PrintCarrierError(const std::string& errReason)
 {
-    int errCode = ela_get_error();
+    int errCode = carrier_get_error();
 
     char errStr[1024] = {0};
-    ela_get_strerror(errCode, errStr, sizeof(errStr));
+    carrier_get_strerror(errCode, errStr, sizeof(errStr));
 
     Log::E(Log::Tag::Cmd, "%s. carrier native error desc is %s(0x%x)",
                      errReason.c_str(), errStr, errCode);
@@ -60,7 +60,7 @@ void CommandHandler::PrintElaCarrierError(const std::string& errReason)
 /* =========================================== */
 int CommandHandler::config(const std::vector<const char*>& execArgv,
                            const std::filesystem::path& dataDir,
-                           std::weak_ptr<ElaCarrier> carrier)
+                           std::weak_ptr<Carrier> carrier)
 {
     Log::D(Log::Tag::Cmd, "Config command handler.");
     int ret = Listener::SetDataDir(dataDir);
@@ -91,7 +91,7 @@ void CommandHandler::cleanup()
     Log::D(Log::Tag::Cmd, "Cleanup command handler.");
 }
 
-std::weak_ptr<ElaCarrier> CommandHandler::getCarrierHandler()
+std::weak_ptr<Carrier> CommandHandler::getCarrierHandler()
 {
     return carrierHandler;
 }
@@ -113,17 +113,18 @@ int CommandHandler::received(const std::string& from, const std::vector<uint8_t>
 }
 
 int CommandHandler::send(const std::string &to, const std::vector<uint8_t> &data,
-                         ElaFriendMessageReceiptCallback* receiptCallback, void* receiptContext)
+                         CarrierFriendMessageReceiptCallback* receiptCallback, void* receiptContext)
 {
     CHECK_ASSERT(threadPool != nullptr, ErrCode::PointerReleasedError);
 
     threadPool->post([this, to = std::move(to), data = std::move(data), receiptCallback, receiptContext] {
        auto carrier = SAFE_GET_PTR_NO_RETVAL(this->getCarrierHandler());
-       auto msgid = ela_send_message_with_receipt(carrier.get(), to.c_str(),
-                                                  data.data(), data.size(),
-                                                  receiptCallback, receiptContext);
+       auto msgid = carrier_send_friend_message(carrier.get(), to.c_str(),
+                                                data.data(), data.size(),
+                                                nullptr,
+                                                receiptCallback, receiptContext);
        if(msgid < 0) {
-           PrintElaCarrierError("Failed to send message to: [" + to + "].");
+           PrintCarrierError("Failed to send message to: [" + to + "].");
            return;
        }
 
