@@ -92,7 +92,6 @@ int ServiceMethod::onDownloadNewService(std::shared_ptr<Rpc::Request> request,
         int ret;
         if(errCode < 0) {
             auto error = Rpc::Factory::MakeError(errCode);
-            error->id = id;
             // ret = this->error(to, error); // TODO
         } else {
             auto content = Rpc::Factory::MakeNotify(method);
