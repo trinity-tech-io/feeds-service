@@ -59,9 +59,11 @@ private:
     constexpr static const int64_t ACCESS_EXPIRATION = (static_cast<int64_t>(30) * 24 * 60 * 60); //1 month
 
     /*** class function and variable ***/
-    int onStandardSignIn(std::shared_ptr<Rpc::Request> request,
+    int onStandardSignIn(const std::string& from,
+                         std::shared_ptr<Rpc::Request> request,
                          std::vector<std::shared_ptr<Rpc::Response>>& responseArray);
-    int onStandardDidAuth(std::shared_ptr<Rpc::Request> request,
+    int onStandardDidAuth(const std::string& from,
+                          std::shared_ptr<Rpc::Request> request,
                           std::vector<std::shared_ptr<Rpc::Response>>& responseArray);
 
     std::string getServiceDid();

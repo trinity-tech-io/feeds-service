@@ -182,7 +182,7 @@ int CommandHandler::processAdvance(const std::string& from, const std::vector<ui
 
     request = std::dynamic_pointer_cast<Rpc::Request>(rpc);
     for (const auto& it : cmdListener) {
-        ret = it->onDispose(request, responseArray);
+        ret = it->onDispose(from, request, responseArray);
         if (ret != ErrCode::UnimplementedError) {
             break;
         }
@@ -348,7 +348,8 @@ int CommandHandler::Listener::onDispose(const std::string& from,
     return ErrCode::UnimplementedError;
 }
 
-int CommandHandler::Listener::onDispose(std::shared_ptr<Rpc::Request> request,
+int CommandHandler::Listener::onDispose(const std::string& from,
+                                        std::shared_ptr<Rpc::Request> request,
                                         std::vector<std::shared_ptr<Rpc::Response>>& responseArray)
 {
     for (const auto& it : advancedHandlerMap) {
@@ -367,7 +368,7 @@ int CommandHandler::Listener::onDispose(std::shared_ptr<Rpc::Request> request,
         int ret = checkAccessible(it.second.accessible, accessToken);
         CHECK_ERROR(ret);
 
-        ret = it.second.callback(request, responseArray);
+        ret = it.second.callback(from, request, responseArray);
         CHECK_ERROR(ret);
 
         Log::D(Log::Tag::Cmd, "Response:");

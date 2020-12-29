@@ -41,7 +41,7 @@ public:
             Accessible accessible;
         };
         struct AdvancedHandler {
-            std::function<int(std::shared_ptr<Rpc::Request>, std::vector<std::shared_ptr<Rpc::Response>>&)> callback;
+            std::function<int(const std::string&, std::shared_ptr<Rpc::Request>, std::vector<std::shared_ptr<Rpc::Response>>&)> callback;
             Accessible accessible;
         };
 
@@ -57,8 +57,9 @@ public:
         virtual int onDispose(const std::string& from,
                               std::shared_ptr<Req> req,
                               std::shared_ptr<Resp>& resp);
-        virtual int onDispose(std::shared_ptr<Rpc::Request> request,
-                              std::vector<std::shared_ptr<Rpc::Response>>& responseArray);
+        virtual int onDispose(const std::string& from,
+                              std::shared_ptr<Rpc::Request> request,
+                              std::vector<std::shared_ptr<Rpc::Response>> &responseArray);
 
         virtual int notify(Accessible accessible, std::shared_ptr<Rpc::Notify> notify);
 
