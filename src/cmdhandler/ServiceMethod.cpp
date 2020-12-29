@@ -88,14 +88,15 @@ int ServiceMethod::onDownloadNewService(const std::string &from,
     CHECK_ASSERT(tarball != nullptr, ErrCode::AutoUpdateUnsuppertProduct);
     std::string tarballUrl = params.base_url + "/" + tarball->name;
 
-    auto resultCallback = [this, method=requestPtr->method, id=requestPtr->id](int errCode) {
+    auto resultCallback = [this, to = from, requestPtr](int errCode) {
         Log::I(Log::Tag::Cmd, "Download new service return %d", errCode);
         int ret;
         if(errCode < 0) {
             auto error = Rpc::Factory::MakeError(errCode);
-            // ret = this->error(to, error); // TODO
+            error->id = requestPtr->id;
+            ret = this->error(to, error);
         } else {
-            auto content = Rpc::Factory::MakeNotify(method);
+            auto content = Rpc::Factory::MakeNotify(requestPtr->method);
             ret = this->notify(Accessible::Owner, content);
         }
         CHECK_RETVAL(ret);
