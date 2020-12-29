@@ -62,6 +62,7 @@ public:
                               std::vector<std::shared_ptr<Rpc::Response>> &responseArray);
 
         virtual int notify(Accessible accessible, std::shared_ptr<Rpc::Notify> notify);
+        virtual int error(const std::string& to, std::shared_ptr<Rpc::Error> error);
 
     private:
         static int SetDataDir(const std::filesystem::path& dataDir);

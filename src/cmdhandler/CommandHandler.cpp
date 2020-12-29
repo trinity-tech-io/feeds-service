@@ -406,6 +406,24 @@ int CommandHandler::Listener::notify(Accessible accessible, std::shared_ptr<Rpc:
     return 0;
 }
 
+int CommandHandler::Listener::error(const std::string& to, std::shared_ptr<Rpc::Error> error)
+{
+    std::vector<uint8_t> data;
+    int ret = Rpc::Factory::Marshal(error, data);
+    CHECK_ERROR(ret);
+
+    Marshalled* marshalledErr = (Marshalled*)rc_zalloc(sizeof(Marshalled) + data.size(), NULL);
+    marshalledErr->data = marshalledErr + 1;
+    marshalledErr->sz = data.size();
+    memcpy(marshalledErr->data, data.data(), data.size());
+
+    msgq_enq(to.c_str(), marshalledErr);
+
+    deref(marshalledErr);
+
+    return 0;
+}
+
 int CommandHandler::Listener::isOwner(const std::string& accessToken)
 {
     std::shared_ptr<UserInfo> userInfo;
