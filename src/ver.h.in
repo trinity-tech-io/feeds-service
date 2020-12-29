@@ -28,6 +28,8 @@
                        + @PROJECT_VERSION_MINOR@ * 100 \
                        + @PROJECT_VERSION_PATCH@ )
 
+#define FEEDSD_RUNTIME_DIR "@FEEDS_INT_RUNTIME_DIR@"
+
 #define DB_VER 3U
 
 #endif //__VER_H__

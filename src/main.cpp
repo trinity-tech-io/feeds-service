@@ -197,6 +197,8 @@ void usage(void)
 static const char *default_cfg_files[] = {
     "./" CONFIG_NAME,
     "../etc/feedsd/" CONFIG_NAME,
+    "../" FEEDSD_RUNTIME_DIR "/current/etc/feedsd/" CONFIG_NAME,
+    "/" FEEDSD_RUNTIME_DIR "/current/etc/feedsd/" CONFIG_NAME,
     NULL
 };
 

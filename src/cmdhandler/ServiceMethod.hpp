@@ -33,9 +33,11 @@ private:
     /*** static function and variable ***/
 
     /*** class function and variable ***/
-    int onDownloadNewService(std::shared_ptr<Rpc::Request> request,
+    int onDownloadNewService(const std::string& from,
+                             std::shared_ptr<Rpc::Request> request,
                              std::vector<std::shared_ptr<Rpc::Response>>& responseArray);
-    int onStartNewService(std::shared_ptr<Rpc::Request> request,
+    int onStartNewService(const std::string& from,
+                          std::shared_ptr<Rpc::Request> request,
                           std::vector<std::shared_ptr<Rpc::Response>>& responseArray);
 
     std::filesystem::path cacheDir;

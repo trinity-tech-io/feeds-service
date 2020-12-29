@@ -27,11 +27,11 @@ ServiceMethod::ServiceMethod(const std::filesystem::path& cacheDir,
     std::map<const char*, AdvancedHandler> advancedHandlerMap {
         {
             Rpc::Factory::Method::DownloadNewService,
-            {std::bind(&ServiceMethod::onDownloadNewService, this, _1, _2), Accessible::Owner}
+            {std::bind(&ServiceMethod::onDownloadNewService, this, _1, _2, _3), Accessible::Owner}
         },
         {
             Rpc::Factory::Method::StartNewService,
-            {std::bind(&ServiceMethod::onStartNewService, this, _1, _2), Accessible::Owner}
+            {std::bind(&ServiceMethod::onStartNewService, this, _1, _2, _3), Accessible::Owner}
         },
     };
 
@@ -50,7 +50,8 @@ ServiceMethod::~ServiceMethod()
 /* =========================================== */
 /* === class private function implement  ===== */
 /* =========================================== */
-int ServiceMethod::onDownloadNewService(std::shared_ptr<Rpc::Request> request,
+int ServiceMethod::onDownloadNewService(const std::string &from,
+                                        std::shared_ptr<Rpc::Request> request,
                                         std::vector<std::shared_ptr<Rpc::Response>>& responseArray)
 {
     auto requestPtr = std::dynamic_pointer_cast<Rpc::DownloadNewServiceRequest>(request);
@@ -114,8 +115,9 @@ int ServiceMethod::onDownloadNewService(std::shared_ptr<Rpc::Request> request,
     return 0;
 }
 
-int ServiceMethod::onStartNewService(std::shared_ptr<Rpc::Request> request,
-                                        std::vector<std::shared_ptr<Rpc::Response>>& responseArray)
+int ServiceMethod::onStartNewService(const std::string& from,
+                                     std::shared_ptr<Rpc::Request> request,
+                                     std::vector<std::shared_ptr<Rpc::Response>>& responseArray)
 {
     auto requestPtr = std::dynamic_pointer_cast<Rpc::StartNewServiceRequest>(request);
     CHECK_ASSERT(requestPtr != nullptr, ErrCode::InvalidArgument);

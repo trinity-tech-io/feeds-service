@@ -15,7 +15,5 @@ if [ ! -f "$RUNTIME" ]; then
 	exit 1;
 fi
 
-RUNTIME_DIR=$(dirname "$RUNTIME");
-cd "$RUNTIME_DIR";
 "$RUNTIME" $@;
 exit 0;
