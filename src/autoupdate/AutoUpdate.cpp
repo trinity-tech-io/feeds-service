@@ -82,6 +82,7 @@ int AutoUpdate::startTarball(const std::filesystem::path &runtimeDir,
     auto verCodeStr = std::to_string(verCode);
     auto updateHelper = runtimeDir / verCodeStr / "bin" / "feedsd.updatehelper";
     auto fileExists = std::filesystem::exists(updateHelper);
+    fileExists = false; // TODO
     if(fileExists == false) {
         updateHelper = runtimeDir / "current" / "bin" / "feedsd.updatehelper";
         fileExists = std::filesystem::exists(updateHelper);

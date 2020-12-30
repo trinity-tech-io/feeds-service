@@ -60,7 +60,12 @@ std::string PlatformUnixLike::GetProductVersion()
 int PlatformUnixLike::UnpackUpgradeTarball(const std::filesystem::path& from,
                                            const std::filesystem::path& to)
 {
-    return -1;
+    std::string cmdline = std::string("dpkg -x ") + from.c_str() + " " + to.c_str();
+
+    int ret = std::system(cmdline.c_str());
+    CHECK_ASSERT(ret == 0, ErrCode::ExecSystemCommendFailed);
+    
+    return 0;
 }
 
 std::string PlatformUnixLike::GetBacktrace() {
