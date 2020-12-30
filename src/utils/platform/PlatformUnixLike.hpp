@@ -14,6 +14,7 @@
 #if defined(__linux__) and not defined(__ANDROID__)
 
 #include <string>
+#include <StdFileSystem.hpp>
 
 namespace trinity {
 
