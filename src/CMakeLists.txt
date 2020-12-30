@@ -102,7 +102,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
     set(FEEDSD_LOG_DIR /${FEEDS_INT_ROOT_DIR}/log)
     set(FEEDSD_DATA_DIR /var/lib/feedsd)
 else()
-    set(FEEDSD_LOG_DIR ~/.feedsd)
+    set(FEEDSD_LOG_DIR ~/.feedsd/${PROJECT_VERSION_CODE})
     set(FEEDSD_DATA_DIR ~/.feedsd)
 endif()
 

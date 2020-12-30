@@ -1,6 +1,7 @@
 #include "AutoUpdate.hpp"
 
 #include <fstream>
+#include <signal.h>
 #include <ver.h>
 #include <unistd.h>
 #include <ErrCode.hpp>
@@ -8,6 +9,12 @@
 #include <MD5.hpp>
 #include <Platform.hpp>
 #include <ThreadPool.hpp>
+
+extern "C" {
+#define new fix_cpp_keyword_new
+#include <did.h>
+#undef new
+}
 
 #define CHECK_ERROR_WITHNOTIFY(errCode, callback) \
 	if(errCode < 0) { \
@@ -98,6 +105,7 @@ int AutoUpdate::startTarball(const std::filesystem::path &runtimeDir,
     cmdline << " '" << launchCmd << "'";
     cmdline << " &";
 
+    did_stop_httpserver();
     int ret = std::system(cmdline.str().c_str());
     CHECK_ASSERT(ret == 0, ErrCode::ExecSystemCommendFailed);
 
@@ -162,7 +170,10 @@ int AutoUpdate::downloadTarball(int64_t verCode,
         ret = 0;
         std::error_code ec;
         std::filesystem::remove_all(runtimeDir / verCodeStr, ec); // noexcept
-        std::filesystem::rename(it.path(), runtimeDir / verCodeStr, ec); // noexcept
+        using std::filesystem::copy_options;
+        const auto options = std::filesystem::copy_options::update_existing
+                           | std::filesystem::copy_options::recursive;
+        std::filesystem::copy(it.path(), runtimeDir / verCodeStr, options, ec); // noexcept
         if (ec.value() != 0) {
             Log::E(Log::Tag::AU, "Failed to move %s ==> %s. err: %s(%d)",
                                  it.path().c_str(), (runtimeDir / verCodeStr).c_str(),

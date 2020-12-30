@@ -367,6 +367,10 @@ int start_binding_svc(FeedsConfig *fc)
 static inline
 void stop_binding_svc()
 {
+    if(http_tid == 0) {
+        return;
+    }
+
     pthread_mutex_lock(&http_mutex);
     http_is_running = false;
     pthread_mutex_unlock(&http_mutex);
@@ -1033,4 +1037,9 @@ finally:
         msgq_enq(from, resp_marshal);
         deref(resp_marshal);
     }
+}
+
+void did_stop_httpserver()
+{
+    stop_binding_svc();
 }
