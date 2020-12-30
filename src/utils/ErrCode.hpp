@@ -181,8 +181,9 @@ public:
     constexpr static const int AutoUpdateBadTarball                = -484;
     constexpr static const int AutoUpdateKillRuneimeFailed         = -485;
     constexpr static const int AutoUpdateStartRuneimeFailed        = -486;
-    constexpr static const int AutoUpdateRemoveLinkFailed          = -487;
-    constexpr static const int AutoUpdateMakeLinkFailed            = -488;
+    constexpr static const int AutoUpdateReadLinkFailed            = -487;
+    constexpr static const int AutoUpdateRemoveLinkFailed          = -488;
+    constexpr static const int AutoUpdateMakeLinkFailed            = -489;
 
 
     // constexpr static const int CarrierIndex                  = -1000;

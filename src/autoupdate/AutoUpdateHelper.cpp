@@ -9,7 +9,6 @@
 #include <StdFileSystem.hpp>
 using trinity::ErrCode;
 using trinity::Log;
-
 #include <crystal/vlog.h>
 
 static void print_backtrace(int sig)
@@ -56,11 +55,11 @@ int main(int argc, char const *argv[])
     std::string launchCmd = argv[4];
 
     Log::I(Log::Tag::AU, "Runtime path is %s", runtimeDir.c_str());
-    Log::I(Log::Tag::AU, "Switch current runtime to version %s", verCode.c_str());
+    Log::I(Log::Tag::AU, "New runtime version is %s", verCode.c_str());
 
     Log::I(Log::Tag::AU, "Killing parent process[%s]", parentPid.c_str());
     int ppid = std::stoi(parentPid);
-    kill(ppid, SIGINT);
+    kill(ppid, SIGKILL);
     bool exited = false;
     for(auto retry = 0; retry < 3; retry++) {
         exited = (feedsdProcessExists() == false);
@@ -72,21 +71,34 @@ int main(int argc, char const *argv[])
     Log::I(Log::Tag::AU, "Parent process[%s] exit %s", parentPid.c_str(), exited ? "success" : "failed");
     CHECK_ASSERT(exited == true, ErrCode::AutoUpdateKillRuneimeFailed);
 
-    Log::I(Log::Tag::AU, "Creating symbol link %s ==> %s",
-                         (runtimeDir / "current").c_str(), verCode.c_str());
+    auto currentPath = runtimeDir / "current";
     std::error_code ec;
-    std::filesystem::remove(runtimeDir / "current", ec);
+    Log::I(Log::Tag::AU, "Switch symlink %s ==> %s",
+                         currentPath.c_str(), verCode.c_str());
+
+    auto oldSymlink = std::filesystem::read_symlink(currentPath, ec);
+    if (ec.value() != 0) {
+        Log::E(Log::Tag::AU, "Failed to read symlink %s. err: %s(%d)",
+                             currentPath.c_str(),
+                             ec.message().c_str(), ec.value());
+    }
+    CHECK_ASSERT(ec.value() == 0, ErrCode::AutoUpdateReadLinkFailed);
+    Log::D(Log::Tag::AU, "Backup old symlink: %s", oldSymlink.c_str());
+
+    Log::D(Log::Tag::AU, "Removing old symlink: %s", currentPath.c_str());
+    std::filesystem::remove(currentPath, ec);
     if (ec.value() != 0) {
         Log::E(Log::Tag::AU, "Failed to remove %s. err: %s(%d)",
-                             (runtimeDir / "current").c_str(),
+                             currentPath.c_str(),
                              ec.message().c_str(), ec.value());
     }
     CHECK_ASSERT(ec.value() == 0, ErrCode::AutoUpdateRemoveLinkFailed);
 
-    create_directory_symlink(verCode, runtimeDir / "current", ec) ;
+    Log::D(Log::Tag::AU, "Creating new symlink to: %s", verCode.c_str());
+    create_directory_symlink(verCode, currentPath, ec) ;
     if (ec.value() != 0) {
         Log::E(Log::Tag::AU, "Failed to create link %s ==> %s. err: %s(%d)",
-                             (runtimeDir / "current").c_str(), verCode.c_str(),
+                             currentPath.c_str(), verCode.c_str(),
                              ec.message().c_str(), ec.value());
     }
     CHECK_ASSERT(ec.value() == 0, ErrCode::AutoUpdateMakeLinkFailed);

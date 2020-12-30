@@ -13,8 +13,9 @@ target_include_directories(utils PUBLIC
     "${FEEDS_INT_DIST_DIR}/include")
 
 target_link_libraries(utils PUBLIC
-    ssl
     libcurl
+    ssl
+    crypto
     libcrystal-shared
     platform)
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
