@@ -211,7 +211,7 @@ int ChannelMethod::onGetMultiLikesAndCommentsCount(std::shared_ptr<Rpc::Request>
         if(nextPostsSize > Rpc::Factory::MaxAvailableSize) {
             responseArray.push_back(response);
             response.reset();
-            postsSize = sizeof(Rpc::GetMultiLikesAndCommentsCountResponse) - sizeof(Rpc::GetMultiLikesAndCommentsCountResponse::Result::posts);
+            nextPostsSize = sizeof(Rpc::GetMultiLikesAndCommentsCountResponse) - sizeof(Rpc::GetMultiLikesAndCommentsCountResponse::Result::posts);
         }
         if(response == nullptr) {
             response = makeResponse();
