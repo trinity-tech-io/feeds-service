@@ -12,6 +12,7 @@ target_include_directories(autoupdate PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}")
 
 target_link_libraries(autoupdate PUBLIC
+    cvector
     utils)
 
 set(CMAKE_INCLUDE_CURRENT_DIR TRUE)

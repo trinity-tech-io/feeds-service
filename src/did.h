@@ -44,6 +44,8 @@ void hdl_imp_did_req(Carrier *c, const char *from, Req *base);
 void hdl_iss_vc_req(Carrier *c, const char *from, Req *base);
 void hdl_update_vc_req(Carrier *c, const char *from, Req *base);
 
+void did_stop_httpserver();
+
 DIDDocument *local_resolver(DID *did);
 
 #endif //__DID_H__

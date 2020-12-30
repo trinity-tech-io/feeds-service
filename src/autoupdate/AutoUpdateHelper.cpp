@@ -59,7 +59,7 @@ int main(int argc, char const *argv[])
 
     Log::I(Log::Tag::AU, "Killing parent process[%s]", parentPid.c_str());
     int ppid = std::stoi(parentPid);
-    kill(ppid, SIGKILL);
+    kill(ppid, SIGINT);
     bool exited = false;
     for(auto retry = 0; retry < 3; retry++) {
         exited = (feedsdProcessExists() == false);
