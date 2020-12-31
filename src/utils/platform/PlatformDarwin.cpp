@@ -33,7 +33,7 @@ namespace trinity {
 /***********************************************/
 std::string PlatformDarwin::GetProductName()
 {
-    return "MacOSX";
+    return "macosx";
 }
 
 std::string PlatformDarwin::GetProductVersion()

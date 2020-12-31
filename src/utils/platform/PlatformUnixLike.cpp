@@ -31,28 +31,29 @@ namespace trinity {
 /***********************************************/
 std::string PlatformUnixLike::GetProductName()
 {
-    std::ifstream releaseFile("/etc/lsb-release");
+    std::ifstream releaseFile("/etc/os-release");
     std::stringstream content;
     content << releaseFile.rdbuf();
 
     std::string result = content.str();
-    result = std::regex_replace(result, std::regex("\n"), " ");
-    result = std::regex_replace(result, std::regex(".*DISTRIB_ID="), "");
-    result = std::regex_replace(result, std::regex(" .*"), "");
+    result = std::regex_replace(result, std::regex("\n"), ";;");
+    result = std::regex_replace(result, std::regex(".*;;ID="), "");
+    result = std::regex_replace(result, std::regex(";;.*"), "");
 
     return result;
 }
 
 std::string PlatformUnixLike::GetProductVersion()
 {
-    std::ifstream releaseFile("/etc/lsb-release");
+    std::ifstream releaseFile("/etc/os-release");
     std::stringstream content;
     content << releaseFile.rdbuf();
 
     std::string result = content.str();
-    result = std::regex_replace(result, std::regex("\n"), " ");
-    result = std::regex_replace(result, std::regex(".*DISTRIB_RELEASE="), "");
-    result = std::regex_replace(result, std::regex(" .*"), "");
+    result = std::regex_replace(result, std::regex("\n"), ";;");
+    result = std::regex_replace(result, std::regex(".*;;VERSION_ID="), "");
+    result = std::regex_replace(result, std::regex(";;.*"), "");
+    result = std::regex_replace(result, std::regex("\""), "");
 
     return result;
 }
