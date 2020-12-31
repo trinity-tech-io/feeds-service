@@ -391,9 +391,10 @@ int StandardAuth::checkAuthToken(const std::string& userName, const std::string&
     auto nonce = Presentation_GetNonce(vp.get());
     CHECK_DIDSDK(nonce != nullptr, ErrCode::AuthPresentationEmptyNonce, "Failed to get presentation nonce, return null.");
 
-    auto authSecretIt = authSecretMap.find(nonce); // TODO: change to remove
+    auto authSecretIt = authSecretMap.find(nonce);
     CHECK_DIDSDK(authSecretIt != authSecretMap.end(), ErrCode::AuthPresentationBadNonce, "Bad presentation nonce.");
     auto authSecret = authSecretIt->second;
+    authSecretMap.erase(nonce);
 
     /** check realm **/
     auto realm = Presentation_GetRealm(vp.get());
