@@ -72,17 +72,17 @@ int ServiceMethod::onDownloadNewService(const std::string &from,
 
     const Rpc::DownloadNewServiceRequest::Params::Tarball* tarball = nullptr;
     auto osName = Platform::GetProductName();
-    if(osName == "MacOSX") {
+    if(osName == "macosx") {
         tarball = &params.macosx;
-    } else if(osName == "Ubuntu") {
+    } else if(osName == "ubuntu") {
         auto osVer = Platform::GetProductVersion();
         if(osVer == "18.04") {
             tarball = &params.ubuntu_1804;
         } else if(osVer == "20.04") {
             tarball = &params.ubuntu_2004;
         }
-    } else if(osName == "RaspberryPi") { // TODO: RaspberryPi is wrong name
-        tarball = &params.raspberrypi;
+    } else if(osName == "raspbian") {
+        tarball = &params.raspbian;
     }
     Log::D(Log::Tag::Cmd, "Updating feeds service to %lld on %s", params.new_version_code, osName.c_str());
     CHECK_ASSERT(tarball != nullptr, ErrCode::AutoUpdateUnsuppertProduct);

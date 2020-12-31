@@ -224,9 +224,9 @@ struct DownloadNewServiceRequest : RequestWithToken {
         Tarball macosx;
         Tarball ubuntu_1804;
         Tarball ubuntu_2004;
-        Tarball raspberrypi;
+        Tarball raspbian;
         MSGPACK_DEFINE(MSGPACK_REQUEST_TOKEN_ARGS, new_version_code,
-                       base_url, macosx, ubuntu_1804, ubuntu_2004, raspberrypi);
+                       base_url, macosx, ubuntu_1804, ubuntu_2004, raspbian);
     };
 
     Params params;
