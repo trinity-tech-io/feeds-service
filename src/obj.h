@@ -23,6 +23,7 @@
 #ifndef __OBJ_H__
 #define __OBJ_H__
 
+#include <assert.h>
 #include <stdint.h>
 
 #define CHAN_ID_START 1
