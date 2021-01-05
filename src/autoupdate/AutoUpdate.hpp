@@ -17,17 +17,18 @@ public:
     static std::shared_ptr<AutoUpdate> GetInstance();
 
     /*** class function and variable ***/
-    int needUpdate(int64_t newVerCode);
-    int asyncDownloadTarball(int64_t verCode,
-                             const std::string &url,
-                             const std::filesystem::path &runtimeDir,
-                             const std::filesystem::path &cacheDir,
-                             const std::string &name,
+    int needUpdate(const std::string& newVerName);
+    int asyncDownloadTarball(const std::string& verName,
+                             const std::string& url,
+                             const std::filesystem::path& runtimeDir,
+                             const std::filesystem::path& cacheDir,
+                             const std::string& name,
                              int64_t size,
-                             const std::string &md5,
-                             const std::function<void(int errCode)> &resultCallback);
-    int startTarball(const std::filesystem::path &runtimeDir,
-                     int64_t verCode,
+                             const std::string& md5,
+                             const std::function<void(int errCode)>& resultCallback);
+    int startTarball(const std::filesystem::path& runtimeDir,
+                     const std::filesystem::path& cacheDir,
+                     const std::string& verName,
                      const std::string& launchCmd);
 
 protected:
@@ -47,14 +48,14 @@ private:
     explicit AutoUpdate() = default;
     virtual ~AutoUpdate() = default;
 
-    int downloadTarball(int64_t verCode,
-                        const std::string &url,
-                        const std::filesystem::path &runtimeDir,
-                        const std::filesystem::path &cacheDir,
-                        const std::string &name,
+    int downloadTarball(const std::string& verName,
+                        const std::string& url,
+                        const std::filesystem::path& runtimeDir,
+                        const std::filesystem::path& cacheDir,
+                        const std::string& name,
                         int64_t size,
-                        const std::string &md5,
-                        const std::function<void(int errCode)> &resultCallback);
+                        const std::string& md5,
+                        const std::function<void(int errCode)>& resultCallback);
     int checkTarball(const std::filesystem::path& filepath, int64_t size, const std::string& md5);
 
     std::shared_ptr<ThreadPool> threadPool;

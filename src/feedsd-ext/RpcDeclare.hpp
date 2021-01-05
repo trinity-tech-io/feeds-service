@@ -219,13 +219,13 @@ struct DownloadNewServiceRequest : RequestWithToken {
             MSGPACK_DEFINE(name, size, md5);
         };
         
-        int64_t new_version_code = -1;
+        std::string new_version;
         std::string base_url;
         Tarball macosx;
         Tarball ubuntu_1804;
         Tarball ubuntu_2004;
         Tarball raspbian;
-        MSGPACK_DEFINE(MSGPACK_REQUEST_TOKEN_ARGS, new_version_code,
+        MSGPACK_DEFINE(MSGPACK_REQUEST_TOKEN_ARGS, new_version,
                        base_url, macosx, ubuntu_1804, ubuntu_2004, raspbian);
     };
 
@@ -247,8 +247,8 @@ struct DownloadNewServiceNotify : Notify {
 
 struct StartNewServiceRequest : RequestWithToken {
     struct Params : RequestWithToken::Params {
-        int64_t new_version_code = -1;
-        MSGPACK_DEFINE(MSGPACK_REQUEST_TOKEN_ARGS, new_version_code);
+        std::string new_version;
+        MSGPACK_DEFINE(MSGPACK_REQUEST_TOKEN_ARGS, new_version);
     };
 
     Params params;

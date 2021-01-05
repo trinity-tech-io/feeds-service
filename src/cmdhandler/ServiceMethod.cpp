@@ -62,7 +62,7 @@ int ServiceMethod::onDownloadNewService(const std::string &from,
     bool validArgus = ( params.access_token.empty() == false);
     CHECK_ASSERT(validArgus, ErrCode::InvalidArgument);
 
-    int needUpdate = AutoUpdate::GetInstance()->needUpdate(params.new_version_code);
+    int needUpdate = AutoUpdate::GetInstance()->needUpdate(params.new_version);
     CHECK_ERROR(needUpdate);
 
     auto execAbsPath = std::filesystem::absolute(execArgv[0]);
@@ -84,7 +84,7 @@ int ServiceMethod::onDownloadNewService(const std::string &from,
     } else if(osName == "raspbian") {
         tarball = &params.raspbian;
     }
-    Log::D(Log::Tag::Cmd, "Updating feeds service to %lld on %s", params.new_version_code, osName.c_str());
+    Log::D(Log::Tag::Cmd, "Updating feeds service to %s on %s", params.new_version.c_str(), osName.c_str());
     CHECK_ASSERT(tarball != nullptr, ErrCode::AutoUpdateUnsuppertProduct);
     std::string tarballUrl = params.base_url + "/" + tarball->name;
 
@@ -101,7 +101,7 @@ int ServiceMethod::onDownloadNewService(const std::string &from,
         }
         CHECK_RETVAL(ret);
     };
-    int ret = AutoUpdate::GetInstance()->asyncDownloadTarball(params.new_version_code, tarballUrl, runtimePath, cacheDir,
+    int ret = AutoUpdate::GetInstance()->asyncDownloadTarball(params.new_version, tarballUrl, runtimePath, cacheDir,
                                                               tarball->name, tarball->size, tarball->md5,
                                                               resultCallback);
     CHECK_ERROR(ret);
@@ -137,7 +137,7 @@ int ServiceMethod::onStartNewService(const std::string& from,
     for(const auto& it: execArgv) {
         launchCmd << "'" << it << "' ";
     }
-    int ret = AutoUpdate::GetInstance()->startTarball(runtimePath, params.new_version_code, launchCmd.str());
+    int ret = AutoUpdate::GetInstance()->startTarball(runtimePath, cacheDir, params.new_version, launchCmd.str());
     CHECK_ERROR(ret);
 
     // push last response or empty response
