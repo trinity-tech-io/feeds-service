@@ -8,7 +8,7 @@ chperms() {
 	# chperms <user> <group> <perms> <file>
 	if ! OVERRIDE=`dpkg-statoverride --list $4 2>&1`; then
 		if [ -e $4 ]; then
-			chown $1:$2 $4
+			chown -R $1:$2 $4
 			chmod -R $3 $4
 		fi
 	fi
@@ -30,18 +30,17 @@ case "$1" in
         mkdir /var/lib/feedsd
     fi
 
-    if [ ! -d /var/log/feedsd ]; then
-        mkdir /var/log/feedsd
-    fi
-
     FEEDSD_VERSION=$(dpkg -s $DPKG_MAINTSCRIPT_PACKAGE | sed -n 's/^Version: //p')
     ln -sf "$FEEDSD_VERSION" /var/lib/feedsd/runtime/current
     if [ -e "/etc/feedsd" ]; then
-        mv "/etc/feedsd" /var/lib/feedsd/runtime/current/etc/
+        rm -r /var/lib/feedsd/runtime/current/etc/feedsd
+        mv "/etc/feedsd" /var/lib/feedsd/runtime/current/etc/feedsd
     fi
 
     chperms feedsd feedsd 0775 /var/lib/feedsd
-    chperms feedsd feedsd 0775 /var/log/feedsd
+
+    mkdir -p "/var/lib/feedsd/log/$FEEDSD_VERSION"
+    chperms feedsd feedsd 0775 "/var/lib/feedsd/log/$FEEDSD_VERSION"
   ;;
   configure)
 esac
