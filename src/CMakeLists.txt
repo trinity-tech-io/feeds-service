@@ -110,17 +110,14 @@ configure_file(feedsd.conf.in feedsd.conf @ONLY
     NEWLINE_STYLE UNIX)
 
 install(TARGETS feedsd
-    RUNTIME DESTINATION ${FEEDS_INT_ROOT_DIR}/bin
-    COMPONENT main)
+    RUNTIME DESTINATION ${FEEDS_INT_ROOT_DIR}/bin COMPONENT main
+    LIBRARY DESTINATION ${FEEDS_INT_ROOT_DIR}/lib COMPONENT main)
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/feedsd.conf
     DESTINATION ${FEEDS_INT_ROOT_DIR}/etc/feedsd
     COMPONENT main)
 
-ADD_CUSTOM_TARGET(link_target ALL
-                  COMMAND ${CMAKE_COMMAND} -E create_symlink ${PROJECT_VERSION_CODE} ${CMAKE_CURRENT_BINARY_DIR}/current)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/current
-     DESTINATION ${FEEDS_INT_ROOT_DIR}/../)
+install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${PROJECT_VERSION_CODE} ${CMAKE_INSTALL_PREFIX}/${FEEDS_INT_RUNTIME_DIR}/current)")
 
 install(PROGRAMS ${CMAKE_SOURCE_DIR}/scripts/feedsd.sh
     DESTINATION bin
