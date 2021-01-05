@@ -63,7 +63,6 @@ static int MakeSymLink(const std::string& target, const std::filesystem::path& l
     Log::I(Log::Tag::AU, "Removing old symlink: %s", link.c_str());
     if (std::filesystem::is_symlink(link) == true
     || std::filesystem::exists(link) == true) {
-        Log::W(Log::Tag::AU, "=======Removing old symlink: %s", link.c_str());
         std::filesystem::remove(link, ec);
         if (ec.value() != 0) {
             Log::E(Log::Tag::AU, "Failed to remove %s. err: %s(%d)",
@@ -112,7 +111,7 @@ static int LaunchFeedsdProcess(const std::string& cmdline)
     return 0;
 }
 
-static int SwitchFeedsdTo(const std::string& verCode,
+static int SwitchFeedsdTo(const std::string& verName,
                           const std::filesystem::path& currentPath,
                           const std::string& feedsdPid,
                           const std::string& launchCmd)
@@ -120,12 +119,12 @@ static int SwitchFeedsdTo(const std::string& verCode,
     int ret;
     
     Log::I(Log::Tag::AU, "Switching symlink %s ==> %s",
-                         currentPath.c_str(), verCode.c_str());
+                         currentPath.c_str(), verName.c_str());
 
     ret = KillFeedsdProcess(feedsdPid);
     CHECK_ERROR(ret);
 
-    ret = MakeSymLink(verCode, currentPath);
+    ret = MakeSymLink(verName, currentPath);
     CHECK_ERROR(ret);
 
     ret = LaunchFeedsdProcess(launchCmd);
@@ -141,16 +140,18 @@ int main(int argc, char const *argv[])
     signal(SIGSEGV, trinity::PrintBacktrace);
     signal(SIGABRT, trinity::PrintBacktrace);
 
-    CHECK_ASSERT(argc == 5, ErrCode::InvalidArgument);
+    CHECK_ASSERT(argc == 6, ErrCode::InvalidArgument);
 
     std::filesystem::path runtimeDir = argv[1];
-    std::string verCode = argv[2];
+    std::string verName = argv[2];
     std::string parentPid = argv[3];
     std::string launchCmd = argv[4];
-    verCode += "3";
+    std::string logFile = argv[5];
 
+    vlog_init(VLOG_DEBUG, logFile.c_str(), nullptr); 
+    Log::I(Log::Tag::AU, "Log file path is %s", logFile.c_str());
     Log::I(Log::Tag::AU, "Runtime path is %s", runtimeDir.c_str());
-    Log::I(Log::Tag::AU, "New runtime version is %s", verCode.c_str());
+    Log::I(Log::Tag::AU, "New runtime version is %s", verName.c_str());
 
     auto currentPath = runtimeDir / "current";
     std::error_code ec;
@@ -163,7 +164,7 @@ int main(int argc, char const *argv[])
     CHECK_ASSERT(ec.value() == 0, ErrCode::AutoUpdateReadLinkFailed);
     Log::I(Log::Tag::AU, "Backup old symlink: %s", oldSymlink.c_str());
 
-    int ret = trinity::SwitchFeedsdTo(verCode, currentPath, parentPid, launchCmd);
+    int ret = trinity::SwitchFeedsdTo(verName, currentPath, parentPid, launchCmd);
     if(ret >= 0) {
         return 0;
     }
@@ -171,7 +172,7 @@ int main(int argc, char const *argv[])
 
     // Failed to update to new version, recovery to old version.
     Log::W(Log::Tag::AU, "Failed to switch feedsd to: %s, tryto recovery old version: %s.",
-                         verCode.c_str(), oldSymlink.c_str());
+                         verName.c_str(), oldSymlink.c_str());
     ret = trinity::SwitchFeedsdTo(oldSymlink, currentPath, parentPid, launchCmd);
     CHECK_ERROR(ret);
 

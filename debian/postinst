@@ -31,6 +31,7 @@ case "$1" in
     fi
 
     FEEDSD_VERSION=$(dpkg -s $DPKG_MAINTSCRIPT_PACKAGE | sed -n 's/^Version: //p')
+    rm -rf /var/lib/feedsd/runtime/current
     ln -sf "$FEEDSD_VERSION" /var/lib/feedsd/runtime/current
     if [ -e "/etc/feedsd" ]; then
         rm -r /var/lib/feedsd/runtime/current/etc/feedsd
