@@ -99,10 +99,10 @@ target_link_libraries(feedsd PRIVATE
 
 set(FEEDSD_LISTEN_IP 0.0.0.0)
 if(CMAKE_SYSTEM_NAME STREQUAL Linux)
-    set(FEEDSD_LOG_DIR /var/lib/feedsd/log/${PROJECT_VERSION_CODE})
+    set(FEEDSD_LOG_DIR /var/lib/feedsd/log/${PROJECT_VERSION})
     set(FEEDSD_DATA_DIR /var/lib/feedsd)
 else()
-    set(FEEDSD_LOG_DIR ~/.feedsd/log/${PROJECT_VERSION_CODE})
+    set(FEEDSD_LOG_DIR ~/.feedsd/log/${PROJECT_VERSION})
     set(FEEDSD_DATA_DIR ~/.feedsd)
 endif()
 
@@ -117,7 +117,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/feedsd.conf
     DESTINATION ${FEEDS_INT_ROOT_DIR}/etc/feedsd
     COMPONENT main)
 
-install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${PROJECT_VERSION_CODE} ${CMAKE_INSTALL_PREFIX}/${FEEDS_INT_RUNTIME_DIR}/current)")
+install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${PROJECT_VERSION} ${CMAKE_INSTALL_PREFIX}/${FEEDS_INT_RUNTIME_DIR}/current)")
 
 install(PROGRAMS ${CMAKE_SOURCE_DIR}/scripts/feedsd.sh
     DESTINATION bin

@@ -313,6 +313,9 @@ int transport_init(const std::vector<const char*> execArgv, FeedsConfig *cfg)
         goto failure;
     }
 
+    vlogI(TAG_MAIN "Feedsd version: %s", FEEDSD_VER);
+    vlogI(TAG_MAIN "Data save to: %s", cfg->data_dir);
+    vlogI(TAG_MAIN "Log save to: %s", cfg->carrier_opts.log_file);
     rc = trinity::CommandHandler::GetInstance()->config(execArgv, cfg->data_dir, carrier_instance);
     if(rc < 0) {
         vlogE(TAG_MAIN "Config command handler failed");
@@ -406,15 +409,11 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    vlogI(TAG_MAIN "Feedsd version: %s", FEEDSD_VER);
-    vlogI(TAG_MAIN "Loading config file from: %s", cfg_file);
     memset(&cfg, 0, sizeof(cfg));
     if (!load_cfg(cfg_file, &cfg)) {
         vlogE(TAG_MAIN "Loading configure failed!");
         return -1;
     }
-    vlogI(TAG_MAIN "Data save to: %s", cfg.data_dir);
-    vlogI(TAG_MAIN "Log save to: %s", cfg.carrier_opts.log_file);
 
     std::vector<const char*> execArgv;
     for(auto idx = 0; idx < argc; idx++) {
@@ -426,6 +425,7 @@ int main(int argc, char *argv[])
         free_cfg(&cfg);
         return -1;
     }
+    vlogI(TAG_MAIN "Loaded config file from: %s", cfg_file);
 
     rc = msgq_init();
     if (rc < 0) {

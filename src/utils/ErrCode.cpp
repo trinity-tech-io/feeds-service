@@ -38,7 +38,7 @@ std::string ErrCode::ToString(int errCode)
         return err_strerror(errCode);
     }
 
-    static const std::map<int, const char*> errDespMap = {
+    static const std::map<int              , const char*> errDespMap = {
         { ReservedError                        , "ReservedError"},
         { UnknownError                         , "UnknownError"},
         { UnimplementedError                   , "UnimplementedError"},
@@ -53,6 +53,9 @@ std::string ErrCode::ToString(int errCode)
         { OutOfMemoryError                     , "OutOfMemoryError"},
         { CompletelyFinishedNotify             , "CompletelyFinishedNotify"},
         { DirectoryNotExistsError              , "DirectoryNotExistsError"},
+        { BadFileSize                          , "BadFileSize"},
+        { BadFileMd5                           , "BadFileMd5"},
+        { ExecSystemCommendFailed              , "ExecSystemCommendFailed"},
 
         { DidNotReady                          , "DidNotReady"},
         { InvalidAccessToken                   , "InvalidAccessToken"},
@@ -130,6 +133,28 @@ std::string ErrCode::ToString(int errCode)
         { MsgPackUnknownRequest                , "MsgPackUnknownRequest"},
 
         { RpcUnimplementedError                , "RpcUnimplementedError"},
+
+        { HttpClientCurlErrStart               , "HttpClientCurlErrStart"},
+        { HttpClientCurlErrEnd                 , "HttpClientCurlErrEnd"},
+        { HttpClientUnknownError               , "HttpClientUnknownError"},
+        { HttpClientHeaderNotFound             , "HttpClientHeaderNotFound"},
+        { HttpClientNullArgument               , "HttpClientNullArgument"},
+        { HttpClientBadArgument                , "HttpClientBadArgument"},
+        { HttpClientUrlNotExists               , "HttpClientUrlNotExists"},
+        { HttpClientUserCanceled               , "HttpClientUserCanceled"},
+        { HttpClientIOFailed                   , "HttpClientIOFailed"},
+        { HttpClientNetFailed                  , "HttpClientNetFailed"},
+
+        { AutoUpdateAlreadyNewest              , "AutoUpdateAlreadyNewest"},
+        { AutoUpdateUnsuppertProduct           , "AutoUpdateUnsuppertProduct"},
+        { AutoUpdateBadRuntimeDir              , "AutoUpdateBadRuntimeDir"},
+        { AutoUpdateMoveTarballFailed          , "AutoUpdateMoveTarballFailed"},
+        { AutoUpdateBadTarball                 , "AutoUpdateBadTarball"},
+        { AutoUpdateKillRuntimeFailed          , "AutoUpdateKillRuntimeFailed"},
+        { AutoUpdateStartRuntimeFailed         , "AutoUpdateStartRuntimeFailed"},
+        { AutoUpdateReadLinkFailed             , "AutoUpdateReadLinkFailed"},
+        { AutoUpdateRemoveLinkFailed           , "AutoUpdateRemoveLinkFailed"},
+        { AutoUpdateMakeLinkFailed             , "AutoUpdateMakeLinkFailed"},
     };
 
     auto it = errDespMap.find(errCode);
