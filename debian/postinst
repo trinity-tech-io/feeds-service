@@ -39,9 +39,6 @@ case "$1" in
     fi
 
     chperms feedsd feedsd 0775 /var/lib/feedsd
-
-    mkdir -p "/var/lib/feedsd/log/$FEEDSD_VERSION"
-    chperms feedsd feedsd 0775 "/var/lib/feedsd/log/$FEEDSD_VERSION"
   ;;
   configure)
 esac

@@ -415,13 +415,25 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    std::filesystem::path logFile = cfg.carrier_opts.log_file;
+    auto logDir = logFile.parent_path();
+    auto logDirExists = std::filesystem::exists(logDir);
+    if(logDirExists == false) {
+        logDirExists = std::filesystem::create_directories(logDir);
+    }
+    if(logDirExists == false) {
+        vlogE(TAG_MAIN "Create log directory failed!");
+        free_cfg(&cfg);
+        return -1;
+    }
+
     std::vector<const char*> execArgv;
     for(auto idx = 0; idx < argc; idx++) {
         execArgv.push_back(argv[idx]);
     }
-
     rc = transport_init(execArgv, &cfg);
     if (rc < 0) {
+        vlogE(TAG_MAIN "transport init failed!");
         free_cfg(&cfg);
         return -1;
     }

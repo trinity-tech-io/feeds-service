@@ -121,10 +121,10 @@ static int SwitchFeedsdTo(const std::string& verName,
     Log::I(Log::Tag::AU, "Switching symlink %s ==> %s",
                          currentPath.c_str(), verName.c_str());
 
-    ret = KillFeedsdProcess(feedsdPid);
+    ret = MakeSymLink(verName, currentPath);
     CHECK_ERROR(ret);
 
-    ret = MakeSymLink(verName, currentPath);
+    ret = KillFeedsdProcess(feedsdPid);
     CHECK_ERROR(ret);
 
     ret = LaunchFeedsdProcess(launchCmd);
