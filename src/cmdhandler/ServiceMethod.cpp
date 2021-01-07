@@ -5,6 +5,8 @@
 #include <Log.hpp>
 #include <Platform.hpp>
 
+#undef FEAT_AUTOUPDATE
+
 namespace trinity {
 
 /* =========================================== */
@@ -35,7 +37,9 @@ ServiceMethod::ServiceMethod(const std::filesystem::path& cacheDir,
         },
     };
 
+#ifdef FEAT_AUTOUPDATE
     setHandleMap({}, advancedHandlerMap);
+#endif // FEAT_AUTOUPDATE
 }
 
 ServiceMethod::~ServiceMethod()
@@ -58,9 +62,6 @@ int ServiceMethod::onDownloadNewService(const std::string &from,
     CHECK_ASSERT(requestPtr != nullptr, ErrCode::InvalidArgument);
     const auto& params = requestPtr->params;
     responseArray.clear();
-
-    bool validArgus = ( params.access_token.empty() == false);
-    CHECK_ASSERT(validArgus, ErrCode::InvalidArgument);
 
     int needUpdate = AutoUpdate::GetInstance()->needUpdate(params.new_version);
     CHECK_ERROR(needUpdate);
@@ -125,8 +126,8 @@ int ServiceMethod::onStartNewService(const std::string& from,
     const auto& params = requestPtr->params;
     responseArray.clear();
 
-    bool validArgus = ( params.access_token.empty() == false);
-    CHECK_ASSERT(validArgus, ErrCode::InvalidArgument);
+    int needUpdate = AutoUpdate::GetInstance()->needUpdate(params.new_version);
+    CHECK_ERROR(needUpdate);
 
     auto execAbsPath = std::filesystem::absolute(execArgv[0]);
     auto runtimePath = execAbsPath.parent_path().parent_path().parent_path(); // remove [current/bin/feedsd]
