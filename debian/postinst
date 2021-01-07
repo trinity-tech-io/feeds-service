@@ -34,8 +34,7 @@ case "$1" in
     rm -rf /var/lib/feedsd/runtime/current
     ln -sf "$FEEDSD_VERSION" /var/lib/feedsd/runtime/current
     if [ -e "/etc/feedsd" ]; then
-        rm -r /var/lib/feedsd/runtime/current/etc/feedsd
-        mv "/etc/feedsd" /var/lib/feedsd/runtime/current/etc/feedsd
+        rm -r /etc/feedsd
     fi
 
     chperms feedsd feedsd 0775 /var/lib/feedsd
