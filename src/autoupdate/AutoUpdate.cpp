@@ -154,14 +154,14 @@ int AutoUpdate::downloadTarball(const std::string& verName,
     auto autoUpdateCacheDir = cacheDir / "autoupdate";
     auto autoUpdateFilePath = autoUpdateCacheDir / name;
 
-    auto dirExists = std::filesystem::exists(autoUpdateCacheDir);
-    if(dirExists == false) {
-        dirExists = std::filesystem::create_directories(autoUpdateCacheDir);
-    }
-    CHECK_ASSERT(dirExists, ErrCode::FileNotExistsError);
-
     int ret = checkTarball(autoUpdateFilePath, size, md5);
     if(ret != 0) {
+        std::error_code ec;
+        std::filesystem::remove_all(autoUpdateCacheDir, ec); // noexcept
+
+        auto dirExists = std::filesystem::create_directories(autoUpdateCacheDir);
+        CHECK_ASSERT(dirExists, ErrCode::FileNotExistsError);
+
         Log::D(Log::Tag::AU, "Downloading update tarball from %s.", url.c_str());
         HttpClient httpClient;
         ret = httpClient.url(url);
