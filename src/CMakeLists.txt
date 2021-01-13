@@ -106,6 +106,8 @@ else()
     set(FEEDSD_DATA_DIR ~/.feedsd)
 endif()
 
+configure_file(../scripts/feedsd.sh.in feedsd.sh @ONLY
+    NEWLINE_STYLE UNIX)
 configure_file(feedsd.conf.in feedsd.conf @ONLY
     NEWLINE_STYLE UNIX)
 
@@ -119,7 +121,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/feedsd.conf
 
 install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${PROJECT_VERSION} ${CMAKE_INSTALL_PREFIX}/${FEEDS_INT_RUNTIME_DIR}/current)")
 
-install(PROGRAMS ${CMAKE_SOURCE_DIR}/scripts/feedsd.sh
+install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/feedsd.sh
     DESTINATION bin
     RENAME feedsd
     COMPONENT main)

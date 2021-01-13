@@ -1,0 +1,36 @@
+#! /bin/sh
+
+set -o errexit
+
+FEEDSD_VER="@PROJECT_VERSION@";
+
+SCRIPT_DIR=$(cd $(dirname "$0") && pwd);
+ROOT_DIR=$(dirname "$SCRIPT_DIR");
+
+RUNTIME_DIR="/var/lib/feedsd/runtime";
+if [ ! -e "$RUNTIME_DIR/$FEEDSD_VER" ]; then
+	RUNTIME_DIR="$ROOT_DIR/$RUNTIME_DIR";
+fi
+if [ ! -e "$RUNTIME_DIR/$FEEDSD_VER" ]; then
+	echo "Failed to found feeds service runtime dir.";
+	exit 1;
+fi
+
+RUNTIME="$RUNTIME_DIR/current/bin/feedsd";
+if [ ! -f "$RUNTIME" ]; then
+    CURR_LINK=$(readlink "$RUNTIME_DIR/current");
+	echo "Runtime is not found in $CURR_LINK";
+	echo "Revert current link to $FEEDSD_VER";
+	rm -f "$RUNTIME_DIR/current"
+	ln -s "$FEEDSD_VER" "$RUNTIME_DIR/current";
+fi
+if [ ! -f "$RUNTIME" ]; then
+	echo "Failed to found feeds service runtime.";
+	exit 1;
+fi
+
+RUNTIME_PDIR=$(dirname "$RUNTIME");
+RUNTIME_PDIR=$(cd "$RUNTIME_PDIR" && pwd -P);
+echo "Start Feeds Service from: '$RUNTIME_PDIR/feedsd'";
+"$RUNTIME" $@;
+exit 0;
