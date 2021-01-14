@@ -20,7 +20,12 @@ namespace Rpc {
 /* =========================================== */
 int Factory::Unmarshal(const std::vector<uint8_t>& data, std::shared_ptr<Request>& request)
 {
-    auto mpUnpackHandle = msgpack::unpack(reinterpret_cast<const char*>(data.data()), data.size());
+    msgpack::object_handle mpUnpackHandle;
+    try {
+        mpUnpackHandle = msgpack::unpack(reinterpret_cast<const char*>(data.data()), data.size());
+    } catch(...) {
+        CHECK_ASSERT(false, ErrCode::MsgPackParseFailed);
+    }
     const msgpack::object& mpRoot = mpUnpackHandle.get();
     CHECK_ASSERT(mpRoot.type == msgpack::type::MAP, ErrCode::MsgPackInvalidStruct);
     auto root = mpRoot.as<Dict>();
@@ -37,7 +42,11 @@ int Factory::Unmarshal(const std::vector<uint8_t>& data, std::shared_ptr<Request
         request = std::make_shared<Request>();
         processed = ErrCode::UnimplementedError;
     }
-    request->unpack(mpRoot);
+    try {
+        request->unpack(mpRoot);
+    } catch(...) {
+        CHECK_ASSERT(false, ErrCode::MsgPackParseFailed);
+    }
     CHECK_ASSERT(request->method.empty() == false, ErrCode::MsgPackParseFailed);
 
     return processed;
@@ -69,6 +78,13 @@ std::shared_ptr<Request> Factory::MakeRequest(const std::string& method)
         request = std::make_shared<GetMultiLikesAndCommentsCountRequest>();
     } else if(method == Method::GetMultiSubscribersCount) {
         request = std::make_shared<GetMultiSubscribersCountRequest>();
+    } else if(method == Method::MigrateServiceData) {
+        request = std::make_shared<MigrateServiceDataRequest>();
+    }
+
+    if(request != nullptr) {
+        request->version = "1.0";
+        request->method = method;
     }
 
     return request;
@@ -88,11 +104,45 @@ std::shared_ptr<Response> Factory::MakeResponse(const std::string& method)
         response = std::make_shared<GetMultiLikesAndCommentsCountResponse>();
     } else if(method == Method::GetMultiSubscribersCount) {
         response = std::make_shared<GetMultiSubscribersCountResponse>();
+    } else if(method == Method::MigrateServiceData) {
+        response = std::make_shared<MigrateServiceDataResponse>();
     } else {
         Log::E(Log::Tag::Rpc, "RPC Factory ignore to make response from method: %s.", method.c_str());
     }
 
     return response;
+}
+
+std::shared_ptr<Notify> Factory::MakeNotify(const std::string& method)
+{
+    std::shared_ptr<Notify> notify;
+
+    if(method == Method::DownloadNewService) {
+        notify = std::make_shared<DownloadNewServiceNotify>();
+    } else if(method == Method::StartNewService) {
+        notify = std::make_shared<StartNewServiceNotify>();
+    } else if(method == Method::MigrateServiceData) {
+        notify = std::make_shared<MigrateServiceDataNotify>();
+    } else {
+        Log::E(Log::Tag::Rpc, "RPC Factory ignore to make notify from method: %s.", method.c_str());
+    }
+
+    notify->version = "1.0";
+    notify->method = method;
+
+    return notify;
+}
+
+std::shared_ptr<Error> Factory::MakeError(int errCode)
+{
+    std::shared_ptr<Error> error = std::make_shared<Error>();
+
+    error->version = "1.0";
+
+    error->error.code = errCode;
+    error->error.message = ErrCode::ToString(errCode);
+
+    return error;
 }
 
 /* =========================================== */

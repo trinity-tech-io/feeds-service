@@ -187,6 +187,29 @@ struct GetMultiSubscribersCountResponse : Response {
 };
 
 
+struct MigrateServiceDataRequest : RequestWithToken {
+    struct Params : RequestWithToken::Params {
+        std::string drive_name;
+        std::string drive_url;
+        std::string drive_access_token;
+        MSGPACK_DEFINE(MSGPACK_REQUEST_TOKEN_ARGS, drive_name, drive_url, drive_access_token);
+    };
+
+    Params params;
+    MSGPACK_DEFINE_WITHTOKEN(MigrateServiceDataRequest, params.access_token,
+                             MSGPACK_REQUEST_ARGS, params)
+};
+
+struct MigrateServiceDataResponse : Response {
+    MSGPACK_DEFINE_STRUCT(MigrateServiceDataResponse,
+                          MSGPACK_RESPONSE_ARGS);
+};
+
+struct MigrateServiceDataNotify : Notify {
+    MSGPACK_DEFINE_STRUCT(MigrateServiceDataNotify,
+                          MSGPACK_NOTIFY_ARGS);
+};
+
 } // namespace Rpc
 } // namespace trinity
 
