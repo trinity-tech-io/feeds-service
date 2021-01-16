@@ -1,7 +1,3 @@
-# pkg_search_module(pkg-openssl REQUIRED openssl)
-# message(STATUS "openssl include path: ${pkg-openssl_INCLUDE_DIRS}")
-# message(STATUS "openssl library path: ${pkg-openssl_STATIC_LDFLAGS}")
-
 file( GLOB MASSDATA_SOURCES "*.cpp" )
 
 if(${CMAKE_VERSION} VERSION_LESS "3.12")

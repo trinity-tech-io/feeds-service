@@ -78,8 +78,8 @@ std::shared_ptr<Request> Factory::MakeRequest(const std::string& method)
         request = std::make_shared<GetMultiLikesAndCommentsCountRequest>();
     } else if(method == Method::GetMultiSubscribersCount) {
         request = std::make_shared<GetMultiSubscribersCountRequest>();
-    } else if(method == Method::MigrateServiceData) {
-        request = std::make_shared<MigrateServiceDataRequest>();
+    } else if(method == Method::BackupServiceData) {
+        request = std::make_shared<BackupServiceDataRequest>();
     }
 
     if(request != nullptr) {
@@ -104,8 +104,8 @@ std::shared_ptr<Response> Factory::MakeResponse(const std::string& method)
         response = std::make_shared<GetMultiLikesAndCommentsCountResponse>();
     } else if(method == Method::GetMultiSubscribersCount) {
         response = std::make_shared<GetMultiSubscribersCountResponse>();
-    } else if(method == Method::MigrateServiceData) {
-        response = std::make_shared<MigrateServiceDataResponse>();
+    } else if(method == Method::BackupServiceData) {
+        response = std::make_shared<BackupServiceDataResponse>();
     } else {
         Log::E(Log::Tag::Rpc, "RPC Factory ignore to make response from method: %s.", method.c_str());
     }
@@ -121,8 +121,8 @@ std::shared_ptr<Notify> Factory::MakeNotify(const std::string& method)
         notify = std::make_shared<DownloadNewServiceNotify>();
     } else if(method == Method::StartNewService) {
         notify = std::make_shared<StartNewServiceNotify>();
-    } else if(method == Method::MigrateServiceData) {
-        notify = std::make_shared<MigrateServiceDataNotify>();
+    } else if(method == Method::BackupServiceData) {
+        notify = std::make_shared<BackupServiceDataNotify>();
     } else {
         Log::E(Log::Tag::Rpc, "RPC Factory ignore to make notify from method: %s.", method.c_str());
     }

@@ -38,8 +38,8 @@ ServiceMethod::ServiceMethod(const std::filesystem::path& cacheDir,
         },
 #endif // FEAT_AUTOUPDATE
         {
-            Rpc::Factory::Method::MigrateServiceData,
-            {std::bind(&ServiceMethod::onMigrateServiceData, this, _1, _2, _3), Accessible::Owner}
+            Rpc::Factory::Method::BackupServiceData,
+            {std::bind(&ServiceMethod::onBackupServiceData, this, _1, _2, _3), Accessible::Owner}
         },
     };
 
@@ -155,11 +155,11 @@ int ServiceMethod::onStartNewService(const std::string& from,
     return 0;
 }
 
-int ServiceMethod::onMigrateServiceData(const std::string& from,
-                                        std::shared_ptr<Rpc::Request> request,
-                                        std::vector<std::shared_ptr<Rpc::Response>>& responseArray)
+int ServiceMethod::onBackupServiceData(const std::string& from,
+                                       std::shared_ptr<Rpc::Request> request,
+                                       std::vector<std::shared_ptr<Rpc::Response>>& responseArray)
 {
-    auto requestPtr = std::dynamic_pointer_cast<Rpc::MigrateServiceDataRequest>(request);
+    auto requestPtr = std::dynamic_pointer_cast<Rpc::BackupServiceDataRequest>(request);
     CHECK_ASSERT(requestPtr != nullptr, ErrCode::InvalidArgument);
     const auto& params = requestPtr->params;
     responseArray.clear();

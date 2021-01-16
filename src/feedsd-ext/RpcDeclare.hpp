@@ -187,7 +187,7 @@ struct GetMultiSubscribersCountResponse : Response {
 };
 
 
-struct MigrateServiceDataRequest : RequestWithToken {
+struct BackupServiceDataRequest : RequestWithToken {
     struct Params : RequestWithToken::Params {
         std::string drive_name;
         std::string drive_url;
@@ -196,17 +196,17 @@ struct MigrateServiceDataRequest : RequestWithToken {
     };
 
     Params params;
-    MSGPACK_DEFINE_WITHTOKEN(MigrateServiceDataRequest, params.access_token,
+    MSGPACK_DEFINE_WITHTOKEN(BackupServiceDataRequest, params.access_token,
                              MSGPACK_REQUEST_ARGS, params)
 };
 
-struct MigrateServiceDataResponse : Response {
-    MSGPACK_DEFINE_STRUCT(MigrateServiceDataResponse,
+struct BackupServiceDataResponse : Response {
+    MSGPACK_DEFINE_STRUCT(BackupServiceDataResponse,
                           MSGPACK_RESPONSE_ARGS);
 };
 
-struct MigrateServiceDataNotify : Notify {
-    MSGPACK_DEFINE_STRUCT(MigrateServiceDataNotify,
+struct BackupServiceDataNotify : Notify {
+    MSGPACK_DEFINE_STRUCT(BackupServiceDataNotify,
                           MSGPACK_NOTIFY_ARGS);
 };
 

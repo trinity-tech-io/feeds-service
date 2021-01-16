@@ -169,11 +169,13 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
     include(CPack)
 endif()
 
+add_subdirectory(clouddrive)
 add_subdirectory(cmdhandler)
 add_subdirectory(feedsd-ext)
 add_subdirectory(massdata)
 add_subdirectory(utils)
-target_link_libraries(feedsd
+target_link_libraries(feedsd PRIVATE
+    clouddrive
     cmdhandler
     feedsd-ext
     massdata

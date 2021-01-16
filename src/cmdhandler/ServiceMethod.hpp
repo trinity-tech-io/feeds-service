@@ -39,9 +39,9 @@ private:
     int onStartNewService(const std::string& from,
                           std::shared_ptr<Rpc::Request> request,
                           std::vector<std::shared_ptr<Rpc::Response>>& responseArray);
-    int onMigrateServiceData(const std::string& from,
-                             std::shared_ptr<Rpc::Request> request,
-                             std::vector<std::shared_ptr<Rpc::Response>>& responseArray);
+    int onBackupServiceData(const std::string& from,
+                            std::shared_ptr<Rpc::Request> request,
+                            std::vector<std::shared_ptr<Rpc::Response>>& responseArray);
 
     std::filesystem::path cacheDir;
     std::vector<const char*> execArgv;
