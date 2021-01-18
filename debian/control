@@ -1,0 +1,11 @@
+Package: feedsd
+Version:
+Section: custom
+Priority: optional
+Architecture: all
+Depends: debconf (>= 0.2.26),
+         lsb-base (>= 3.0), init-system-helpers (>= 1.18~),
+         libc6 (>= 2.14), libsystemd0
+Installed-Size:
+Maintainer: trinity-tech.io
+Description: Feeds Service Distribution Packages

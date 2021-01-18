@@ -98,14 +98,6 @@ target_link_libraries(feedsd
     m)
 
 set(FEEDSD_LISTEN_IP 0.0.0.0)
-if(CMAKE_SYSTEM_NAME STREQUAL Linux)
-    set(FEEDSD_LOG_DIR /var/log/feedsd)
-    set(FEEDSD_DATA_DIR /var/lib/feedsd)
-else()
-    set(FEEDSD_LOG_DIR ~/.feedsd)
-    set(FEEDSD_DATA_DIR ~/.feedsd)
-endif()
-
 configure_file(feedsd.conf.in feedsd.conf @ONLY
     NEWLINE_STYLE UNIX)
 
@@ -128,45 +120,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
         DESTINATION etc/init.d
         RENAME feedsd
         COMPONENT main)
-endif()
-
-if(CMAKE_SYSTEM_NAME STREQUAL Linux)
-    set(CPACK_GENERATOR DEB)
-
-    set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
-    set(CPACK_PACKAGE_DESCRIPTION "Feeds Service Distribution Packages")
-    set(CPACK_PACKAGE_VENDOR trinity-tech.io)
-    set(CPACK_PACKAGE_CONTACT lifayi@trinity-tech.io)
-    set(CPACK_PACKAGING_INSTALL_PREFIX /)
-    set(CPACK_PACKAGE_CHECKSUM MD5)
-    set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
-
-    if(RASPBERRYPI)
-        set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE armhf)
-    else()
-        set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE amd64)
-    endif()
-
-    set(CPACK_COMPONENTS_ALL main)
-
-    set(CPACK_DEBIAN_PACKAGE_PREDEPENDS adduser)
-    set(CPACK_DEBIAN_PACKAGE_DEPENDS
-        "lsb-base (>= 3.0), init-system-helpers (>= 1.18~),
-        libc6 (>= 2.14), libsystemd0")
-    set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "http://www.trinity-tech.io/")
-    set(CPACK_DEBIAN_PACKAGE_DESCRIPTION
-        "Feeds service daemon.")
-
-    set(CPACK_DEBIAN_PACKAGE_CONTROL_STRICT_PERMISSION TRUE)
-
-    set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA
-        ${CMAKE_SOURCE_DIR}/debian/postinst
-        ${CMAKE_SOURCE_DIR}/debian/postrm
-        ${CMAKE_SOURCE_DIR}/debian/preinst
-        ${CMAKE_SOURCE_DIR}/debian/prerm
-        ${CMAKE_SOURCE_DIR}/debian/conffiles)
-
-    include(CPack)
 endif()
 
 add_subdirectory(cmdhandler)

@@ -21,3 +21,6 @@ add_subdirectory(src)
 # if(DEFINED WITH_TEST)
 # 	add_subdirectory(test)
 # endif()
+
+add_custom_target(debpkg
+    COMMAND "${PROJECT_SOURCE_DIR}/scripts/make-deb.sh" "${PROJECT_VERSION}" "${CMAKE_CURRENT_BINARY_DIR}/deb" "${CMAKE_INSTALL_PREFIX}")

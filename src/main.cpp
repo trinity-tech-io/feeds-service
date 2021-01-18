@@ -410,6 +410,17 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    auto logDirPath = std::filesystem::path(cfg.carrier_opts.log_file).parent_path();
+    vlogI(TAG_MAIN "Save log to dir: %s", logDirPath.c_str());
+    auto logDirExists = std::filesystem::exists(logDirPath);
+    if(logDirExists == false) {
+        logDirExists = std::filesystem::create_directories(logDirPath);
+        if (logDirExists == false) {
+            vlogW(TAG_MAIN "Failed to ensure log dir: %s", logDirPath.c_str());
+        }
+    }
+
+
     rc = transport_init(&cfg);
     if (rc < 0) {
         free_cfg(&cfg);

@@ -43,6 +43,6 @@ did = {
 # Defualt log level is INFO
 log-level = 4
 
-log-file = "@FEEDSD_LOG_DIR@/feedsd.log"
+log-file = "~/.feedsd/log/feedsd-@PROJECT_VERSION@.log"
 
-data-dir = "@FEEDSD_DATA_DIR@"
+data-dir = "~/.feedsd"
