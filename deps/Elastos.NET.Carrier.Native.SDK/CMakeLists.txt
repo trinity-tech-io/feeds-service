@@ -22,13 +22,10 @@ ExternalProject_Add(
         ${EXTERNAL_CMAKE_PROJECT_ADDITIONAL_ARGS}
 )
 
-export_shared_library(carrier)
-export_shared_library(carriersession)
-
-add_library(libcarrier-shared INTERFACE)
-target_link_libraries(libcarrier-shared INTERFACE carrier carriersession
+add_library(libcarrier-static INTERFACE)
+target_link_libraries(libcarrier-static INTERFACE carrier carriersession
                                                   pj pjlib-util pjmedia pjnath 
                                                   toxcore srtp flatccrt
                                                   curl crypto ssl tls z
                                                   libcrystal-static)
-target_include_directories(libcarrier-shared INTERFACE ${FEEDS_INT_DIST_DIR}/include)
+target_include_directories(libcarrier-static INTERFACE ${FEEDS_INT_DIST_DIR}/include)

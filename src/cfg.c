@@ -208,7 +208,7 @@ FeedsConfig *load_cfg(const char *cfg_file, FeedsConfig *fc)
     sprintf(path, "%s/carrier", fc->data_dir);
     fc->carrier_opts.persistent_location = strdup(path);
     if (!fc->carrier_opts.persistent_location ||
-        mkdirs(fc->carrier_opts.persistent_location, S_IRWXU) < 0) {
+        makedirs(fc->carrier_opts.persistent_location, S_IRWXU) < 0) {
         fprintf(stderr, "Making carrier dir[%s] failed.\n", fc->carrier_opts.persistent_location);
         config_destroy(&cfg);
         free_cfg(fc);
@@ -217,7 +217,7 @@ FeedsConfig *load_cfg(const char *cfg_file, FeedsConfig *fc)
 
     sprintf(path, "%s/didcache", fc->data_dir);
     fc->didcache_dir = strdup(path);
-    if (!fc->didcache_dir || mkdirs(fc->didcache_dir, S_IRWXU) < 0) {
+    if (!fc->didcache_dir || makedirs(fc->didcache_dir, S_IRWXU) < 0) {
         fprintf(stderr, "Making did cache dir[%s] failed.\n", fc->didcache_dir);
         config_destroy(&cfg);
         free_cfg(fc);
@@ -226,7 +226,7 @@ FeedsConfig *load_cfg(const char *cfg_file, FeedsConfig *fc)
 
     sprintf(path, "%s/didstore", fc->data_dir);
     fc->didstore_dir = strdup(path);
-    if (!fc->didstore_dir || mkdirs(fc->didstore_dir, S_IRWXU) < 0) {
+    if (!fc->didstore_dir || makedirs(fc->didstore_dir, S_IRWXU) < 0) {
         fprintf(stderr, "Making did store dir[%s] failed.\n", fc->didstore_dir);
         config_destroy(&cfg);
         free_cfg(fc);
@@ -236,7 +236,7 @@ FeedsConfig *load_cfg(const char *cfg_file, FeedsConfig *fc)
     sprintf(path, "%s/db/feeds.sqlite3", fc->data_dir);
     fc->db_fpath = strdup(path);
     strcpy(path, fc->db_fpath);
-    if (!fc->db_fpath || mkdirs(dirname(path), S_IRWXU) < 0) {
+    if (!fc->db_fpath || makedirs(dirname(path), S_IRWXU) < 0) {
         fprintf(stderr, "Making db dir[%s] failed.\n", path);
         config_destroy(&cfg);
         free_cfg(fc);

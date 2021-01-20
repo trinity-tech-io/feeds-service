@@ -45,7 +45,7 @@ int mkdir_internal(const char *path, mode_t mode)
     return rc;
 }
 
-int mkdirs(const char *path, mode_t mode)
+int makedirs(const char *path, mode_t mode)
 {
     int rc = 0;
     char *pp;

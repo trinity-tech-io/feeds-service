@@ -6,9 +6,9 @@ ExternalProject_Add(
     Elastos.DID.Native.SDK
 
     PREFIX ${FEEDS_DEPS_BUILD_PREFIX}
-    URL https://github.com/elastos/Elastos.DID.Native.SDK/archive/14073f6173bc4ebff03ade0cccefd6d9082d60c3.zip
-    URL_HASH SHA256=37e74234e8a032831c6ff2ab4e38e668d755f99ddb0f3fb32aae25f8756c20ae
-    DOWNLOAD_NAME Elastos.DID.Native.SDK-release-v1.x.zip
+    URL https://github.com/elastos/Elastos.DID.Native.SDK/archive/v1.2-temp.tar.gz
+    URL_HASH SHA256=8f88ef7e3f78a3915d7b0f0a0795c6a7e89b32efc28cb2013f6ec078f25b59ad
+    DOWNLOAD_NAME Elastos.DID.Native.SDK-release-v1.2-temp.zip
     DOWNLOAD_DIR ${FEEDS_DEPS_TARBALL_DIR}
     DOWNLOAD_NO_PROGRESS 1
     LOG_DOWNLOAD FALSE
@@ -16,7 +16,7 @@ ExternalProject_Add(
     PATCH_COMMAND ${PATCH_EXE} -s -p1 < ${CMAKE_CURRENT_LIST_DIR}/did.patch
 
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${FEEDS_INT_DIST_DIR}
-        -DENABLE_SHARED=TRUE
+        -DENABLE_SHARED=FALSE
         -DENABLE_STATIC=TRUE
         -DENABLE_APPS=FALSE
         -DENABLE_TESTS=FALSE
@@ -27,7 +27,6 @@ ExternalProject_Add(
         ${EXTERNAL_CMAKE_PROJECT_ADDITIONAL_ARGS}
 )
 
-export_shared_library(eladid)
-
-add_library(libeladid-shared INTERFACE)
-target_link_libraries(libeladid-shared INTERFACE eladid)
+add_library(libeladid-static INTERFACE)
+target_link_libraries(libeladid-static INTERFACE eladid hdkey
+                                                 cjose jansson zip)

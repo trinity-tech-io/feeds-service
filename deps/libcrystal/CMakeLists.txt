@@ -37,7 +37,5 @@ ExternalProject_Add_StepDependencies(
     ${CARRIER_STAMP_DIR}/Elastos.NET.Carrier.Native.SDK-done
 )
 
-export_shared_library(crystal)
-
 add_library(libcrystal-static INTERFACE)
-target_link_libraries(libcrystal-static INTERFACE crystal sodium)
+target_link_libraries(libcrystal-static INTERFACE crystal libsodium-static)
