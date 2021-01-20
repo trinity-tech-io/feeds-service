@@ -39,3 +39,6 @@ ExternalProject_Add(
     BUILD_COMMAND ${BUILD_CMD} ${BUILD_ARGS}
     INSTALL_COMMAND ${INSTALL_CMD} ${INSTALL_ARGS}
 )
+
+add_library(libsodium-static INTERFACE)
+target_link_libraries(libsodium-static INTERFACE sodium)

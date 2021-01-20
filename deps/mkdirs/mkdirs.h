@@ -25,6 +25,6 @@
 
 #include "sys/stat.h"
 
-int mkdirs(const char *path, mode_t mode);
+int makedirs(const char *path, mode_t mode);
 
 #endif // __MKDIRS_H__

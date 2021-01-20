@@ -1,299 +1,172 @@
-diff --git a/deps/libcrystal/CMakeLists.txt b/deps/libcrystal/CMakeLists.txt
---- a/deps/libcrystal/CMakeLists.txt
-+++ b/deps/libcrystal/CMakeLists.txt
-@@ -14,6 +14,8 @@ ExternalProject_Add(
-     DOWNLOAD_DIR ${PROJECT_DEPS_TARBALL_DIR}
-     DOWNLOAD_NO_PROGRESS 1
- 
-+    PATCH_COMMAND ${PATCH_EXE} -s -p1 < ${CMAKE_CURRENT_LIST_DIR}/libcrystal.patch
+diff --git a/deps/cjose/CMakeLists.txt b/deps/cjose/CMakeLists.txt
+--- a/deps/cjose/CMakeLists.txt
++++ b/deps/cjose/CMakeLists.txt
+@@ -69,4 +69,8 @@ else()
+         BUILD_COMMAND ${BUILD_CMD} ${BUILD_ARGS}
+         INSTALL_COMMAND ${INSTALL_CMD} ${INSTALL_ARGS}
+     )
+-endif()
+\ No newline at end of file
++endif()
 +
-     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${PROJECT_INT_DIST_DIR}
-         -DENABLE_STATIC=${ENABLE_STATIC}
-         -DENABLE_SHARED=${ENABLE_SHARED}
-diff --git a/deps/libcrystal/libcrystal.patch b/deps/libcrystal/libcrystal.patch
-new file mode 100644
---- /dev/null
-+++ b/deps/libcrystal/libcrystal.patch
-@@ -0,0 +1,282 @@
-+diff --git a/include/crystal/linkedhashtable.h b/include/crystal/linkedhashtable.h
-+--- a/include/crystal/linkedhashtable.h
-++++ b/include/crystal/linkedhashtable.h
-+@@ -39,11 +39,11 @@ typedef struct _hash_entry_t
-+     const void *        key;
-+     size_t              keylen;
-+     void *              data;
-+-    char                __opaque[sizeof(void *) * 4];
-++    char                __opaque[sizeof(void *) * 5];
-+ } hash_entry_t;
-+ 
-+ typedef struct hashtable_iterator_t {
-+-    char __opaque[sizeof(void *) * 4];
-++    char __opaque[sizeof(void *) * 3];
-+ } hashtable_iterator_t;
-+ 
-+ CRYSTAL_API
-+diff --git a/src/linkedhashtable.c b/src/linkedhashtable.c
-+--- a/src/linkedhashtable.c
-++++ b/src/linkedhashtable.c
-+@@ -41,6 +41,7 @@ typedef struct _hash_entry_i
-+     size_t               keylen;
-+     void *               data;
-+     uint32_t             hash_code;
-++    int                  mod_count;
-+     struct _hash_entry_i *next;
-+     struct _hash_entry_i *lst_prev;
-+     struct _hash_entry_i *lst_next;
-+@@ -49,7 +50,6 @@ typedef struct _hash_entry_i
-+ typedef struct hashtable_iterator_i {
-+     hashtable_t *htab;
-+     hash_entry_i *current;
-+-    hash_entry_i *next;
-+     int expected_mod_count;
-+ } hashtable_iterator_i;
-+ 
-+@@ -61,7 +61,6 @@ static_assert(sizeof(hashtable_iterator_t) >= sizeof(hashtable_iterator_i),
-+ struct _hashtable_t {
-+     size_t      capacity;
-+     size_t      count;
-+-    int         mod_count;
-+     int         synced;
-+     pthread_rwlock_t lock;
-+ 
-+@@ -135,7 +134,6 @@ hashtable_t *hashtable_create(size_t capacity, int synced,
-+ 
-+     htab->capacity = capacity;
-+     htab->count = 0;
-+-    htab->mod_count = 0;
-+     htab->synced = synced;
-+ 
-+     htab->hash_code = hash_code ? hash_code : default_hash_code;
-+@@ -143,6 +141,8 @@ hashtable_t *hashtable_create(size_t capacity, int synced,
-+ 
-+     htab->lst_head.lst_next = &htab->lst_head;
-+     htab->lst_head.lst_prev = &htab->lst_head;
-++    htab->lst_head.data = htab;
-++    htab->lst_head.mod_count = 0;
-+ 
-+     return htab;
-+ }
-+@@ -190,6 +190,7 @@ static void hashtable_clear_i(hashtable_t *htab)
-+     entry = htab->lst_head.lst_next;
-+     while (entry != &htab->lst_head) {
-+         cur = entry;
-++        cur->mod_count++;
-+         entry = entry->lst_next;
-+ 
-+         deref(cur->data);
-+@@ -201,7 +202,6 @@ static void hashtable_clear_i(hashtable_t *htab)
-+     htab->lst_head.lst_prev = &htab->lst_head;
-+ 
-+     htab->count = 0;
-+-    htab->mod_count++;
-+ }
-+ 
-+ static void hashtable_destroy(void *obj)
-+@@ -295,13 +295,14 @@ void *hashtable_put(hashtable_t *htab, hash_entry_t *entry)
-+         new_entry->lst_prev->lst_next = new_entry;
-+         new_entry->lst_next->lst_prev = new_entry;
-+ 
-++        (*ent)->mod_count++;
-+         deref((*ent)->data);
-+         *ent = new_entry;
-+     } else {
-+         hashtable_add(htab, entry);
-+     }
-+ 
-+-    htab->mod_count++;
-++    new_entry->mod_count++;
-+ 
-+     hashtable_unlock(htab);
-+ 
-+@@ -327,7 +328,6 @@ void *hashtable_get(hashtable_t *htab, const void *key, size_t keylen)
-+     hashtable_unlock(htab);
-+ 
-+     return val;
-+-
-+ }
-+ 
-+ int hashtable_exist(hashtable_t *htab, const void *key, size_t keylen)
-+@@ -373,12 +373,13 @@ static void *hashtable_remove_nolock(hashtable_t *htab, const void *key, size_t
-+         to_remove->lst_prev->lst_next = to_remove->lst_next;
-+         to_remove->lst_next->lst_prev = to_remove->lst_prev;
-+ 
-++        to_remove->mod_count++;
-++
-+         // val = deref(to_remove->data);
-+         // Pass reference to caller
-+         val = to_remove->data;
-+ 
-+         htab->count--;
-+-        htab->mod_count++;
-+     }
-+ 
-+     return val;
-+@@ -427,10 +428,10 @@ hashtable_iterator_t *hashtable_iterate(hashtable_t *htab,
-+ 
-+     hashtable_rlock(htab);
-+ 
-+-    it->htab = htab;
-+-    it->current = NULL;
-+-    it->next = htab->lst_head.lst_next;
-+-    it->expected_mod_count = htab->mod_count;
-++    it->htab = ref(htab);
-++    it->current = &htab->lst_head;
-++    ref(it->current->data);
-++    it->expected_mod_count = it->current->mod_count;
-+ 
-+     hashtable_unlock(htab);
-+ 
-+@@ -441,26 +442,34 @@ hashtable_iterator_t *hashtable_iterate(hashtable_t *htab,
-+ int hashtable_iterator_next(hashtable_iterator_t *iterator, void **key,
-+                               size_t *keylen, void **data)
-+ {
-+-    int rc;
-+     hashtable_iterator_i *it = (hashtable_iterator_i *)iterator;
-+ 
-+-    assert(it && it->htab && it->next && data);
-+-    if (!it || !it->htab || !it->next || !data) {
-++    assert(it && data);
-++    if (!it || !data) {
-+         errno = EINVAL;
-+         return -1;
-+     }
-+ 
-++    if (!it->htab)
-++        return 0;
-++
-+     hashtable_rlock(it->htab);
-+ 
-+-    if (it->expected_mod_count != it->htab->mod_count) {
-+-        errno = EAGAIN;
-+-        rc = -1;
-+-    } else {
-+-        if (it->next == &it->htab->lst_head) { // end
-+-            rc = 0;
-++    if (it->expected_mod_count == it->current->mod_count) {
-++        deref(it->current->data);
-++
-++        if (it->current->lst_next == &it->htab->lst_head) {
-++            hashtable_unlock(it->htab);
-++            deref(it->htab);
-++            it->current = NULL;
-++            it->htab = NULL;
-++            it->expected_mod_count = 0;
-++
-++            return 0;
-+         } else {
-+-            it->current = it->next;
-+-            it->next = it->next->lst_next;
-++            it->current = it->current->lst_next;
-++            ref(it->current->data);
-++            it->expected_mod_count = it->current->mod_count;
-+ 
-+             if (key)
-+                 *key = (void *)it->current->key;
-+@@ -470,57 +479,82 @@ int hashtable_iterator_next(hashtable_iterator_t *iterator, void **key,
-+             *data = it->current->data;
-+             ref(*data);
-+ 
-+-            rc = 1;
-++            hashtable_unlock(it->htab);
-++
-++            return 1;
-+         }
-+-    }
-++    } else {
-++        deref(it->current->data);
-+ 
-+-    hashtable_unlock(it->htab);
-++        if (!it->htab->count) {
-++            hashtable_unlock(it->htab);
-++            deref(it->htab);
-++            it->htab = NULL;
-++            it->current = NULL;
-++            it->expected_mod_count = 0;
-++
-++            return 0;
-++        } else {
-++            it->current = it->htab->lst_head.lst_next;
-++            ref(it->current->data);
-++            it->expected_mod_count = it->current->mod_count;
-++
-++            if (key)
-++                *key = (void *)it->current->key;
-++            if (keylen)
-++                *keylen = it->current->keylen;
-++
-++            *data = it->current->data;
-++            ref(*data);
-+ 
-+-    return rc;
-++            hashtable_unlock(it->htab);
-++
-++            return 1;
-++        }
-++    }
-+ }
-+ 
-+ int hashtable_iterator_has_next(hashtable_iterator_t *iterator)
-+ {
-+     hashtable_iterator_i *it = (hashtable_iterator_i *)iterator;
-+ 
-+-    assert(it && it->htab && it->next);
-+-    if (!it || !it->htab || !it->next) {
-++    assert(it);
-++    if (!it) {
-+         errno = EINVAL;
-+         return 0;
-+     }
-+ 
-+-    return it->next != &it->htab->lst_head;
-++    return it->htab ? 1 : 0;
-+ }
-+ 
-+ // return 1 on success, 0 nothing removed, -1 on modified conflict or error.
-+ int hashtable_iterator_remove(hashtable_iterator_t *iterator)
-+ {
-+-    void *ptr;
-+     hashtable_iterator_i *it = (hashtable_iterator_i *)iterator;
-++    hash_entry_i *tmp;
-+ 
-+-    assert(it && it->htab && it->next && it->current);
-+-    if (!it || !it->htab || !it->next || !it->current) {
-++    assert(it && it->htab && it->current && it->current != &it->htab->lst_head);
-++    if (!it || !it->htab || !it->current || it->current == &it->htab->lst_head) {
-+         errno = EINVAL;
-+         return -1;
-+     }
-+ 
-+     hashtable_wlock(it->htab);
-+ 
-+-    if (it->expected_mod_count != it->htab->mod_count) {
-+-        errno = EAGAIN;
-++    if (it->expected_mod_count != it->current->mod_count) {
-+         hashtable_unlock(it->htab);
-+-        return -1;
-++        return 0;
-+     }
-+ 
-+-    ptr = hashtable_remove_nolock(it->htab, it->current->key, it->current->keylen);
-+-    if (ptr) {
-+-        deref(ptr);
-+-        it->current = NULL;
-+-        it->expected_mod_count++;
-+-        hashtable_unlock(it->htab);
-+-        return 1;
-+-    }
-++    deref(it->current->data);
-++    tmp = it->current;
-++    it->current = tmp->lst_prev;
-++    ref(it->current->data);
-++    it->expected_mod_count = it->current->mod_count;
-++
-++    deref(hashtable_remove_nolock(it->htab, tmp->key, tmp->keylen));
-+ 
-+     hashtable_unlock(it->htab);
-+-    return 0;
-++
-++    return 1;
-+ }
++if(ENABLE_STATIC)
++    export_static_library(cjose)
++endif()
+diff --git a/deps/jansson/CMakeLists.txt b/deps/jansson/CMakeLists.txt
+--- a/deps/jansson/CMakeLists.txt
++++ b/deps/jansson/CMakeLists.txt
+@@ -28,3 +28,7 @@ if(WIN32)
+         )
+     endif()
+ endif()
++
++if(ENABLE_STATIC)
++    export_static_library(jansson)
++endif()
+diff --git a/deps/libzip/CMakeLists.txt b/deps/libzip/CMakeLists.txt
+--- a/deps/libzip/CMakeLists.txt
++++ b/deps/libzip/CMakeLists.txt
+@@ -28,3 +28,7 @@ ExternalProject_Add(
+         -DCMAKE_FIND_ROOT_PATH=${PROJECT_INT_DIST_DIR}
+         ${CMAKE_ARGS_INIT}
+ )
++
++if(ENABLE_STATIC)
++    export_static_library(zip)
++endif()
+diff --git a/hdkey/crypto.c b/hdkey/crypto.c
+--- a/hdkey/crypto.c
++++ b/hdkey/crypto.c
+@@ -285,7 +285,7 @@ ssize_t base64_url_decode(uint8_t *buffer, const char *base64)
+ 
+     return len; //success
+ }
+-ssize_t base58_encode(char *base58, size_t base58_len, uint8_t *input, size_t len)
++ssize_t hdkey_base58_encode(char *base58, size_t base58_len, uint8_t *input, size_t len)
+ {
+     if (!base58 || base58_len <= 0 || !input || !len)
+         return -1;
+@@ -297,7 +297,7 @@ ssize_t base58_encode(char *base58, size_t base58_len, uint8_t *input, size_t le
+     return BRBase58Encode(base58, size, input, len);
+ }
+ 
+-ssize_t base58_decode(uint8_t *data, size_t len, const char *base58)
++ssize_t hdkey_base58_decode(uint8_t *data, size_t len, const char *base58)
+ {
+     if (!data || len <= 0 || !base58)
+         return -1;
+diff --git a/hdkey/crypto.h b/hdkey/crypto.h
+--- a/hdkey/crypto.h
++++ b/hdkey/crypto.h
+@@ -54,9 +54,9 @@ ssize_t base64_url_encode(char *base64, const uint8_t *input, size_t len);
+ 
+ ssize_t base64_url_decode(uint8_t *buffer, const char *base64);
+ 
+-ssize_t base58_encode(char *base58, size_t base58_len, uint8_t *input, size_t len);
++ssize_t hdkey_base58_encode(char *base58, size_t base58_len, uint8_t *input, size_t len);
+ 
+-ssize_t base58_decode(uint8_t *data, size_t len, const char *base58);
++ssize_t hdkey_base58_decode(uint8_t *data, size_t len, const char *base58);
+ 
+ int sha256_digest_init(Sha256_Digest *sha256_digest);
+ 
+@@ -84,4 +84,4 @@ int ecdsa_verify_base64(char *sig, uint8_t *publickey, uint8_t *digest, size_t s
+ }
+ #endif
+ 
+-#endif //__CRYPTO_H__
+\ No newline at end of file
++#endif //__CRYPTO_H__
+diff --git a/src/diddocument.c b/src/diddocument.c
+--- a/src/diddocument.c
++++ b/src/diddocument.c
+@@ -1286,7 +1286,7 @@ int DIDDocumentBuilder_AddPublicKey(DIDDocumentBuilder *builder, DIDURL *keyid,
+         return -1;
+     }
+     //check base58 is valid
+-    if (base58_decode(binkey, sizeof(binkey), key) != PUBLICKEY_BYTES) {
++    if (hdkey_base58_decode(binkey, sizeof(binkey), key) != PUBLICKEY_BYTES) {
+         DIDError_Set(DIDERR_INVALID_KEY, "Decode public key failed.");
+         return -1;
+     }
+@@ -1362,7 +1362,7 @@ int DIDDocumentBuilder_AddAuthenticationKey(DIDDocumentBuilder *builder,
+         return -1;
+     }
+ 
+-    if (key && base58_decode(binkey, sizeof(binkey), key) != PUBLICKEY_BYTES) {
++    if (key && hdkey_base58_decode(binkey, sizeof(binkey), key) != PUBLICKEY_BYTES) {
+         DIDError_Set(DIDERR_INVALID_KEY, "Decode authentication key failed.");
+         return -1;
+     }
+@@ -1484,7 +1484,7 @@ int DIDDocumentBuilder_AddAuthorizationKey(DIDDocumentBuilder *builder, DIDURL *
+         return -1;
+     }
+ 
+-    if (key && base58_decode(binkey, sizeof(binkey), key) != PUBLICKEY_BYTES) {
++    if (key && hdkey_base58_decode(binkey, sizeof(binkey), key) != PUBLICKEY_BYTES) {
+         DIDError_Set(DIDERR_INVALID_KEY, "Decode public key failed.");
+         return -1;
+     }
+@@ -2010,7 +2010,7 @@ DIDURL *DIDDocument_GetDefaultPublicKey(DIDDocument *document)
+         if (DID_Equals(&pk->controller, &document->did) == 0)
+             continue;
+ 
+-        base58_decode(binkey, sizeof(binkey), pk->publicKeyBase58);
++        hdkey_base58_decode(binkey, sizeof(binkey), pk->publicKeyBase58);
+         HDKey_PublicKey2Address(binkey, idstring, sizeof(idstring));
+ 
+         if (!strcmp(idstring, pk->id.did.idstring))
+@@ -2557,7 +2557,7 @@ int DIDDocument_VerifyDigest(DIDDocument *document, DIDURL *keyid,
+         return -1;
+     }
+ 
+-    base58_decode(binkey, sizeof(binkey), PublicKey_GetPublicKeyBase58(publickey));
++    hdkey_base58_decode(binkey, sizeof(binkey), PublicKey_GetPublicKeyBase58(publickey));
+ 
+     if (ecdsa_verify_base64(sig, binkey, digest, size) == -1) {
+         DIDError_Set(DIDERR_CRYPTO_ERROR, "Ecdsa verify failed.");
+diff --git a/src/didstore.c b/src/didstore.c
+--- a/src/didstore.c
++++ b/src/didstore.c
+@@ -638,7 +638,7 @@ static int store_extendedpubkey(DIDStore *store, uint8_t *extendedkey, size_t si
+     assert(store);
+     assert(extendedkey && size > 0);
+ 
+-    if (base58_encode(publickeybase58, sizeof(publickeybase58), extendedkey, size) == -1) {
++    if (hdkey_base58_encode(publickeybase58, sizeof(publickeybase58), extendedkey, size) == -1) {
+         DIDError_Set(DIDERR_CRYPTO_ERROR, "Decode extended public key failed.");
+         return -1;
+     }
+@@ -679,7 +679,7 @@ static ssize_t load_extendedpubkey(DIDStore *store, uint8_t *extendedkey, size_t
+     if (!string)
+         return -1;
+ 
+-    len = base58_decode(extendedkey, size, string);
++    len = hdkey_base58_decode(extendedkey, size, string);
+     free((void*)string);
+     if (len < 0)
+         DIDError_Set(DIDERR_CRYPTO_ERROR, "Decode extended public key failed.");
+diff --git a/src/jwt/jwsparser.c b/src/jwt/jwsparser.c
+--- a/src/jwt/jwsparser.c
++++ b/src/jwt/jwsparser.c
+@@ -86,7 +86,7 @@ static cjose_jwk_t *get_jwk(JWSParser *parser, JWT *jwt)
+     if (!keybase58)
+         goto errorExit;
+ 
+-    base58_decode(binkey, sizeof(binkey), keybase58);
++    hdkey_base58_decode(binkey, sizeof(binkey), keybase58);
+ 
+     memset(&_spec, 0, sizeof(KeySpec));
+     spec = KeySpec_Fill(&_spec, binkey, NULL);
+diff --git a/src/jwt/jwtbuilder.c b/src/jwt/jwtbuilder.c
+--- a/src/jwt/jwtbuilder.c
++++ b/src/jwt/jwtbuilder.c
+@@ -305,7 +305,7 @@ int JWTBuilder_Sign(JWTBuilder *builder, DIDURL *keyid, const char *storepass)
+         DIDError_Set(DIDERR_NOT_EXISTS, "Key no exist.");
+         return -1;
+     }
+-    base58_decode(pubkey, sizeof(pubkey), PublicKey_GetPublicKeyBase58(pk));
++    hdkey_base58_decode(pubkey, sizeof(pubkey), PublicKey_GetPublicKeyBase58(pk));
+ 
+     //get sk
+     if (!DIDStore_ContainsPrivateKey(builder->doc->metadata.base.store, issuer, keyid))

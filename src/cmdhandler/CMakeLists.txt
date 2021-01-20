@@ -21,7 +21,7 @@ target_include_directories(cmdhandler PRIVATE
 target_link_libraries(cmdhandler PUBLIC
     cvector
     feedsd-ext
-    libcarrier-shared
+    libcarrier-static
     utils)
 
 set(CMAKE_INCLUDE_CURRENT_DIR TRUE)

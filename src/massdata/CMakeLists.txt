@@ -19,7 +19,7 @@ target_link_libraries(massdata PUBLIC
     utils
     cmdhandler
     cvector
-    libcarrier-shared
+    libcarrier-static
     msgpackc)
 
 set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
