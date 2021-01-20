@@ -86,7 +86,6 @@ target_link_libraries(feedsd
     msgpackc
     sqlite3
     config
-    libcrystal-shared
     libcarrier-shared
     eladid
     libqrencode-static

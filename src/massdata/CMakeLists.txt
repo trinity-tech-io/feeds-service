@@ -19,7 +19,6 @@ target_link_libraries(massdata PUBLIC
     utils
     cmdhandler
     cvector
-    libcrystal-shared
     libcarrier-shared
     msgpackc)
 

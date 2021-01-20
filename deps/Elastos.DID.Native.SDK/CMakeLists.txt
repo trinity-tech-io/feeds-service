@@ -30,4 +30,4 @@ ExternalProject_Add(
 export_shared_library(eladid)
 
 add_library(libeladid-shared INTERFACE)
-target_link_libraries(libeladid-shared INTERFACE eladid libcrystal-shared)
+target_link_libraries(libeladid-shared INTERFACE eladid)
