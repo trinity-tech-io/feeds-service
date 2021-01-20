@@ -13,8 +13,8 @@ ExternalProject_Add(
     DOWNLOAD_NO_PROGRESS 1
 
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${FEEDS_INT_DIST_DIR}
-        -DENABLE_SHARED=TRUE
-        -DENABLE_STATIC=FALSE
+        -DENABLE_SHARED=FALSE
+        -DENABLE_STATIC=TRUE
         -DWITH_LIBSODIUM=${FEEDS_INT_DIST_DIR}
         -DLIBSODIUM_STATIC=TRUE
         -DENABLE_CRYPTO=TRUE
@@ -39,5 +39,5 @@ ExternalProject_Add_StepDependencies(
 
 export_shared_library(crystal)
 
-add_library(libcrystal-shared INTERFACE)
-target_link_libraries(libcrystal-shared INTERFACE crystal)
+add_library(libcrystal-static INTERFACE)
+target_link_libraries(libcrystal-static INTERFACE crystal sodium)

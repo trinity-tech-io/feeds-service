@@ -14,8 +14,8 @@ ExternalProject_Add(
     LOG_DOWNLOAD FALSE
 
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${FEEDS_INT_DIST_DIR}
-        -DENABLE_SHARED=TRUE
-        -DENABLE_STATIC=FALSE
+        -DENABLE_SHARED=FALSE
+        -DENABLE_STATIC=TRUE
         -DENABLE_APPS=FALSE
         -DENABLE_TESTS=FALSE
         -DENABLE_DOCS=FALSE
@@ -26,5 +26,9 @@ export_shared_library(carrier)
 export_shared_library(carriersession)
 
 add_library(libcarrier-shared INTERFACE)
-target_link_libraries(libcarrier-shared INTERFACE carrier carriersession libcrystal-shared)
+target_link_libraries(libcarrier-shared INTERFACE carrier carriersession
+                                                  pj pjlib-util pjmedia pjnath 
+                                                  toxcore srtp flatccrt
+                                                  curl crypto ssl tls z
+                                                  libcrystal-static)
 target_include_directories(libcarrier-shared INTERFACE ${FEEDS_INT_DIST_DIR}/include)

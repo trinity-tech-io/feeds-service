@@ -21,7 +21,6 @@ target_include_directories(cmdhandler PRIVATE
 target_link_libraries(cmdhandler PUBLIC
     cvector
     feedsd-ext
-    libcrystal-shared
     libcarrier-shared
     utils)
 
