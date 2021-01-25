@@ -24,9 +24,11 @@ public:
     /*** static function and variable ***/
     static std::shared_ptr<Request> MakeRequest(const std::string& method);
     static std::shared_ptr<Response> MakeResponse(const std::string& method);
+    static std::shared_ptr<Notify> MakeNotify(const std::string& method);
+    static std::shared_ptr<Error> MakeError(int errCode);
 
-    static int Unmarshal(const std::vector<uint8_t>& data, std::shared_ptr<Request>& request);
-    static int Marshal(const std::shared_ptr<Response>& response, std::vector<uint8_t>& data);
+    static int Unmarshal(const std::vector<uint8_t>& data, std::shared_ptr<Rpc::Base>& rpc);
+    static int Marshal(const std::shared_ptr<Rpc::Base>& rpc, std::vector<uint8_t>& data);
 
     static constexpr const int MaxAvailableSize = 4 * 1024; // 4KB
 

@@ -5,6 +5,7 @@
 #include <LegacyMethod.hpp>
 #include <MassData.hpp>
 #include <SafePtr.hpp>
+#include <ServiceMethod.hpp>
 #include <StandardAuth.hpp>
 #include <ThreadPool.hpp>
 
@@ -13,6 +14,7 @@ extern "C" {
 #define new fix_cpp_keyword_new
 #include <auth.h>
 #include <did.h>
+#include <feeds.h>
 #undef new
 }
 
@@ -70,6 +72,7 @@ int CommandHandler::config(const std::filesystem::path& dataDir,
         std::make_shared<LegacyMethod>(),
         std::make_shared<ChannelMethod>(),
         std::make_shared<MassData>(dataDir / MassData::MassDataDirName),
+        std::make_shared<ServiceMethod>(dataDir / CacheDirName),
         std::make_shared<StandardAuth>(),
     });
 
@@ -144,9 +147,7 @@ int CommandHandler::process(const std::string& from, const std::vector<uint8_t>&
                 break;
             }
         }
-        if(ret == ErrCode::UnimplementedError) { // return if unimplemented.
-            return ret;
-        } else if(ret == ErrCode::CompletelyFinishedNotify) { // return if process totally finished.
+        if(ret == ErrCode::CompletelyFinishedNotify) { // return if process totally finished.
             return 0;
         }
     }
@@ -172,23 +173,41 @@ int CommandHandler::processAdvance(const std::string& from, const std::vector<ui
     std::shared_ptr<Rpc::Request> request;
     std::vector<std::shared_ptr<Rpc::Response>> responseArray;
 
-    int ret = Rpc::Factory::Unmarshal(data, request);
+    std::shared_ptr<Rpc::Base> rpc;
+    int ret = Rpc::Factory::Unmarshal(data, rpc);
     if(ret == ErrCode::UnimplementedError) {
         return ret;
     }
     CHECK_ERROR(ret);
 
+    request = std::dynamic_pointer_cast<Rpc::Request>(rpc);
     for (const auto& it : cmdListener) {
-        ret = it->onDispose(request, responseArray);
+        ret = it->onDispose(from, request, responseArray);
         if (ret != ErrCode::UnimplementedError) {
             break;
         }
     }
+    if(ret == ErrCode::UnimplementedError) {
+        return ret;
+    }
+    if(ret < 0) {
+        auto error = Rpc::Factory::MakeError(ret);
+        std::vector<uint8_t> respData;
+        ret = Rpc::Factory::Marshal(error, respData);
+        CHECK_ERROR(ret);
+
+        Marshalled* marshalledResp = (Marshalled*)rc_zalloc(sizeof(Marshalled) + respData.size(), NULL);
+        marshalledResp->data = marshalledResp + 1;
+        marshalledResp->sz = respData.size();
+        memcpy(marshalledResp->data, respData.data(), respData.size());
+
+        msgq_enq(from.c_str(), marshalledResp);
+        deref(marshalledResp);
+    }
 
     for (const auto &response : responseArray) {
-        auto errCode = ret;
         std::vector<uint8_t> respData;
-        int ret = Rpc::Factory::Marshal(response, respData);
+        ret = Rpc::Factory::Marshal(response, respData);
         CHECK_ERROR(ret);
 
         Marshalled* marshalledResp = (Marshalled*)rc_zalloc(sizeof(Marshalled) + respData.size(), NULL);
@@ -329,7 +348,8 @@ int CommandHandler::Listener::onDispose(const std::string& from,
     return ErrCode::UnimplementedError;
 }
 
-int CommandHandler::Listener::onDispose(std::shared_ptr<Rpc::Request> request,
+int CommandHandler::Listener::onDispose(const std::string& from,
+                                        std::shared_ptr<Rpc::Request> request,
                                         std::vector<std::shared_ptr<Rpc::Response>>& responseArray)
 {
     for (const auto& it : advancedHandlerMap) {
@@ -348,7 +368,7 @@ int CommandHandler::Listener::onDispose(std::shared_ptr<Rpc::Request> request,
         int ret = checkAccessible(it.second.accessible, accessToken);
         CHECK_ERROR(ret);
 
-        ret = it.second.callback(request, responseArray);
+        ret = it.second.callback(from, request, responseArray);
         CHECK_ERROR(ret);
 
         Log::D(Log::Tag::Cmd, "Response:");
@@ -359,6 +379,49 @@ int CommandHandler::Listener::onDispose(std::shared_ptr<Rpc::Request> request,
     }
 
     return ErrCode::UnimplementedError;
+}
+
+int CommandHandler::Listener::notify(Accessible accessible, std::shared_ptr<Rpc::Notify> notify)
+{
+    std::vector<uint8_t> data;
+    int ret = Rpc::Factory::Marshal(notify, data);
+    CHECK_ERROR(ret);
+
+    Marshalled* marshalledNoti = (Marshalled*)rc_zalloc(sizeof(Marshalled) + data.size(), NULL);
+    marshalledNoti->data = marshalledNoti + 1;
+    marshalledNoti->sz = data.size();
+    memcpy(marshalledNoti->data, data.data(), data.size());
+
+    if(accessible == Accessible::Owner) {
+        notify_to_owner(notify->method.c_str(), marshalledNoti);
+    } else if(accessible == Accessible::Member) {
+        notify_to_member(notify->method.c_str(), marshalledNoti);
+    } else {
+        deref(marshalledNoti);
+        CHECK_ERROR(ErrCode::InvalidArgument);
+    }
+
+    deref(marshalledNoti);
+
+    return 0;
+}
+
+int CommandHandler::Listener::error(const std::string& to, std::shared_ptr<Rpc::Error> error)
+{
+    std::vector<uint8_t> data;
+    int ret = Rpc::Factory::Marshal(error, data);
+    CHECK_ERROR(ret);
+
+    Marshalled* marshalledErr = (Marshalled*)rc_zalloc(sizeof(Marshalled) + data.size(), NULL);
+    marshalledErr->data = marshalledErr + 1;
+    marshalledErr->sz = data.size();
+    memcpy(marshalledErr->data, data.data(), data.size());
+
+    msgq_enq(to.c_str(), marshalledErr);
+
+    deref(marshalledErr);
+
+    return 0;
 }
 
 int CommandHandler::Listener::isOwner(const std::string& accessToken)

@@ -24,9 +24,16 @@ ChannelMethod::ChannelMethod()
 {
     using namespace std::placeholders;
     std::map<const char*, AdvancedHandler> advancedHandlerMap {
-        {Rpc::Factory::Method::GetMultiComments,  {std::bind(&ChannelMethod::onGetMultiComments, this, _1, _2), Accessible::Member}},
-        {Rpc::Factory::Method::GetMultiLikesAndCommentsCount,  {std::bind(&ChannelMethod::onGetMultiLikesAndCommentsCount, this, _1, _2), Accessible::Member}},
-        {Rpc::Factory::Method::GetMultiSubscribersCount,  {std::bind(&ChannelMethod::onGetMultiSubscribersCount, this, _1, _2), Accessible::Member}},
+        {
+            Rpc::Factory::Method::GetMultiComments,
+            {std::bind(&ChannelMethod::onGetMultiComments, this, _1, _2, _3), Accessible::Member}
+        }, {
+            Rpc::Factory::Method::GetMultiLikesAndCommentsCount,
+            {std::bind(&ChannelMethod::onGetMultiLikesAndCommentsCount, this, _1, _2, _3), Accessible::Member}
+        }, {
+            Rpc::Factory::Method::GetMultiSubscribersCount,
+            {std::bind(&ChannelMethod::onGetMultiSubscribersCount, this, _1, _2, _3), Accessible::Member}
+        },
     };
 
     setHandleMap({}, advancedHandlerMap);
@@ -44,7 +51,8 @@ ChannelMethod::~ChannelMethod()
 /* =========================================== */
 /* === class private function implement  ===== */
 /* =========================================== */
-int ChannelMethod::onGetMultiComments(std::shared_ptr<Rpc::Request> request,
+int ChannelMethod::onGetMultiComments(const std::string& from,
+                                      std::shared_ptr<Rpc::Request> request,
                                       std::vector<std::shared_ptr<Rpc::Response>>& responseArray)
 {
     auto requestPtr = std::dynamic_pointer_cast<Rpc::GetMultiCommentsRequest>(request);
@@ -150,7 +158,8 @@ int ChannelMethod::onGetMultiComments(std::shared_ptr<Rpc::Request> request,
     return 0;
 }
 
-int ChannelMethod::onGetMultiLikesAndCommentsCount(std::shared_ptr<Rpc::Request> request,
+int ChannelMethod::onGetMultiLikesAndCommentsCount(const std::string &from,
+                                                   std::shared_ptr<Rpc::Request> request,
                                                    std::vector<std::shared_ptr<Rpc::Response>> &responseArray)
 {
     auto requestPtr = std::dynamic_pointer_cast<Rpc::GetMultiLikesAndCommentsCountRequest>(request);
@@ -241,7 +250,8 @@ int ChannelMethod::onGetMultiLikesAndCommentsCount(std::shared_ptr<Rpc::Request>
     return 0;
 }
 
-int ChannelMethod::onGetMultiSubscribersCount(std::shared_ptr<Rpc::Request> request,
+int ChannelMethod::onGetMultiSubscribersCount(const std::string &from,
+                                              std::shared_ptr<Rpc::Request> request,
                                               std::vector<std::shared_ptr<Rpc::Response>> &responseArray)
 {
     auto requestPtr = std::dynamic_pointer_cast<Rpc::GetMultiSubscribersCountRequest>(request);

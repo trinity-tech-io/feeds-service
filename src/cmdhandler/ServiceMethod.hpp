@@ -16,8 +16,7 @@ public:
     /*** static function and variable ***/
 
     /*** class function and variable ***/
-    explicit ServiceMethod(const std::filesystem::path& cacheDir,
-                           const std::vector<const char*>& execArgv);
+    explicit ServiceMethod(const std::filesystem::path& cacheDir);
     virtual ~ServiceMethod();
 
 protected:
@@ -34,18 +33,11 @@ private:
     constexpr static const char* MigrateDir = "feeds-service";
 
     /*** class function and variable ***/
-    int onDownloadNewService(const std::string& from,
-                             std::shared_ptr<Rpc::Request> request,
-                             std::vector<std::shared_ptr<Rpc::Response>>& responseArray);
-    int onStartNewService(const std::string& from,
-                          std::shared_ptr<Rpc::Request> request,
-                          std::vector<std::shared_ptr<Rpc::Response>>& responseArray);
     int onBackupServiceData(const std::string& from,
                             std::shared_ptr<Rpc::Request> request,
                             std::vector<std::shared_ptr<Rpc::Response>>& responseArray);
 
     std::filesystem::path cacheDir;
-    std::vector<const char*> execArgv;
 };
 
 /***********************************************/

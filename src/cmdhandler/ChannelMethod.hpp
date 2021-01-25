@@ -32,11 +32,14 @@ private:
     /*** static function and variable ***/
 
     /*** class function and variable ***/
-    int onGetMultiComments(std::shared_ptr<Rpc::Request> request,
+    int onGetMultiComments(const std::string& from,
+                           std::shared_ptr<Rpc::Request> request,
                            std::vector<std::shared_ptr<Rpc::Response>>& responseArray);
-    int onGetMultiLikesAndCommentsCount(std::shared_ptr<Rpc::Request> request,
+    int onGetMultiLikesAndCommentsCount(const std::string& from,
+                                        std::shared_ptr<Rpc::Request> request,
                                         std::vector<std::shared_ptr<Rpc::Response>> &responseArray);
-    int onGetMultiSubscribersCount(std::shared_ptr<Rpc::Request> request,
+    int onGetMultiSubscribersCount(const std::string& from,
+                                   std::shared_ptr<Rpc::Request> request,
                                    std::vector<std::shared_ptr<Rpc::Response>> &responseArray);
 };
 

@@ -30,6 +30,7 @@ public:
     static constexpr const char *Rpc = "Feedsd.Rpc";
     static constexpr const char *Cmd = "Feedsd.Cmd";
     static constexpr const char *Db = "Feedsd.Db";
+    static constexpr const char *AU = "Feedsd.AU";
     static constexpr const char *CD = "Feedsd.CD";
   };
   /*** class function and variable ***/

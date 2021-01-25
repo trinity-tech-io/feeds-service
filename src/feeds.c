@@ -4235,3 +4235,37 @@ void hdl_stats_changed_notify()
         }
     }
 }
+
+void notify_to_owner(const char* method, Marshalled *data)
+{
+    ActiveSuber *owner = NULL;
+
+    if ((owner = as_get(OWNER_USER_ID))) {
+        hashtable_iterator_t it;
+        NotifDestPerActiveSuber *ndpas;
+
+        hashtable_foreach(owner->ndpass, ndpas) {
+            vlogI(TAG_CMD "Notify [%s] to owner [%s].", method, ndpas->nd->node_id);
+            msgq_enq(ndpas->nd->node_id, data);
+        }
+    }
+
+    deref(owner);
+}
+
+void notify_to_member(const char* method, Marshalled *data)
+{
+    hashtable_iterator_t it;
+    NotifDest *nd;
+    NotifDestPerActiveSuber *ndpas;
+
+    hashtable_foreach(nds, nd) {
+        list_iterator_t it;
+        list_foreach(nd->ndpass, ndpas) {
+            ActiveSuber *as = ndpas->as;
+
+            vlogI(TAG_CMD "Notify [%s] to member [%s].", method, ndpas->nd->node_id);
+            msgq_enq(ndpas->nd->node_id, data);
+        }
+    }
+}

@@ -41,7 +41,7 @@ public:
             Accessible accessible;
         };
         struct AdvancedHandler {
-            std::function<int(std::shared_ptr<Rpc::Request>, std::vector<std::shared_ptr<Rpc::Response>>&)> callback;
+            std::function<int(const std::string&, std::shared_ptr<Rpc::Request>, std::vector<std::shared_ptr<Rpc::Response>>&)> callback;
             Accessible accessible;
         };
 
@@ -57,8 +57,13 @@ public:
         virtual int onDispose(const std::string& from,
                               std::shared_ptr<Req> req,
                               std::shared_ptr<Resp>& resp);
-        virtual int onDispose(std::shared_ptr<Rpc::Request> request,
-                              std::vector<std::shared_ptr<Rpc::Response>>& responseArray);
+        virtual int onDispose(const std::string& from,
+                              std::shared_ptr<Rpc::Request> request,
+                              std::vector<std::shared_ptr<Rpc::Response>> &responseArray);
+
+        virtual int notify(Accessible accessible, std::shared_ptr<Rpc::Notify> notify);
+        virtual int error(const std::string& to, std::shared_ptr<Rpc::Error> error);
+
     private:
         static int SetDataDir(const std::filesystem::path& dataDir);
         static std::filesystem::path DataDir;
@@ -75,11 +80,12 @@ public:
 
     /*** static function and variable ***/
     static std::shared_ptr<CommandHandler> GetInstance();
-    static void PrintCarrierError(const std::string &errReason);
+    static void PrintCarrierError(const std::string& errReason);
+    static constexpr const char* CacheDirName = "cache";
 
     /*** class function and variable ***/
-    int config(const std::filesystem::path &dataDir,
-                std::weak_ptr<Carrier> carrier);
+    int config(const std::filesystem::path& dataDir,
+               std::weak_ptr<Carrier> carrier);
     void cleanup();
 
     std::weak_ptr<Carrier> getCarrierHandler();

@@ -129,9 +129,14 @@ DIDDocument* StandardAuth::LoadLocalDIDDocument(DID* did)
 StandardAuth::StandardAuth()
 {
     using namespace std::placeholders;
-    std::map<const char*, AdvancedHandler> advancedHandlerMap {
-        {Rpc::Factory::Method::StandardSignIn,  {std::bind(&StandardAuth::onStandardSignIn, this, _1, _2), Accessible::Anyone}},
-        {Rpc::Factory::Method::StandardDidAuth, {std::bind(&StandardAuth::onStandardDidAuth, this, _1, _2), Accessible::Anyone}},
+    std::map<const char *, AdvancedHandler> advancedHandlerMap{
+        {
+            Rpc::Factory::Method::StandardSignIn,
+            {std::bind(&StandardAuth::onStandardSignIn, this, _1, _2, _3), Accessible::Anyone}
+        }, {
+            Rpc::Factory::Method::StandardDidAuth,
+            {std::bind(&StandardAuth::onStandardDidAuth, this, _1, _2, _3), Accessible::Anyone}
+        },
     };
 
     setHandleMap({}, advancedHandlerMap);
@@ -149,8 +154,9 @@ StandardAuth::~StandardAuth()
 /* =========================================== */
 /* === class private function implement  ===== */
 /* =========================================== */
-int StandardAuth::onStandardSignIn(std::shared_ptr<Rpc::Request> request,
-                                   std::vector<std::shared_ptr<Rpc::Response>> &responseArray)
+int StandardAuth::onStandardSignIn(const std::string& from,
+                                   std::shared_ptr<Rpc::Request> request,
+                                   std::vector<std::shared_ptr<Rpc::Response>>& responseArray)
 {
     auto requestPtr = std::dynamic_pointer_cast<Rpc::StandardSignInRequest>(request);
     CHECK_ASSERT(requestPtr != nullptr, ErrCode::InvalidArgument);
@@ -226,8 +232,9 @@ int StandardAuth::onStandardSignIn(std::shared_ptr<Rpc::Request> request,
     return 0;
 }
 
-int StandardAuth::onStandardDidAuth(std::shared_ptr<Rpc::Request> request,
-                                    std::vector<std::shared_ptr<Rpc::Response>> &responseArray)
+int StandardAuth::onStandardDidAuth(const std::string& from,
+                                    std::shared_ptr<Rpc::Request> request,
+                                    std::vector<std::shared_ptr<Rpc::Response>>& responseArray)
 {
     auto requestPtr = std::dynamic_pointer_cast<Rpc::StandardDidAuthRequest>(request);
     CHECK_ASSERT(requestPtr != nullptr, ErrCode::InvalidArgument);
@@ -384,9 +391,10 @@ int StandardAuth::checkAuthToken(const std::string& userName, const std::string&
     auto nonce = Presentation_GetNonce(vp.get());
     CHECK_DIDSDK(nonce != nullptr, ErrCode::AuthPresentationEmptyNonce, "Failed to get presentation nonce, return null.");
 
-    auto authSecretIt = authSecretMap.find(nonce); // TODO: change to remove
+    auto authSecretIt = authSecretMap.find(nonce);
     CHECK_DIDSDK(authSecretIt != authSecretMap.end(), ErrCode::AuthPresentationBadNonce, "Bad presentation nonce.");
     auto authSecret = authSecretIt->second;
+    authSecretMap.erase(nonce);
 
     /** check realm **/
     auto realm = Presentation_GetRealm(vp.get());

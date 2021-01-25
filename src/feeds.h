@@ -68,4 +68,7 @@ void hdl_unknown_req(Carrier *c, const char *from, Req *base);
 
 void hdl_stats_changed_notify();
 
+void notify_to_owner(const char* method, Marshalled *data);
+void notify_to_member(const char* method, Marshalled *data);
+
 #endif //__FEEDS_H__

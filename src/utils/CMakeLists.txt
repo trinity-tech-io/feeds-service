@@ -13,7 +13,8 @@ else()
 endif()
 
 add_dependencies(utils
-    libcrystal)
+    libcrystal
+    libcurl)
 
 target_include_directories(utils PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -21,7 +22,8 @@ target_include_directories(utils PUBLIC
     "${FEEDS_INT_DIST_DIR}/include")
 
 target_link_libraries(utils PUBLIC
-    platform)
+    platform
+    libcurl)
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
     target_link_libraries(utils PUBLIC
     stdc++fs)
