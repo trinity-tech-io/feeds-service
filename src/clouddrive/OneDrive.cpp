@@ -20,6 +20,8 @@ namespace trinity {
 /* =========================================== */
 int OneDrive::makeDir(const std::string& dirName)
 {
+    Log::I(Log::Tag::CD, "%s", FORMAT_METHOD);
+
     HttpClient httpClient;
 
     int ret = httpClient.url(driveUrl);
@@ -31,11 +33,12 @@ int OneDrive::makeDir(const std::string& dirName)
     ret = httpClient.setHeader("Content-Type", "application/json");
     CHECK_ERROR(ret);
 
+    fprintf(stderr, "========= %s\n", accessToken.c_str());
     ret = httpClient.setHeader("Authorization", "Bearer " + accessToken);
     CHECK_ERROR(ret);
 
     auto reqBody = std::make_shared<std::stringstream>();
-    *reqBody << "{\"name\":\"FeedsServiceBackup\",\"folder\":{}}";
+    *reqBody << "{\"name\":\"" << dirName << "\",\"folder\":{}}";
 
     ret = httpClient.syncPost(reqBody);
     CHECK_ERROR(ret);

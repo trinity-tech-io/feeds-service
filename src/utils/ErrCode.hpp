@@ -85,6 +85,7 @@ public:
     constexpr static const int DidNotReady                      = -120;
     constexpr static const int InvalidAccessToken               = -121;
     constexpr static const int NotAuthorizedError               = -122;
+    constexpr static const int InvalidParams                    = -123;
 
     constexpr static const int CarrierSessionInitFailed         = -130;
     constexpr static const int CarrierSessionConnectFailed      = -131;

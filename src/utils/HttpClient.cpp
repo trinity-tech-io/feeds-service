@@ -313,7 +313,7 @@ int HttpClient::makeCurl(std::shared_ptr<void>& curlHandlePtr, std::shared_ptr<s
 		auto& name = key;
 		for(auto& value: val) {
 			std::string header = (name + ": " + value);
-            Log::I(Log::Tag::Util, "HttpClient::makeCurl() header=%s", header.c_str());
+            Log::D(Log::Tag::Util, "HttpClient::makeCurl() header=%s", header.c_str());
 			curlHeaders = curl_slist_append(curlHeaders, header.c_str());
 		}
 

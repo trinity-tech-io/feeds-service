@@ -31,7 +31,7 @@ std::shared_ptr<CloudDrive> CloudDrive::Create(Type type,
         }
         break;
     default:
-        Log::E(Log::Tag::Cmd, "Failed to create cloud drive by type %d.", type);
+        Log::E(Log::Tag::CD, "Failed to create cloud drive by type %d.", type);
         break;
     }
 

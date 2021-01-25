@@ -1,6 +1,7 @@
 #include "ServiceMethod.hpp"
 
 #include <AutoUpdate.hpp>
+#include <CloudDrive.hpp>
 #include <ErrCode.hpp>
 #include <Log.hpp>
 #include <Platform.hpp>
@@ -163,6 +164,19 @@ int ServiceMethod::onBackupServiceData(const std::string& from,
     CHECK_ASSERT(requestPtr != nullptr, ErrCode::InvalidArgument);
     const auto& params = requestPtr->params;
     responseArray.clear();
+
+    const auto badType = static_cast<CloudDrive::Type>(-1);
+    auto type = badType;
+    if(params.drive_name == "OneDrive") {
+        type = CloudDrive::Type::OneDrive;
+    }
+    CHECK_ASSERT(type != badType, ErrCode::InvalidParams);
+    
+    auto drive = CloudDrive::Create(type, params.drive_url, params.drive_access_token);
+    CHECK_ASSERT(drive != nullptr, ErrCode::InvalidParams);
+
+    int ret = drive->makeDir(MigrateDir);
+    CHECK_ERROR(ret);
 
     return 0;
 }
