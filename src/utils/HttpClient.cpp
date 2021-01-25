@@ -106,13 +106,14 @@ int HttpClient::syncGet()
 {
 	int ret;
 	CURLcode curle;
-	std::shared_ptr<CURL> curlHandlePtr;
 	std::shared_ptr<struct curl_slist> curlHeadersPtr;
+	std::shared_ptr<CURL> curlHandlePtr;
 
-	ret = makeCurl(curlHandlePtr, curlHeadersPtr);
-	if(ret < 0) {
-		return ret;
-	}
+	ret = makeCurlHeaders(curlHeadersPtr);
+	CHECK_ERROR(ret);
+
+	ret = makeCurl(curlHeadersPtr, curlHandlePtr);
+	CHECK_ERROR(ret);
 
 	mRespStatus = -1;
 	mRespReason.clear();
@@ -131,26 +132,40 @@ int HttpClient::syncPost(std::shared_ptr<std::istream> body)
 {
 	int ret;
 	CURLcode curle;
-	std::shared_ptr<CURL> curlHandlePtr;
 	std::shared_ptr<struct curl_slist> curlHeadersPtr;
+	std::shared_ptr<CURL> curlHandlePtr;
 
-	ret = makeCurl(curlHandlePtr, curlHeadersPtr);
+    body->seekg(0, body->end);
+    int bodySize = body->tellg();
+    body->seekg(0, body->beg);
+	ret = setHeader("Content-Length", std::to_string(bodySize));
 	CHECK_ERROR(ret);
 
-	mReqBody = body;
+	ret = makeCurlHeaders(curlHeadersPtr);
+	CHECK_ERROR(ret);
 
-	mRespStatus = -1;
-	mRespReason.clear();
-	mRespHeaders.clear();
+	ret = makeCurl(curlHeadersPtr, curlHandlePtr);
+	CHECK_ERROR(ret);
 
 	curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_POST, 1L);
 	CHECK_CURL(curle);
+
+	mReqBody = body;
+	mReqBodyRemainSize = bodySize;
+
+	auto respLog = std::make_shared<std::stringstream>();
+	mRespBody = respLog;
+	mRespStatus = -1;
+	mRespReason.clear();
+	mRespHeaders.clear();
 
 	curle = curl_easy_perform(curlHandlePtr.get());
 	CHECK_CURL(curle);
 
 	curle = curl_easy_getinfo(curlHandlePtr.get(), CURLINFO_RESPONSE_CODE, &mRespStatus);
 	CHECK_CURL(curle);
+
+	Log::W(Log::Tag::Util, "%s resp=%s", FORMAT_METHOD, respLog->str().c_str());
 
 	return 0;
 }
@@ -247,6 +262,7 @@ size_t HttpClient::CurlHeaderCallback(char* buffer, size_t size, size_t nitems, 
 
 size_t HttpClient::CurlWriteCallback(char* buffer, size_t size, size_t nitems, void* userdata)
 {
+	Log::W(Log::Tag::Util, "%s", FORMAT_METHOD);
 	HttpClient* httpClient = static_cast<HttpClient*>(userdata);
 	size_t length = size * nitems;
 
@@ -259,11 +275,18 @@ size_t HttpClient::CurlWriteCallback(char* buffer, size_t size, size_t nitems, v
 
 size_t HttpClient::CurlReadCallback(char* buffer, size_t size, size_t nitems, void* userdata)
 {
+	Log::W(Log::Tag::Util, "%s", FORMAT_METHOD);
+
 	HttpClient* httpClient = static_cast<HttpClient*>(userdata);
 	size_t length = size * nitems;
 
 	if(httpClient->mReqBody.get() != nullptr) {
+		if(length > httpClient->mReqBodyRemainSize) {
+			length = httpClient->mReqBodyRemainSize;
+		}
+
 		httpClient->mReqBody->read(buffer, length);
+		httpClient->mReqBodyRemainSize -= length;
 	}
 
 	return length;
@@ -281,12 +304,43 @@ int HttpClient::CurlProgressCallback(void *userdata, double dltotal, double dlno
 	return 0;
 }
 
-int HttpClient::makeCurl(std::shared_ptr<void>& curlHandlePtr, std::shared_ptr<struct curl_slist>& curlHeadersPtr) const
+int HttpClient::makeCurlHeaders(std::shared_ptr<struct curl_slist>& curlHeadersPtr) const
+{
+    auto creater = [&]() -> struct curl_slist* {
+		struct curl_slist* curlHeaders = nullptr;
+		bool hasAcceptEncoding = false;
+		for (auto& [key, val]: mReqHeaders) {
+			auto& name = key;
+			for(auto& value: val) {
+				std::string header = (name + ": " + value);
+				Log::D(Log::Tag::Util, "HttpClient::makeCurl() header=%s", header.c_str());
+				curlHeaders = curl_slist_append(curlHeaders, header.c_str());
+			}
+
+			if(key == "Accept-Encoding") {
+				hasAcceptEncoding = true;
+			}
+		}
+		if(hasAcceptEncoding == false) {
+			curlHeaders = curl_slist_append(curlHeaders, "Accept-Encoding: identity");
+		}
+
+		return curlHeaders;
+	};
+	auto deleter = [](struct curl_slist* ptr) -> void {
+		curl_slist_free_all(ptr);
+	};
+	curlHeadersPtr = std::shared_ptr<struct curl_slist>(creater(), deleter);
+
+	return 0;
+}
+
+int HttpClient::makeCurl(std::shared_ptr<struct curl_slist> curlHeadersPtr,
+						 std::shared_ptr<void>& curlHandlePtr) const
 {
 	CURLcode curle;
 
 	curlHandlePtr.reset();
-	curlHeadersPtr.reset();
 
 	CURL* curlHandle = curl_easy_init();
 	if(curlHandle == nullptr) {
@@ -306,28 +360,6 @@ int HttpClient::makeCurl(std::shared_ptr<void>& curlHandlePtr, std::shared_ptr<s
     Log::I(Log::Tag::Util, "HttpClient::makeCurl() url=%s", mUrl.c_str());
 	curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_URL, mUrl.c_str());
 	CHECK_CURL(curle);
-
-	struct curl_slist* curlHeaders = nullptr;
-	bool hasAcceptEncoding = false;
-	for (auto& [key, val]: mReqHeaders) {
-		auto& name = key;
-		for(auto& value: val) {
-			std::string header = (name + ": " + value);
-            Log::D(Log::Tag::Util, "HttpClient::makeCurl() header=%s", header.c_str());
-			curlHeaders = curl_slist_append(curlHeaders, header.c_str());
-		}
-
-		if(key == "Accept-Encoding") {
-			hasAcceptEncoding = true;
-		}
-	}
-	if(hasAcceptEncoding == false) {
-		curlHeaders = curl_slist_append(curlHeaders, "Accept-Encoding: identity");
-	}
-	auto curlHeadersDeleter = [](struct curl_slist* ptr) -> void {
-		curl_slist_free_all(ptr);
-	};
-	curlHeadersPtr = std::shared_ptr<struct curl_slist>(curlHeaders, curlHeadersDeleter);
 
 	curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_SSL_VERIFYHOST, 0L);
 	CHECK_CURL(curle);

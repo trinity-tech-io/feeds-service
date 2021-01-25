@@ -65,7 +65,9 @@ private:
 	static int CurlProgressCallback(void *userdata, double dltotal, double dlnow, double ultotal, double ulnow);
 
 	/*** class function and variable ***/
-	int makeCurl(std::shared_ptr<void>& curlHandlePtr, std::shared_ptr<struct curl_slist>& curlHeadersPtr) const;
+	int makeCurlHeaders(std::shared_ptr<struct curl_slist>& curlHeadersPtr) const;
+	int makeCurl(std::shared_ptr<struct curl_slist> curlHeadersPtr,
+				 std::shared_ptr<void>& curlHandlePtr) const;
 	int addHeader(HeaderMap& headers,
 				  const std::string& name, const std::string& value) const;
 
@@ -75,6 +77,7 @@ private:
 	long mConnectTimeoutMS;
 	HeaderMap mReqHeaders;
 	std::shared_ptr<std::istream> mReqBody;
+	int mReqBodyRemainSize;
 
 	int mRespStatus;
 	std::string mRespReason;
