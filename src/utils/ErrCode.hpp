@@ -186,6 +186,7 @@ public:
     constexpr static const int AutoUpdateRemoveLinkFailed          = -488;
     constexpr static const int AutoUpdateMakeLinkFailed            = -489;
 
+    constexpr static const int CloudDriveMakeDirFailed             = -500;
 
     // constexpr static const int CarrierIndex                  = -1000;
     constexpr static const int StdSystemErrorIndex              = -2000;

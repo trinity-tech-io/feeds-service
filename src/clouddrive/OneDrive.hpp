@@ -13,7 +13,8 @@ public:
     /*** static function and variable ***/
 
     /*** class function and variable ***/
-    virtual int makeDir(const std::string& dirName) override;
+    virtual int makeDir(const std::string& dirPath) override;
+    virtual int createFile(const std::string& filePath, std::shared_ptr<std::istream> body) override;
 
 protected:
     /*** type define ***/
@@ -26,6 +27,7 @@ private:
     /*** type define ***/
 
     /*** static function and variable ***/
+    constexpr static const char* RootDir = "root:/feeds-service";
 
     /*** class function and variable ***/
     explicit OneDrive(const std::string& driveUrl, const std::string& accessToken);

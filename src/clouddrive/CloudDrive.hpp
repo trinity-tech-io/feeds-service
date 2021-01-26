@@ -18,7 +18,8 @@ public:
                                               const std::string& accessToken);
 
     /*** class function and variable ***/
-    virtual int makeDir(const std::string& dirName) = 0;
+    virtual int makeDir(const std::string& dirPath) = 0;
+    virtual int createFile(const std::string& filePath, std::shared_ptr<std::istream> body) = 0;
 
 protected:
     /*** type define ***/

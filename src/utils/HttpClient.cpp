@@ -165,8 +165,6 @@ int HttpClient::syncPost(std::shared_ptr<std::istream> body)
 	curle = curl_easy_getinfo(curlHandlePtr.get(), CURLINFO_RESPONSE_CODE, &mRespStatus);
 	CHECK_CURL(curle);
 
-	Log::W(Log::Tag::Util, "%s resp=%s", FORMAT_METHOD, respLog->str().c_str());
-
 	return 0;
 }
 
@@ -262,7 +260,6 @@ size_t HttpClient::CurlHeaderCallback(char* buffer, size_t size, size_t nitems, 
 
 size_t HttpClient::CurlWriteCallback(char* buffer, size_t size, size_t nitems, void* userdata)
 {
-	Log::W(Log::Tag::Util, "%s", FORMAT_METHOD);
 	HttpClient* httpClient = static_cast<HttpClient*>(userdata);
 	size_t length = size * nitems;
 
@@ -275,8 +272,6 @@ size_t HttpClient::CurlWriteCallback(char* buffer, size_t size, size_t nitems, v
 
 size_t HttpClient::CurlReadCallback(char* buffer, size_t size, size_t nitems, void* userdata)
 {
-	Log::W(Log::Tag::Util, "%s", FORMAT_METHOD);
-
 	HttpClient* httpClient = static_cast<HttpClient*>(userdata);
 	size_t length = size * nitems;
 
@@ -313,7 +308,7 @@ int HttpClient::makeCurlHeaders(std::shared_ptr<struct curl_slist>& curlHeadersP
 			auto& name = key;
 			for(auto& value: val) {
 				std::string header = (name + ": " + value);
-				Log::D(Log::Tag::Util, "HttpClient::makeCurl() header=%s", header.c_str());
+				Log::D(Log::Tag::Util, "HttpClient::makeCurlHeaders() header=%s", header.c_str());
 				curlHeaders = curl_slist_append(curlHeaders, header.c_str());
 			}
 
@@ -342,14 +337,14 @@ int HttpClient::makeCurl(std::shared_ptr<struct curl_slist> curlHeadersPtr,
 
 	curlHandlePtr.reset();
 
-	CURL* curlHandle = curl_easy_init();
-	if(curlHandle == nullptr) {
-		return (ErrCode::HttpClientCurlErrStart);
-	}
-	auto curlHandleDeleter = [](CURL* ptr) -> void {
+    auto creater = [&]() -> CURL* {
+		return curl_easy_init();
+	};
+	auto deleter = [](CURL* ptr) -> void {
 		curl_easy_cleanup(ptr);
 	};
-	curlHandlePtr = std::shared_ptr<CURL>(curlHandle, curlHandleDeleter);
+	curlHandlePtr = std::shared_ptr<CURL>(creater(), deleter);
+	CHECK_ASSERT(curlHandlePtr != nullptr, ErrCode::HttpClientCurlErrStart);
 
 	curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_NOSIGNAL, true);
 	CHECK_CURL(curle);

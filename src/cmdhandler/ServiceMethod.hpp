@@ -30,7 +30,6 @@ private:
     /*** type define ***/
 
     /*** static function and variable ***/
-    constexpr static const char* MigrateDir = "feeds-service";
 
     /*** class function and variable ***/
     int onBackupServiceData(const std::string& from,

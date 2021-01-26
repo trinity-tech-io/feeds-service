@@ -63,7 +63,7 @@ int ServiceMethod::onBackupServiceData(const std::string& from,
     auto drive = CloudDrive::Create(type, params.drive_url, params.drive_access_token);
     CHECK_ASSERT(drive != nullptr, ErrCode::InvalidParams);
 
-    int ret = drive->makeDir(MigrateDir);
+    int ret = drive->makeDir("yyyyy/zzzz/testttttt");
     CHECK_ERROR(ret);
 
     return 0;
