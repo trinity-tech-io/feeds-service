@@ -2,18 +2,19 @@
 
 #include <algorithm>
 #include <cstring>
+#include <curl/curl.h>
+#include <magic_enum.hpp>
 #include <iostream>
 #include <future>
 
-#include <curl/curl.h>
 #include <ErrCode.hpp>
 #include <Log.hpp>
 
 #define CHECK_CURL(curl_code) \
-	if(curl_code != CURLE_OK) { \
-		Log::E(Log::Tag::Util, "Failed to call curl, curl error desc is: %s(%d).", curl_easy_strerror(curl_code), curl_code); \
-		CHECK_ERROR(ErrCode::HttpClientCurlErrStart + (-curl_code)); \
-	}
+    if(curl_code != CURLE_OK) { \
+        Log::E(Log::Tag::Util, "Failed to call curl, curl error desc is: %s(%d).", curl_easy_strerror(curl_code), curl_code); \
+        CHECK_ERROR(ErrCode::HttpClientCurlErrStart + (-curl_code)); \
+    }
 
 namespace trinity {
 
@@ -31,14 +32,16 @@ bool HttpClient::gIsGlobalInitialized = false;
 /* === class public function implement  ====== */
 /* =========================================== */
 HttpClient::HttpClient()
-	: mCancelFlag(false)
-	, mUrl()
-	, mConnectTimeoutMS(10000)
-	, mReqHeaders()
-	, mRespStatus(-1)
-	, mRespReason()
-	, mRespHeaders()
-	, mRespBody()
+    : mCancelFlag(false)
+    , mUrl()
+    , mConnectTimeoutMS(10000)
+    , mReqHeaders()
+    , mReqBody()
+    , mReqBodyRemainSize()
+    , mRespStatus(-1)
+    , mRespReason()
+    , mRespHeaders()
+    , mRespBody()
 {
 }
 
@@ -48,180 +51,184 @@ HttpClient::~HttpClient()
 
 int HttpClient::url(const std::string& url)
 {
-	if(url.empty() == true) {
-		return ErrCode::HttpClientNullArgument;
-	}
+    if(url.empty() == true) {
+        return ErrCode::HttpClientNullArgument;
+    }
 
-	if(url.compare(0, std::strlen(SCHEME_HTTP), SCHEME_HTTP) != 0
-	&& url.compare(0, std::strlen(SCHEME_HTTPS), SCHEME_HTTPS) != 0) {
-		return ErrCode::HttpClientBadArgument;
-	}
+    if(url.compare(0, std::strlen(SCHEME_HTTP), SCHEME_HTTP) != 0
+    && url.compare(0, std::strlen(SCHEME_HTTPS), SCHEME_HTTPS) != 0) {
+        return ErrCode::HttpClientBadArgument;
+    }
 
-	mUrl = url;
+    mUrl = url;
 
-	return 0;
+    return 0;
 }
 
 int HttpClient::addHeader(const std::string& name, const std::string& value)
 {
-	int ret = 0;
+    int ret = 0;
 
-	ret = addHeader(mReqHeaders, name, value);
+    ret = addHeader(mReqHeaders, name, value);
 
-	return ret;
+    return ret;
 }
 
 int HttpClient::setHeader(const std::string& name, const std::string& value)
 {
-	int ret = 0;
-	if(name.empty() == true) {
-		return ErrCode::HttpClientNullArgument;
-	}
+    int ret = 0;
+    if(name.empty() == true) {
+        return ErrCode::HttpClientNullArgument;
+    }
 
-	auto found = mReqHeaders.find(name);
-	if(found != mReqHeaders.end()) {
-		found->second.clear();
-	}
+    std::string lowerName = name;
+    std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    auto found = mReqHeaders.find(lowerName);
+    if(found != mReqHeaders.end()) {
+        found->second.clear();
+    }
 
-	ret = addHeader(name, value);
+    ret = addHeader(name, value);
 
-	return ret;
+    return ret;
 }
 
 int HttpClient::setConnectTimeout(unsigned long milliSecond)
 {
-	mConnectTimeoutMS = milliSecond;
+    mConnectTimeoutMS = milliSecond;
 
-	return 0;
+    return 0;
 }
 
 int HttpClient::setResponseBody(std::shared_ptr<std::ostream> body)
 {
-	mRespBody = body;
+    mRespBody = body;
 
-	return 0;
+    return 0;
 }
 
 int HttpClient::syncGet()
 {
-	int ret;
-	CURLcode curle;
-	std::shared_ptr<struct curl_slist> curlHeadersPtr;
-	std::shared_ptr<CURL> curlHandlePtr;
+    int ret = syncDo(Method::GET, nullptr);
+    CHECK_ERROR(ret);
 
-	ret = makeCurlHeaders(curlHeadersPtr);
-	CHECK_ERROR(ret);
-
-	ret = makeCurl(curlHeadersPtr, curlHandlePtr);
-	CHECK_ERROR(ret);
-
-	mRespStatus = -1;
-	mRespReason.clear();
-	mRespHeaders.clear();
-
-	curle = curl_easy_perform(curlHandlePtr.get());
-	CHECK_CURL(curle);
-
-	curle = curl_easy_getinfo(curlHandlePtr.get(), CURLINFO_RESPONSE_CODE, &mRespStatus);
-	CHECK_CURL(curle);
-
-	return 0;
+    return 0;
 }
 
 int HttpClient::syncPost(std::shared_ptr<std::istream> body)
 {
-	int ret;
-	CURLcode curle;
-	std::shared_ptr<struct curl_slist> curlHeadersPtr;
-	std::shared_ptr<CURL> curlHandlePtr;
+    int ret = syncDo(Method::POST, body);
+    CHECK_ERROR(ret);
 
-    body->seekg(0, body->end);
-    int bodySize = body->tellg();
-    body->seekg(0, body->beg);
-	ret = setHeader("Content-Length", std::to_string(bodySize));
-	CHECK_ERROR(ret);
+    return 0;
+}
 
-	ret = makeCurlHeaders(curlHeadersPtr);
-	CHECK_ERROR(ret);
+int HttpClient::syncDo(Method method, std::shared_ptr<std::istream> body)
+{
+    int ret;
+    CURLcode curle;
+    std::shared_ptr<struct curl_slist> curlHeadersPtr;
+    std::shared_ptr<CURL> curlHandlePtr;
 
-	ret = makeCurl(curlHeadersPtr, curlHandlePtr);
-	CHECK_ERROR(ret);
+    mReqBody = body;
+    mReqBodyRemainSize = 0;
+    if(mReqBody != nullptr) {
+        mReqBody->seekg(0, std::ios::end);
+        mReqBodyRemainSize = mReqBody->tellg();
+	    mReqBody->seekg(0, std::ios::beg);
+    }
 
-	curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_POST, 1L);
-	CHECK_CURL(curle);
+    if(mRespBody != nullptr) {
+        mRespBody->seekp(0, std::ios::beg);
+    }
+    mRespStatus = -1;
+    mRespReason.clear();
+    mRespHeaders.clear();
 
-	mReqBody = body;
-	mReqBodyRemainSize = bodySize;
+    ret = makeCurlHeaders(curlHeadersPtr);
+    CHECK_ERROR(ret);
 
-	auto respLog = std::make_shared<std::stringstream>();
-	mRespBody = respLog;
-	mRespStatus = -1;
-	mRespReason.clear();
-	mRespHeaders.clear();
+    ret = makeCurl(curlHeadersPtr, curlHandlePtr);
+    CHECK_ERROR(ret);
 
-	curle = curl_easy_perform(curlHandlePtr.get());
-	CHECK_CURL(curle);
+    switch (method) {
+        case Method::POST:
+        case Method::PUT:
+            curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_UPLOAD, 1L);
+            CHECK_CURL(curle);
+            curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_INFILESIZE_LARGE, (curl_off_t)mReqBodyRemainSize);
+            CHECK_CURL(curle);
+            break;
+        default:
+            break;
+    }
+    curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_CUSTOMREQUEST, magic_enum::enum_name(method).data());
+    CHECK_CURL(curle);
 
-	curle = curl_easy_getinfo(curlHandlePtr.get(), CURLINFO_RESPONSE_CODE, &mRespStatus);
-	CHECK_CURL(curle);
+    curle = curl_easy_perform(curlHandlePtr.get());
+    CHECK_CURL(curle);
 
-	return 0;
+    curle = curl_easy_getinfo(curlHandlePtr.get(), CURLINFO_RESPONSE_CODE, &mRespStatus);
+    CHECK_CURL(curle);
+
+    return 0;
 }
 
 void HttpClient::asyncGet(std::function<void(int)> callback)
 {
-	std::ignore = std::async(std::launch::async, [=] {
-		int ret = this->syncGet();
-		callback(ret);
-	});
+    std::ignore = std::async(std::launch::async, [=] {
+        int ret = this->syncGet();
+        callback(ret);
+    });
 }
 
 void HttpClient::asyncPost(std::shared_ptr<std::istream> body, std::function<void(int)> callback)
 {
-	std::ignore = std::async(std::launch::async, [=] {
-		int ret = this->syncPost(body);
-		callback(ret);
-	});
+    std::ignore = std::async(std::launch::async, [=] {
+        int ret = this->syncPost(body);
+        callback(ret);
+    });
 }
 
 void HttpClient::cancel()
 {
-	Log::I(Log::Tag::Util, "%s url:%s", FORMAT_METHOD, mUrl.c_str());
-	mCancelFlag = true;
+    Log::I(Log::Tag::Util, "%s url:%s", FORMAT_METHOD, mUrl.c_str());
+    mCancelFlag = true;
 }
 
 int HttpClient::getResponseStatus() const
 {
-	return mRespStatus;
+    return mRespStatus;
 }
 
 int HttpClient::getResponseHeaders(HeaderMap& headers) const
 {
-	headers.clear();
-	if((200 <= mRespStatus && mRespStatus < 300) == false) {
-		return ErrCode::HttpClientNetFailed;
-	}
+    headers.clear();
+    if((200 <= mRespStatus && mRespStatus < 300) == false) {
+        return ErrCode::HttpClientNetFailed;
+    }
 
-	headers = mRespHeaders;
+    headers = mRespHeaders;
 
-	return (int)mRespHeaders.size();
+    return (int)mRespHeaders.size();
 }
 
 int HttpClient::getResponseHeader(const std::string& name, HeaderValue& value) const
 {
-	value.clear();
-	if((200 <= mRespStatus && mRespStatus < 300) == false) {
-		return ErrCode::HttpClientNetFailed;
-	}
-	auto found = mRespHeaders.find(name);
-	if(found == mRespHeaders.end()) {
-		return ErrCode::HttpClientHeaderNotFound;
-	}
+    value.clear();
+    if((200 <= mRespStatus && mRespStatus < 300) == false) {
+        return ErrCode::HttpClientNetFailed;
+    }
+    auto found = mRespHeaders.find(name);
+    if(found == mRespHeaders.end()) {
+        return ErrCode::HttpClientHeaderNotFound;
+    }
 
-	value = found->second;
-	auto size = found->second.size();
+    value = found->second;
+    auto size = found->second.size();
 
-	return (int)size;
+    return (int)size;
 }
 
 /* =========================================== */
@@ -241,174 +248,182 @@ std::string trim(const std::string &s)
 
 size_t HttpClient::CurlHeaderCallback(char* buffer, size_t size, size_t nitems, void* userdata)
 {
-	HttpClient* httpClient = static_cast<HttpClient*>(userdata);
-	std::string header(buffer);
-	size_t length = size * nitems;
+    HttpClient* httpClient = static_cast<HttpClient*>(userdata);
+    std::string header(buffer);
+    size_t length = size * nitems;
 
-	auto pos = header.find(':');
-	if(pos != std::string::npos) {
-		std::string name = header.substr(0, pos);
-		std::string value = header.substr(pos + 1);
-		name = trim(name);
-		value = trim(value);
+    auto pos = header.find(':');
+    if(pos != std::string::npos) {
+        std::string name = header.substr(0, pos);
+        std::string value = header.substr(pos + 1);
+        name = trim(name);
+        value = trim(value);
 
-		httpClient->addHeader(httpClient->mRespHeaders, name, value);
-	}
+        httpClient->addHeader(httpClient->mRespHeaders, name, value);
+    }
 
-	return length;
+    return length;
 }
 
 size_t HttpClient::CurlWriteCallback(char* buffer, size_t size, size_t nitems, void* userdata)
 {
-	HttpClient* httpClient = static_cast<HttpClient*>(userdata);
-	size_t length = size * nitems;
+    HttpClient* httpClient = static_cast<HttpClient*>(userdata);
+    size_t length = size * nitems;
 
-	if(httpClient->mRespBody.get() != nullptr) {
-		httpClient->mRespBody->write(buffer, length);
-	}
+    if(httpClient->mRespBody.get() != nullptr) {
+        httpClient->mRespBody->write(buffer, length);
+    }
 
-	return length;
+    return length;
 }
 
 size_t HttpClient::CurlReadCallback(char* buffer, size_t size, size_t nitems, void* userdata)
 {
-	HttpClient* httpClient = static_cast<HttpClient*>(userdata);
-	size_t length = size * nitems;
+    HttpClient* httpClient = static_cast<HttpClient*>(userdata);
+    size_t length = size * nitems;
+    if(length > httpClient->mReqBodyRemainSize) {
+        length = httpClient->mReqBodyRemainSize;
+    }
 
-	if(httpClient->mReqBody.get() != nullptr) {
-		if(length > httpClient->mReqBodyRemainSize) {
-			length = httpClient->mReqBodyRemainSize;
-		}
+    if(httpClient->mReqBody.get() != nullptr) {
+        httpClient->mReqBody->read(buffer, length);
+        httpClient->mReqBodyRemainSize -= length;
+    }
 
-		httpClient->mReqBody->read(buffer, length);
-		httpClient->mReqBodyRemainSize -= length;
-	}
-
-	return length;
+    return length;
 }
 
 int HttpClient::CurlProgressCallback(void *userdata, double dltotal, double dlnow, double ultotal, double ulnow)
 {
-	HttpClient* httpClient = static_cast<HttpClient*>(userdata);
-//	Log::I(Log::Tag::Util, "HttpClient::CurlProgressCallback() mCancelFlag=%d.", httpClient->mCancelFlag);
-	if(httpClient->mCancelFlag == true) {
-		Log::I(Log::Tag::Util, "HttpClient::CurlProgressCallback() cancel by user.");
-		return -1;
-	}
+    HttpClient* httpClient = static_cast<HttpClient*>(userdata);
+//    Log::I(Log::Tag::Util, "HttpClient::CurlProgressCallback() mCancelFlag=%d.", httpClient->mCancelFlag);
+    if(httpClient->mCancelFlag == true) {
+        Log::I(Log::Tag::Util, "HttpClient::CurlProgressCallback() cancel by user.");
+        return -1;
+    }
 
-	return 0;
+    return 0;
 }
 
 int HttpClient::makeCurlHeaders(std::shared_ptr<struct curl_slist>& curlHeadersPtr) const
 {
     auto creater = [&]() -> struct curl_slist* {
-		struct curl_slist* curlHeaders = nullptr;
-		bool hasAcceptEncoding = false;
-		for (auto& [key, val]: mReqHeaders) {
-			auto& name = key;
-			for(auto& value: val) {
-				std::string header = (name + ": " + value);
-				Log::D(Log::Tag::Util, "HttpClient::makeCurlHeaders() header=%s", header.c_str());
-				curlHeaders = curl_slist_append(curlHeaders, header.c_str());
-			}
+        struct curl_slist* curlHeaders = nullptr;
+        bool hasAcceptEncoding = false;
+        for (auto& [key, val]: mReqHeaders) {
+            auto& name = key;
+            for(auto& value: val) {
+                std::string header = (name + ": " + value);
+                Log::D(Log::Tag::Util, "HttpClient::makeCurlHeaders() header=%s", header.c_str());
+                curlHeaders = curl_slist_append(curlHeaders, header.c_str());
+            }
 
-			if(key == "Accept-Encoding") {
-				hasAcceptEncoding = true;
-			}
-		}
-		if(hasAcceptEncoding == false) {
-			curlHeaders = curl_slist_append(curlHeaders, "Accept-Encoding: identity");
-		}
+            if(key == "Accept-Encoding") {
+                hasAcceptEncoding = true;
+            }
+        }
+        if(hasAcceptEncoding == false) {
+            curlHeaders = curl_slist_append(curlHeaders, "Accept-Encoding: identity");
+        }
 
-		return curlHeaders;
-	};
-	auto deleter = [](struct curl_slist* ptr) -> void {
-		curl_slist_free_all(ptr);
-	};
-	curlHeadersPtr = std::shared_ptr<struct curl_slist>(creater(), deleter);
+        return curlHeaders;
+    };
+    auto deleter = [](struct curl_slist* ptr) -> void {
+        curl_slist_free_all(ptr);
+    };
+    curlHeadersPtr = std::shared_ptr<struct curl_slist>(creater(), deleter);
 
-	return 0;
+    return 0;
 }
 
 int HttpClient::makeCurl(std::shared_ptr<struct curl_slist> curlHeadersPtr,
-						 std::shared_ptr<void>& curlHandlePtr) const
+                         std::shared_ptr<void>& curlHandlePtr) const
 {
-	CURLcode curle;
+    CURLcode curle;
 
-	curlHandlePtr.reset();
+    curlHandlePtr.reset();
 
     auto creater = [&]() -> CURL* {
-		return curl_easy_init();
-	};
-	auto deleter = [](CURL* ptr) -> void {
-		curl_easy_cleanup(ptr);
-	};
-	curlHandlePtr = std::shared_ptr<CURL>(creater(), deleter);
-	CHECK_ASSERT(curlHandlePtr != nullptr, ErrCode::HttpClientCurlErrStart);
+        return curl_easy_init();
+    };
+    auto deleter = [](CURL* ptr) -> void {
+        curl_easy_cleanup(ptr);
+    };
+    curlHandlePtr = std::shared_ptr<CURL>(creater(), deleter);
+    CHECK_ASSERT(curlHandlePtr != nullptr, ErrCode::HttpClientCurlErrStart);
 
-	curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_NOSIGNAL, true);
-	CHECK_CURL(curle);
+    curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_NOSIGNAL, true);
+    CHECK_CURL(curle);
 
-	if(mUrl.empty() == true) {
-		return ErrCode::HttpClientUrlNotExists;
-	}
+    if(mUrl.empty() == true) {
+        return ErrCode::HttpClientUrlNotExists;
+    }
     Log::I(Log::Tag::Util, "HttpClient::makeCurl() url=%s", mUrl.c_str());
-	curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_URL, mUrl.c_str());
-	CHECK_CURL(curle);
+    curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_URL, mUrl.c_str());
+    CHECK_CURL(curle);
 
-	curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_SSL_VERIFYHOST, 0L);
-	CHECK_CURL(curle);
+    curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_SSL_VERIFYHOST, 0L);
+    CHECK_CURL(curle);
 
     curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_SSL_VERIFYPEER, 0L);
-	CHECK_CURL(curle);
+    CHECK_CURL(curle);
 
-	curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_HTTPHEADER, curlHeadersPtr.get());
-	CHECK_CURL(curle);
+    curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_HTTPHEADER, curlHeadersPtr.get());
+    CHECK_CURL(curle);
 
-	curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_CONNECTTIMEOUT_MS, mConnectTimeoutMS);
-	CHECK_CURL(curle);
+    curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_CONNECTTIMEOUT_MS, mConnectTimeoutMS);
+    CHECK_CURL(curle);
 
-	curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_HEADERFUNCTION, CurlHeaderCallback);
-	CHECK_CURL(curle);
+    curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_FOLLOWLOCATION, 1L);
+    CHECK_CURL(curle);
 
-	curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_HEADERDATA, this);
-	CHECK_CURL(curle);
+    curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_HEADERFUNCTION, CurlHeaderCallback);
+    CHECK_CURL(curle);
 
-	curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_WRITEFUNCTION, CurlWriteCallback);
-	CHECK_CURL(curle);
-	curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_WRITEDATA, this);
-	CHECK_CURL(curle);
+    curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_HEADERDATA, this);
+    CHECK_CURL(curle);
 
-	curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_READFUNCTION, CurlReadCallback);
-	CHECK_CURL(curle);
-	curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_READDATA, this);
-	CHECK_CURL(curle);
+    curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_WRITEFUNCTION, CurlWriteCallback);
+    CHECK_CURL(curle);
+    curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_WRITEDATA, this);
+    CHECK_CURL(curle);
 
-	curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_NOPROGRESS, 0);
-	CHECK_CURL(curle);
-	curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_PROGRESSFUNCTION, CurlProgressCallback);
-	CHECK_CURL(curle);
-	curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_PROGRESSDATA, this);
-	CHECK_CURL(curle);
+    curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_READFUNCTION, CurlReadCallback);
+    CHECK_CURL(curle);
+    curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_READDATA, this);
+    CHECK_CURL(curle);
 
-	return 0;
+    curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_NOPROGRESS, 0);
+    CHECK_CURL(curle);
+    curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_PROGRESSFUNCTION, CurlProgressCallback);
+    CHECK_CURL(curle);
+    curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_PROGRESSDATA, this);
+    CHECK_CURL(curle);
+
+    // curle = curl_easy_setopt(curlHandlePtr.get(), CURLOPT_VERBOSE, 1L);
+    // CHECK_CURL(curle);
+
+    return 0;
 }
 
 int HttpClient::addHeader(HeaderMap& headers, const std::string& name, const std::string& value) const
 {
-	if(name.empty() == true) {
-		return ErrCode::HttpClientNullArgument;
-	}
+    if(name.empty() == true) {
+        return ErrCode::HttpClientNullArgument;
+    }
 
-	auto found = headers.find(name);
-	if(found == headers.end()) {
-		headers[name] = HeaderValue();
-		found = headers.find(name);
-	}
+    std::string lowerName = name;
+    std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    auto found = headers.find(lowerName);
+    if(found == headers.end()) {
+        headers[lowerName] = HeaderValue();
+        found = headers.find(lowerName);
+    }
 
-	found->second.push_back(value);
+    found->second.push_back(value);
 
-	return 0;
+    return 0;
 }
 
 } // namespace trinity

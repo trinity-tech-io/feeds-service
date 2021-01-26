@@ -17,6 +17,11 @@ public:
 	/*** type define ***/
 	using HeaderValue = std::vector<std::string>;
 	using HeaderMap   = std::map<std::string, HeaderValue>;
+	enum  Method {
+		GET,
+		POST,
+		PUT,
+	};
 
 	/*** static function and variable ***/
   
@@ -32,6 +37,7 @@ public:
 
 	int syncGet();
 	int syncPost(std::shared_ptr<std::istream> body);
+	int syncDo(Method method, std::shared_ptr<std::istream> body);
 
 	void asyncGet(std::function<void(int)> callback);
 	void asyncPost(std::shared_ptr<std::istream> body, std::function<void(int)> callback);

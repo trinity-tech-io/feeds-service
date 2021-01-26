@@ -135,9 +135,9 @@ int64_t CarrierSessionHelper::sendData(const std::vector<uint8_t>& data)
 
 int64_t CarrierSessionHelper::sendData(std::iostream& data)
 {
-    data.seekg(0, data.end);
+    data.seekg(0, std::ios::end);
     int dataSize = data.tellg();
-    data.seekg(0, data.beg);
+    data.seekg(0, std::ios::beg);
     Log::D(Log::Tag::Msg, "CarrierSessionHelper send stream data, len: %d", dataSize);
 
     const int step = 2048;

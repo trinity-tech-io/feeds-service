@@ -19,7 +19,7 @@ public:
 
     /*** class function and variable ***/
     virtual int makeDir(const std::string& dirPath) = 0;
-    virtual int createFile(const std::string& filePath, std::shared_ptr<std::istream> body) = 0;
+    virtual int write(const std::string& filePath, std::shared_ptr<std::istream> content) = 0;
 
 protected:
     /*** type define ***/

@@ -1,5 +1,6 @@
 #include "ServiceMethod.hpp"
 
+#include <fstream>
 #include <CloudDrive.hpp>
 #include <ErrCode.hpp>
 #include <Log.hpp>
@@ -63,7 +64,11 @@ int ServiceMethod::onBackupServiceData(const std::string& from,
     auto drive = CloudDrive::Create(type, params.drive_url, params.drive_access_token);
     CHECK_ASSERT(drive != nullptr, ErrCode::InvalidParams);
 
-    int ret = drive->makeDir("yyyyy/zzzz/testttttt");
+    auto fileStream = std::make_shared<std::fstream>();
+    fileStream->open("/Users/mengxk/Desktop/2.ppp",
+                     std::ios::binary | std::ios::in | std::ios::out);
+    int ret = drive->write("Desktop/2222", fileStream);
+    fileStream->close();
     CHECK_ERROR(ret);
 
     return 0;
