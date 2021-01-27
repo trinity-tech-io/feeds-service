@@ -15,6 +15,7 @@ namespace trinity {
 /* =========================================== */
 std::shared_ptr<CloudDrive> CloudDrive::Create(Type type,
                                                const std::string& driveUrl,
+                                               const std::string& driveRootDir,
                                                const std::string& accessToken)
 {
     std::shared_ptr<CloudDrive> drive;
@@ -23,11 +24,13 @@ std::shared_ptr<CloudDrive> CloudDrive::Create(Type type,
     case Type::OneDrive:
         {
             struct Impl: trinity::OneDrive {
-                explicit Impl(const std::string& driveUrl, const std::string& accessToken)
-                    : OneDrive(driveUrl, accessToken) {}
+                explicit Impl(const std::string& driveUrl,
+                              const std::string& driveRootDir,
+                              const std::string& accessToken)
+                    : OneDrive(driveUrl, driveRootDir, accessToken) {}
                 virtual ~Impl() {};
             };
-            drive = std::make_shared<Impl>(driveUrl, accessToken);
+            drive = std::make_shared<Impl>(driveUrl, driveRootDir, accessToken);
         }
         break;
     default:

@@ -30,7 +30,7 @@ int OneDrive::makeDir(const std::string& dirPath)
     auto dirName = path.filename().string();
 
     std::stringstream url;
-    url << driveUrl << "/" << RootDir;
+    url << driveUrl << "/root:/" << driveRootDir;
     if(parentPath.empty() == false) {
         url << "/" << parentPath;
     }
@@ -38,9 +38,6 @@ int OneDrive::makeDir(const std::string& dirPath)
 
     HttpClient httpClient;
     int ret = makeHttpClient(url.str(), httpClient);
-    CHECK_ERROR(ret);
-
-    ret = httpClient.setHeader("content-type", "application/json");
     CHECK_ERROR(ret);
 
     auto respBody = std::make_shared<std::stringstream>();
@@ -59,6 +56,36 @@ int OneDrive::makeDir(const std::string& dirPath)
     if(respStatus != 200 && respStatus != 201) {
         Log::W(Log::Tag::CD, "Failed to make dir [%s], http response is (%d)%s", dirPath.c_str(), respStatus, respBody->str().c_str());
         CHECK_ERROR(ErrCode::CloudDriveMakeDirFailed);
+    }
+
+    return 0;
+}
+
+int OneDrive::remove(const std::string& filePath)
+{
+    Log::V(Log::Tag::CD, "%s", FORMAT_METHOD);
+
+    std::stringstream url;
+    url << driveUrl << "/root:/" << driveRootDir << "/" << filePath;
+
+    HttpClient httpClient;
+    int ret = makeHttpClient(url.str(), httpClient);
+    CHECK_ERROR(ret);
+
+    auto respBody = std::make_shared<std::stringstream>();
+    ret = httpClient.setResponseBody(respBody);
+    CHECK_ERROR(ret);
+
+    ret = httpClient.syncDo(HttpClient::Method::DELETE, nullptr);
+    CHECK_ERROR(ret);
+
+    auto respStatus = httpClient.getResponseStatus();
+    if(respStatus != 204
+    && respBody->str().find("itemNotFound") == std::string::npos) {
+        fprintf(stderr, "token=%s\n", accessToken.c_str());
+        Log::W(Log::Tag::CD, "Failed delete [%s]", url.str().c_str());
+        Log::W(Log::Tag::CD, "Http Response=(%d)%s", respStatus, respBody->str().c_str());
+        CHECK_ERROR(ErrCode::CloudDriveDeleteFileFailed);
     }
 
     return 0;
@@ -86,8 +113,9 @@ int OneDrive::write(const std::string& filePath, std::shared_ptr<std::istream> c
 /* =========================================== */
 /* === class private function implement  ===== */
 /* =========================================== */
-OneDrive::OneDrive(const std::string& driveUrl, const std::string& accessToken)
+OneDrive::OneDrive(const std::string& driveUrl, const std::string& driveRootDir, const std::string& accessToken)
     : driveUrl(driveUrl)
+    , driveRootDir(driveRootDir)
     , accessToken(accessToken)
 {
 }
@@ -107,6 +135,9 @@ int OneDrive::makeHttpClient(const std::string& url, HttpClient& httpClient)
     ret = httpClient.setHeader("Authorization", "Bearer " + accessToken);
     CHECK_ERROR(ret);
 
+    ret = httpClient.setHeader("Content-Type", "application/json");
+    CHECK_ERROR(ret);
+
     return 0;
 }
 
@@ -115,13 +146,10 @@ int OneDrive::touchFile(const std::string& filePath, std::string& fileUrl)
     Log::V(Log::Tag::CD, "%s", FORMAT_METHOD);
 
     std::stringstream url;
-    url << driveUrl << "/" << RootDir << "/" << filePath << ":/createUploadSession";
+    url << driveUrl << "/root:/" << driveRootDir << "/" << filePath << ":/createUploadSession";
 
     HttpClient httpClient;
     int ret = makeHttpClient(url.str(), httpClient);
-    CHECK_ERROR(ret);
-
-    ret = httpClient.setHeader("content-type", "application/json");
     CHECK_ERROR(ret);
 
     auto respBody = std::make_shared<std::stringstream>();
@@ -163,9 +191,9 @@ int OneDrive::uploadFile(const std::string& fileUrl, std::shared_ptr<std::istrea
     content->seekg(0, std::ios::end);
     int contentSize = content->tellg();
     range << "bytes 0-" << contentSize - 1 << "/" << contentSize;
-    ret = httpClient.setHeader("content-range", range.str());
+    ret = httpClient.setHeader("Content-Range", range.str());
     CHECK_ERROR(ret);
-    ret = httpClient.setHeader("content-type", "application/octet-stream");
+    ret = httpClient.setHeader("Content-Type", "application/octet-stream");
     CHECK_ERROR(ret);
 
     auto respBody = std::make_shared<std::stringstream>();

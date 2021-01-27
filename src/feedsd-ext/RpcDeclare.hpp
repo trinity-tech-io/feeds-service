@@ -214,8 +214,10 @@ struct BackupServiceDataRequest : RequestWithToken {
     struct Params : RequestWithToken::Params {
         std::string drive_name;
         std::string drive_url;
+        std::string drive_dir;
         std::string drive_access_token;
-        MSGPACK_DEFINE(MSGPACK_REQUEST_TOKEN_ARGS, drive_name, drive_url, drive_access_token);
+        MSGPACK_DEFINE(MSGPACK_REQUEST_TOKEN_ARGS,
+                       drive_name, drive_url, drive_dir, drive_access_token);
     };
 
     Params params;

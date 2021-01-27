@@ -19,8 +19,8 @@ namespace trinity {
 /* =========================================== */
 /* === class public function implement  ====== */
 /* =========================================== */
-ServiceMethod::ServiceMethod(const std::filesystem::path& cacheDir)
-    : cacheDir(cacheDir)
+ServiceMethod::ServiceMethod(const std::filesystem::path& dataDir)
+    : dataDir(dataDir)
 {
     using namespace std::placeholders;
     std::map<const char*, AdvancedHandler> advancedHandlerMap {
@@ -54,6 +54,14 @@ int ServiceMethod::onBackupServiceData(const std::string& from,
     const auto& params = requestPtr->params;
     responseArray.clear();
 
+    const std::set<std::string> migrateDirSet = {
+        "carrier",
+        "db",
+        "didlocaldoc",
+        "didstore",
+        "massdata",
+    };
+
     const auto badType = static_cast<CloudDrive::Type>(-1);
     auto type = badType;
     if(params.drive_name == "OneDrive") {
@@ -61,15 +69,34 @@ int ServiceMethod::onBackupServiceData(const std::string& from,
     }
     CHECK_ASSERT(type != badType, ErrCode::InvalidParams);
     
-    auto drive = CloudDrive::Create(type, params.drive_url, params.drive_access_token);
+    auto drive = CloudDrive::Create(type, params.drive_url, params.drive_dir, params.drive_access_token);
     CHECK_ASSERT(drive != nullptr, ErrCode::InvalidParams);
 
-    auto fileStream = std::make_shared<std::fstream>();
-    fileStream->open("/Users/mengxk/Desktop/2.ppp",
-                     std::ios::binary | std::ios::in | std::ios::out);
-    int ret = drive->write("Desktop/2222", fileStream);
-    fileStream->close();
+    int ret = drive->remove("");
     CHECK_ERROR(ret);
+
+    auto dataPath = std::filesystem::path(dataDir);
+    for(const auto& migrateDir: migrateDirSet) {
+        auto migratePath = dataPath / migrateDir;
+        for(const auto& itemPath: std::filesystem::recursive_directory_iterator(migratePath)) {
+            if(std::filesystem::is_directory(itemPath) == true) {
+                continue;
+            }
+            if(std::filesystem::file_size(itemPath) == 0) {
+                Log::I(Log::Tag::Cmd, "Backup service data, ignore empty file: %s.", itemPath.path().c_str());
+                continue;
+            }
+
+            auto filePath = itemPath.path();
+            Log::I(Log::Tag::Cmd, "Backup service data, uploading %s.", filePath.c_str());
+            auto fileStream = std::make_shared<std::fstream>();
+            fileStream->open(filePath, std::ios::binary | std::ios::in | std::ios::out);
+            auto relativePath = filePath.lexically_relative(dataPath);
+            ret = drive->write(relativePath.string(), fileStream);
+            fileStream->close();
+            CHECK_ERROR(ret);
+        }
+    }
 
     return 0;
 }

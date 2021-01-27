@@ -81,10 +81,7 @@ int HttpClient::setHeader(const std::string& name, const std::string& value)
         return ErrCode::HttpClientNullArgument;
     }
 
-    std::string lowerName = name;
-    std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
-    auto found = mReqHeaders.find(lowerName);
+    auto found = mReqHeaders.find(name);
     if(found != mReqHeaders.end()) {
         found->second.clear();
     }
@@ -412,13 +409,10 @@ int HttpClient::addHeader(HeaderMap& headers, const std::string& name, const std
         return ErrCode::HttpClientNullArgument;
     }
 
-    std::string lowerName = name;
-    std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
-    auto found = headers.find(lowerName);
+    auto found = headers.find(name);
     if(found == headers.end()) {
-        headers[lowerName] = HeaderValue();
-        found = headers.find(lowerName);
+        headers[name] = HeaderValue();
+        found = headers.find(name);
     }
 
     found->second.push_back(value);

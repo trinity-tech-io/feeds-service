@@ -21,6 +21,7 @@ public:
 		GET,
 		POST,
 		PUT,
+		DELETE,
 	};
 
 	/*** static function and variable ***/

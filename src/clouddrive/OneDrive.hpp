@@ -16,6 +16,7 @@ public:
 
     /*** class function and variable ***/
     virtual int makeDir(const std::string& dirPath) override;
+    virtual int remove(const std::string& filePath) override;
     virtual int write(const std::string& filePath, std::shared_ptr<std::istream> content) override;
 
 protected:
@@ -29,10 +30,11 @@ private:
     /*** type define ***/
 
     /*** static function and variable ***/
-    constexpr static const char* RootDir = "root:/feeds-service";
 
     /*** class function and variable ***/
-    explicit OneDrive(const std::string& driveUrl, const std::string& accessToken);
+    explicit OneDrive(const std::string& driveUrl,
+                      const std::string& driveRootDir,
+                      const std::string& accessToken);
     virtual ~OneDrive();
 
     int makeHttpClient(const std::string& url, HttpClient& httpClient);
@@ -40,6 +42,7 @@ private:
     int uploadFile(const std::string& fileUrl, std::shared_ptr<std::istream> content);
 
     std::string driveUrl;
+    std::string driveRootDir;
     std::string accessToken;
 
     friend CloudDrive;
