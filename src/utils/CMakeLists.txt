@@ -18,6 +18,7 @@ add_dependencies(utils
 
 target_include_directories(utils PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty"
     "${pkg-openssl_INCLUDE_DIRS}"
     "${FEEDS_INT_DIST_DIR}/include")
 

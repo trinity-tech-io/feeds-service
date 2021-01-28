@@ -1,9 +1,11 @@
 #include "ServiceMethod.hpp"
 
 #include <fstream>
+#include <json.hpp>
 #include <CloudDrive.hpp>
 #include <ErrCode.hpp>
 #include <Log.hpp>
+#include <MD5.hpp>
 #include <Platform.hpp>
 
 namespace trinity {
@@ -75,6 +77,7 @@ int ServiceMethod::onBackupServiceData(const std::string& from,
     int ret = drive->remove("");
     CHECK_ERROR(ret);
 
+    std::map<std::string, std::string> fileHashMap;
     auto dataPath = std::filesystem::path(dataDir);
     for(const auto& migrateDir: migrateDirSet) {
         auto migratePath = dataPath / migrateDir;
@@ -95,8 +98,16 @@ int ServiceMethod::onBackupServiceData(const std::string& from,
             ret = drive->write(relativePath.string(), fileStream);
             fileStream->close();
             CHECK_ERROR(ret);
+
+            fileHashMap[relativePath.string()] = MD5::Get(filePath); 
+
         }
     }
+    
+    auto fileHashStream = std::make_shared<std::stringstream>();
+    *fileHashStream << nlohmann::json(fileHashMap).dump(2);
+    ret = drive->write("backup-list.json", fileHashStream);
+    CHECK_ERROR(ret);
 
     return 0;
 }
