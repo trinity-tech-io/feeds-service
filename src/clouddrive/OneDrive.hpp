@@ -18,6 +18,7 @@ public:
     virtual int makeDir(const std::string& dirPath) override;
     virtual int remove(const std::string& filePath) override;
     virtual int write(const std::string& filePath, std::shared_ptr<std::istream> content) override;
+    virtual int read(const std::string& filePath, std::shared_ptr<std::ostream> content) override;
 
 protected:
     /*** type define ***/
@@ -40,6 +41,7 @@ private:
     int makeHttpClient(const std::string& url, HttpClient& httpClient);
     int touchFile(const std::string& filePath, std::string& fileUrl);
     int uploadFile(const std::string& fileUrl, std::shared_ptr<std::istream> content);
+    int downloadFile(const std::string& fileUrl, std::shared_ptr<std::ostream> content);
 
     std::string driveUrl;
     std::string driveRootDir;

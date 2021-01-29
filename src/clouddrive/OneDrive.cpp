@@ -105,6 +105,19 @@ int OneDrive::write(const std::string& filePath, std::shared_ptr<std::istream> c
     return 0;
 }
 
+int OneDrive::read(const std::string& filePath, std::shared_ptr<std::ostream> content)
+{
+    Log::V(Log::Tag::CD, "%s", FORMAT_METHOD);
+
+    std::stringstream fileUrl;
+    fileUrl << driveUrl << "/root:/" << driveRootDir << "/" << filePath << ":/content";
+
+    int ret = downloadFile(fileUrl.str(), content);
+    CHECK_ERROR(ret);
+
+    return 0;
+}
+
 /* =========================================== */
 /* === class protected function implement  === */
 /* =========================================== */
@@ -209,6 +222,41 @@ int OneDrive::uploadFile(const std::string& fileUrl, std::shared_ptr<std::istrea
         Log::W(Log::Tag::CD, "Failed upload to [%s]", fileUrl.c_str());
         Log::W(Log::Tag::CD, "Http Response=(%d)%s", respStatus, respBody->str().c_str());
         CHECK_ERROR(ErrCode::CloudDriveUploadFileFailed);
+    }
+
+    return 0;
+}
+
+int OneDrive::downloadFile(const std::string& fileUrl, std::shared_ptr<std::ostream> content)
+{
+    Log::V(Log::Tag::CD, "%s", FORMAT_METHOD);
+
+    HttpClient httpClient;
+    int ret = makeHttpClient(fileUrl, httpClient);
+    CHECK_ERROR(ret);
+
+    ret = httpClient.setHeader("Content-Type", "application/octet-stream");
+    CHECK_ERROR(ret);
+
+    ret = httpClient.setResponseBody(content);
+    CHECK_ERROR(ret);
+
+    ret = httpClient.syncGet();
+    CHECK_ERROR(ret);
+
+    auto respStatus = httpClient.getResponseStatus();
+    if(respStatus != 200 && respStatus != 201) {
+        auto respBody = std::make_shared<std::stringstream>();
+        ret = httpClient.setResponseBody(respBody);
+        CHECK_ERROR(ret);
+        ret = httpClient.setHeader("Range", "bytes=0-1024");
+        CHECK_ERROR(ret);
+        ret = httpClient.syncGet();
+        CHECK_ERROR(ret);
+        fprintf(stderr, "token=%s\n", accessToken.c_str());
+        Log::W(Log::Tag::CD, "Failed download [%s]", fileUrl.c_str());
+        Log::W(Log::Tag::CD, "Http Response=(%d)%s", respStatus, respBody->str().c_str());
+        CHECK_ERROR(ErrCode::CloudDriveDownloadFileFailed);
     }
 
     return 0;

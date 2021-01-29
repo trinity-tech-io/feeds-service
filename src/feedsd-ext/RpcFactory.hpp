@@ -19,6 +19,7 @@ public:
         static constexpr const char* GetMultiLikesAndCommentsCount = "get_multi_likes_and_comments_count";
         static constexpr const char* GetMultiSubscribersCount = "get_multi_subscribers_count";
         static constexpr const char* BackupServiceData = "backup_service_data";
+        static constexpr const char* RestoreServiceData = "restore_service_data";
     };
 
     /*** static function and variable ***/

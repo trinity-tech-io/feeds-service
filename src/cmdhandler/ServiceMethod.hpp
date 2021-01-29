@@ -16,7 +16,8 @@ public:
     /*** static function and variable ***/
 
     /*** class function and variable ***/
-    explicit ServiceMethod(const std::filesystem::path& dataDir);
+    explicit ServiceMethod(const std::filesystem::path& dataDir,
+                           const std::filesystem::path& cacheDir);
     virtual ~ServiceMethod();
 
 protected:
@@ -30,13 +31,18 @@ private:
     /*** type define ***/
 
     /*** static function and variable ***/
+    constexpr static const char* BACKUP_LIST_FILENAME = "backup-list.json";
 
     /*** class function and variable ***/
     int onBackupServiceData(const std::string& from,
                             std::shared_ptr<Rpc::Request> request,
                             std::vector<std::shared_ptr<Rpc::Response>>& responseArray);
+    int onRestoreServiceData(const std::string& from,
+                             std::shared_ptr<Rpc::Request> request,
+                             std::vector<std::shared_ptr<Rpc::Response>>& responseArray);
 
     std::filesystem::path dataDir;
+    std::filesystem::path cacheDir;
 };
 
 /***********************************************/

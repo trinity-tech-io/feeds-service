@@ -230,9 +230,24 @@ struct BackupServiceDataResponse : Response {
                           MSGPACK_RESPONSE_ARGS);
 };
 
-struct BackupServiceDataNotify : Notify {
-    MSGPACK_DEFINE_STRUCT(BackupServiceDataNotify,
-                          MSGPACK_NOTIFY_ARGS);
+struct RestoreServiceDataRequest : RequestWithToken {
+    struct Params : RequestWithToken::Params {
+        std::string drive_name;
+        std::string drive_url;
+        std::string drive_dir;
+        std::string drive_access_token;
+        MSGPACK_DEFINE(MSGPACK_REQUEST_TOKEN_ARGS,
+                       drive_name, drive_url, drive_dir, drive_access_token);
+    };
+
+    Params params;
+    MSGPACK_DEFINE_WITHTOKEN(RestoreServiceDataRequest, params.access_token,
+                             MSGPACK_REQUEST_ARGS, params)
+};
+
+struct RestoreServiceDataResponse : Response {
+    MSGPACK_DEFINE_STRUCT(RestoreServiceDataResponse,
+                          MSGPACK_RESPONSE_ARGS);
 };
 
 } // namespace Rpc

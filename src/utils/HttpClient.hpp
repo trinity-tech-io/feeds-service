@@ -18,6 +18,7 @@ public:
 	using HeaderValue = std::vector<std::string>;
 	using HeaderMap   = std::map<std::string, HeaderValue>;
 	enum  Method {
+		HEAD,
 		GET,
 		POST,
 		PUT,

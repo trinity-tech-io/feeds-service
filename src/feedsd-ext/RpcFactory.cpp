@@ -81,6 +81,8 @@ std::shared_ptr<Request> Factory::MakeRequest(const std::string& method)
         request = std::make_shared<GetMultiSubscribersCountRequest>();
     } else if(method == Method::BackupServiceData) {
         request = std::make_shared<BackupServiceDataRequest>();
+    } else if(method == Method::RestoreServiceData) {
+        request = std::make_shared<RestoreServiceDataRequest>();
     }
 
     if(request != nullptr) {
@@ -107,6 +109,8 @@ std::shared_ptr<Response> Factory::MakeResponse(const std::string& method)
         response = std::make_shared<GetMultiSubscribersCountResponse>();
     } else if(method == Method::BackupServiceData) {
         response = std::make_shared<BackupServiceDataResponse>();
+    } else if(method == Method::RestoreServiceData) {
+        response = std::make_shared<RestoreServiceDataResponse>();
     } else {
         Log::E(Log::Tag::Rpc, "RPC Factory ignore to make response from method: %s.", method.c_str());
     }
@@ -120,11 +124,7 @@ std::shared_ptr<Notify> Factory::MakeNotify(const std::string& method)
 {
     std::shared_ptr<Notify> notify;
 
-    if(method == Method::BackupServiceData) {
-        notify = std::make_shared<BackupServiceDataNotify>();
-    } else {
-        Log::E(Log::Tag::Rpc, "RPC Factory ignore to make notify from method: %s.", method.c_str());
-    }
+    Log::E(Log::Tag::Rpc, "RPC Factory ignore to make notify from method: %s.", method.c_str());
 
     notify->version = "1.0";
     notify->method = method;

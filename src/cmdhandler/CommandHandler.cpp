@@ -72,7 +72,7 @@ int CommandHandler::config(const std::filesystem::path& dataDir,
         std::make_shared<LegacyMethod>(),
         std::make_shared<ChannelMethod>(),
         std::make_shared<MassData>(dataDir / MassData::MassDataDirName),
-        std::make_shared<ServiceMethod>(dataDir),
+        std::make_shared<ServiceMethod>(dataDir, dataDir / CacheDirName),
         std::make_shared<StandardAuth>(),
     });
 

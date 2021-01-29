@@ -22,6 +22,7 @@ public:
     virtual int makeDir(const std::string& dirPath) = 0;
     virtual int remove(const std::string& filePath) = 0;
     virtual int write(const std::string& filePath, std::shared_ptr<std::istream> content) = 0;
+    virtual int read(const std::string& filePath, std::shared_ptr<std::ostream> content) = 0;
 
 protected:
     /*** type define ***/
