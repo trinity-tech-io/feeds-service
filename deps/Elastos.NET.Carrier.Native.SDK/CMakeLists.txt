@@ -23,9 +23,9 @@ ExternalProject_Add(
 )
 
 add_library(libcarrier-static INTERFACE)
-target_link_libraries(libcarrier-static INTERFACE carrier carriersession
-                                                  pj pjlib-util pjmedia pjnath 
+target_link_libraries(libcarrier-static INTERFACE carriersession carrier 
+                                                  pjmedia pjnath pj pjlib-util
                                                   toxcore srtp flatccrt
-                                                  curl crypto ssl tls z
+                                                  curl ssl tls crypto z
                                                   libcrystal-static)
 target_include_directories(libcarrier-static INTERFACE ${FEEDS_INT_DIST_DIR}/include)
