@@ -409,8 +409,8 @@ int StandardAuth::checkAuthToken(const std::string& userName, const std::string&
 
     auto instanceDidUrl = Credential_GetId(vc);
     auto instanceDid = DIDURL_GetDid(instanceDidUrl);
-    char didStrBuf[ELA_MAX_DID_LEN];
-    auto instanceDidStr = DID_ToString(instanceDid, didStrBuf, sizeof(didStrBuf));
+    char instanceDidBuf[ELA_MAX_DID_LEN];
+    auto instanceDidStr = DID_ToString(instanceDid, instanceDidBuf, sizeof(instanceDidBuf));
     CHECK_DIDSDK(instanceDidStr != nullptr, ErrCode::AuthCredentialIdNotExists, "The credential id isn't exist.");
     CHECK_ASSERT(authSecret.did == instanceDidStr, ErrCode::AuthCredentialBadInstanceId);
 
@@ -432,7 +432,8 @@ int StandardAuth::checkAuthToken(const std::string& userName, const std::string&
     CHECK_ASSERT(expired == false, ErrCode::AuthNonceExpiredError);
 
     auto issuer = Credential_GetIssuer(vc);
-    auto issuerDidStr = DID_ToString(issuer, didStrBuf, sizeof(didStrBuf));
+    char issuerDidBuf[ELA_MAX_DID_LEN];
+    auto issuerDidStr = DID_ToString(issuer, issuerDidBuf, sizeof(issuerDidBuf));
     credentialInfo.appDid = appDid.get();
     credentialInfo.userDid = issuerDidStr;
     credentialInfo.instanceDid = instanceDidStr;
