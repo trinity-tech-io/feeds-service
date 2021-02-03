@@ -120,7 +120,7 @@ int ChannelMethod::onGetMultiComments(std::shared_ptr<Rpc::Request> request,
         if(nextCommentsSize > Rpc::Factory::MaxAvailableSize) {
             responseArray.push_back(response);
             response.reset();
-            commentsSize = sizeof(Rpc::GetMultiCommentsResponse) - sizeof(Rpc::GetMultiCommentsResponse::Result::comments);
+            nextCommentsSize = sizeof(Rpc::GetMultiCommentsResponse) - sizeof(Rpc::GetMultiCommentsResponse::Result::comments);
         }
         if(response == nullptr) {
             response = makeResponse();
@@ -282,7 +282,7 @@ int ChannelMethod::onGetMultiSubscribersCount(std::shared_ptr<Rpc::Request> requ
         if(nextSubscribersCountSize > Rpc::Factory::MaxAvailableSize) {
             responseArray.push_back(response);
             response.reset();
-            channelsSize = sizeof(Rpc::GetMultiSubscribersCountResponse) - sizeof(Rpc::GetMultiSubscribersCountResponse::Result::channels);
+            nextSubscribersCountSize = sizeof(Rpc::GetMultiSubscribersCountResponse) - sizeof(Rpc::GetMultiSubscribersCountResponse::Result::channels);
         }
         if(response == nullptr) {
             response = makeResponse();
