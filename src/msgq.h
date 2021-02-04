@@ -29,10 +29,7 @@
 extern "C" {
 #endif
 
-int msgq_init();
-void msgq_deinit();
 int msgq_enq(const char *to, Marshalled *msg);
-void msgq_peer_offline(const char *peer);
 
 #ifdef __cplusplus
 } // extern "C"

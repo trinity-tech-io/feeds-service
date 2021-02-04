@@ -85,8 +85,7 @@ public:
     std::weak_ptr<Carrier> getCarrierHandler();
 
     int received(const std::string& from, const std::vector<uint8_t>& data);
-    int send(const std::string &to, const std::vector<uint8_t>& data,
-             CarrierFriendMessageReceiptCallback* receiptCallback = nullptr, void* receiptContext = nullptr);
+    int send(const std::string &to, const std::vector<uint8_t>& data);
 
     int unpackRequest(const std::vector<uint8_t>& data,
                       std::shared_ptr<Req>& req) const;
@@ -114,7 +113,8 @@ private:
     int process(const std::string& from, const std::vector<uint8_t>& data);
     int processAdvance(const std::string& from, const std::vector<uint8_t>& data);
 
-    std::shared_ptr<ThreadPool> threadPool;
+    std::shared_ptr<ThreadPool> msgRecvThread;
+    std::shared_ptr<ThreadPool> msgSendThread;
     std::weak_ptr<Carrier> carrierHandler;
     std::vector<std::shared_ptr<Listener>> cmdListener;
 };

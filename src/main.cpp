@@ -140,7 +140,6 @@ void friend_connection_callback(Carrier *c, const char *friend_id,
 
     --connecting_clients;
     feeds_deactivate_suber(friend_id);
-    msgq_peer_offline(friend_id);
 }
 
 static
@@ -416,17 +415,9 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    rc = msgq_init();
-    if (rc < 0) {
-        free_cfg(&cfg);
-        transport_deinit();
-        return -1;
-    }
-
     rc = trinity::DataBase::GetInstance()->config(cfg.db_fpath);
     if (rc < 0) {
         free_cfg(&cfg);
-        msgq_deinit();
         transport_deinit();
         return -1;
     }
@@ -435,7 +426,6 @@ int main(int argc, char *argv[])
     if (rc < 0) {
         free_cfg(&cfg);
         trinity::DataBase::GetInstance()->cleanup();
-        msgq_deinit();
         transport_deinit();
         return -1;
     }
@@ -445,7 +435,6 @@ int main(int argc, char *argv[])
         free_cfg(&cfg);
         did_deinit();
         trinity::DataBase::GetInstance()->cleanup();
-        msgq_deinit();
         transport_deinit();
         return -1;
     }
@@ -456,7 +445,6 @@ int main(int argc, char *argv[])
         auth_deinit();
         did_deinit();
         trinity::DataBase::GetInstance()->cleanup();
-        msgq_deinit();
         transport_deinit();
         return -1;
     }
@@ -491,7 +479,6 @@ int main(int argc, char *argv[])
         auth_deinit();
         did_deinit();
         trinity::DataBase::GetInstance()->cleanup();
-        msgq_deinit();
         transport_deinit();
         return -1;
     }
@@ -502,7 +489,6 @@ int main(int argc, char *argv[])
     auth_deinit();
     did_deinit();
     trinity::DataBase::GetInstance()->cleanup();
-    msgq_deinit();
     transport_deinit();
 
     return rc;

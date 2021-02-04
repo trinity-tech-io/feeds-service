@@ -63,7 +63,8 @@ int CommandHandler::config(const std::filesystem::path& dataDir,
     int ret = Listener::SetDataDir(dataDir);
     CHECK_ERROR(ret);
 
-    threadPool = ThreadPool::Create("command-handler");
+    msgRecvThread = ThreadPool::Create("message-receiver");
+    msgSendThread = ThreadPool::Create("message-sender");
     carrierHandler = carrier;
 
     cmdListener = std::move(std::vector<std::shared_ptr<Listener>> {
@@ -80,7 +81,8 @@ void CommandHandler::cleanup()
 {
     CmdHandlerInstance.reset();
 
-    threadPool.reset();
+    msgRecvThread.reset();
+    msgSendThread.reset();
     carrierHandler.reset();
     cmdListener.clear();
 
@@ -94,9 +96,9 @@ std::weak_ptr<Carrier> CommandHandler::getCarrierHandler()
 
 int CommandHandler::received(const std::string& from, const std::vector<uint8_t>& data)
 {
-    CHECK_ASSERT(threadPool != nullptr, ErrCode::PointerReleasedError);
+    CHECK_ASSERT(msgRecvThread != nullptr, ErrCode::PointerReleasedError);
 
-    threadPool->post([this, from = std::move(from), data = std::move(data)] {
+    msgRecvThread->post([this, from = std::move(from), data = std::move(data)] {
         int ret = processAdvance(from, data);
         if(ret != ErrCode::UnimplementedError) {
             return;
@@ -108,23 +110,33 @@ int CommandHandler::received(const std::string& from, const std::vector<uint8_t>
     return 0;
 }
 
-int CommandHandler::send(const std::string &to, const std::vector<uint8_t> &data,
-                         CarrierFriendMessageReceiptCallback* receiptCallback, void* receiptContext)
+int CommandHandler::send(const std::string &to, const std::vector<uint8_t> &data)
 {
-    CHECK_ASSERT(threadPool != nullptr, ErrCode::PointerReleasedError);
+    CHECK_ASSERT(msgSendThread != nullptr, ErrCode::PointerReleasedError);
 
-    threadPool->post([this, to = std::move(to), data = std::move(data), receiptCallback, receiptContext] {
+    msgSendThread->post([this, to = std::move(to), data = std::move(data)] {
        auto carrier = SAFE_GET_PTR_NO_RETVAL(this->getCarrierHandler());
-       auto msgid = carrier_send_friend_message(carrier.get(), to.c_str(),
+
+        CarrierFriendInfo friendCarrierInfo;
+       int rc = carrier_get_friend_info(carrier.get(), to.c_str(), &friendCarrierInfo); 
+       if(rc < 0) {
+           PrintCarrierError("Failed to get friend [" + to + "] info, ignore to send message.");
+           return;
+       }
+       if(friendCarrierInfo.status != CarrierConnectionStatus_Connected) {
+           PrintCarrierError("Friend [" + to + "] is not online, ignore to send message.");
+           return;
+       }
+
+       rc = carrier_send_friend_message(carrier.get(), to.c_str(),
                                                 data.data(), data.size(),
-                                                nullptr,
-                                                receiptCallback, receiptContext);
-       if(msgid < 0) {
+                                                nullptr, nullptr, nullptr);
+       if(rc < 0) {
            PrintCarrierError("Failed to send message to: [" + to + "].");
            return;
        }
 
-       Log::D(Log::Tag::Cmd, "Success send message to [%s].", to.c_str());
+       Log::D(Log::Tag::Cmd, "Send message to [%s].", to.c_str());
     });
 
     return 0;
