@@ -105,6 +105,7 @@ private:
     /*** type define ***/
 
     /*** static function and variable ***/
+    static constexpr const char* CacheDirName = "cache";
     static std::shared_ptr<CommandHandler> CmdHandlerInstance;
 
     /*** class function and variable ***/

@@ -3886,32 +3886,6 @@ finally:
     deref(uinfo);
 }
 
-void hdl_get_srv_ver_req(Carrier *c, const char *from, Req *base)
-{
-    GetSrvVerReq *req = (GetSrvVerReq *)base;
-    Marshalled *resp_marshal = NULL;
-    int rc;
-
-    vlogD(TAG_CMD "Received get_service_version request from [%s]: ", from);
-
-    GetSrvVerResp resp = {
-        .tsx_id = req->tsx_id,
-        .result = {
-            .version  = FEEDSD_VER,
-            .version_code  = FEEDSD_VERCODE,
-        }
-    };
-    resp_marshal = rpc_marshal_get_srv_ver_resp(&resp);
-    vlogD(TAG_CMD "get_service_version response: "
-          "{version: %s, version_code:%lld}", resp.result.version, resp.result.version_code);
-
-finally:
-    if (resp_marshal) {
-        msgq_enq(from, resp_marshal);
-        deref(resp_marshal);
-    }
-}
-
 void hdl_report_illegal_cmt_req(Carrier *c, const char *from, Req *base)
 {
     ReportIllegalCmtReq *req = (ReportIllegalCmtReq *)base;

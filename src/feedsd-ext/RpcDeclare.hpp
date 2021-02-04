@@ -28,6 +28,23 @@ struct RequestWithToken : Request {
     virtual const std::string& accessToken() = 0;
 };
 
+struct GetServiceVersionRequest : Request {
+    MSGPACK_DEFINE_STRUCT(GetServiceVersionRequest,
+                          MSGPACK_REQUEST_ARGS);
+};
+
+struct GetServiceVersionResponse : Response {
+    struct Result {
+        std::string version;
+        int64_t version_code;
+        MSGPACK_DEFINE(version, version_code);
+    };
+
+    Result result;
+    MSGPACK_DEFINE_STRUCT(GetServiceVersionResponse,
+                          MSGPACK_RESPONSE_ARGS, result);
+};
+
 struct StandardSignInRequest : Request {
     struct Params {
         std::string document;

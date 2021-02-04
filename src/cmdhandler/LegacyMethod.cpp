@@ -56,7 +56,6 @@ static struct {
     {"subscribe_channel"           , hdl_sub_chan_req           },
     {"unsubscribe_channel"         , hdl_unsub_chan_req         },
     {"enable_notification"         , hdl_enbl_notif_req         },
-    {"get_service_version"         , hdl_get_srv_ver_req        },
     {"report_illegal_comment"      , hdl_report_illegal_cmt_req },
     {"get_reported_comments"       , hdl_get_reported_cmts_req  },
 };

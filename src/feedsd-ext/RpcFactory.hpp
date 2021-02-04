@@ -13,6 +13,8 @@ class Factory {
 public:
     /*** type define ***/
     struct Method {
+        
+        static constexpr const char* GetServiceVersion = "get_service_version";
         static constexpr const char* StandardSignIn = "standard_sign_in";
         static constexpr const char* StandardDidAuth = "standard_did_auth";
         static constexpr const char* GetMultiComments = "get_multi_comments";

@@ -1920,39 +1920,6 @@ int unmarshal_get_binary_req(const msgpack_object *req, Req **req_unmarshal)
 }
 
 static
-int unmarshal_get_srv_ver_req(const msgpack_object *req, Req **req_unmarshal)
-{
-    const msgpack_object *method;
-    const msgpack_object *tsx_id;
-    GetSrvVerReq *tmp;
-    void *buf;
-
-    assert(req->type == MSGPACK_OBJECT_MAP);
-
-    map_iter_kvs(req, {
-        (void)map_val_str("version");
-        method  = map_val_str("method");
-        tsx_id  = map_val_u64("id");
-        map_iter_kvs(map_val_map("params"), {
-            map_val_str("access_token");
-        });
-    });
-
-    int str_size = str_reserve_spc(method);
-    tmp = rc_zalloc(sizeof(*tmp) + str_size, NULL);
-    if (!tmp)
-        return -1;
-
-    buf = tmp + 1;
-    tmp->method          = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
-    tmp->tsx_id          = tsx_id->u64_val;
-
-    *req_unmarshal = (Req *)tmp;
-    return 0;
-}
-
-static
 int unmarshal_report_illegal_cmt_req(const msgpack_object *req, Req **req_unmarshal)
 {
     const msgpack_object *method;
@@ -2128,7 +2095,6 @@ static struct RepParser req_parsers_1_0[] = {
     {"enable_notification"         , unmarshal_enbl_notif_req         },
     {"set_binary"                  , unmarshal_set_binary_req         },
     {"get_binary"                  , unmarshal_get_binary_req         },
-    {"get_service_version"         , unmarshal_get_srv_ver_req        },
     {"report_illegal_comment"      , unmarshal_report_illegal_cmt_req },
     {"get_reported_comments"       , unmarshal_get_reported_cmts_req  },
 };

@@ -59,7 +59,9 @@ std::shared_ptr<Request> Factory::MakeRequest(const std::string& method)
 {
     std::shared_ptr<Request> request;
 
-    if(method == Method::StandardSignIn) {
+    if(method == Method::GetServiceVersion) {
+        request = std::make_shared<GetServiceVersionRequest>();
+    } else if(method == Method::StandardSignIn) {
         request = std::make_shared<StandardSignInRequest>();
     } else if(method == Method::StandardDidAuth) {
         request = std::make_shared<StandardDidAuthRequest>();
@@ -78,7 +80,9 @@ std::shared_ptr<Response> Factory::MakeResponse(const std::string& method)
 {
     std::shared_ptr<Response> response;
 
-    if(method == Method::StandardSignIn) {
+    if(method == Method::GetServiceVersion) {
+        response = std::make_shared<GetServiceVersionResponse>();
+    } else if(method == Method::StandardSignIn) {
         response = std::make_shared<StandardSignInResponse>();
     } else if(method == Method::StandardDidAuth) {
         response = std::make_shared<StandardDidAuthResponse>();
