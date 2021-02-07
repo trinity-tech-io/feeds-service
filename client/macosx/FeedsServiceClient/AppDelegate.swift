@@ -8,6 +8,17 @@
 
 import Cocoa
 
+extension NSImage {
+    func tint(color: NSColor) -> NSImage {
+        return NSImage(size: size, flipped: false) { (rect) -> Bool in
+            color.set()
+            rect.fill()
+            self.draw(in: rect, from: NSRect(origin: .zero, size: self.size), operation: .destinationIn, fraction: 1.0)
+            return true
+        }
+    }
+}
+
 @NSApplicationMain
 class AppDelegate: NSObject, NSApplicationDelegate {
 
@@ -34,9 +45,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         // statusItem?.button?.title = "FeedsServiceClient"
         
-        let itemImage = NSImage(named: "clock")
-        itemImage?.isTemplate = true
-        statusItem?.button?.image = itemImage
+        let menuImage = NSImage(named: "MenuIcon")
+        menuImage?.isTemplate = true
+      
+        let selectedColor = NSColor.black
+        let unselectedColor: NSColor
+        if #available(OSX 10.14, *) {
+          unselectedColor = selectedColor.withSystemEffect(.disabled)
+        } else {
+          unselectedColor = selectedColor.withAlphaComponent(0.2)
+        }
+
+        statusItem?.button?.image = menuImage?.tint(color: true
+                                                    ? selectedColor : unselectedColor)
+//        statusItem?.button?.image = menuImage
         
         if let menu = menu {
             statusItem?.menu = menu
