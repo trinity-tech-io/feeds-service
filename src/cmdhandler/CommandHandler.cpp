@@ -351,7 +351,7 @@ int CommandHandler::Listener::onDispose(std::shared_ptr<Rpc::Request> request,
         ret = it.second.callback(request, responseArray);
         CHECK_ERROR(ret);
 
-        Log::D(Log::Tag::Cmd, "Response:");
+        Log::D(Log::Tag::Cmd, "Response(%d):", responseArray.size());
         for(const auto& response: responseArray) {
             Log::D(Log::Tag::Cmd, "  ->  %s", response->str().c_str());
         }

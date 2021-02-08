@@ -95,7 +95,7 @@ int ChannelMethod::onGetMultiComments(std::shared_ptr<Rpc::Request> request,
     };
 
     std::shared_ptr<Rpc::GetMultiCommentsResponse> response;
-    auto commentsSize = sizeof(Rpc::GetMultiCommentsResponse) - sizeof(Rpc::GetMultiCommentsResponse::Result::comments);
+    auto commentsSize = sizeof(Rpc::GetMultiCommentsResponse);
     DataBase::Step step = [&](SQLite::Statement& stmt) -> int {
         Rpc::GetMultiCommentsResponse::Result::Comment comment;
         comment.channel_id = stmt.getColumn(0).getInt64();
@@ -113,21 +113,21 @@ int ChannelMethod::onGetMultiComments(std::shared_ptr<Rpc::Request> request,
             (uint8_t*)stmt.getColumn(10).getBlob() + stmt.getColumn(10).getBytes()
         });
 
-        auto nextCommentsSize = commentsSize + sizeof(comment)
-                        - sizeof(comment.user_did) + comment.user_did.length()
-                        - sizeof(comment.user_name) + comment.user_name.length()
-                        - sizeof(comment.content) + comment.content.size();
-        if(nextCommentsSize > Rpc::Factory::MaxAvailableSize) {
-            responseArray.push_back(response);
-            response.reset();
-            nextCommentsSize = sizeof(Rpc::GetMultiCommentsResponse) - sizeof(Rpc::GetMultiCommentsResponse::Result::comments);
-        }
+        commentsSize += sizeof(comment)
+                     - sizeof(comment.user_did) + comment.user_did.length()
+                     - sizeof(comment.user_name) + comment.user_name.length()
+                     - sizeof(comment.content) + comment.content.size();
+
         if(response == nullptr) {
             response = makeResponse();
             CHECK_ASSERT(response != nullptr, ErrCode::RpcUnimplementedError);
         }
         response->result.comments.push_back(std::move(comment));
-        commentsSize = nextCommentsSize;
+        if(commentsSize >= Rpc::Factory::MaxAvailableSize) {
+            responseArray.push_back(response);
+            response.reset();
+            commentsSize = sizeof(Rpc::GetMultiCommentsResponse);
+        }
 
         return 0;
     };
@@ -199,7 +199,7 @@ int ChannelMethod::onGetMultiLikesAndCommentsCount(std::shared_ptr<Rpc::Request>
     };
 
     std::shared_ptr<Rpc::GetMultiLikesAndCommentsCountResponse> response;
-    auto postsSize = sizeof(Rpc::GetMultiLikesAndCommentsCountResponse) - sizeof(Rpc::GetMultiLikesAndCommentsCountResponse::Result::posts);
+    auto postsSize = sizeof(Rpc::GetMultiLikesAndCommentsCountResponse);
     DataBase::Step step = [&](SQLite::Statement& stmt) -> int {
         Rpc::GetMultiLikesAndCommentsCountResponse::Result::Post post;
         post.channel_id = stmt.getColumn(0).getInt64();
@@ -207,18 +207,18 @@ int ChannelMethod::onGetMultiLikesAndCommentsCount(std::shared_ptr<Rpc::Request>
         post.comments_count = stmt.getColumn(2).getInt64();
         post.likes_count = stmt.getColumn(3).getInt64();
 
-        auto nextPostsSize = postsSize + sizeof(post);
-        if(nextPostsSize > Rpc::Factory::MaxAvailableSize) {
-            responseArray.push_back(response);
-            response.reset();
-            nextPostsSize = sizeof(Rpc::GetMultiLikesAndCommentsCountResponse) - sizeof(Rpc::GetMultiLikesAndCommentsCountResponse::Result::posts);
-        }
+        postsSize += sizeof(post);
+
         if(response == nullptr) {
             response = makeResponse();
             CHECK_ASSERT(response != nullptr, ErrCode::RpcUnimplementedError);
         }
         response->result.posts.push_back(std::move(post));
-        postsSize = nextPostsSize;
+        if(postsSize >= Rpc::Factory::MaxAvailableSize) {
+            responseArray.push_back(response);
+            response.reset();
+            postsSize = sizeof(Rpc::GetMultiLikesAndCommentsCountResponse);
+        }
 
         return 0;
     };
@@ -272,24 +272,24 @@ int ChannelMethod::onGetMultiSubscribersCount(std::shared_ptr<Rpc::Request> requ
     };
 
     std::shared_ptr<Rpc::GetMultiSubscribersCountResponse> response;
-    auto channelsSize = sizeof(Rpc::GetMultiSubscribersCountResponse) - sizeof(Rpc::GetMultiSubscribersCountResponse::Result::channels);
+    auto channelsSize = sizeof(Rpc::GetMultiSubscribersCountResponse);
     DataBase::Step step = [&](SQLite::Statement& stmt) -> int {
         Rpc::GetMultiSubscribersCountResponse::Result::Channel channel;
         channel.channel_id = stmt.getColumn(0).getInt64();
         channel.subscribers_count = stmt.getColumn(1).getInt64();
 
-        auto nextSubscribersCountSize = channelsSize + sizeof(channel);
-        if(nextSubscribersCountSize > Rpc::Factory::MaxAvailableSize) {
-            responseArray.push_back(response);
-            response.reset();
-            nextSubscribersCountSize = sizeof(Rpc::GetMultiSubscribersCountResponse) - sizeof(Rpc::GetMultiSubscribersCountResponse::Result::channels);
-        }
+        channelsSize += sizeof(channel);
+
         if(response == nullptr) {
             response = makeResponse();
             CHECK_ASSERT(response != nullptr, ErrCode::RpcUnimplementedError);
         }
         response->result.channels.push_back(std::move(channel));
-        channelsSize = nextSubscribersCountSize;
+        if(channelsSize >= Rpc::Factory::MaxAvailableSize) {
+            responseArray.push_back(response);
+            response.reset();
+            channelsSize = sizeof(Rpc::GetMultiSubscribersCountResponse);
+        }
 
         return 0;
     };
