@@ -1,3 +1,13 @@
+24/02/2021 XiaokunMeng mengxiaokun@trinity-tech.io
+
+**version 1.5.1**, main changes to previous version:
+- fix crash issue when comment is bigger than 4KB.
+- fix bad get_multi_comments and get_multi_subscribers_count return info.
+- fix Ubuntu-18.04 build issue.
+- fix did.native link issue.
+- link all in one with static libraries.
+- fix instance did issue in access token.
+
 13/01/2021 XiaokunMeng mengxiaokun@trinity-tech.io
 
 **version 1.5.0**, main changes to previous version:
