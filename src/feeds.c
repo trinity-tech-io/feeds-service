@@ -647,6 +647,7 @@ ActiveSuberPerChan *aspc_remove(uint64_t uid, Chan *chan)
 
 void hdl_create_chan_req(Carrier *c, const char *from, Req *base)
 {
+
     CreateChanReq *req = (CreateChanReq *)base;
     ChanInfo ci = {
         .chan_id      = nxt_chan_id,
@@ -668,6 +669,18 @@ void hdl_create_chan_req(Carrier *c, const char *from, Req *base)
     vlogD(TAG_CMD "Received create_channel request from [%s]: "
           "{access_token: %s, name: %s, introduction: %s, avatar_length: %zu}",
           from, req->params.tk, req->params.name, req->params.intro, req->params.sz);
+
+    int total_channels = db_get_count("channels");
+    vlogD(TAG_CMD "Got existed channels number: %d", total_channels);
+    if (total_channels >= 5) {
+        vlogE(TAG_CMD "There are 5 channels already.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_MAX_FEEDS_LIMIT
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
 
     if (!did_is_ready()) {
         vlogE(TAG_CMD "Feeds DID is not ready.");
@@ -3446,7 +3459,7 @@ void hdl_get_stats_req(Carrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    total_clients = db_get_user_count();
+    total_clients = db_get_count("users");
     if(total_clients < 0) {
         vlogE(TAG_CMD "DB get user count failed.");
         ErrResp resp = {
@@ -4225,7 +4238,7 @@ void hdl_stats_changed_notify()
     hashtable_iterator_t it;
     NotifDest *nd;
     NotifDestPerActiveSuber *ndpas;
-    int total_clients = db_get_user_count();
+    int total_clients = db_get_count("users");
 
     hashtable_foreach(nds, nd) {
         list_iterator_t it;
