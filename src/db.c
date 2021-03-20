@@ -3950,14 +3950,14 @@ int db_get_user(const char *did, UserInfo **ui)
     return 0;
 }
 
-int db_get_user_count()
+int db_get_count(const char *table_name)
 {
     sqlite3_stmt *stmt;
-    const char *sql;
+    char sql[128] = {0};
     int rc;
 
     /* ================================= stmt-sep ================================= */
-    sql = "SELECT count(*) FROM users;";
+    snprintf(sql, sizeof(sql), "SELECT count(*) FROM %s", table_name);
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc) {
         vlogE(TAG_DB "sqlite3_prepare_v2() failed");
