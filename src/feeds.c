@@ -680,6 +680,14 @@ void hdl_create_chan_req(Carrier *c, const char *from, Req *base)
         };
         resp_marshal = rpc_marshal_err_resp(&resp);
         goto finally;
+    } else if (total_channels < 0) {
+        vlogE(TAG_CMD "DB get channels count failed.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_DB_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
     }
 
     if (!did_is_ready()) {
@@ -4239,6 +4247,10 @@ void hdl_stats_changed_notify()
     NotifDest *nd;
     NotifDestPerActiveSuber *ndpas;
     int total_clients = db_get_count("users");
+    if(total_clients < 0) {
+        vlogE(TAG_CMD "DB get user count failed.");
+        return;
+    }
 
     hashtable_foreach(nds, nd) {
         list_iterator_t it;
