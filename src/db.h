@@ -30,6 +30,10 @@
 
 #include "obj.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct DBObjIt DBObjIt;
 
 int db_init(sqlite3 *handle);
@@ -70,5 +74,9 @@ int db_get_count(const char *table_name);
 int db_add_reported_cmts(uint64_t channel_id, uint64_t post_id, uint64_t comment_id,
                          uint64_t reporter_id, const char *reason);
 DBObjIt *db_iter_reported_cmts(const QryCriteria *qc);
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif // __DB_H__

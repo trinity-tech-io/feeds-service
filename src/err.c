@@ -25,9 +25,7 @@
 static struct {
     int err_code;
     const char *str;
-} 
-
-errstr[] = {
+} errstr[] = {
     {ERR_ALREADY_EXISTS   , "Entity Already Exists"           },
     {ERR_NOT_EXIST        , "Entity Not Exists"               },
     {ERR_NOT_AUTHORIZED   , "Operation Not Authorized"        },
