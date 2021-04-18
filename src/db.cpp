@@ -45,6 +45,17 @@ struct DBObjIt {
     Row2Raw cb;
 };
 
+typedef struct {
+    int (*p_check)(const char *, int) = NULL;
+    int (*p_backup)(const char *) = NULL;
+    int (*p_del_idx)(const char *) = NULL;
+    int (*p_add_idx)(const char *, const char *) = NULL;
+    int (*p_create)(const char *) = NULL;
+    int (*p_retrive)(const char *) = NULL;
+    const char *create_sql = NULL;
+    const char *retrive_sql = NULL;
+} DBInitOperator;
+
 static sqlite3 *db;
 
 static
