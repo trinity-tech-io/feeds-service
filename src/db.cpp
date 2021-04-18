@@ -23,8 +23,8 @@
 #ifdef HAVE_TIME_H
 #include <time.h>
 #endif
-#include <assert.h>
 
+#include <vector>
 #include <crystal.h>
 #include <sqlite3.h>
 
@@ -46,17 +46,45 @@ struct DBObjIt {
 };
 
 typedef struct {
-    int (*p_check)(const char *, int) = NULL;
-    int (*p_backup)(const char *) = NULL;
-    int (*p_del_idx)(const char *) = NULL;
-    int (*p_add_idx)(const char *, const char *) = NULL;
-    int (*p_create)(const char *) = NULL;
-    int (*p_retrive)(const char *) = NULL;
+    int item_num = 0;
+    const char *table_name = NULL;
+    const char *idx_param = NULL;
+    const char *backup_sql = NULL;
     const char *create_sql = NULL;
     const char *retrive_sql = NULL;
+    int (*p_check)(const char *, int) = NULL;
+    int (*p_del_idx)(const char *) = NULL;
+    int (*p_add_idx)(const char *, const char *) = NULL;
 } DBInitOperator;
 
 static sqlite3 *db;
+
+static
+int sql_execution(const char *sql)
+{
+    sqlite3_stmt *stmt;
+    int rc;
+
+    if (NULL == sql) {
+        vlogE(TAG_DB "Sql execution Error: sql is NULL");
+        return -1;
+    }
+
+    if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
+        vlogE(TAG_DB "Sql execution sqlite3_prepare_v2() failed");
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE) {
+        vlogE(TAG_DB "Sql execute failed");
+        return -1;
+    }
+
+    return 0;
+}
+
 
 static
 int check_table_valid(const char *table_name, int item_num)
@@ -107,31 +135,6 @@ int check_table_valid(const char *table_name, int item_num)
     } else {
         return -1;
     }
-}
-
-static
-int backup_table(const char *table_name)
-{
-    sqlite3_stmt *stmt;
-    char sql[128] = {0};
-    int rc;
-
-    snprintf(sql, sizeof(sql), "ALTER TABLE %s RENAME TO %s_backup",
-            table_name, table_name);
-    vlogD(TAG_DB "Ready to backup table: from %s to %s_backup", table_name, table_name);
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc) {
-        vlogE(TAG_DB "sqlite3_prepare_v2() failed");
-        return -1;
-    }
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE) {
-        vlogE(TAG_DB "Backup %s table failed", table_name);
-        return -1;
-    }
-
-    return 0;
 }
 
 static
@@ -217,75 +220,6 @@ int create_new_index(const char *table_name, const char *para)
     return 0;
 }
 
-static
-int create_table_channels(void)
-{
-    sqlite3_stmt *stmt;
-    const char *sql;
-    int rc;
-
-    sql = "CREATE TABLE IF NOT EXISTS channels ("
-          "  channel_id    INTEGER PRIMARY KEY AUTOINCREMENT,"
-          "  created_at    REAL    NOT NULL,"
-          "  updated_at    REAL    NOT NULL,"
-          "  name          TEXT    NOT NULL UNIQUE,"
-          "  intro         TEXT    NOT NULL,"
-          "  next_post_id  INTEGER NOT NULL DEFAULT 1,"
-          "  subscribers   INTEGER NOT NULL DEFAULT 0,"
-          "  status        INTEGER NOT NULL DEFAULT 1,"
-          "  iid           TEXT    NOT NULL,"
-          "  tip_methods   TEXT    NOT NULL,"
-          "  proof         TEXT    NOT NULL,"
-          "  memo          TEXT    NOT NULL,"
-          "  avatar        BLOB    NOT NULL"
-          ")";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc) {
-        vlogE(TAG_DB "Create channels sqlite3_prepare_v2() failed");
-        return -1;
-    }
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE) {
-        vlogE(TAG_DB "Creating channels table failed");
-        return -1;
-    }
-
-    if (-1 == create_new_index("channels", "")) {
-        return -1;
-    }
-
-    vlogD(TAG_DB "Create table channels successfully");
-    return 0;
-}
-
-static
-int retrive_channels_data(void)
-{
-    sqlite3_stmt *stmt;
-    const char *sql;
-    int rc;
-
-    sql = "INSERT INTO channels SELECT"
-          " channel_id, created_at, updated_at, name, intro, next_post_id,"
-          " subscribers, 1, '', '', '', '', avatar"
-          " FROM channels_backup";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc) {
-        vlogE(TAG_DB "Retriving channels data sqlite3_prepare_v2() failed");
-        return -1;
-    }
-
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE) {
-        vlogE(TAG_DB "Retriving channels data failed");
-        return -1;
-    }
-
-    vlogD(TAG_DB "Retrive channels data successfully");
-    return 0;
-}
 
 static
 int create_table_posts(void)
@@ -723,20 +657,48 @@ int db_init(sqlite3 *handle)
     int rc;
 
     db = handle;
+    
+    std::vector<DBInitOperator *> operator_vec;
+
+    DBInitOperator channels_op = {
+        .item_num = 13,
+        .table_name = "channels",
+        .idx_param = "",
+        .backup_sql = "ALTER TABLE channels RENAME TO channels_backup",
+        .create_sql = "CREATE TABLE IF NOT EXISTS channels ("
+            "  channel_id    INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "  created_at    REAL    NOT NULL,"
+            "  updated_at    REAL    NOT NULL,"
+            "  name          TEXT    NOT NULL UNIQUE,"
+            "  intro         TEXT    NOT NULL,"
+            "  next_post_id  INTEGER NOT NULL DEFAULT 1,"
+            "  subscribers   INTEGER NOT NULL DEFAULT 0,"
+            "  status        INTEGER NOT NULL DEFAULT 1,"
+            "  iid           TEXT    NOT NULL,"
+            "  tip_methods   TEXT    NOT NULL,"
+            "  proof         TEXT    NOT NULL,"
+            "  memo          TEXT    NOT NULL,"
+            "  avatar        BLOB    NOT NULL"
+            ")",
+        .retrive_sql = "INSERT INTO channels SELECT"
+            " channel_id, created_at, updated_at, name, intro, next_post_id,"
+            " subscribers, 1, '', '', '', '', avatar"
+            " FROM channels_backup",
+        .p_check = check_table_valid,
+        .p_del_idx = delete_old_index,
+        .p_add_idx = create_new_index,
+    };
+    operator_vec.push_back(&channels_op);
 
     /* ================== stmt-sep BEGIN ================== */
-    sql = "BEGIN";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc) {
-        vlogE(TAG_DB "sqlite3_prepare_v2() failed");
+    if (-1 == sql_execution("BEGIN")) {
         return -1;
     }
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE) {
-        vlogE(TAG_DB "BEGIN failed");
-        return -1;
-    }
+   
+
+    /* ================== stmt-sep operation ================== */
+
+
 
     /* ================== channels table ================== */
     rc = check_table_valid("channels", 13);    //check table channels
@@ -2903,7 +2865,6 @@ const char *query_column(QueryObject qo, QryFld qf)
                 case COMMENT:
                     return "comment_id";
                 default:
-                    assert(0);
                     return NULL;
             }
         case UPD_AT:
@@ -2911,7 +2872,6 @@ const char *query_column(QueryObject qo, QryFld qf)
         case CREATED_AT:
             return "created_at";
         default:
-            assert(0);
             return NULL;
     }
 }
