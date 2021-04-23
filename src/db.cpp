@@ -168,7 +168,6 @@ int delete_old_index(const char *table_name)
         return -1;
     }
 
-    vlogD(TAG_DB "Delete table %s old index successfully", table_name);
     return 0;
 }
 
@@ -215,373 +214,12 @@ int create_new_index(const char *table_name, const char *para)
     return 0;
 }
 
-static
-int create_table_comments(void)
-{
-    sqlite3_stmt *stmt;
-    const char *sql;
-    int rc;
-
-    sql = "CREATE TABLE IF NOT EXISTS comments ("
-          "  channel_id    INTEGER NOT NULL,"
-          "  post_id       INTEGER NOT NULL,"
-          "  comment_id    INTEGER NOT NULL,"
-          "  refcomment_id INTEGER NOT NULL,"
-          "  user_id       INTEGER NOT NULL REFERENCES users(user_id),"
-          "  created_at    REAL    NOT NULL,"
-          "  updated_at    REAL    NOT NULL,"
-          "  likes         INTEGER NOT NULL DEFAULT 0,"
-          "  status        INTEGER NOT NULL DEFAULT 0,"
-          "  iid           TEXT    NOT NULL,"
-          "  hash_id       TEXT    NOT NULL,"
-          "  proof         TEXT    NOT NULL,"
-          "  memo          TEXT    NOT NULL,"
-          "  thumbnails    BLOB    NOT NULL,"
-          "  content       BLOB    NOT NULL,"
-          "  PRIMARY KEY(channel_id, post_id, comment_id)"
-          "  FOREIGN KEY(channel_id, post_id) REFERENCES posts(channel_id, post_id)"
-          ")";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc) {
-        vlogE(TAG_DB "Create comments sqlite3_prepare_v2() failed");
-        return -1;
-    }
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE) {
-        vlogE(TAG_DB "Creating comments table failed");
-        return -1;
-    }
-
-    if (-1 == create_new_index("comments", "channel_id, post_id, ")) {
-        return -1;
-    }
-
-    vlogD(TAG_DB "Create table comments successfully");
-    return 0;
-}
-
-static
-int retrive_comments_data(void)
-{
-    sqlite3_stmt *stmt;
-    const char *sql;
-    int rc;
-
-    sql = "INSERT INTO comments SELECT"
-          " channel_id, post_id, comment_id, refcomment_id, user_id,"
-          " created_at, updated_at, likes, status, '', '', '', '', '', content"
-          " FROM comments_backup";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc) {
-        vlogE(TAG_DB "Retriving comments data sqlite3_prepare_v2() failed");
-        return -1;
-    }
-
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE) {
-        vlogE(TAG_DB "Retriving comments data failed");
-        return -1;
-    }
-
-    vlogD(TAG_DB "Retrive comments data successfully");
-    return 0;
-}
-
-static
-int create_table_users(void)
-{
-    sqlite3_stmt *stmt;
-    const char *sql;
-    int rc;
-
-    sql = "CREATE TABLE IF NOT EXISTS users ("
-          "  user_id      INTEGER PRIMARY KEY AUTOINCREMENT,"
-          "  did          TEXT NOT NULL UNIQUE,"
-          "  name         TEXT NOT NULL DEFAULT 'NA',"
-          "  email        TEXT NOT NULL DEFAULT 'NA',"
-          "  display_name TEXT NOT NULL DEFAULT 'NA',"
-          "  update_at    REAL NOT NULL,"
-          "  memo         TEXT NOT NULL,"
-          "  avatar       BLOB NOT NULL"
-          ")";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc) {
-        vlogE(TAG_DB "Create users sqlite3_prepare_v2() failed");
-        return -1;
-    }
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE) {
-        vlogE(TAG_DB "Creating users table failed");
-        return -1;
-    }
-
-    vlogD(TAG_DB "Create table users successfully");
-    return 0;
-}
-
-static
-int retrive_users_data(void)
-{
-    sqlite3_stmt *stmt;
-    const char *sql;
-    int rc;
-
-    sql = "INSERT INTO users SELECT"
-          " user_id, did, name, email, '', '', '', ''"
-          " FROM users_backup";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc) {
-        vlogE(TAG_DB "Retriving users data sqlite3_prepare_v2() failed");
-        return -1;
-    }
-
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE) {
-        vlogE(TAG_DB "Retriving users data failed");
-        return -1;
-    }
-
-    vlogD(TAG_DB "Retrive users data successfully");
-    return 0;
-}
-
-static
-int create_table_subscriptions(void)
-{
-    sqlite3_stmt *stmt;
-    const char *sql;
-    int rc;
-
-    sql = "CREATE TABLE IF NOT EXISTS subscriptions ("
-          "  user_id    INTEGER NOT NULL REFERENCES users(user_id),"
-          "  channel_id INTEGER NOT NULL REFERENCES channels(channel_id),"
-          "  create_at  REAL    NOT NULL,"
-          "  proof      TEXT    NOT NULL,"
-          "  memo       TEXT    NOT NULL,"
-          "  PRIMARY KEY(user_id, channel_id)"
-          ")";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc) {
-        vlogE(TAG_DB "Create subscriptions sqlite3_prepare_v2() failed");
-        return -1;
-    }
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE) {
-        vlogE(TAG_DB "Creating subscriptions table failed");
-        return -1;
-    }
-
-    vlogD(TAG_DB "Create table subscriptions successfully");
-    return 0;
-}
-
-static
-int retrive_subscriptions_data(void)
-{
-    sqlite3_stmt *stmt;
-    const char *sql;
-    int rc;
-
-    sql = "INSERT INTO subscriptions SELECT"
-          " user_id, channel_id, '', '', ''"
-          " FROM subscriptions_backup";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc) {
-        vlogE(TAG_DB "Retriving subscriptions data sqlite3_prepare_v2() failed");
-        return -1;
-    }
-
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE) {
-        vlogE(TAG_DB "Retriving subscriptions data failed");
-        return -1;
-    }
-
-    vlogD(TAG_DB "Retrive subscriptions data successfully");
-    return 0;
-}
-
-static
-int create_table_likes(void)
-{
-    sqlite3_stmt *stmt;
-    const char *sql;
-    int rc;
-
-    sql = "CREATE TABLE IF NOT EXISTS likes ("
-          "  channel_id INTEGER NOT NULL,"
-          "  post_id    INTEGER NOT NULL,"
-          "  comment_id INTEGER NOT NULL,"
-          "  user_id    INTEGER NOT NULL REFERENCES users(user_id),"
-          "  created_at REAL    NOT NULL,"
-          "  proof      TEXT    NOT NULL,"
-          "  memo       TEXT    NOT NULL,"
-          "  FOREIGN KEY(channel_id, post_id) REFERENCES posts(channel_id, post_id)"
-          "  PRIMARY KEY(user_id, channel_id, post_id, comment_id)"
-          ")";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc) {
-        vlogE(TAG_DB "Create likes sqlite3_prepare_v2() failed");
-        return -1;
-    }
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE) {
-        vlogE(TAG_DB "Creating likes table failed");
-        return -1;
-    }
-
-    vlogD(TAG_DB "Create table likes successfully");
-    return 0;
-}
-
-static
-int retrive_likes_data(void)
-{
-    sqlite3_stmt *stmt;
-    const char *sql;
-    int rc;
-
-    sql = "INSERT INTO likes SELECT"
-          " channel_id, post_id, comment_id, user_id, created_at, '', ''"
-          " FROM likes_backup";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc) {
-        vlogE(TAG_DB "Retriving likes data sqlite3_prepare_v2() failed");
-        return -1;
-    }
-
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE) {
-        vlogE(TAG_DB "Retriving likes data failed");
-        return -1;
-    }
-
-    vlogD(TAG_DB "Retrive likes data successfully");
-    return 0;
-}
-
-static
-int create_table_reported_comments(void)
-{
-    sqlite3_stmt *stmt;
-    const char *sql;
-    int rc;
-
-    sql = "CREATE TABLE IF NOT EXISTS reported_comments ("
-          "  channel_id  INTEGER NOT NULL,"
-          "  post_id     INTEGER NOT NULL,"
-          "  comment_id  INTEGER NOT NULL,"
-          "  reporter_id INTEGER NOT NULL REFERENCES users(user_id),"
-          "  created_at  REAL    NOT NULL,"
-          "  reasons     TEXT    NOT NULL DEFAULT 'NA',"
-          "  PRIMARY KEY(channel_id, post_id, comment_id, reporter_id)"
-          "  FOREIGN KEY(channel_id, post_id) REFERENCES posts(channel_id, post_id)"
-          ")";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc) {
-        vlogE(TAG_DB "Create reported_comments sqlite3_prepare_v2() failed");
-        return -1;
-    }
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE) {
-        vlogE(TAG_DB "Creating reported_comments table failed");
-        return -1;
-    }
-
-    vlogD(TAG_DB "Create table reported_comments successfully");
-    return 0;
-}
-
-static
-int create_table_tipping(void)
-{
-    sqlite3_stmt *stmt;
-    const char *sql;
-    int rc;
-
-    sql = "CREATE TABLE IF NOT EXISTS tipping ("
-          "  id           INTEGER NOT NULL,"
-          "  channel_id   INTEGER NOT NULL,"
-          "  post_id      INTEGER NOT NULL,"
-          "  created_at   REAL    NOT NULL,"
-          "  token_mount  REAL    NOT NULL,"
-          "  token_symbol TEXT    NOT NULL,"
-          "  proof        TEXT    NOT NULL,"
-          "  user_did     TEXT    NOT NULL,"
-          "  user_name    TEXT    NOT NULL,"
-          "  memo         TEXT    NOT NULL,"
-          "  PRIMARY KEY(channel_id, post_id)"
-          ")";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc) {
-        vlogE(TAG_DB "Create tipping sqlite3_prepare_v2() failed");
-        return -1;
-    }
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE) {
-        vlogE(TAG_DB "Creating tipping table failed");
-        return -1;
-    }
-
-    vlogD(TAG_DB "Create table tipping successfully");
-    return 0;
-}
-
-static
-int create_table_notification(void)
-{
-    sqlite3_stmt *stmt;
-    const char *sql;
-    int rc;
-
-    sql = "CREATE TABLE IF NOT EXISTS notification ("
-          "  notification_id INTEGER NOT NULL,"
-          "  channel_id      INTEGER NOT NULL,"
-          "  post_id         INTEGER NOT NULL,"
-          "  comment_id      INTEGER NOT NULL,"
-          "  action_type     INTEGER NOT NULL,"
-          "  user_did        TEXT    NOT NULL,"
-          "  user_name       TEXT    NOT NULL,"
-          "  created_at      REAL    NOT NULL,"
-          "  memo            TEXT    NOT NULL,"
-          "  PRIMARY KEY(channel_id, post_id, comment_id)"
-          ")";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc) {
-        vlogE(TAG_DB "Create notification sqlite3_prepare_v2() failed");
-        return -1;
-    }
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE) {
-        vlogE(TAG_DB "Creating notification table failed");
-        return -1;
-    }
-
-    vlogD(TAG_DB "Create table notification successfully");
-    return 0;
-}
-
 int db_init(sqlite3 *handle)
 {
-    sqlite3_stmt *stmt;
-    const char *sql;
-    int rc;
-
     db = handle;
-    
     std::vector<DBInitOperator *> operator_vec;
 
+    //init tables operator
     DBInitOperator channels_op = {
         .item_num = 13,
         .table_name = "channels",
@@ -644,17 +282,193 @@ int db_init(sqlite3 *handle)
     };
     operator_vec.push_back(&posts_op);
 
+    DBInitOperator comments_op = {
+        .item_num = 15,
+        .table_name = "comments",
+        .idx_param = "channel_id, post_id, ",
+        .backup_sql = "ALTER TABLE comments RENAME TO comments_backup",
+        .create_sql = "CREATE TABLE IF NOT EXISTS comments ("
+            "  channel_id    INTEGER NOT NULL,"
+            "  post_id       INTEGER NOT NULL,"
+            "  comment_id    INTEGER NOT NULL,"
+            "  refcomment_id INTEGER NOT NULL,"
+            "  user_id       INTEGER NOT NULL REFERENCES users(user_id),"
+            "  created_at    REAL    NOT NULL,"
+            "  updated_at    REAL    NOT NULL,"
+            "  likes         INTEGER NOT NULL DEFAULT 0,"
+            "  status        INTEGER NOT NULL DEFAULT 0,"
+            "  iid           TEXT    NOT NULL,"
+            "  hash_id       TEXT    NOT NULL,"
+            "  proof         TEXT    NOT NULL,"
+            "  memo          TEXT    NOT NULL,"
+            "  thumbnails    BLOB    NOT NULL,"
+            "  content       BLOB    NOT NULL,"
+            "  PRIMARY KEY(channel_id, post_id, comment_id)"
+            "  FOREIGN KEY(channel_id, post_id) REFERENCES posts(channel_id, post_id)"
+            ")",
+        .retrive_sql = "INSERT INTO comments SELECT"
+            " channel_id, post_id, comment_id, refcomment_id, user_id,"
+            " created_at, updated_at, likes, status, '', '', '', '', '', content"
+            " FROM comments_backup",
+        .p_check = check_table_valid,
+        .p_del_idx = delete_old_index,
+        .p_add_idx = create_new_index
+    };
+    operator_vec.push_back(&comments_op);
+
+    DBInitOperator users_op = {
+        .item_num = 8,
+        .table_name = "users",
+        .idx_param = NULL,
+        .backup_sql = "ALTER TABLE users RENAME TO users_backup",
+        .create_sql = "CREATE TABLE IF NOT EXISTS users ("
+            "  user_id      INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "  did          TEXT NOT NULL UNIQUE,"
+            "  name         TEXT NOT NULL DEFAULT 'NA',"
+            "  email        TEXT NOT NULL DEFAULT 'NA',"
+            "  display_name TEXT NOT NULL DEFAULT 'NA',"
+            "  update_at    REAL NOT NULL,"
+            "  memo         TEXT NOT NULL,"
+            "  avatar       BLOB NOT NULL"
+            ")",
+        .retrive_sql = "INSERT INTO users SELECT"
+            " user_id, did, name, email, '', '', '', ''"
+            " FROM users_backup",
+        .p_check = check_table_valid,
+        .p_del_idx = NULL,
+        .p_add_idx = NULL
+    };
+    operator_vec.push_back(&users_op);
+
+    DBInitOperator subscriptions_op = {
+        .item_num = 5,
+        .table_name = "subscriptions",
+        .idx_param = NULL,
+        .backup_sql = "ALTER TABLE subscriptions RENAME TO subscriptions_backup",
+        .create_sql = "CREATE TABLE IF NOT EXISTS subscriptions ("
+            "  user_id    INTEGER NOT NULL REFERENCES users(user_id),"
+            "  channel_id INTEGER NOT NULL REFERENCES channels(channel_id),"
+            "  create_at  REAL    NOT NULL,"
+            "  proof      TEXT    NOT NULL,"
+            "  memo       TEXT    NOT NULL,"
+            "  PRIMARY KEY(user_id, channel_id)"
+            ")",
+        .retrive_sql = "INSERT INTO subscriptions SELECT"
+            " user_id, channel_id, '', '', ''"
+            " FROM subscriptions_backup",
+        .p_check = check_table_valid,
+        .p_del_idx = NULL,
+        .p_add_idx = NULL
+    };
+    operator_vec.push_back(&subscriptions_op);
+
+    DBInitOperator likes_op = {
+        .item_num = 7,
+        .table_name = "likes",
+        .idx_param = NULL,
+        .backup_sql = "ALTER TABLE likes RENAME TO likes_backup",
+        .create_sql = "CREATE TABLE IF NOT EXISTS likes ("
+            "  channel_id INTEGER NOT NULL,"
+            "  post_id    INTEGER NOT NULL,"
+            "  comment_id INTEGER NOT NULL,"
+            "  user_id    INTEGER NOT NULL REFERENCES users(user_id),"
+            "  created_at REAL    NOT NULL,"
+            "  proof      TEXT    NOT NULL,"
+            "  memo       TEXT    NOT NULL,"
+            "  FOREIGN KEY(channel_id, post_id) REFERENCES posts(channel_id, post_id)"
+            "  PRIMARY KEY(user_id, channel_id, post_id, comment_id)"
+            ")",
+        .retrive_sql = "INSERT INTO likes SELECT"
+            " channel_id, post_id, comment_id, user_id, created_at, '', ''"
+            " FROM likes_backup",
+        .p_check = check_table_valid,
+        .p_del_idx = NULL,
+        .p_add_idx = NULL
+    };
+    operator_vec.push_back(&likes_op);
+
+    DBInitOperator reported_comments_op = {
+        .item_num = 6,
+        .table_name = "reported_comments",
+        .idx_param = NULL,
+        .backup_sql = NULL,
+        .create_sql = "CREATE TABLE IF NOT EXISTS reported_comments ("
+            "  channel_id  INTEGER NOT NULL,"
+            "  post_id     INTEGER NOT NULL,"
+            "  comment_id  INTEGER NOT NULL,"
+            "  reporter_id INTEGER NOT NULL REFERENCES users(user_id),"
+            "  created_at  REAL    NOT NULL,"
+            "  reasons     TEXT    NOT NULL DEFAULT 'NA',"
+            "  PRIMARY KEY(channel_id, post_id, comment_id, reporter_id)"
+            "  FOREIGN KEY(channel_id, post_id) REFERENCES posts(channel_id, post_id)"
+            ")",
+        .retrive_sql = NULL,
+        .p_check = check_table_valid,
+        .p_del_idx = NULL,
+        .p_add_idx = NULL
+    };
+    operator_vec.push_back(&reported_comments_op);
+
+    DBInitOperator tipping_op = {
+        .item_num = 10,
+        .table_name = "tipping",
+        .idx_param = NULL,
+        .backup_sql = NULL,
+        .create_sql = "CREATE TABLE IF NOT EXISTS tipping ("
+            "  id           INTEGER NOT NULL,"
+            "  channel_id   INTEGER NOT NULL,"
+            "  post_id      INTEGER NOT NULL,"
+            "  created_at   REAL    NOT NULL,"
+            "  token_mount  REAL    NOT NULL,"
+            "  token_symbol TEXT    NOT NULL,"
+            "  proof        TEXT    NOT NULL,"
+            "  user_did     TEXT    NOT NULL,"
+            "  user_name    TEXT    NOT NULL,"
+            "  memo         TEXT    NOT NULL,"
+            "  PRIMARY KEY(channel_id, post_id)"
+            ")",
+        .retrive_sql = NULL,
+        .p_check = check_table_valid,
+        .p_del_idx = NULL,
+        .p_add_idx = NULL
+    };
+    operator_vec.push_back(&tipping_op);
+
+    DBInitOperator notification_op = {
+        .item_num = 9,
+        .table_name = "notification",
+        .idx_param = NULL,
+        .backup_sql = NULL,
+        .create_sql = "CREATE TABLE IF NOT EXISTS notification ("
+            "  notification_id INTEGER NOT NULL,"
+            "  channel_id      INTEGER NOT NULL,"
+            "  post_id         INTEGER NOT NULL,"
+            "  comment_id      INTEGER NOT NULL,"
+            "  action_type     INTEGER NOT NULL,"
+            "  user_did        TEXT    NOT NULL,"
+            "  user_name       TEXT    NOT NULL,"
+            "  created_at      REAL    NOT NULL,"
+            "  memo            TEXT    NOT NULL,"
+            "  PRIMARY KEY(channel_id, post_id, comment_id)"
+            ")",
+        .retrive_sql = NULL,
+        .p_check = check_table_valid,
+        .p_del_idx = NULL,
+        .p_add_idx = NULL
+    };
+    operator_vec.push_back(&notification_op);
+
     /* ================== stmt-sep BEGIN ================== */
     if (-1 == sql_execution("BEGIN")) {
         vlogE(TAG_DB "BEGIN sql failed");
         return -1;
     }
-   
 
     /* ================== stmt-sep operation ================== */
+    int rc = -1;
     std::vector<DBInitOperator *>::iterator it = operator_vec.begin();
     for (; it != operator_vec.end(); ++it) {    //operate registered table one by one
-        vlogD(TAG_DB "Begin operate table %s", (*it)->table_name);
+        vlogD(TAG_DB "Begin to operate table %s ......", (*it)->table_name);
         rc = (*it)->p_check((*it)->table_name, (*it)->item_num);   //check table valid
 
         if (2 == rc) {    //table valid, do nothing
@@ -662,249 +476,65 @@ int db_init(sqlite3 *handle)
             vlogD(TAG_DB "Table %s is old version, updating", (*it)->table_name);
             if (-1 == sql_execution((*it)->backup_sql)) {    //backup failed 
                 vlogE(TAG_DB "Backup table %s failed", (*it)->table_name);
-                break;    //goto rollback
+                goto rollback;
             }
             vlogD(TAG_DB "Table %s backup done", (*it)->table_name);
 
             if (NULL != (*it)->p_del_idx) {    //del old index if needed
                 if (-1 == (*it)->p_del_idx((*it)->table_name)) {
                     vlogE(TAG_DB "Delete table %s old index failed", (*it)->table_name);
-                    break;    //goto rollback
+                    goto rollback;
                 }
                 vlogD(TAG_DB "Delete table %s old index done", (*it)->table_name);
             }
 
             if (-1 == sql_execution((*it)->create_sql)) {    //create table failed
                 vlogE(TAG_DB "Create table %s failed", (*it)->table_name);
-                break;    //goto rollback
+                goto rollback;
             }
             vlogD(TAG_DB "Create table %s new version done", (*it)->table_name);
 
             if (NULL != (*it)->p_add_idx) {    //add new index if needed
                 if (-1 == (*it)->p_add_idx((*it)->table_name, (*it)->idx_param)) {
                     vlogE(TAG_DB "Create table %s new index failed", (*it)->table_name);
-                    break;    //goto rollback
+                    goto rollback;
                 }
                 vlogD(TAG_DB "Create table %s new index done", (*it)->table_name);
             }
 
             if (-1 == sql_execution((*it)->retrive_sql)) {    //sync table data from backup
                 vlogE(TAG_DB "Retrive table %s failed", (*it)->table_name);
-                break;    //goto rollback
+                goto rollback;
             }
             vlogD(TAG_DB "Retrive table %s data done", (*it)->table_name);
         } else if (0 == rc) {    //table doesn't exist, create it
             vlogD(TAG_DB "Table %s did not exist, creating", (*it)->table_name);
             if (-1 == sql_execution((*it)->create_sql)) {    //create table failed
                 vlogE(TAG_DB "Create table %s failed", (*it)->table_name);
-                break;    //goto rollback
+                goto rollback;
             }
             vlogD(TAG_DB "Create table %s done", (*it)->table_name);
+
+            if (NULL != (*it)->p_add_idx) {    //add new index if needed
+                if (-1 == (*it)->p_add_idx((*it)->table_name, (*it)->idx_param)) {
+                    vlogE(TAG_DB "Create table %s new index failed", (*it)->table_name);
+                    goto rollback;
+                }
+                vlogD(TAG_DB "Create table %s new index done", (*it)->table_name);
+            }
         } else {
             vlogE(TAG_DB "Check table %s valid failed", (*it)->table_name);
-            break;    //goto rollback
+            goto rollback;
         }
     }
 
-
-    /* ================== comments table ================== 
-    rc = check_table_valid("comments", 15);    //check table comments
-    if (2 == rc) {   //table comments has 15 items
-        //do nothing
-    } else if (1 == rc) {    //table comments exist but version older
-        vlogD(TAG_DB "Table comments is old version, updating");
-        if (0 == backup_table("comments")) {    //backup comments successfully
-            if (-1 == delete_old_index("comments")) {
-                vlogE(TAG_DB "Delete table comments old index failed");
-                goto rollback;
-            }
-            //create new version talbe comments
-            if (-1 == create_table_comments()) {    //create table comments failed
-                vlogE(TAG_DB "Create table comments DB failed");
-                goto rollback;
-            } else {    //create table comments successfully
-                if (-1 == retrive_comments_data()) {    //sync table data from backup
-                    vlogE(TAG_DB "Retrive table comments failed");
-                    goto rollback;
-                }
-            }
-        } else {    //backup comments failed
-            vlogE(TAG_DB "Backup table comments DB failed");
-            return -1;
-        }
-    } else if (0 == rc) {    //table comments dont exist, create it
-        vlogD(TAG_DB "Table comments do not existed");
-        if (-1 == create_table_comments()) {    //create table comments failed
-            vlogE(TAG_DB "Create table comments DB failed");
-            return -1;
-        }
-    } else {
-        vlogE(TAG_DB "Check table comments exist DB failed");
-        return -1;
-    }
-
-*/
-    /* ================== users table ================== 
-    rc = check_table_valid("users", 8);    //check table users
-    if (2 == rc) {   //table users has 8 items
-        //do nothing
-    } else if (1 == rc) {    //table users exist but version older
-        vlogD(TAG_DB "Table users is old version, updating");
-        if (0 == backup_table("users")) {    //backup users successfully
-            //create new version talbe users
-            if (-1 == create_table_users()) {    //create table users failed
-                vlogE(TAG_DB "Create table users DB failed");
-                goto rollback;
-            } else {    //create table users successfully
-                if (-1 == retrive_users_data()) {    //sync table data from backup
-                    vlogE(TAG_DB "Retrive table users failed");
-                    goto rollback;
-                }
-            }
-        } else {    //backup users failed
-            vlogE(TAG_DB "Backup table users DB failed");
-            return -1;
-        }
-    } else if (0 == rc) {    //table users dont exist, create it
-        vlogD(TAG_DB "Table users do not existed");
-        if (-1 == create_table_users()) {    //create table users failed
-            vlogE(TAG_DB "Create table users DB failed");
-            return -1;
-        }
-    } else {
-        vlogE(TAG_DB "Check table users exist DB failed");
-        return -1;
-    }
-*/
-
-    /* ================== subscriptions table ================== 
-    rc = check_table_valid("subscriptions", 5);    //check table subscriptions
-    if (2 == rc) {   //table subscriptions has 5 items
-        //do nothing
-    } else if (1 == rc) {    //table subscriptions exist but version older
-        vlogD(TAG_DB "Table subscriptions is old version, updating");
-        if (0 == backup_table("subscriptions")) {    //backup subscriptions successfully
-            //create new version talbe subscriptions
-            if (-1 == create_table_subscriptions()) {    //create table subscriptions failed
-                vlogE(TAG_DB "Create table subscriptions DB failed");
-                goto rollback;
-            } else {    //create table subscriptions successfully
-                if (-1 == retrive_subscriptions_data()) {    //sync table data from backup
-                    vlogE(TAG_DB "Retrive table subscriptions failed");
-                    goto rollback;
-                }
-            }
-        } else {    //backup subscriptions failed
-            vlogE(TAG_DB "Backup table subscriptions DB failed");
-            return -1;
-        }
-    } else if (0 == rc) {    //table subscriptions dont exist, create it
-        vlogD(TAG_DB "Table subscriptions do not existed");
-        if (-1 == create_table_subscriptions()) {    //create table subscriptions failed
-            vlogE(TAG_DB "Create table subscriptions DB failed");
-            return -1;
-        }
-    } else {
-        vlogE(TAG_DB "Check table subscriptions exist DB failed");
-        return -1;
-    }
-
-*/
-    /* ================== likes table ================== 
-    rc = check_table_valid("likes", 7);    //check table likes
-    if (2 == rc) {   //table likes has 7 items
-        //do nothing
-    } else if (1 == rc) {    //table likes exist but version older
-        vlogD(TAG_DB "Table likes is old version, updating");
-        if (0 == backup_table("likes")) {    //backup likes successfully
-            //create new version talbe likes
-            if (-1 == create_table_likes()) {    //create table likes failed
-                vlogE(TAG_DB "Create table likes DB failed");
-                goto rollback;
-            } else {    //create table likes successfully
-                if (-1 == retrive_likes_data()) {    //sync table data from backup
-                    vlogE(TAG_DB "Retrive table likes failed");
-                    goto rollback;
-                }
-            }
-        } else {    //backup likes failed
-            vlogE(TAG_DB "Backup table likes DB failed");
-            return -1;
-        }
-    } else if (0 == rc) {    //table likes dont exist, create it
-        vlogD(TAG_DB "Table likes do not existed");
-        if (-1 == create_table_likes()) {    //create table likes failed
-            vlogE(TAG_DB "Create table likes DB failed");
-            return -1;
-        }
-    } else {
-        vlogE(TAG_DB "Check table likes exist DB failed");
-        return -1;
-    }
-*/
-
-    /* ================== reported_comments table ================== 
-    rc = check_table_valid("reported_comments", 6);    //check table reported_comments
-    if (2 == rc) {   //table reported_comments has 6 items
-        //do nothing
-    } else if (1 == rc) {    //table reported_comments exist but version older
-        //not should be here
-        return -1;
-    } else if (0 == rc) {    //table reported_comments dont exist, create it
-        vlogD(TAG_DB "Table reported_comments do not existed");
-        if (-1 == create_table_reported_comments()) {    //create table reported_comments failed
-            vlogE(TAG_DB "Create table reported_comments DB failed");
-            return -1;
-        }
-    } else {
-        vlogE(TAG_DB "Check table reported_comments exist DB failed");
-        return -1;
-    }
-*/
-
-    /* ================== tipping table ================== 
-    rc = check_table_valid("tipping", 10);    //check table tipping
-    if (2 == rc) {   //table tipping has 10 items
-        //do nothing
-    } else if (1 == rc) {    //table tipping exist but version older
-        //not should be here
-        return -1;
-    } else if (0 == rc) {    //table tipping dont exist, create it
-        vlogD(TAG_DB "Table tipping do not existed");
-        if (-1 == create_table_tipping()) {    //create table tipping failed
-            vlogE(TAG_DB "Create table tipping DB failed");
-            return -1;
-        }
-    } else {
-        vlogE(TAG_DB "Check table tipping exist DB failed");
-        return -1;
-    }
-*/
-
-    /* ================== notification table ================== 
-    rc = check_table_valid("notification", 9);    //check table notification
-    if (2 == rc) {   //table notification has 9 items
-        //do nothing
-    } else if (1 == rc) {    //table notification exist but version older
-        //not should be here
-        return -1;
-    } else if (0 == rc) {    //table notification dont exist, create it
-        vlogD(TAG_DB "Table notification do not existed");
-        if (-1 == create_table_notification()) {    //create table notification failed
-            vlogE(TAG_DB "Create table notification DB failed");
-            return -1;
-        }
-    } else {
-        vlogE(TAG_DB "Check table notification exist DB failed");
-        return -1;
-    }
-*/
     /* ================== stmt-sep END ================== */
     if (-1 == sql_execution("END")) {
         vlogE(TAG_DB "END sql failed");
         goto rollback;
     }
 
+    vlogI(TAG_DB "db init done");
     return 0;
 
     /* ================== ROLLBACK ================== */
