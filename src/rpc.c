@@ -185,10 +185,10 @@ int unmarshal_decl_owner_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method           = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id           = tsx_id->u64_val;
     tmp->params.nonce     = strncpy(buf, nonce->str_val, nonce->str_sz);
-    buf += str_reserve_spc(nonce);
+    buf = (char*)buf + str_reserve_spc(nonce);
     tmp->params.owner_did = strncpy(buf, owner_did->str_val, owner_did->str_sz);
 
     *req_unmarshal = (Req *)tmp;
@@ -226,14 +226,14 @@ int unmarshal_imp_did_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id = tsx_id->u64_val;
 
     if (mnemo)
         tmp->params.mnemo = strncpy(buf, mnemo->str_val, mnemo->str_sz);
 
     if (passphrase) {
-        buf += str_reserve_spc(mnemo);
+        buf = (char*)buf + str_reserve_spc(mnemo);
         tmp->params.passphrase = strncpy(buf, passphrase->str_val, passphrase->str_sz);
     }
 
@@ -276,7 +276,7 @@ int unmarshal_iss_vc_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method    = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id    = tsx_id->u64_val;
     tmp->params.vc = strncpy(buf, vc->str_val, vc->str_sz);
 
@@ -318,10 +318,10 @@ int unmarshal_update_vc_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method    = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id    = tsx_id->u64_val;
     tmp->params.tk = strncpy(buf, tk->str_val, tk->str_sz);
-    buf += str_reserve_spc(tk);
+    buf = (char*)buf + str_reserve_spc(tk);
     tmp->params.vc = strncpy(buf, vc->str_val, vc->str_sz);
 
     *req_unmarshal = (Req *)tmp;
@@ -362,7 +362,7 @@ int unmarshal_signin_req_chal_req(const msgpack_object *req, Req **req_unmarshal
 
     buf = tmp + 1;
     tmp->method        = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id        = tsx_id->u64_val;
     tmp->params.iss    = strncpy(buf, iss->str_val, iss->str_sz);
     tmp->params.vc_req = vc_req->bool_val;
@@ -403,12 +403,12 @@ int unmarshal_signin_conf_chal_req(const msgpack_object *req, Req **req_unmarsha
 
     buf = tmp + 1;
     tmp->method     = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id     = tsx_id->u64_val;
     tmp->params.jws = strncpy(buf, jws->str_val, jws->str_sz);
 
     if (vc) {
-        buf += str_reserve_spc(jws);
+        buf = (char*)buf + str_reserve_spc(jws);
         tmp->params.vc = strncpy(buf, vc->str_val, vc->str_sz);
     }
 
@@ -456,12 +456,12 @@ int unmarshal_create_chan_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method        = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id        = tsx_id->u64_val;
     tmp->params.tk     = strncpy(buf, tk->str_val, tk->str_sz);
-    buf += str_reserve_spc(tk);
+    buf = (char*)buf + str_reserve_spc(tk);
     tmp->params.name   = strncpy(buf, name->str_val, name->str_sz);
-    buf += str_reserve_spc(name);
+    buf = (char*)buf + str_reserve_spc(name);
     tmp->params.intro  = strncpy(buf, intro->str_val, intro->str_sz);
     tmp->params.avatar = (void *)avatar->bin_val;
     tmp->params.sz     = avatar->bin_sz;
@@ -512,13 +512,13 @@ int unmarshal_upd_chan_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method         = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id         = tsx_id->u64_val;
     tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
-    buf += str_reserve_spc(tk);
+    buf = (char*)buf + str_reserve_spc(tk);
     tmp->params.chan_id = chan_id->u64_val;
     tmp->params.name    = strncpy(buf, name->str_val, name->str_sz);
-    buf += str_reserve_spc(name);
+    buf = (char*)buf + str_reserve_spc(name);
     tmp->params.intro   = strncpy(buf, intro->str_val, intro->str_sz);
     tmp->params.avatar  = (void *)avatar->bin_val;
     tmp->params.sz      = avatar->bin_sz;
@@ -563,7 +563,7 @@ int unmarshal_pub_post_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method         = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id         = tsx_id->u64_val;
     tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.chan_id = chan_id->u64_val;
@@ -612,7 +612,7 @@ int unmarshal_declare_post_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method         = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id         = tsx_id->u64_val;
     tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.chan_id = chan_id->u64_val;
@@ -661,7 +661,7 @@ int unmarshal_notify_post_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method         = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id         = tsx_id->u64_val;
     tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.chan_id = chan_id->u64_val;
@@ -709,7 +709,7 @@ int unmarshal_edit_post_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method         = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id         = tsx_id->u64_val;
     tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.chan_id = chan_id->u64_val;
@@ -757,7 +757,7 @@ int unmarshal_del_post_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method         = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id         = tsx_id->u64_val;
     tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.chan_id = chan_id->u64_val;
@@ -808,7 +808,7 @@ int unmarshal_post_cmt_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method         = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id         = tsx_id->u64_val;
     tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.chan_id = chan_id->u64_val;
@@ -865,7 +865,7 @@ int unmarshal_edit_cmt_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method         = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id         = tsx_id->u64_val;
     tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.chan_id = chan_id->u64_val;
@@ -917,7 +917,7 @@ int unmarshal_del_cmt_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method         = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id         = tsx_id->u64_val;
     tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.chan_id = chan_id->u64_val;
@@ -966,7 +966,7 @@ int unmarshal_block_cmt_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method         = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf +  str_reserve_spc(method);
     tmp->tsx_id         = tsx_id->u64_val;
     tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.chan_id = chan_id->u64_val;
@@ -1015,7 +1015,7 @@ int unmarshal_unblock_cmt_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method         = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id         = tsx_id->u64_val;
     tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.chan_id = chan_id->u64_val;
@@ -1064,7 +1064,7 @@ int unmarshal_post_like_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method         = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id         = tsx_id->u64_val;
     tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.chan_id = chan_id->u64_val;
@@ -1113,7 +1113,7 @@ int unmarshal_post_unlike_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method         = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id         = tsx_id->u64_val;
     tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.chan_id = chan_id->u64_val;
@@ -1163,7 +1163,7 @@ int unmarshal_get_my_chans_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method           = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id           = tsx_id->u64_val;
     tmp->params.tk        = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.qc.by     = by->u64_val;
@@ -1214,7 +1214,7 @@ int unmarshal_get_my_chans_meta_req(const msgpack_object *req, Req **req_unmarsh
 
     buf = tmp + 1;
     tmp->method           = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id           = tsx_id->u64_val;
     tmp->params.tk        = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.qc.by     = by->u64_val;
@@ -1265,7 +1265,7 @@ int unmarshal_get_chans_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method           = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id           = tsx_id->u64_val;
     tmp->params.tk        = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.qc.by     = by->u64_val;
@@ -1310,7 +1310,7 @@ int unmarshal_get_chan_dtl_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method    = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id    = tsx_id->u64_val;
     tmp->params.tk = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.id = id->u64_val;
@@ -1358,7 +1358,7 @@ int unmarshal_get_sub_chans_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method           = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id           = tsx_id->u64_val;
     tmp->params.tk        = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.qc.by     = by->u64_val;
@@ -1412,7 +1412,7 @@ int unmarshal_get_posts_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method           = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id           = tsx_id->u64_val;
     tmp->params.tk        = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.chan_id   = chan_id->u64_val;
@@ -1467,7 +1467,7 @@ int unmarshal_get_posts_lac_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method           = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id           = tsx_id->u64_val;
     tmp->params.tk        = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.chan_id   = chan_id->u64_val;
@@ -1520,7 +1520,7 @@ int unmarshal_get_liked_posts_req(const msgpack_object *req, Req **req_unmarshal
 
     buf = tmp + 1;
     tmp->method           = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id           = tsx_id->u64_val;
     tmp->params.tk        = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.qc.by     = by->u64_val;
@@ -1577,7 +1577,7 @@ int unmarshal_get_cmts_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method           = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id           = tsx_id->u64_val;
     tmp->params.tk        = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.chan_id   = chan_id->u64_val;
@@ -1636,7 +1636,7 @@ int unmarshal_get_cmts_likes_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method           = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf +  str_reserve_spc(method);
     tmp->tsx_id           = tsx_id->u64_val;
     tmp->params.tk        = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.chan_id   = chan_id->u64_val;
@@ -1681,7 +1681,7 @@ int unmarshal_get_stats_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method    = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id    = tsx_id->u64_val;
     tmp->params.tk = strncpy(buf, tk->str_val, tk->str_sz);
 
@@ -1722,7 +1722,7 @@ int unmarshal_sub_chan_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method    = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id    = tsx_id->u64_val;
     tmp->params.tk = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.id = id->u64_val;
@@ -1764,7 +1764,7 @@ int unmarshal_unsub_chan_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method    = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id    = tsx_id->u64_val;
     tmp->params.tk = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.id = id->u64_val;
@@ -1804,7 +1804,7 @@ int unmarshal_enbl_notif_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method    = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id    = tsx_id->u64_val;
     tmp->params.tk = strncpy(buf, tk->str_val, tk->str_sz);
 
@@ -1854,16 +1854,16 @@ int unmarshal_set_binary_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method          = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id          = tsx_id->u64_val;
     tmp->params.tk       = strncpy(buf, tk->str_val, tk->str_sz);
-    buf += str_reserve_spc(tk);
+    buf = (char*)buf + str_reserve_spc(tk);
     tmp->params.key      = strncpy(buf, key->str_val, key->str_sz);
-    buf += str_reserve_spc(key);
+    buf = (char*)buf + str_reserve_spc(key);
     tmp->params.algo     = strncpy(buf, algo->str_val, algo->str_sz);
-    buf += str_reserve_spc(algo);
+    buf = (char*)buf + str_reserve_spc(algo);
     tmp->params.checksum = strncpy(buf, checksum->str_val, checksum->str_sz);
-    buf += str_reserve_spc(checksum);
+    buf = (char*)buf + str_reserve_spc(checksum);
     if(content) {
         tmp->params.content = (void *)content->bin_val;
         tmp->params.content_sz      = content->bin_sz;
@@ -1908,12 +1908,12 @@ int unmarshal_get_binary_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method          = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id          = tsx_id->u64_val;
     tmp->params.tk       = strncpy(buf, tk->str_val, tk->str_sz);
-    buf += str_reserve_spc(tk);
+    buf = (char*)buf + str_reserve_spc(tk);
     tmp->params.key      = strncpy(buf, key->str_val, key->str_sz);
-    buf += str_reserve_spc(key);
+    buf = (char*)buf + str_reserve_spc(key);
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -1945,7 +1945,7 @@ int unmarshal_get_srv_ver_req(const msgpack_object *req, Req **req_unmarshal)
 
     buf = tmp + 1;
     tmp->method          = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id          = tsx_id->u64_val;
 
     *req_unmarshal = (Req *)tmp;
@@ -1993,10 +1993,10 @@ int unmarshal_report_illegal_cmt_req(const msgpack_object *req, Req **req_unmars
 
     buf = tmp + 1;
     tmp->method         = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id         = tsx_id->u64_val;
     tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
-    buf += str_reserve_spc(tk);
+    buf = (char*)buf + str_reserve_spc(tk);
     tmp->params.chan_id = chan_id->u64_val;
     tmp->params.post_id = post_id->u64_val;
     tmp->params.cmt_id  = cmt_id->u64_val;
@@ -2046,7 +2046,7 @@ int unmarshal_get_reported_cmts_req(const msgpack_object *req, Req **req_unmarsh
 
     buf = tmp + 1;
     tmp->method           = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->tsx_id           = tsx_id->u64_val;
     tmp->params.tk        = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.qc.by     = by->u64_val;
@@ -2242,7 +2242,7 @@ int unmarshal_new_post_notif(const msgpack_object *notif, Notif **notif_unmarsha
 
     buf = tmp + 1;
     tmp->notif.method                   = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->notif.params.pinfo             = &tmp->pi;
     tmp->notif.params.pinfo->chan_id    = chan_id->u64_val;
     tmp->notif.params.pinfo->post_id    = post_id->u64_val;
@@ -2305,14 +2305,14 @@ int unmarshal_new_cmt_notif(const msgpack_object *notif, Notif **notif_unmarshal
 
     buf = tmp + 1;
     tmp->notif.method                     = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->notif.params.cinfo               = &tmp->ci;
     tmp->notif.params.cinfo->chan_id      = chan_id->u64_val;
     tmp->notif.params.cinfo->post_id      = post_id->u64_val;
     tmp->notif.params.cinfo->cmt_id       = id->u64_val;
     tmp->notif.params.cinfo->reply_to_cmt = cmt_id->u64_val;
     tmp->notif.params.cinfo->user.name    = strncpy(buf, user_name->str_val, user_name->str_sz);
-    buf += str_reserve_spc(user_name);
+    buf = (char*)buf + str_reserve_spc(user_name);
     tmp->notif.params.cinfo->content      = memcpy(buf, content->bin_val, content->bin_sz);
     tmp->notif.params.cinfo->len          = content->bin_sz;
     tmp->notif.params.cinfo->created_at   = created_at->u64_val;
@@ -2368,13 +2368,13 @@ int unmarshal_new_like_notif(const msgpack_object *notif, Notif **notif_unmarsha
 
     buf = tmp + 1;
     tmp->notif.method               = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->notif.params.li            = &tmp->li;
     tmp->notif.params.li->chan_id   = chan_id->u64_val;
     tmp->notif.params.li->post_id   = post_id->u64_val;
     tmp->notif.params.li->cmt_id    = cmt_id->u64_val;
     tmp->notif.params.li->user.name = strncpy(buf, user_name->str_val, user_name->str_sz);
-    buf += str_reserve_spc(user_name);
+    buf = (char*)buf + str_reserve_spc(user_name);
     tmp->notif.params.li->user.did  = strncpy(buf, user_did->str_val, user_did->str_sz);
     tmp->notif.params.li->total_cnt = cnt->u64_val;
 
@@ -2422,11 +2422,11 @@ int unmarshal_new_sub_notif(const msgpack_object *notif, Notif **notif_unmarshal
 
     buf = tmp + 1;
     tmp->notif.method             = strncpy(buf, method->str_val, method->str_sz);
-    buf += str_reserve_spc(method);
+    buf = (char*)buf + str_reserve_spc(method);
     tmp->notif.params.uinfo       = &tmp->ui;
     tmp->notif.params.chan_id     = chan_id->u64_val;
     tmp->notif.params.uinfo->name = strncpy(buf, user_name->str_val, user_name->str_sz);
-    buf += str_reserve_spc(user_name);
+    buf = (char*)buf + str_reserve_spc(user_name);
     tmp->notif.params.uinfo->did  = strncpy(buf, user_did->str_val, user_did->str_sz);
 
     *notif_unmarshal = (Notif *)&tmp->notif;
@@ -2575,9 +2575,9 @@ int rpc_unmarshal_decl_owner_resp(DeclOwnerResp **resp, ErrResp **err)
     tmp->result.phase = strncpy(buf, phase->str_val, phase->str_sz);
 
     if (did) {
-        buf += str_reserve_spc(phase);
+        buf = (char*)buf + str_reserve_spc(phase);
         tmp->result.did         = strncpy(buf, did->str_val, did->str_sz);
-        buf += str_reserve_spc(did);
+        buf = (char*)buf + str_reserve_spc(did);
         tmp->result.tsx_payload = strncpy(buf, tsx_payload->str_val, tsx_payload->str_sz);
     }
 
@@ -2625,7 +2625,7 @@ int rpc_unmarshal_imp_did_resp(ImpDIDResp **resp, ErrResp **err)
     buf = tmp + 1;
     tmp->tsx_id             = tsx_id->u64_val;
     tmp->result.did         = strncpy(buf, did->str_val, did->str_sz);
-    buf += str_reserve_spc(did);
+    buf = (char*)buf + str_reserve_spc(did);
     tmp->result.tsx_payload = strncpy(buf, tsx_payload->str_val, tsx_payload->str_sz);
 
     *resp = tmp;
@@ -2735,7 +2735,7 @@ int rpc_unmarshal_signin_req_chal_resp(SigninReqChalResp **resp, ErrResp **err)
     tmp->result.jws    = strncpy(buf, jws->str_val, jws->str_sz);
 
     if (vc) {
-        buf += str_reserve_spc(jws);
+        buf = (char*)buf + str_reserve_spc(jws);
         tmp->result.vc = strncpy(buf, vc->str_val, vc->str_sz);
     }
 
@@ -3108,9 +3108,9 @@ int rpc_unmarshal_get_my_chans_resp(GetMyChansResp **resp, ErrResp **err)
         buf = ci + 1;
         ci->chan_id = chan_id->u64_val;
         ci->name    = strncpy(buf, name->str_val, name->str_sz);
-        buf += str_reserve_spc(name);
+        buf = (char*)buf + str_reserve_spc(name);
         ci->intro   = strncpy(buf, intro->str_val, intro->str_sz);
-        buf += str_reserve_spc(intro);
+        buf = (char*)buf + str_reserve_spc(intro);
         ci->subs    = subs->u64_val;
         ci->avatar  = memcpy(buf, avatar->bin_val, avatar->bin_sz);
         ci->len     = avatar->bin_sz;
@@ -3302,14 +3302,14 @@ int rpc_unmarshal_get_chans_resp(GetChansResp **resp, ErrResp **err)
         buf = ci + 1;
         ci->ci.chan_id     = chan_id->u64_val;
         ci->ci.name        = strncpy(buf, name->str_val, name->str_sz);
-        buf += str_reserve_spc(name);
+        buf = (char*)buf + str_reserve_spc(name);
         ci->ci.intro       = strncpy(buf, intro->str_val, intro->str_sz);
-        buf += str_reserve_spc(intro);
+        buf = (char*)buf + str_reserve_spc(intro);
         ci->ci.owner       = &ci->owner;
         ci->ci.owner->name = strncpy(buf, owner_name->str_val, owner_name->str_sz);
-        buf += str_reserve_spc(owner_name);
+        buf = (char*)buf + str_reserve_spc(owner_name);
         ci->ci.owner->did  = strncpy(buf, owner_did->str_val, owner_did->str_sz);
-        buf += str_reserve_spc(owner_did);
+        buf = (char*)buf + str_reserve_spc(owner_did);
         ci->ci.subs        = subs->u64_val;
         ci->ci.upd_at      = upd_at->u64_val;
         ci->ci.avatar      = memcpy(buf, avatar->bin_val, avatar->bin_sz);
@@ -3384,14 +3384,14 @@ int rpc_unmarshal_get_chan_dtl_resp(GetChanDtlResp **resp, ErrResp **err)
     tmp->resp.result.cinfo              = &tmp->ci.ci;
     tmp->resp.result.cinfo->chan_id     = chan_id->u64_val;
     tmp->resp.result.cinfo->name        = strncpy(buf, name->str_val, name->str_sz);
-    buf += str_reserve_spc(name);
+    buf = (char*)buf + str_reserve_spc(name);
     tmp->resp.result.cinfo->intro       = strncpy(buf, intro->str_val, intro->str_sz);
-    buf += str_reserve_spc(intro);
+    buf = (char*)buf + str_reserve_spc(intro);
     tmp->resp.result.cinfo->owner       = &tmp->ci.owner;
     tmp->resp.result.cinfo->owner->name = strncpy(buf, owner_name->str_val, owner_name->str_sz);
-    buf += str_reserve_spc(owner_name);
+    buf = (char*)buf + str_reserve_spc(owner_name);
     tmp->resp.result.cinfo->owner->did  = strncpy(buf, owner_did->str_val, owner_did->str_sz);
-    buf += str_reserve_spc(owner_did);
+    buf = (char*)buf + str_reserve_spc(owner_did);
     tmp->resp.result.cinfo->subs        = subs->u64_val;
     tmp->resp.result.cinfo->upd_at      = upd_at->u64_val;
     tmp->resp.result.cinfo->avatar      = memcpy(buf, avatar->bin_val, avatar->bin_sz);
@@ -3497,14 +3497,14 @@ int rpc_unmarshal_get_sub_chans_resp(GetSubChansResp **resp, ErrResp **err)
         buf = ci + 1;
         ci->ci.chan_id     = chan_id->u64_val;
         ci->ci.name        = strncpy(buf, name->str_val, name->str_sz);
-        buf += str_reserve_spc(name);
+        buf = (char*)buf + str_reserve_spc(name);
         ci->ci.intro       = strncpy(buf, intro->str_val, intro->str_sz);
-        buf += str_reserve_spc(intro);
+        buf = (char*)buf + str_reserve_spc(intro);
         ci->ci.owner       = &ci->owner;
         ci->ci.owner->name = strncpy(buf, owner_name->str_val, owner_name->str_sz);
-        buf += str_reserve_spc(owner_name);
+        buf = (char*)buf + str_reserve_spc(owner_name);
         ci->ci.owner->did  = strncpy(buf, owner_did->str_val, owner_did->str_sz);
-        buf += str_reserve_spc(owner_did);
+        buf = (char*)buf + str_reserve_spc(owner_did);
         ci->ci.subs        = subs->u64_val;
         ci->ci.upd_at      = upd_at->u64_val;
         ci->ci.avatar      = memcpy(buf, avatar->bin_val, avatar->bin_sz);
@@ -3817,7 +3817,7 @@ int rpc_unmarshal_get_cmts_resp(GetCmtsResp **resp, ErrResp **err)
         ci->cmt_id       = id->u64_val;
         ci->reply_to_cmt = cmt_id->u64_val;
         ci->user.name    = strncpy(buf, user_name->str_val, user_name->str_sz);
-        buf += str_reserve_spc(user_name);
+        buf = (char*)buf + str_reserve_spc(user_name);
         ci->content      = memcpy(buf, content->bin_val, content->bin_sz);
         ci->len          = content->bin_sz;
         ci->likes        = likes->u64_val;
@@ -6158,7 +6158,6 @@ Marshalled *rpc_marshal_resp(const char* method, const Resp *resp)
 {
     struct RespSerializer *resp_serializers;
     int resp_serializers_size;
-    Marshalled *marshalled_data;
     int i;
 
     resp_serializers = resp_serializers_1_0;

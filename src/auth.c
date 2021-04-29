@@ -21,6 +21,7 @@
  */
 
 #include <limits.h>
+#include <inttypes.h>
 
 #include <crystal.h>
 #include <ela_jwt.h>
@@ -47,7 +48,7 @@ typedef struct {
 } VCUserInfo;
 
 typedef struct {
-    hash_entry_t he;
+    linked_hash_entry_t he;
     char nonce[NONCE_BYTES * 2];
     char sub[ELA_MAX_DID_LEN];
     time_t expat;
@@ -56,18 +57,18 @@ typedef struct {
 
 extern Carrier *carrier;
 
-static hashtable_t *pending_logins;
+static linked_hashtable_t *pending_logins;
 
 static inline
 Login *pending_login_put(Login *login)
 {
-    return hashtable_put(pending_logins, &login->he);
+    return linked_hashtable_put(pending_logins, &login->he);
 }
 
 static inline
 Login *pending_login_remove(const char *nonce)
 {
-    return hashtable_remove(pending_logins, nonce, strlen(nonce));
+    return linked_hashtable_remove(pending_logins, nonce, strlen(nonce));
 }
 
 static
@@ -545,7 +546,7 @@ void hdl_signin_conf_chal_req(Carrier *c, const char *from, Req *base)
     }
 
     vlogI(TAG_AUTH "User{did: %s, uid: %" PRIu64 ", name: %s, email: %s} has logged in with nonce[%s]",
-          uinfo->did, uinfo->uid, uinfo->name, uinfo->email, login->nonce);
+            uinfo->did, uinfo->uid, uinfo->name, uinfo->email, login->nonce);
 
     {
         SigninConfChalResp resp = {
@@ -677,7 +678,7 @@ void auth_deinit()
 
 int auth_init()
 {
-    pending_logins = hashtable_create(8, 0, NULL, NULL);
+    pending_logins = linked_hashtable_create(8, 0, NULL, NULL);
     if (!pending_logins) {
         vlogE(TAG_AUTH "Creating pending logins failed.");
         return -1;
@@ -690,21 +691,21 @@ int auth_init()
 
 void auth_expire_login()
 {
-    hashtable_iterator_t it;
+    linked_hashtable_iterator_t it;
 
-    hashtable_iterate(pending_logins, &it);
-    while(hashtable_iterator_has_next(&it)) {
+    linked_hashtable_iterate(pending_logins, &it);
+    while(linked_hashtable_iterator_has_next(&it)) {
         Login *login;
         int rc;
 
-        rc = hashtable_iterator_next(&it, NULL, NULL, (void **)&login);
+        rc = linked_hashtable_iterator_next(&it, NULL, NULL, (void **)&login);
         if (rc <= 0)
             break;
 
         if (login->expat < time(NULL)) {
             vlogI(TAG_AUTH "Login{nonce: %s, subject: %s, expiration: %" PRIu64 ", vc_required: %s} has expired.",
                   login->nonce, login->sub, (uint64_t)login->expat, login->vc_req ? "true" : "false");
-            hashtable_iterator_remove(&it);
+            linked_hashtable_iterator_remove(&it);
         }
 
         deref(login);

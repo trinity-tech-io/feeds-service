@@ -19,6 +19,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+#if defined(_WIN32) || defined(_WIN64)
+#include <windows.h>
+#endif
 
 #ifdef HAVE_TIME_H
 #include <time.h>
@@ -1747,15 +1750,15 @@ int db_get_post(uint64_t chan_id, uint64_t post_id, PostInfo *pi)
     }
 
     pi->stat       = sqlite3_column_int64(stmt, 0);
-    const void* content = sqlite3_column_blob(stmt, 1); 
-    int content_size = sqlite3_column_int64(stmt, 2); 
+    const void* content = sqlite3_column_blob(stmt, 1);
+    int content_size = sqlite3_column_int64(stmt, 2);
     pi->content = rc_zalloc(content_size, NULL);
     memcpy(pi->content, content, content_size);
     pi->len = content_size;
-    pi->cmts = sqlite3_column_int64(stmt, 3); 
-    pi->likes = sqlite3_column_int64(stmt, 4); 
-    pi->created_at = sqlite3_column_int64(stmt, 5); 
-    pi->upd_at = sqlite3_column_int64(stmt, 6); 
+    pi->cmts = sqlite3_column_int64(stmt, 3);
+    pi->likes = sqlite3_column_int64(stmt, 4);
+    pi->created_at = sqlite3_column_int64(stmt, 5);
+    pi->upd_at = sqlite3_column_int64(stmt, 6);
 
     sqlite3_finalize(stmt);
 
@@ -2944,9 +2947,9 @@ void *row2chan(sqlite3_stmt *stmt)
 
     ci->chan_id      = sqlite3_column_int64(stmt, 0);
     ci->name         = strcpy(buf, name);
-    buf += strlen(name) + 1;
+    buf = (char*)buf + strlen(name) + 1;
     ci->intro        = strcpy(buf, intro);
-    buf += strlen(intro) + 1;
+    buf = (char*)buf + strlen(intro) + 1;
     ci->subs         = sqlite3_column_int64(stmt, 3);
     ci->next_post_id = sqlite3_column_int64(stmt, 4);
     ci->upd_at       = sqlite3_column_int64(stmt, 5);
@@ -3049,9 +3052,9 @@ void *row2subchan(sqlite3_stmt *stmt)
     buf = ci + 1;
     ci->chan_id = sqlite3_column_int64(stmt, 0);
     ci->name    = strcpy(buf, name);
-    buf += strlen(name) + 1;
+    buf = (char*)buf + strlen(name) + 1;
     ci->intro   = strcpy(buf, intro);
-    buf += strlen(intro) + 1;
+    buf = (char*)buf + strlen(intro) + 1;
     ci->subs    = sqlite3_column_int64(stmt, 3);
     ci->upd_at  = sqlite3_column_int64(stmt, 4);
     ci->owner   = &feeds_owner_info;
@@ -3489,10 +3492,10 @@ void *row2cmt(sqlite3_stmt *stmt)
     ci->stat         = stat;
     ci->reply_to_cmt = sqlite3_column_int64(stmt, 4);
     ci->user.name    = strcpy(buf, name);
-    buf += strlen(name) + 1;
+    buf = (char*)buf + strlen(name) + 1;
     ci->user.did     = strcpy(buf, did);
     if (stat == CMT_AVAILABLE) {
-        buf += strlen(did) + 1;
+        buf = (char*)buf + strlen(did) + 1;
         ci->content  = memcpy(buf, sqlite3_column_blob(stmt, 7), content_len);
         ci->len      = content_len;
     }
@@ -3524,9 +3527,9 @@ void *row2reportedcmt(sqlite3_stmt *stmt)
     rci->post_id      = sqlite3_column_int64(stmt, 1);
     rci->cmt_id       = sqlite3_column_int64(stmt, 2);
     rci->reporter.name    = strcpy(buf, name);
-    buf += strlen(name) + 1;
+    buf = (char*)buf + strlen(name) + 1;
     rci->reporter.did     = strcpy(buf, did);
-    buf += strlen(did) + 1;
+    buf = (char*)buf + strlen(did) + 1;
     rci->reasons     = strcpy(buf, reasons);
     rci->created_at   = sqlite3_column_int64(stmt, 6);
 

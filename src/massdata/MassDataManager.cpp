@@ -127,7 +127,7 @@ std::shared_ptr<MassDataManager::DataPipe> MassDataManager::find(const std::stri
     }
     auto value = dataPipeIt->second;
 
-    return value; 
+    return value;
 }
 
 std::shared_ptr<CarrierSessionHelper::ConnectListener> MassDataManager::makeConnectListener(const std::string& peerId,
@@ -146,12 +146,12 @@ std::shared_ptr<CarrierSessionHelper::ConnectListener> MassDataManager::makeConn
 
             if(notify == Notify::Closed
             || notify == Notify::Error) {
-                auto mgrPtr = SAFE_GET_PTR_NO_RETVAL(mgr);
+                SAFE_GET_PTR_NO_RETVAL(mgrPtr, mgr);
                 mgrPtr->removeDataPipe(peerId);
             }
         };
         virtual void onReceivedData(const std::vector<uint8_t>& data) override {
-            auto mgrPtr = SAFE_GET_PTR_NO_RETVAL(mgr);
+            SAFE_GET_PTR_NO_RETVAL(mgrPtr, mgr);
             auto dataPipe = mgrPtr->find(peerId);
             assert(dataPipe->parser != nullptr);
 
@@ -177,7 +177,7 @@ std::shared_ptr<SessionParser::OnUnpackedListener> MassDataManager::makeUnpacked
     {
         Log::D(Log::Tag::Msg, "MassData: start to process unpacked data.");
         auto weakPtr = this->weak_from_this();
-        auto mgrPtr = SAFE_GET_PTR_NO_RETVAL(weakPtr);
+        SAFE_GET_PTR_NO_RETVAL(mgrPtr, weakPtr);
 
         auto dataPipe = mgrPtr->find(peerId);
         assert(dataPipe->processor != nullptr);
@@ -191,7 +191,7 @@ std::shared_ptr<SessionParser::OnUnpackedListener> MassDataManager::makeUnpacked
         CHECK_RETVAL(ret);
 
         std::vector<uint8_t> sessionProtocolData;
-        ret = dataPipe->parser->pack(sessionProtocolData, resultHeadData, resultBodyPath);                                                                            
+        ret = dataPipe->parser->pack(sessionProtocolData, resultHeadData, resultBodyPath);
         CHECK_RETVAL(ret);
 
         ret = dataPipe->session->sendData(sessionProtocolData);

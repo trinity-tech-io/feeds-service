@@ -1,6 +1,6 @@
-diff -ruN libconfig-1.7.2/examples/c/example1.vcxproj libconfig-1.7.2-mod/examples/c/example1.vcxproj
+diff -ruN libconfig-1.7.2/examples/c/example1.vcxproj libconfig-1.7.2.mods/examples/c/example1.vcxproj
 --- libconfig-1.7.2/examples/c/example1.vcxproj	2017-10-26 11:47:45.000000000 +0800
-+++ libconfig-1.7.2-mod/examples/c/example1.vcxproj	2018-07-15 12:37:39.000000000 +0800
++++ libconfig-1.7.2.mods/examples/c/example1.vcxproj	2021-04-27 11:59:18.000000000 +0800
 @@ -1,21 +1,45 @@
  <?xml version="1.0" encoding="utf-8"?>
  <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
@@ -44,7 +44,7 @@ diff -ruN libconfig-1.7.2/examples/c/example1.vcxproj libconfig-1.7.2-mod/exampl
      <RootNamespace>c_example1</RootNamespace>
      <Keyword>Win32Proj</Keyword>
 -    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
-+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
++    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
    </PropertyGroup>
    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -264,9 +264,9 @@ diff -ruN libconfig-1.7.2/examples/c/example1.vcxproj libconfig-1.7.2-mod/exampl
    <ItemGroup>
      <ClCompile Include="example1.c" />
    </ItemGroup>
-diff -ruN libconfig-1.7.2/examples/c/example2.vcxproj libconfig-1.7.2-mod/examples/c/example2.vcxproj
+diff -ruN libconfig-1.7.2/examples/c/example2.vcxproj libconfig-1.7.2.mods/examples/c/example2.vcxproj
 --- libconfig-1.7.2/examples/c/example2.vcxproj	2017-10-26 11:47:45.000000000 +0800
-+++ libconfig-1.7.2-mod/examples/c/example2.vcxproj	2018-07-15 12:37:38.000000000 +0800
++++ libconfig-1.7.2.mods/examples/c/example2.vcxproj	2021-04-27 11:59:18.000000000 +0800
 @@ -1,21 +1,45 @@
  <?xml version="1.0" encoding="utf-8"?>
  <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
@@ -310,7 +310,7 @@ diff -ruN libconfig-1.7.2/examples/c/example2.vcxproj libconfig-1.7.2-mod/exampl
      <RootNamespace>c_example2</RootNamespace>
      <Keyword>Win32Proj</Keyword>
 -    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
-+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
++    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
    </PropertyGroup>
    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -530,9 +530,9 @@ diff -ruN libconfig-1.7.2/examples/c/example2.vcxproj libconfig-1.7.2-mod/exampl
    <ItemGroup>
      <ClCompile Include="example2.c" />
    </ItemGroup>
-diff -ruN libconfig-1.7.2/examples/c/example3.vcxproj libconfig-1.7.2-mod/examples/c/example3.vcxproj
+diff -ruN libconfig-1.7.2/examples/c/example3.vcxproj libconfig-1.7.2.mods/examples/c/example3.vcxproj
 --- libconfig-1.7.2/examples/c/example3.vcxproj	2017-10-26 11:47:45.000000000 +0800
-+++ libconfig-1.7.2-mod/examples/c/example3.vcxproj	2018-07-15 12:37:38.000000000 +0800
++++ libconfig-1.7.2.mods/examples/c/example3.vcxproj	2021-04-27 11:59:18.000000000 +0800
 @@ -1,21 +1,45 @@
  <?xml version="1.0" encoding="utf-8"?>
  <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
@@ -576,7 +576,7 @@ diff -ruN libconfig-1.7.2/examples/c/example3.vcxproj libconfig-1.7.2-mod/exampl
      <RootNamespace>c_example3</RootNamespace>
      <Keyword>Win32Proj</Keyword>
 -    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
-+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
++    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
    </PropertyGroup>
    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -796,9 +796,9 @@ diff -ruN libconfig-1.7.2/examples/c/example3.vcxproj libconfig-1.7.2-mod/exampl
    <ItemGroup>
      <ClCompile Include="example3.c" />
    </ItemGroup>
-diff -ruN libconfig-1.7.2/examples/c++/cxx_example1.vcxproj libconfig-1.7.2-mod/examples/c++/cxx_example1.vcxproj
+diff -ruN libconfig-1.7.2/examples/c++/cxx_example1.vcxproj libconfig-1.7.2.mods/examples/c++/cxx_example1.vcxproj
 --- libconfig-1.7.2/examples/c++/cxx_example1.vcxproj	2017-10-26 11:47:45.000000000 +0800
-+++ libconfig-1.7.2-mod/examples/c++/cxx_example1.vcxproj	2018-07-15 12:37:38.000000000 +0800
++++ libconfig-1.7.2.mods/examples/c++/cxx_example1.vcxproj	2021-04-27 11:59:18.000000000 +0800
 @@ -1,21 +1,45 @@
  <?xml version="1.0" encoding="utf-8"?>
  <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
@@ -842,7 +842,7 @@ diff -ruN libconfig-1.7.2/examples/c++/cxx_example1.vcxproj libconfig-1.7.2-mod/
      <RootNamespace>cxx_example1</RootNamespace>
      <Keyword>Win32Proj</Keyword>
 -    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
-+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
++    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
    </PropertyGroup>
    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -1062,9 +1062,9 @@ diff -ruN libconfig-1.7.2/examples/c++/cxx_example1.vcxproj libconfig-1.7.2-mod/
    <ItemGroup>
      <ClCompile Include="example1.cpp" />
    </ItemGroup>
-diff -ruN libconfig-1.7.2/examples/c++/cxx_example2.vcxproj libconfig-1.7.2-mod/examples/c++/cxx_example2.vcxproj
+diff -ruN libconfig-1.7.2/examples/c++/cxx_example2.vcxproj libconfig-1.7.2.mods/examples/c++/cxx_example2.vcxproj
 --- libconfig-1.7.2/examples/c++/cxx_example2.vcxproj	2017-10-26 11:47:45.000000000 +0800
-+++ libconfig-1.7.2-mod/examples/c++/cxx_example2.vcxproj	2018-07-15 12:37:38.000000000 +0800
++++ libconfig-1.7.2.mods/examples/c++/cxx_example2.vcxproj	2021-04-27 11:59:18.000000000 +0800
 @@ -1,21 +1,45 @@
  <?xml version="1.0" encoding="utf-8"?>
  <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
@@ -1108,7 +1108,7 @@ diff -ruN libconfig-1.7.2/examples/c++/cxx_example2.vcxproj libconfig-1.7.2-mod/
      <RootNamespace>cxx_example2</RootNamespace>
      <Keyword>Win32Proj</Keyword>
 -    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
-+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
++    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
    </PropertyGroup>
    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -1328,9 +1328,9 @@ diff -ruN libconfig-1.7.2/examples/c++/cxx_example2.vcxproj libconfig-1.7.2-mod/
    <ItemGroup>
      <ClCompile Include="example2.cpp" />
    </ItemGroup>
-diff -ruN libconfig-1.7.2/examples/c++/cxx_example3.vcxproj libconfig-1.7.2-mod/examples/c++/cxx_example3.vcxproj
+diff -ruN libconfig-1.7.2/examples/c++/cxx_example3.vcxproj libconfig-1.7.2.mods/examples/c++/cxx_example3.vcxproj
 --- libconfig-1.7.2/examples/c++/cxx_example3.vcxproj	2017-10-26 11:47:45.000000000 +0800
-+++ libconfig-1.7.2-mod/examples/c++/cxx_example3.vcxproj	2018-07-15 12:37:38.000000000 +0800
++++ libconfig-1.7.2.mods/examples/c++/cxx_example3.vcxproj	2021-04-27 11:59:18.000000000 +0800
 @@ -1,21 +1,45 @@
  <?xml version="1.0" encoding="utf-8"?>
  <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
@@ -1374,7 +1374,7 @@ diff -ruN libconfig-1.7.2/examples/c++/cxx_example3.vcxproj libconfig-1.7.2-mod/
      <RootNamespace>cxx_example3</RootNamespace>
      <Keyword>Win32Proj</Keyword>
 -    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
-+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
++    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
    </PropertyGroup>
    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -1594,9 +1594,9 @@ diff -ruN libconfig-1.7.2/examples/c++/cxx_example3.vcxproj libconfig-1.7.2-mod/
    <ItemGroup>
      <ClCompile Include="example3.cpp" />
    </ItemGroup>
-diff -ruN libconfig-1.7.2/examples/c++/cxx_example4.vcxproj libconfig-1.7.2-mod/examples/c++/cxx_example4.vcxproj
+diff -ruN libconfig-1.7.2/examples/c++/cxx_example4.vcxproj libconfig-1.7.2.mods/examples/c++/cxx_example4.vcxproj
 --- libconfig-1.7.2/examples/c++/cxx_example4.vcxproj	2017-10-26 11:47:45.000000000 +0800
-+++ libconfig-1.7.2-mod/examples/c++/cxx_example4.vcxproj	2018-07-15 12:37:38.000000000 +0800
++++ libconfig-1.7.2.mods/examples/c++/cxx_example4.vcxproj	2021-04-27 11:59:18.000000000 +0800
 @@ -1,21 +1,45 @@
  <?xml version="1.0" encoding="utf-8"?>
  <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
@@ -1640,7 +1640,7 @@ diff -ruN libconfig-1.7.2/examples/c++/cxx_example4.vcxproj libconfig-1.7.2-mod/
      <RootNamespace>cxx_example4</RootNamespace>
      <Keyword>Win32Proj</Keyword>
 -    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
-+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
++    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
    </PropertyGroup>
    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -1860,9 +1860,9 @@ diff -ruN libconfig-1.7.2/examples/c++/cxx_example4.vcxproj libconfig-1.7.2-mod/
    <ItemGroup>
      <ClCompile Include="example4.cpp" />
    </ItemGroup>
-diff -ruN libconfig-1.7.2/lib/PropertySheet.props libconfig-1.7.2-mod/lib/PropertySheet.props
+diff -ruN libconfig-1.7.2/lib/PropertySheet.props libconfig-1.7.2.mods/lib/PropertySheet.props
 --- libconfig-1.7.2/lib/PropertySheet.props	1970-01-01 08:00:00.000000000 +0800
-+++ libconfig-1.7.2-mod/lib/PropertySheet.props	2018-07-15 12:04:35.000000000 +0800
++++ libconfig-1.7.2.mods/lib/PropertySheet.props	2021-04-27 11:58:41.000000000 +0800
 @@ -0,0 +1,14 @@
 +<?xml version="1.0" encoding="utf-8"?>
 +<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
@@ -1879,9 +1879,9 @@ diff -ruN libconfig-1.7.2/lib/PropertySheet.props libconfig-1.7.2-mod/lib/Proper
 +  </ItemGroup>
 +</Project>
 \ No newline at end of file
-diff -ruN libconfig-1.7.2/lib/libconfig++.vcxproj libconfig-1.7.2-mod/lib/libconfig++.vcxproj
+diff -ruN libconfig-1.7.2/lib/libconfig++.vcxproj libconfig-1.7.2.mods/lib/libconfig++.vcxproj
 --- libconfig-1.7.2/lib/libconfig++.vcxproj	2017-11-16 11:29:22.000000000 +0800
-+++ libconfig-1.7.2-mod/lib/libconfig++.vcxproj	2018-07-15 12:23:07.000000000 +0800
++++ libconfig-1.7.2.mods/lib/libconfig++.vcxproj	2021-04-27 11:59:18.000000000 +0800
 @@ -1,20 +1,44 @@
  <?xml version="1.0" encoding="utf-8"?>
  <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
@@ -1924,7 +1924,7 @@ diff -ruN libconfig-1.7.2/lib/libconfig++.vcxproj libconfig-1.7.2-mod/lib/libcon
      <RootNamespace>libconfig_c</RootNamespace>
      <Keyword>Win32Proj</Keyword>
 -    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
-+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
++    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
    </PropertyGroup>
    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -2159,9 +2159,9 @@ diff -ruN libconfig-1.7.2/lib/libconfig++.vcxproj libconfig-1.7.2-mod/lib/libcon
 -</Project>
 +</Project>
 \ No newline at end of file
-diff -ruN libconfig-1.7.2/lib/libconfig.vcxproj libconfig-1.7.2-mod/lib/libconfig.vcxproj
+diff -ruN libconfig-1.7.2/lib/libconfig.vcxproj libconfig-1.7.2.mods/lib/libconfig.vcxproj
 --- libconfig-1.7.2/lib/libconfig.vcxproj	2017-11-16 11:29:05.000000000 +0800
-+++ libconfig-1.7.2-mod/lib/libconfig.vcxproj	2018-07-15 12:23:08.000000000 +0800
++++ libconfig-1.7.2.mods/lib/libconfig.vcxproj	2021-04-27 11:59:18.000000000 +0800
 @@ -1,37 +1,111 @@
  <?xml version="1.0" encoding="utf-8"?>
  <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
@@ -2203,7 +2203,7 @@ diff -ruN libconfig-1.7.2/lib/libconfig.vcxproj libconfig-1.7.2-mod/lib/libconfi
      <ProjectGuid>{1A234565-926D-49B2-83E4-D56E0C38C9F2}</ProjectGuid>
      <RootNamespace>libconfig</RootNamespace>
 -    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
-+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
++    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
    </PropertyGroup>
    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -2327,12 +2327,12 @@ diff -ruN libconfig-1.7.2/lib/libconfig.vcxproj libconfig-1.7.2-mod/lib/libconfi
        <DataExecutionPrevention />
      </Link>
 +    <CustomBuildStep>
-+      <Command>if not exist $(InstallDir)\include mkdir $(InstallDir)\include
-+if not exist $(InstallDir)\lib mkdir $(InstallDir)\lib
++      <Command>if not exist "$(InstallDir)\include" mkdir "$(InstallDir)\include"
++if not exist "$(InstallDir)\lib" mkdir "$(InstallDir)\lib"
 +
-+copy libconfig.h  $(InstallDir)\include
++copy "libconfig.h"  "$(InstallDir)\include"
 +
-+copy "$(OutDir)$(TargetName)$(TargetExt)" $(InstallDir)\lib</Command>
++copy "$(OutDir)$(TargetName)$(TargetExt)" "$(InstallDir)\lib"</Command>
 +    </CustomBuildStep>
 +    <CustomBuildStep>
 +      <Message>Performing Install Step</Message>
@@ -2358,12 +2358,12 @@ diff -ruN libconfig-1.7.2/lib/libconfig.vcxproj libconfig-1.7.2-mod/lib/libconfi
 +      </DataExecutionPrevention>
 +    </Link>
 +    <CustomBuildStep>
-+      <Command>if not exist $(InstallDir)\include mkdir $(InstallDir)\include
-+if not exist $(InstallDir)\lib mkdir $(InstallDir)\lib
++      <Command>if not exist "$(InstallDir)\include" mkdir "$(InstallDir)\include"
++if not exist "$(InstallDir)\lib" mkdir "$(InstallDir)\lib"
 +
-+copy libconfig.h  $(InstallDir)\include
++copy "libconfig.h"  "$(InstallDir)\include"
 +
-+copy "$(OutDir)$(TargetName)$(TargetExt)" $(InstallDir)\lib</Command>
++copy "$(OutDir)$(TargetName)$(TargetExt)" "$(InstallDir)\lib"</Command>
 +    </CustomBuildStep>
 +    <CustomBuildStep>
 +      <Message>Performing Install Step</Message>
@@ -2393,12 +2393,12 @@ diff -ruN libconfig-1.7.2/lib/libconfig.vcxproj libconfig-1.7.2-mod/lib/libconfi
 +    </CustomBuildStep>
 +    <CustomBuildStep>
 +      <Outputs>$(InstallDir)</Outputs>
-+      <Command>if not exist $(InstallDir)\include mkdir $(InstallDir)\include
-+if not exist $(InstallDir)\lib mkdir $(InstallDir)\lib
++      <Command>if not exist "$(InstallDir)\include" mkdir "$(InstallDir)\include"
++if not exist "$(InstallDir)\lib" mkdir "$(InstallDir)\lib"
 +
-+copy libconfig.h  $(InstallDir)\include
++copy "libconfig.h"  "$(InstallDir)\include"
 +
-+copy "$(OutDir)$(TargetName)$(TargetExt)" $(InstallDir)\lib</Command>
++copy "$(OutDir)$(TargetName)$(TargetExt)" "$(InstallDir)\lib"</Command>
 +    </CustomBuildStep>
 +  </ItemDefinitionGroup>
 +  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugStatic|x64'">
@@ -2422,12 +2422,12 @@ diff -ruN libconfig-1.7.2/lib/libconfig.vcxproj libconfig-1.7.2-mod/lib/libconfi
 +    </CustomBuildStep>
 +    <CustomBuildStep>
 +      <Outputs>$(InstallDir)</Outputs>
-+      <Command>if not exist $(InstallDir)\include mkdir $(InstallDir)\include
-+if not exist $(InstallDir)\lib mkdir $(InstallDir)\lib
++      <Command>if not exist "$(InstallDir)\include" mkdir "$(InstallDir)\include"
++if not exist "$(InstallDir)\lib" mkdir "$(InstallDir)\lib"
 +
-+copy libconfig.h  $(InstallDir)\include
++copy "libconfig.h"  "$(InstallDir)\include"
 +
-+copy "$(OutDir)$(TargetName)$(TargetExt)" $(InstallDir)\lib</Command>
++copy "$(OutDir)$(TargetName)$(TargetExt)" "$(InstallDir)\lib"</Command>
 +    </CustomBuildStep>
    </ItemDefinitionGroup>
    <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -2437,12 +2437,12 @@ diff -ruN libconfig-1.7.2/lib/libconfig.vcxproj libconfig-1.7.2-mod/lib/libconfi
        <DataExecutionPrevention />
      </Link>
 +    <CustomBuildStep>
-+      <Command>if not exist $(InstallDir)\include mkdir $(InstallDir)\include
-+if not exist $(InstallDir)\lib mkdir $(InstallDir)\lib
++      <Command>if not exist "$(InstallDir)\include" mkdir "$(InstallDir)\include"
++if not exist "$(InstallDir)\lib" mkdir "$(InstallDir)\lib"
 +
-+copy libconfig.h  $(InstallDir)\include
++copy "libconfig.h"  "$(InstallDir)\include"
 +
-+copy "$(OutDir)$(TargetName)$(TargetExt)" $(InstallDir)\lib</Command>
++copy "$(OutDir)$(TargetName)$(TargetExt)" "$(InstallDir)\lib"</Command>
 +    </CustomBuildStep>
 +    <CustomBuildStep>
 +      <Message>Performing Install Step</Message>
@@ -2464,12 +2464,12 @@ diff -ruN libconfig-1.7.2/lib/libconfig.vcxproj libconfig-1.7.2-mod/lib/libconfi
 +      </DataExecutionPrevention>
 +    </Link>
 +    <CustomBuildStep>
-+      <Command>if not exist $(InstallDir)\include mkdir $(InstallDir)\include
-+if not exist $(InstallDir)\lib mkdir $(InstallDir)\lib
++      <Command>if not exist "$(InstallDir)\include" mkdir "$(InstallDir)\include"
++if not exist "$(InstallDir)\lib" mkdir "$(InstallDir)\lib"
 +
-+copy libconfig.h  $(InstallDir)\include
++copy "libconfig.h"  "$(InstallDir)\include"
 +
-+copy "$(OutDir)$(TargetName)$(TargetExt)" $(InstallDir)\lib</Command>
++copy "$(OutDir)$(TargetName)$(TargetExt)" "$(InstallDir)\lib"</Command>
 +    </CustomBuildStep>
 +    <CustomBuildStep>
 +      <Message>Performing Install Step</Message>
@@ -2495,12 +2495,12 @@ diff -ruN libconfig-1.7.2/lib/libconfig.vcxproj libconfig-1.7.2-mod/lib/libconfi
 +    </CustomBuildStep>
 +    <CustomBuildStep>
 +      <Outputs>$(InstallDir)</Outputs>
-+      <Command>if not exist $(InstallDir)\include mkdir $(InstallDir)\include
-+if not exist $(InstallDir)\lib mkdir $(InstallDir)\lib
++      <Command>if not exist "$(InstallDir)\include" mkdir "$(InstallDir)\include"
++if not exist "$(InstallDir)\lib" mkdir "$(InstallDir)\lib"
 +
-+copy libconfig.h  $(InstallDir)\include
++copy "libconfig.h"  "$(InstallDir)\include"
 +
-+copy "$(OutDir)$(TargetName)$(TargetExt)" $(InstallDir)\lib</Command>
++copy "$(OutDir)$(TargetName)$(TargetExt)" "$(InstallDir)\lib"</Command>
 +    </CustomBuildStep>
 +  </ItemDefinitionGroup>
 +  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseStatic|x64'">
@@ -2520,12 +2520,12 @@ diff -ruN libconfig-1.7.2/lib/libconfig.vcxproj libconfig-1.7.2-mod/lib/libconfi
 +    </CustomBuildStep>
 +    <CustomBuildStep>
 +      <Outputs>$(InstallDir)</Outputs>
-+      <Command>if not exist $(InstallDir)\include mkdir $(InstallDir)\include
-+if not exist $(InstallDir)\lib mkdir $(InstallDir)\lib
++      <Command>if not exist "$(InstallDir)\include" mkdir "$(InstallDir)\include"
++if not exist "$(InstallDir)\lib" mkdir "$(InstallDir)\lib"
 +
-+copy libconfig.h  $(InstallDir)\include
++copy "libconfig.h"  "$(InstallDir)\include"
 +
-+copy "$(OutDir)$(TargetName)$(TargetExt)" $(InstallDir)\lib</Command>
++copy "$(OutDir)$(TargetName)$(TargetExt)" "$(InstallDir)\lib"</Command>
 +    </CustomBuildStep>
    </ItemDefinitionGroup>
    <ItemGroup>
@@ -2537,9 +2537,9 @@ diff -ruN libconfig-1.7.2/lib/libconfig.vcxproj libconfig-1.7.2-mod/lib/libconfi
 -</Project>
 +</Project>
 \ No newline at end of file
-diff -ruN libconfig-1.7.2/libconfig_vs2017.sln libconfig-1.7.2-mod/libconfig_vs2017.sln
+diff -ruN libconfig-1.7.2/libconfig_vs2017.sln libconfig-1.7.2.mods/libconfig_vs2017.sln
 --- libconfig-1.7.2/libconfig_vs2017.sln	2017-10-26 11:46:21.000000000 +0800
-+++ libconfig-1.7.2-mod/libconfig_vs2017.sln	2018-07-15 12:16:59.000000000 +0800
++++ libconfig-1.7.2.mods/libconfig_vs2017.sln	2021-04-27 11:58:41.000000000 +0800
 @@ -28,53 +28,191 @@
  Global
  	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -2732,9 +2732,9 @@ diff -ruN libconfig-1.7.2/libconfig_vs2017.sln libconfig-1.7.2-mod/libconfig_vs2
  	EndGlobalSection
  	GlobalSection(SolutionProperties) = preSolution
  		HideSolutionNode = FALSE
-diff -ruN libconfig-1.7.2/tests/tests.vcxproj libconfig-1.7.2-mod/tests/tests.vcxproj
+diff -ruN libconfig-1.7.2/tests/tests.vcxproj libconfig-1.7.2.mods/tests/tests.vcxproj
 --- libconfig-1.7.2/tests/tests.vcxproj	2017-10-26 11:47:45.000000000 +0800
-+++ libconfig-1.7.2-mod/tests/tests.vcxproj	2018-07-15 12:37:37.000000000 +0800
++++ libconfig-1.7.2.mods/tests/tests.vcxproj	2021-04-27 11:59:18.000000000 +0800
 @@ -1,21 +1,45 @@
  <?xml version="1.0" encoding="utf-8"?>
  <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
@@ -2778,7 +2778,7 @@ diff -ruN libconfig-1.7.2/tests/tests.vcxproj libconfig-1.7.2-mod/tests/tests.vc
      <RootNamespace>libconfig_tests</RootNamespace>
      <Keyword>Win32Proj</Keyword>
 -    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
-+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
++    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
    </PropertyGroup>
    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -2998,9 +2998,9 @@ diff -ruN libconfig-1.7.2/tests/tests.vcxproj libconfig-1.7.2-mod/tests/tests.vc
    <ItemGroup>
      <ClCompile Include="tests.c" />
    </ItemGroup>
-diff -ruN libconfig-1.7.2/tinytest/tinytest.vcxproj libconfig-1.7.2-mod/tinytest/tinytest.vcxproj
+diff -ruN libconfig-1.7.2/tinytest/tinytest.vcxproj libconfig-1.7.2.mods/tinytest/tinytest.vcxproj
 --- libconfig-1.7.2/tinytest/tinytest.vcxproj	2017-10-26 11:47:45.000000000 +0800
-+++ libconfig-1.7.2-mod/tinytest/tinytest.vcxproj	2018-07-15 12:37:37.000000000 +0800
++++ libconfig-1.7.2.mods/tinytest/tinytest.vcxproj	2021-04-27 11:59:18.000000000 +0800
 @@ -1,21 +1,45 @@
  <?xml version="1.0" encoding="utf-8"?>
  <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
@@ -3044,7 +3044,7 @@ diff -ruN libconfig-1.7.2/tinytest/tinytest.vcxproj libconfig-1.7.2-mod/tinytest
      <RootNamespace>libtinytest</RootNamespace>
      <Keyword>Win32Proj</Keyword>
 -    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
-+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
++    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
    </PropertyGroup>
    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">

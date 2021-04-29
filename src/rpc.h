@@ -32,6 +32,10 @@
 
 typedef char *AccessToken;
 
+#ifdef _MSC_VER
+#pragma warning(disable: 4200)
+#endif
+
 typedef struct {
     uint64_t tsx_id;
     int64_t  ec;

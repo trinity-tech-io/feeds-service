@@ -20,4 +20,9 @@ ExternalProject_Add(
 )
 
 add_library(libqrencode-static INTERFACE)
-target_link_libraries(libqrencode-static INTERFACE qrencode png z)
+
+if(WIN32)
+    target_link_libraries(libqrencode-static INTERFACE qrencoded libpng16_staticd z)
+else()
+    target_link_libraries(libqrencode-static INTERFACE qrencode png z)
+endif()

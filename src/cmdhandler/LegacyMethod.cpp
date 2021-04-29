@@ -77,7 +77,7 @@ int LegacyMethod::onDispose(const std::string& from,
                             std::shared_ptr<Resp>& resp)
 {
     auto carrierHandler = CommandHandler::GetInstance()->getCarrierHandler();
-    auto carrier = SAFE_GET_PTR(carrierHandler);
+    SAFE_GET_PTR(carrier, carrierHandler);
 
     for (int i = 0; i < sizeof(method_hdlrs) / sizeof(method_hdlrs[0]); ++i) {
         if (!strcmp(req->method, method_hdlrs[i].method)) {

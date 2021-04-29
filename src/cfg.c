@@ -22,12 +22,16 @@
 
 #include <string.h>
 #include <limits.h>
-#include <libgen.h>
-#include <unistd.h>
 #include <fcntl.h>
-
 #include <libconfig.h>
 #include <crystal.h>
+
+#if defined(_WIN32) || defined(_WIN64)
+#include <io.h>
+#else
+#include <libgen.h>
+#include <unistd.h>
+#endif
 
 #include "mkdirs.h"
 #include "cfg.h"
