@@ -88,12 +88,11 @@ int check_table_valid(const char *table_name, int item_num)
     char sql[128] = {0};
     int rc;
 
+    vlogD(TAG_DB "Ready to check table: %s", table_name);
     snprintf(sql, sizeof(sql), 
         "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='%s'", 
         table_name);
-    vlogD(TAG_DB "Ready to check table: %s", table_name);
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc) {
+    if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
         vlogE(TAG_DB "Check table valid sqlite3_prepare_v2() failed");
         return -1;
     }
@@ -110,8 +109,7 @@ int check_table_valid(const char *table_name, int item_num)
     if (1 == rc) {
         memset(sql, 0, sizeof(sql));
         snprintf(sql, sizeof(sql), "PRAGMA table_info('%s')", table_name);
-        rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-        if (rc) {
+        if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
             vlogE(TAG_DB "PRAGMA table_info sqlite3_prepare_v2() failed");
             return -1;
         }
@@ -123,9 +121,8 @@ int check_table_valid(const char *table_name, int item_num)
             vlogD(TAG_DB "Table %s is newest version", table_name);
             return 2;
         }
-
         return 1;
-    } else if(0 == rc) {
+    } else if (0 == rc) {
         return 0;
     } else {
         return -1;
@@ -140,8 +137,7 @@ int delete_old_index(const char *table_name)
     int rc;
 
     snprintf(sql, sizeof(sql), "DROP INDEX %s_created_at_index", table_name);
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc) {
+    if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
         vlogE(TAG_DB "Delete %s_created_at_index sqlite3_prepare_v2() failed",
             table_name);
         return -1;
@@ -155,8 +151,7 @@ int delete_old_index(const char *table_name)
 
     memset(sql, 0, sizeof(sql));
     snprintf(sql, sizeof(sql), "DROP INDEX %s_updated_at_index", table_name);
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc) {
+    if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
         vlogE(TAG_DB "Delete %s_updated_at_index sqlite3_prepare_v2() failed",
             table_name);
         return -1;
@@ -181,8 +176,7 @@ int create_new_index(const char *table_name, const char *para)
     snprintf(sql, sizeof(sql), 
         "CREATE INDEX %s_created_at_index ON %s (%screated_at)", 
         table_name, table_name, para);
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc) {
+    if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
         vlogE(TAG_DB "Creating %s_created_at_index sqlite3_prepare_v2() failed", 
             table_name);
         return -1;
@@ -198,8 +192,7 @@ int create_new_index(const char *table_name, const char *para)
     snprintf(sql, sizeof(sql), 
         "CREATE INDEX %s_updated_at_index ON %s (%supdated_at)", 
         table_name, table_name, para);
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (rc) {
+    if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
         vlogE(TAG_DB "Creating %s_updated_at_index sqlite3_prepare_v2() failed",
             table_name);
         return -1;
