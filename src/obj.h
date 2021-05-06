@@ -70,6 +70,8 @@ typedef struct {
     uint64_t    next_post_id;
     void       *avatar;
     size_t      len;
+    const char *tipm;  //v2.0
+    const char *proof;  //v2.0
 } ChanInfo;
 
 typedef enum {
