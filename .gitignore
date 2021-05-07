@@ -4,3 +4,12 @@
 tags
 /build
 speedbox
+deps
+Makefile
+CMakeFiles
+*cmake*
+*.a
+CMakeCache.txt
+feedsd*
+intermediates
+gen
