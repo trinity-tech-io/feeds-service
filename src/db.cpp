@@ -73,7 +73,7 @@ int sql_execution(const char *sql)
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
     if (rc != SQLITE_DONE) {
-        vlogE(TAG_DB "Sql execute failed");
+        vlogE(TAG_DB "Sql execute failed, [%d][%s]", __LINE__, sql);
         return -1;
     }
 
@@ -547,7 +547,7 @@ int db_create_chan(const ChanInfo *ci)
 
     sql = "INSERT INTO channels(created_at, updated_at,"
           " name, intro, avatar, iid, memo, tip_methods, proof) "
-          " VALUES (:ts, :ts, :name, :intro, :avatar, '', '', :tipm, :proof)";
+          " VALUES (:ts, :ts, :name, :intro, :avatar, '', '', :tip_methods, :proof)";
 
     if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
         vlogE(TAG_DB "sqlite3_prepare_v2() failed");
@@ -567,8 +567,8 @@ int db_create_chan(const ChanInfo *ci)
                             sqlite3_bind_parameter_index(stmt, ":avatar"),
                             ci->avatar, ci->len, NULL);
     rc |= sqlite3_bind_text(stmt,  //v2.0
-                            sqlite3_bind_parameter_index(stmt, ":tipm"),
-                            ci->tipm, -1, NULL);
+                            sqlite3_bind_parameter_index(stmt, ":tip_methods"),
+                            ci->tip_methods, -1, NULL);
     rc |= sqlite3_bind_text(stmt,  //v2.0
                             sqlite3_bind_parameter_index(stmt, ":proof"),
                             ci->proof, -1, NULL);
@@ -2330,9 +2330,10 @@ int db_upsert_user(const UserInfo *ui, uint64_t *uid)
     const char *sql;
     int rc;
 
-    sql = "INSERT INTO users(did, name, email) VALUES (:did, :name, :email) "
-          "  ON CONFLICT (did) "
-          "  DO UPDATE "
+    sql = "INSERT INTO users(did, name, email, display_name, update_at, memo, avatar)"
+          " VALUES (:did, :name, :email, '', '', '', '')"  //TODO how to fill new item?
+          " ON CONFLICT (did) "
+          " DO UPDATE "
           "       SET name = :name, email = :email "
           "       WHERE excluded.name IS NOT name OR excluded.email IS NOT email";
 
@@ -2475,7 +2476,7 @@ void *row2chan(sqlite3_stmt *stmt)
     ci->avatar       = memcpy(buf, sqlite3_column_blob(stmt, 7), avatar_sz);
     buf += avatar_sz;
     ci->len          = avatar_sz;
-    ci->tipm         = strcpy((char *)buf, tipm);
+    ci->tip_methods         = strcpy((char *)buf, tipm);
     buf += strlen(tipm) + 1;
     ci->proof         = strcpy((char *)buf, proof);
 

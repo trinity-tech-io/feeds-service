@@ -450,7 +450,7 @@ int unmarshal_create_chan_req(const msgpack_object *req, Req **req_unmarshal)
 
     tmp = rc_zalloc(sizeof(CreateChanReq) + str_reserve_spc(method) +
                     str_reserve_spc(tk) + str_reserve_spc(name) +
-                    str_reserve_spc(intro), NULL);
+                    str_reserve_spc(intro) + 2, NULL);  //2 space for empty v2.0 item
     if (!tmp)
         return -1;
 
@@ -465,8 +465,9 @@ int unmarshal_create_chan_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.intro  = strncpy(buf, intro->str_val, intro->str_sz);
     tmp->params.avatar = (void *)avatar->bin_val;
     tmp->params.sz     = avatar->bin_sz;
-    tmp->params.tipm = NULL;   //only for v2.0
-    tmp->params.proof = NULL;   //only for v2.0
+    tmp->params.tipm   = strcpy(buf, "\0");   //empty for v2.0
+    buf += 1;
+    tmp->params.proof  = strcpy(buf, "\0");   //empty for v2.0
 
     *req_unmarshal = (Req *)tmp;
     return 0;

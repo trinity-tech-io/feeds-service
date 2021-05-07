@@ -57,6 +57,11 @@ typedef struct {
     char    *did;
     char    *name;
     char    *email;
+    char    *display_name;  //v2.0
+    uint64_t upd_at;  //v2.0
+    char    *memo;  //v2.0
+    void    *avatar;  //v2.0
+    size_t   len;  //v2.0
 } UserInfo;
 
 typedef struct {
@@ -70,7 +75,7 @@ typedef struct {
     uint64_t    next_post_id;
     void       *avatar;
     size_t      len;
-    const char *tipm;  //v2.0
+    const char *tip_methods;  //v2.0
     const char *proof;  //v2.0
 } ChanInfo;
 
