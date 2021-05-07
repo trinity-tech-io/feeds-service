@@ -226,7 +226,7 @@ int db_init(sqlite3 *handle)
             "  intro         TEXT    NOT NULL,"
             "  next_post_id  INTEGER NOT NULL DEFAULT 1,"
             "  subscribers   INTEGER NOT NULL DEFAULT 0,"
-            "  status        INTEGER NOT NULL DEFAULT 1,"
+            "  status        INTEGER NOT NULL DEFAULT 0,"
             "  iid           TEXT    NOT NULL,"
             "  tip_methods   TEXT    NOT NULL,"
             "  proof         TEXT    NOT NULL,"
@@ -235,7 +235,7 @@ int db_init(sqlite3 *handle)
             ")",
         .retrive_sql = "INSERT INTO channels SELECT"
             " channel_id, created_at, updated_at, name, intro, next_post_id,"
-            " subscribers, 1, '', '', '', '', avatar"
+            " subscribers, 0, '', '', '', '', avatar"
             " FROM channels_backup",
         .p_check = check_table_valid,
         .p_del_idx = delete_old_index,
@@ -545,8 +545,9 @@ int db_create_chan(const ChanInfo *ci)
     const char *sql;
     int rc;
 
-    sql = "INSERT INTO channels(created_at, updated_at, name, intro, avatar) "
-          "  VALUES (:ts, :ts, :name, :intro, :avatar)";
+    sql = "INSERT INTO channels(created_at, updated_at,"
+          " name, intro, avatar, iid, memo, tip_methods, proof) "
+          " VALUES (:ts, :ts, :name, :intro, :avatar, '', '', :tipm, :proof)";
 
     if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
         vlogE(TAG_DB "sqlite3_prepare_v2() failed");
@@ -565,6 +566,12 @@ int db_create_chan(const ChanInfo *ci)
     rc |= sqlite3_bind_blob(stmt,
                             sqlite3_bind_parameter_index(stmt, ":avatar"),
                             ci->avatar, ci->len, NULL);
+    rc |= sqlite3_bind_text(stmt,  //v2.0
+                            sqlite3_bind_parameter_index(stmt, ":tipm"),
+                            ci->tipm, -1, NULL);
+    rc |= sqlite3_bind_text(stmt,  //v2.0
+                            sqlite3_bind_parameter_index(stmt, ":proof"),
+                            ci->proof, -1, NULL);
     if (SQLITE_OK != rc) {
         vlogE(TAG_DB "Binding parameter failed");
         sqlite3_finalize(stmt);
@@ -2442,7 +2449,10 @@ void *row2chan(sqlite3_stmt *stmt)
     const char *name = (const char *)sqlite3_column_text(stmt, 1);
     const char *intro = (const char *)sqlite3_column_text(stmt, 2);
     size_t avatar_sz = sqlite3_column_int64(stmt, 8);
-    ChanInfo *ci = (ChanInfo *)rc_zalloc(sizeof(ChanInfo) + strlen(name) + strlen(intro) + 2 + avatar_sz, NULL);
+    const char *tipm = (const char *)sqlite3_column_text(stmt, 9);
+    const char *proof = (const char *)sqlite3_column_text(stmt, 10);
+    ChanInfo *ci = (ChanInfo *)rc_zalloc(sizeof(ChanInfo) + strlen(name) + 
+            strlen(intro) + strlen(tipm) + strlen(proof) + 4 + avatar_sz, NULL);
     void *buf;
 
     if (!ci) {
@@ -2463,7 +2473,11 @@ void *row2chan(sqlite3_stmt *stmt)
     ci->created_at   = sqlite3_column_int64(stmt, 6);
     ci->owner        = &feeds_owner_info;
     ci->avatar       = memcpy(buf, sqlite3_column_blob(stmt, 7), avatar_sz);
+    buf += avatar_sz;
     ci->len          = avatar_sz;
+    ci->tipm         = strcpy((char *)buf, tipm);
+    buf += strlen(tipm) + 1;
+    ci->proof         = strcpy((char *)buf, proof);
 
     return ci;
 }
@@ -2477,9 +2491,10 @@ DBObjIt *db_iter_chans(const QryCriteria *qc)
     int rc;
 
     rc = sprintf(sql,
-                 "SELECT channel_id, name, intro, subscribers, "
-                 "       next_post_id, updated_at, created_at, avatar, length(avatar) "
-                 "  FROM channels");
+            "SELECT channel_id, name, intro, subscribers,"
+            " next_post_id, updated_at, created_at, avatar,"
+            " length(avatar), tip_methods, proof"
+            " FROM channels");
     if (qc->by) {
         qcol = query_column(CHANNEL, (QryFld)qc->by);
         if (qc->lower || qc->upper)
@@ -2500,8 +2515,8 @@ DBObjIt *db_iter_chans(const QryCriteria *qc)
 
     if (qc->lower) {
         rc = sqlite3_bind_int64(stmt,
-                                sqlite3_bind_parameter_index(stmt, ":lower"),
-                                qc->lower);
+                sqlite3_bind_parameter_index(stmt, ":lower"),
+                qc->lower);
         if (SQLITE_OK != rc) {
             vlogE(TAG_DB "Binding parameter lower failed");
             sqlite3_finalize(stmt);
