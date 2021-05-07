@@ -77,6 +77,7 @@ typedef struct {
     size_t      len;
     const char *tip_methods;  //v2.0
     const char *proof;  //v2.0
+    uint64_t    status;  //2.0
 } ChanInfo;
 
 typedef enum {
