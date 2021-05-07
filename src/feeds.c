@@ -3593,6 +3593,9 @@ void hdl_sub_chan_req(Carrier *c, const char *from, Req *base)
     {
         SubChanResp resp = {
             .tsx_id = req->tsx_id,
+            .result = {
+                .cinfo = &chan->info
+            }
         };
         resp_marshal = rpc_marshal_sub_chan_resp(&resp);
         vlogD(TAG_CMD "Sending subscribe_channel response.");
