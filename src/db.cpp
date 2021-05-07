@@ -2487,7 +2487,8 @@ void *row2chan(sqlite3_stmt *stmt)
     ci->len          = avatar_sz;
     ci->tip_methods         = strcpy((char *)buf, tipm);
     buf += strlen(tipm) + 1;
-    ci->proof         = strcpy((char *)buf, proof);
+    ci->proof        = strcpy((char *)buf, proof);
+    ci->status       = sqlite3_column_int64(stmt, 11);
 
     return ci;
 }
@@ -2503,7 +2504,7 @@ DBObjIt *db_iter_chans(const QryCriteria *qc)
     rc = sprintf(sql,
             "SELECT channel_id, name, intro, subscribers,"
             " next_post_id, updated_at, created_at, avatar,"
-            " length(avatar), tip_methods, proof"
+            " length(avatar), tip_methods, proof, status"
             " FROM channels");
     if (qc->by) {
         qcol = query_column(CHANNEL, (QryFld)qc->by);

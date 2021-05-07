@@ -5990,9 +5990,23 @@ Marshalled *rpc_marshal_sub_chan_resp(const SubChanResp *resp)
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
     pack_map(pk, 3, {
-        pack_kv_str(pk, "version", "1.0");
+        pack_kv_str(pk, "version", "2.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
-        pack_kv_nil(pk, "result");
+        pack_kv_map(pk, "result", 11, {
+//            pack_kv_bool(pk, "is_last", resp->result.is_last);
+            pack_kv_u64(pk, "id", resp->result.cinfo->chan_id);
+            pack_kv_str(pk, "name", resp->result.cinfo->name);
+            pack_kv_str(pk, "introduction", resp->result.cinfo->intro);
+            pack_kv_str(pk, "owner_name", resp->result.cinfo->owner->name);
+            pack_kv_str(pk, "owner_did", resp->result.cinfo->owner->did);
+            pack_kv_u64(pk, "subscribers", resp->result.cinfo->subs);
+            pack_kv_u64(pk, "last_update", resp->result.cinfo->upd_at);
+            pack_kv_bin(pk, "avatar", resp->result.cinfo->avatar, resp->result.cinfo->len);
+            pack_kv_str(pk, "tip_methods", resp->result.cinfo->tip_methods);
+            pack_kv_str(pk, "proof", resp->result.cinfo->proof);
+            pack_kv_u64(pk, "status", resp->result.cinfo->status);
+        });
+
     });
 
     m->m.data = buf->data;

@@ -551,6 +551,9 @@ typedef struct {
 
 typedef struct {
     uint64_t tsx_id;
+    struct {
+        ChanInfo *cinfo;
+    } result;
 } SubChanResp;
 
 typedef struct {
