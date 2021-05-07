@@ -545,6 +545,7 @@ typedef struct {
     struct {
         AccessToken tk;
         uint64_t    id;
+        char       *proof;  //2.0
     } params;
 } SubChanReq;
 
