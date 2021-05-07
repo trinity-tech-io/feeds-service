@@ -2112,7 +2112,7 @@ int db_rm_like(uint64_t uid, uint64_t channel_id, uint64_t post_id, uint64_t com
     return -1;
 }
 
-int db_add_sub(uint64_t uid, uint64_t chan_id)
+int db_add_sub(uint64_t uid, uint64_t channel_id, const char *proof)
 {
     sqlite3_stmt *stmt;
     const char *sql;
@@ -2133,8 +2133,8 @@ int db_add_sub(uint64_t uid, uint64_t chan_id)
     }
 
     do {
-        sql = "INSERT INTO subscriptions(user_id, channel_id) "
-              "  VALUES (:uid, :channel_id)";
+        sql = "INSERT INTO subscriptions(user_id, channel_id, create_at, proof, memo)"
+              "  VALUES (:uid, :channel_id, :create_at, :proof, '')";  //TODO how to fill items?
 
         if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
             vlogE(TAG_DB "sqlite3_prepare_v2() failed");
@@ -2146,7 +2146,13 @@ int db_add_sub(uint64_t uid, uint64_t chan_id)
                 uid);
         rc |= sqlite3_bind_int64(stmt,
                 sqlite3_bind_parameter_index(stmt, ":channel_id"),
-                chan_id);
+                channel_id);
+        rc |= sqlite3_bind_int64(stmt,  //v2.0
+                sqlite3_bind_parameter_index(stmt, ":create_at"),
+                time(NULL));
+        rc |= sqlite3_bind_text(stmt,  //v2.0
+                sqlite3_bind_parameter_index(stmt, ":proof"),
+                proof, -1, NULL);
         if (SQLITE_OK != rc) {
             vlogE(TAG_DB "Binding parameter failed");
             sqlite3_finalize(stmt);
@@ -2156,7 +2162,7 @@ int db_add_sub(uint64_t uid, uint64_t chan_id)
         rc = sqlite3_step(stmt);
         sqlite3_finalize(stmt);
         if (SQLITE_DONE != rc) {
-            vlogE(TAG_DB "Executing INSERT failed");
+            vlogE(TAG_DB "Executing INSERT failed (%d)", __LINE__);
             break;
         }
 
@@ -2171,7 +2177,7 @@ int db_add_sub(uint64_t uid, uint64_t chan_id)
 
         rc = sqlite3_bind_int64(stmt,
                 sqlite3_bind_parameter_index(stmt, ":channel_id"),
-                chan_id);
+                channel_id);
         if (SQLITE_OK != rc) {
             vlogE(TAG_DB "Binding parameter failed");
             sqlite3_finalize(stmt);
@@ -2181,7 +2187,7 @@ int db_add_sub(uint64_t uid, uint64_t chan_id)
         rc = sqlite3_step(stmt);
         sqlite3_finalize(stmt);
         if (SQLITE_DONE != rc) {
-            vlogE(TAG_DB "Executing UPDATE failed");
+            vlogE(TAG_DB "Executing UPDATE failed (%d)", __LINE__);
             break;
         }
 
@@ -2218,7 +2224,7 @@ int db_add_sub(uint64_t uid, uint64_t chan_id)
     return -1;
 }
 
-int db_unsub(uint64_t uid, uint64_t chan_id)
+int db_unsub(uint64_t uid, uint64_t channel_id)
 {
     sqlite3_stmt *stmt;
     const char *sql;
@@ -2252,7 +2258,7 @@ int db_unsub(uint64_t uid, uint64_t chan_id)
                 uid);
         rc |= sqlite3_bind_int64(stmt,
                 sqlite3_bind_parameter_index(stmt, ":channel_id"),
-                chan_id);
+                channel_id);
         if (SQLITE_OK != rc) {
             vlogE(TAG_DB "Binding parameter failed");
             sqlite3_finalize(stmt);
@@ -2277,7 +2283,7 @@ int db_unsub(uint64_t uid, uint64_t chan_id)
 
         rc = sqlite3_bind_int64(stmt,
                 sqlite3_bind_parameter_index(stmt, ":channel_id"),
-                chan_id);
+                channel_id);
         if (SQLITE_OK != rc) {
             vlogE(TAG_DB "Binding parameter failed");
             sqlite3_finalize(stmt);
@@ -2331,7 +2337,7 @@ int db_upsert_user(const UserInfo *ui, uint64_t *uid)
     int rc;
 
     sql = "INSERT INTO users(did, name, email, display_name, update_at, memo, avatar)"
-          " VALUES (:did, :name, :email, '', '', '', '')"  //TODO how to fill new item?
+          " VALUES (:did, :name, :email, '', :upd_at, '', '')"  //TODO how to fill new item?
           " ON CONFLICT (did) "
           " DO UPDATE "
           "       SET name = :name, email = :email "
@@ -2351,6 +2357,9 @@ int db_upsert_user(const UserInfo *ui, uint64_t *uid)
     rc |= sqlite3_bind_text(stmt,
             sqlite3_bind_parameter_index(stmt, ":email"),
             ui->email, -1, NULL);
+    rc |= sqlite3_bind_int64(stmt,  //v2.0
+            sqlite3_bind_parameter_index(stmt, ":upd_at"),
+            time(NULL));
     if (SQLITE_OK != rc) {
         vlogE(TAG_DB "Binding parameter failed");
         sqlite3_finalize(stmt);
