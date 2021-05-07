@@ -3573,7 +3573,7 @@ void hdl_sub_chan_req(Carrier *c, const char *from, Req *base)
         }
     }
 
-    rc = db_add_sub(uinfo->uid, req->params.id);
+    rc = db_add_sub(uinfo->uid, req->params.id, req->params.proof);
     if (rc < 0) {
         vlogE(TAG_CMD "Adding subscription to database failed");
         ErrResp resp = {
