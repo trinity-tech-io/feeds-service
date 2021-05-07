@@ -142,7 +142,7 @@ Chan *chan_create(const ChanInfo *ci)
     void *buf;
 
     chan = rc_zalloc(sizeof(Chan) + strlen(ci->name) +
-                     strlen(ci->intro) + strlen(ci->tipm) +
+                     strlen(ci->intro) + strlen(ci->tip_methods) +
                      strlen(ci->proof) + 4 + ci->len, chan_dtor);
     if (!chan)
         return NULL;
@@ -160,8 +160,8 @@ Chan *chan_create(const ChanInfo *ci)
     chan->info.intro  = strcpy(buf, ci->intro);
     buf = (char*)buf + strlen(ci->intro) + 1;
     buf += strlen(ci->intro) + 1;
-    chan->info.tipm  = strcpy(buf, ci->tipm);  //v2.0
-    buf += strlen(ci->tipm) + 1;
+    chan->info.tip_methods = strcpy(buf, ci->tip_methods);  //v2.0
+    buf += strlen(ci->tip_methods) + 1;
     chan->info.proof  = strcpy(buf, ci->proof);   //v2.0
     buf += strlen(ci->proof) + 1;
     chan->info.avatar = memcpy(buf, ci->avatar, ci->len);
@@ -667,7 +667,7 @@ void hdl_create_chan_req(Carrier *c, const char *from, Req *base)
         .next_post_id = POST_ID_START,
         .avatar       = req->params.avatar,
         .len          = req->params.sz,
-        .tipm         = req->params.tipm,  //v2.0
+        .tip_methods  = req->params.tipm,  //v2.0
         .proof        = req->params.proof  //v2.0
     };
     Marshalled *resp_marshal = NULL;
@@ -681,7 +681,7 @@ void hdl_create_chan_req(Carrier *c, const char *from, Req *base)
 
     int total_channels = db_get_count("channels");
     vlogD(TAG_CMD "Got existed channels number: %d", total_channels);
-    if (total_channels >= 5) {
+    if (total_channels >= 5) {  //TODO ljq_test
         vlogE(TAG_CMD "There are 5 channels already.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
