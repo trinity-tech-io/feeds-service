@@ -465,6 +465,7 @@ int unmarshal_create_chan_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.intro  = strncpy(buf, intro->str_val, intro->str_sz);
     tmp->params.avatar = (void *)avatar->bin_val;
     tmp->params.sz     = avatar->bin_sz;
+    buf += str_reserve_spc(intro);
     tmp->params.tipm   = strcpy(buf, "\0");   //empty for v2.0
     buf += 1;
     tmp->params.proof  = strcpy(buf, "\0");   //empty for v2.0
@@ -526,12 +527,12 @@ int unmarshal_create_chan_req_2(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.name   = strncpy(buf, name->str_val, name->str_sz);
     buf += str_reserve_spc(name);
     tmp->params.intro  = strncpy(buf, intro->str_val, intro->str_sz);
-    buf += str_reserve_spc(intro);
     tmp->params.avatar = (void *)avatar->bin_val;
     tmp->params.sz     = avatar->bin_sz;
-    tmp->params.tipm   = strncpy(buf, tipm->str_val, tipm->str_sz);
+    buf += str_reserve_spc(intro);
+    tmp->params.tipm   = strncpy(buf, tipm->str_val, tipm->str_sz);  //v2.0
     buf += str_reserve_spc(tipm);
-    tmp->params.proof  = strncpy(buf, proof->str_val, proof->str_sz);
+    tmp->params.proof  = strncpy(buf, proof->str_val, proof->str_sz);  //v2.0
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -1783,7 +1784,8 @@ int unmarshal_sub_chan_req(const msgpack_object *req, Req **req_unmarshal)
         return -1;
     }
 
-    tmp = rc_zalloc(sizeof(SubChanReq) + str_reserve_spc(method) + str_reserve_spc(tk), NULL);
+    tmp = rc_zalloc(sizeof(SubChanReq) + str_reserve_spc(method) + 
+            str_reserve_spc(tk) + 1, NULL);  //1 space for empty v2.0 item
     if (!tmp)
         return -1;
 
@@ -1793,10 +1795,61 @@ int unmarshal_sub_chan_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->tsx_id    = tsx_id->u64_val;
     tmp->params.tk = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.id = id->u64_val;
+    buf += str_reserve_spc(tk);
+    tmp->params.proof  = strcpy(buf, "\0");   //empty for v2.0
 
     *req_unmarshal = (Req *)tmp;
     return 0;
 }
+
+static
+int unmarshal_sub_chan_req_2(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *tk;
+    const msgpack_object *id;
+    const msgpack_object *proof;  //v2.0
+    SubChanReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        (void)map_val_str("version");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            tk = map_val_str("access_token");
+            id = map_val_u64("id");
+            proof = map_val_str("proof");  //v2.0
+        });
+    });
+
+    if (!tk || !tk->str_sz || !id || !chan_id_is_valid(id->u64_val) || 
+        !proof || !proof->str_sz) {
+        vlogE(TAG_RPC "Invalid subscribe_channel request 2.");
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(SubChanReq) + str_reserve_spc(method) +
+            str_reserve_spc(tk) + str_reserve_spc(proof), NULL);
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method    = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->tsx_id    = tsx_id->u64_val;
+    tmp->params.tk = strncpy(buf, tk->str_val, tk->str_sz);
+    tmp->params.id = id->u64_val;
+    buf += str_reserve_spc(tk);
+    tmp->params.proof = strncpy(buf, proof->str_val, proof->str_sz);  //v2.0
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
+
 
 static
 int unmarshal_unsub_chan_req(const msgpack_object *req, Req **req_unmarshal)
@@ -2233,7 +2286,7 @@ static struct RepParser req_parsers_2_0[] = {
     {"get_comments"                , unmarshal_get_cmts_req           },
     {"get_comments_likes"          , unmarshal_get_cmts_likes_req     },
     {"get_statistics"              , unmarshal_get_stats_req          },
-    {"subscribe_channel"           , unmarshal_sub_chan_req           },
+    {"subscribe_channel"           , unmarshal_sub_chan_req_2         },
     {"unsubscribe_channel"         , unmarshal_unsub_chan_req         },
     {"enable_notification"         , unmarshal_enbl_notif_req         },
     {"set_binary"                  , unmarshal_set_binary_req         },
