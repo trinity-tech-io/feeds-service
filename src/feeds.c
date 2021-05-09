@@ -3596,6 +3596,7 @@ void hdl_sub_chan_req(Carrier *c, const char *from, Req *base)
         SubChanResp resp = {
             .tsx_id = req->tsx_id,
             .result = {
+                .is_last = true,
                 .cinfo = &chan->info
             }
         };
