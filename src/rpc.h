@@ -831,5 +831,5 @@ Marshalled *rpc_marshal_enbl_notif_resp(const EnblNotifResp *resp);
 Marshalled *rpc_marshal_get_srv_ver_resp(const GetSrvVerResp *resp);
 Marshalled *rpc_marshal_report_illegal_cmt_resp(const ReportIllegalCmtResp *resp);
 Marshalled *rpc_marshal_get_reported_cmts_resp(const GetReportedCmtsResp *resp);
-
+int get_rpc_version(void);
 #endif //__RPC_H__

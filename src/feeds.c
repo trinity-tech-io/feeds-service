@@ -3590,10 +3590,16 @@ void hdl_sub_chan_req(Carrier *c, const char *from, Req *base)
     ++chan->info.subs;
     vlogI(TAG_CMD "[%s] subscribed to channel [%" PRIu64 "]", uinfo->did, req->params.id);
 
-    {
+    if (get_rpc_version() == 1) {
         SubChanResp resp = {
             .tsx_id = req->tsx_id,
-            .result = {
+        };
+        resp_marshal = rpc_marshal_sub_chan_resp(&resp);
+        vlogD(TAG_CMD "Sending subscribe_channel response.");
+    } else {   //rpc v2.0 response
+        SubChanResp resp = {
+            .tsx_id = req->tsx_id,
+            .result = {  //v2.0
                 .is_last = true,
                 .cinfo = &chan->info
             }
