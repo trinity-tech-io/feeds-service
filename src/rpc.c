@@ -2206,165 +2206,6 @@ int unmarshal_unknown_req(const msgpack_object *req, Req **req_unmarshal)
     return 0;
 }
 
-typedef int ReqHdlr(const msgpack_object *req_map, Req **req_unmarshal);
-struct RepParser {
-    char *method;
-    ReqHdlr *parser;
-};
-
-static struct RepParser req_parsers_1_0[] = {
-    {"declare_owner"               , unmarshal_decl_owner_req         },
-    {"import_did"                  , unmarshal_imp_did_req            },
-    {"issue_credential"            , unmarshal_iss_vc_req             },
-    {"update_credential"           , unmarshal_update_vc_req          },
-    {"signin_request_challenge"    , unmarshal_signin_req_chal_req    },
-    {"signin_confirm_challenge"    , unmarshal_signin_conf_chal_req   },
-    {"create_channel"              , unmarshal_create_chan_req        },
-    {"update_feedinfo"             , unmarshal_upd_chan_req           },
-    {"publish_post"                , unmarshal_pub_post_req           },
-    {"declare_post"                , unmarshal_declare_post_req       },
-    {"notify_post"                 , unmarshal_notify_post_req        },
-    {"edit_post"                   , unmarshal_edit_post_req          },
-    {"delete_post"                 , unmarshal_del_post_req           },
-    {"post_comment"                , unmarshal_post_cmt_req           },
-    {"edit_comment"                , unmarshal_edit_cmt_req           },
-    {"delete_comment"              , unmarshal_del_cmt_req            },
-    {"block_comment"               , unmarshal_block_cmt_req          },
-    {"unblock_comment"             , unmarshal_unblock_cmt_req        },
-    {"post_like"                   , unmarshal_post_like_req          },
-    {"post_unlike"                 , unmarshal_post_unlike_req        },
-    {"get_my_channels"             , unmarshal_get_my_chans_req       },
-    {"get_my_channels_metadata"    , unmarshal_get_my_chans_meta_req  },
-    {"get_channels"                , unmarshal_get_chans_req          },
-    {"get_channel_detail"          , unmarshal_get_chan_dtl_req       },
-    {"get_subscribed_channels"     , unmarshal_get_sub_chans_req      },
-    {"get_posts"                   , unmarshal_get_posts_req          },
-    {"get_posts_likes_and_comments", unmarshal_get_posts_lac_req      },
-    {"get_liked_posts"             , unmarshal_get_liked_posts_req    },
-    {"get_comments"                , unmarshal_get_cmts_req           },
-    {"get_comments_likes"          , unmarshal_get_cmts_likes_req     },
-    {"get_statistics"              , unmarshal_get_stats_req          },
-    {"subscribe_channel"           , unmarshal_sub_chan_req           },
-    {"unsubscribe_channel"         , unmarshal_unsub_chan_req         },
-    {"enable_notification"         , unmarshal_enbl_notif_req         },
-    {"set_binary"                  , unmarshal_set_binary_req         },
-    {"get_binary"                  , unmarshal_get_binary_req         },
-    {"get_service_version"         , unmarshal_get_srv_ver_req        },
-    {"report_illegal_comment"      , unmarshal_report_illegal_cmt_req },
-    {"get_reported_comments"       , unmarshal_get_reported_cmts_req  },
-};
-
-static struct RepParser req_parsers_2_0[] = {
-    {"declare_owner"               , unmarshal_decl_owner_req         },
-    {"import_did"                  , unmarshal_imp_did_req            },
-    {"issue_credential"            , unmarshal_iss_vc_req             },
-    {"update_credential"           , unmarshal_update_vc_req          },
-    {"signin_request_challenge"    , unmarshal_signin_req_chal_req    },
-    {"signin_confirm_challenge"    , unmarshal_signin_conf_chal_req   },
-    {"create_channel"              , unmarshal_create_chan_req_2      },
-    {"update_feedinfo"             , unmarshal_upd_chan_req           },
-    {"publish_post"                , unmarshal_pub_post_req           },
-    {"declare_post"                , unmarshal_declare_post_req       },
-    {"notify_post"                 , unmarshal_notify_post_req        },
-    {"edit_post"                   , unmarshal_edit_post_req          },
-    {"delete_post"                 , unmarshal_del_post_req           },
-    {"post_comment"                , unmarshal_post_cmt_req           },
-    {"edit_comment"                , unmarshal_edit_cmt_req           },
-    {"delete_comment"              , unmarshal_del_cmt_req            },
-    {"block_comment"               , unmarshal_block_cmt_req          },
-    {"unblock_comment"             , unmarshal_unblock_cmt_req        },
-    {"post_like"                   , unmarshal_post_like_req          },
-    {"post_unlike"                 , unmarshal_post_unlike_req        },
-    {"get_my_channels"             , unmarshal_get_my_chans_req       },
-    {"get_my_channels_metadata"    , unmarshal_get_my_chans_meta_req  },
-    {"get_channels"                , unmarshal_get_chans_req          },
-    {"get_channel_detail"          , unmarshal_get_chan_dtl_req       },
-    {"get_subscribed_channels"     , unmarshal_get_sub_chans_req      },
-    {"get_posts"                   , unmarshal_get_posts_req          },
-    {"get_posts_likes_and_comments", unmarshal_get_posts_lac_req      },
-    {"get_liked_posts"             , unmarshal_get_liked_posts_req    },
-    {"get_comments"                , unmarshal_get_cmts_req           },
-    {"get_comments_likes"          , unmarshal_get_cmts_likes_req     },
-    {"get_statistics"              , unmarshal_get_stats_req          },
-    {"subscribe_channel"           , unmarshal_sub_chan_req_2         },
-    {"unsubscribe_channel"         , unmarshal_unsub_chan_req         },
-    {"enable_notification"         , unmarshal_enbl_notif_req         },
-    {"set_binary"                  , unmarshal_set_binary_req         },
-    {"get_binary"                  , unmarshal_get_binary_req         },
-    {"get_service_version"         , unmarshal_get_srv_ver_req        },
-    {"report_illegal_comment"      , unmarshal_report_illegal_cmt_req },
-    {"get_reported_comments"       , unmarshal_get_reported_cmts_req  },
-};
-
-
-int rpc_unmarshal_req(const void *rpc, size_t len, Req **req)
-{
-    const msgpack_object *version;
-    const msgpack_object *method;
-    const msgpack_object *tsx_id;
-    char method_str[1024];
-    msgpack_object obj;
-    struct RepParser *req_parsers;
-    int req_parsers_size;
-    int rc;
-    int i;
-
-    msgpack_unpacked_init(&msgpack);
-    if (msgpack_unpack_next(&msgpack, rpc, len, NULL) != MSGPACK_UNPACK_SUCCESS) {
-        vlogE(TAG_RPC "Decoding msgpack failed.");
-        return -1;
-    }
-
-    obj = msgpack.data;
-    if (obj.type != MSGPACK_OBJECT_MAP) {
-        vlogE(TAG_RPC "Not a msgpack map.");
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    map_iter_kvs(&obj, {
-        version = map_val_str("version");
-        method  = map_val_str("method");
-        tsx_id  = map_val_u64("id");
-    });
-
-    if (!version || !version->str_sz ||
-        !method || !method->str_sz ||
-        !tsx_id) {
-        vlogE(TAG_RPC "No version/method/id field.");
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    memset(method_str, 0, sizeof(method_str));
-    strncpy(method_str, method->str_val, method->str_sz);
-
-    if(memcmp(version->str_val, "1.0", version->str_sz) == 0) {
-        req_parsers = req_parsers_1_0;
-        req_parsers_size = sizeof(req_parsers_1_0) / sizeof(*req_parsers_1_0);
-    } else if (memcmp(version->str_val, "2.0", version->str_sz) == 0) {
-        req_parsers = req_parsers_2_0;
-        req_parsers_size = sizeof(req_parsers_2_0) / sizeof(*req_parsers_2_0);
-    } else {
-        vlogE(TAG_RPC "Unsupported version field.");
-        rc = unmarshal_unknown_req(&obj, req);
-        msgpack_unpacked_destroy(&msgpack);
-        return -3;
-    }
-
-    for (i = 0; i < req_parsers_size; ++i) {
-        if (!strcmp(method_str, req_parsers[i].method)) {
-            int rc = req_parsers[i].parser(&obj, req);
-            msgpack_unpacked_destroy(&msgpack);
-            return rc;
-        }
-    }
-
-    vlogE(TAG_RPC "Not a valid method.");
-    rc = unmarshal_unknown_req(&obj, req);
-    msgpack_unpacked_destroy(&msgpack);
-    return rc < 0 ? -1 : -2;
-}
 
 typedef struct {
     NewPostNotif notif;
@@ -2611,13 +2452,108 @@ static struct {
     {"new_subscription", unmarshal_new_sub_notif  }
 };
 
-int rpc_unmarshal_notif_or_resp_id(const void *rpc, size_t len, Notif **notif, uint64_t *resp_id)
+
+
+typedef int ReqHdlr(const msgpack_object *req_map, Req **req_unmarshal);
+struct ReqParser {
+    char *method;
+    ReqHdlr *parser;
+};
+
+static struct ReqParser req_parsers_1_0[] = {
+    {"declare_owner"               , unmarshal_decl_owner_req         },
+    {"import_did"                  , unmarshal_imp_did_req            },
+    {"issue_credential"            , unmarshal_iss_vc_req             },
+    {"update_credential"           , unmarshal_update_vc_req          },
+    {"signin_request_challenge"    , unmarshal_signin_req_chal_req    },
+    {"signin_confirm_challenge"    , unmarshal_signin_conf_chal_req   },
+    {"create_channel"              , unmarshal_create_chan_req        },
+    {"update_feedinfo"             , unmarshal_upd_chan_req           },
+    {"publish_post"                , unmarshal_pub_post_req           },
+    {"declare_post"                , unmarshal_declare_post_req       },
+    {"notify_post"                 , unmarshal_notify_post_req        },
+    {"edit_post"                   , unmarshal_edit_post_req          },
+    {"delete_post"                 , unmarshal_del_post_req           },
+    {"post_comment"                , unmarshal_post_cmt_req           },
+    {"edit_comment"                , unmarshal_edit_cmt_req           },
+    {"delete_comment"              , unmarshal_del_cmt_req            },
+    {"block_comment"               , unmarshal_block_cmt_req          },
+    {"unblock_comment"             , unmarshal_unblock_cmt_req        },
+    {"post_like"                   , unmarshal_post_like_req          },
+    {"post_unlike"                 , unmarshal_post_unlike_req        },
+    {"get_my_channels"             , unmarshal_get_my_chans_req       },
+    {"get_my_channels_metadata"    , unmarshal_get_my_chans_meta_req  },
+    {"get_channels"                , unmarshal_get_chans_req          },
+    {"get_channel_detail"          , unmarshal_get_chan_dtl_req       },
+    {"get_subscribed_channels"     , unmarshal_get_sub_chans_req      },
+    {"get_posts"                   , unmarshal_get_posts_req          },
+    {"get_posts_likes_and_comments", unmarshal_get_posts_lac_req      },
+    {"get_liked_posts"             , unmarshal_get_liked_posts_req    },
+    {"get_comments"                , unmarshal_get_cmts_req           },
+    {"get_comments_likes"          , unmarshal_get_cmts_likes_req     },
+    {"get_statistics"              , unmarshal_get_stats_req          },
+    {"subscribe_channel"           , unmarshal_sub_chan_req           },
+    {"unsubscribe_channel"         , unmarshal_unsub_chan_req         },
+    {"enable_notification"         , unmarshal_enbl_notif_req         },
+    {"set_binary"                  , unmarshal_set_binary_req         },
+    {"get_binary"                  , unmarshal_get_binary_req         },
+    {"get_service_version"         , unmarshal_get_srv_ver_req        },
+    {"report_illegal_comment"      , unmarshal_report_illegal_cmt_req },
+    {"get_reported_comments"       , unmarshal_get_reported_cmts_req  },
+};
+
+static struct ReqParser req_parsers_2_0[] = {
+    {"declare_owner"               , unmarshal_decl_owner_req         },
+    {"import_did"                  , unmarshal_imp_did_req            },
+    {"issue_credential"            , unmarshal_iss_vc_req             },
+    {"update_credential"           , unmarshal_update_vc_req          },
+    {"signin_request_challenge"    , unmarshal_signin_req_chal_req    },
+    {"signin_confirm_challenge"    , unmarshal_signin_conf_chal_req   },
+    {"create_channel"              , unmarshal_create_chan_req_2      },
+    {"update_feedinfo"             , unmarshal_upd_chan_req           },
+    {"publish_post"                , unmarshal_pub_post_req           },
+    {"declare_post"                , unmarshal_declare_post_req       },
+    {"notify_post"                 , unmarshal_notify_post_req        },
+    {"edit_post"                   , unmarshal_edit_post_req          },
+    {"delete_post"                 , unmarshal_del_post_req           },
+    {"post_comment"                , unmarshal_post_cmt_req           },
+    {"edit_comment"                , unmarshal_edit_cmt_req           },
+    {"delete_comment"              , unmarshal_del_cmt_req            },
+    {"block_comment"               , unmarshal_block_cmt_req          },
+    {"unblock_comment"             , unmarshal_unblock_cmt_req        },
+    {"post_like"                   , unmarshal_post_like_req          },
+    {"post_unlike"                 , unmarshal_post_unlike_req        },
+    {"get_my_channels"             , unmarshal_get_my_chans_req       },
+    {"get_my_channels_metadata"    , unmarshal_get_my_chans_meta_req  },
+    {"get_channels"                , unmarshal_get_chans_req          },
+    {"get_channel_detail"          , unmarshal_get_chan_dtl_req       },
+    {"get_subscribed_channels"     , unmarshal_get_sub_chans_req      },
+    {"get_posts"                   , unmarshal_get_posts_req          },
+    {"get_posts_likes_and_comments", unmarshal_get_posts_lac_req      },
+    {"get_liked_posts"             , unmarshal_get_liked_posts_req    },
+    {"get_comments"                , unmarshal_get_cmts_req           },
+    {"get_comments_likes"          , unmarshal_get_cmts_likes_req     },
+    {"get_statistics"              , unmarshal_get_stats_req          },
+    {"subscribe_channel"           , unmarshal_sub_chan_req_2         },
+    {"unsubscribe_channel"         , unmarshal_unsub_chan_req         },
+    {"enable_notification"         , unmarshal_enbl_notif_req         },
+    {"set_binary"                  , unmarshal_set_binary_req         },
+    {"get_binary"                  , unmarshal_get_binary_req         },
+    {"get_service_version"         , unmarshal_get_srv_ver_req        },
+    {"report_illegal_comment"      , unmarshal_report_illegal_cmt_req },
+    {"get_reported_comments"       , unmarshal_get_reported_cmts_req  },
+};
+
+int rpc_unmarshal_req(const void *rpc, size_t len, Req **req)
 {
     const msgpack_object *version;
-    const msgpack_object *tsx_id;
     const msgpack_object *method;
+    const msgpack_object *tsx_id;
     char method_str[1024];
     msgpack_object obj;
+    struct ReqParser *req_parsers;
+    int req_parsers_size;
+    int rc;
     int i;
 
     msgpack_unpacked_init(&msgpack);
@@ -2635,561 +2571,49 @@ int rpc_unmarshal_notif_or_resp_id(const void *rpc, size_t len, Notif **notif, u
 
     map_iter_kvs(&obj, {
         version = map_val_str("version");
-        tsx_id  = map_val_u64("id");
         method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
     });
 
-    if (!version || version->str_sz != strlen("1.0") ||
-        memcmp(version->str_val, "1.0", version->str_sz) ||
-        !!tsx_id + !!method != 1) {
+    if (!version || !version->str_sz ||
+        !method || !method->str_sz ||
+        !tsx_id) {
+        vlogE(TAG_RPC "No version/method/id field.");
         msgpack_unpacked_destroy(&msgpack);
         return -1;
-    }
-
-    if (tsx_id) {
-        *notif = NULL;
-        *resp_id = tsx_id->u64_val;
-        return 0;
     }
 
     memset(method_str, 0, sizeof(method_str));
     strncpy(method_str, method->str_val, method->str_sz);
 
-    for (i = 0; i < sizeof(notif_parsers) / sizeof(notif_parsers[0]); ++i) {
-        if (!strcmp(method_str, notif_parsers[i].method)) {
-            int rc = notif_parsers[i].parser(&obj, notif);
+    if(memcmp(version->str_val, "1.0", version->str_sz) == 0) {
+        req_parsers = req_parsers_1_0;
+        req_parsers_size = sizeof(req_parsers_1_0) / sizeof(*req_parsers_1_0);
+    } else if (memcmp(version->str_val, "2.0", version->str_sz) == 0) {
+        req_parsers = req_parsers_2_0;
+        req_parsers_size = sizeof(req_parsers_2_0) / sizeof(*req_parsers_2_0);
+    } else {
+        vlogE(TAG_RPC "Unsupported version field.");
+        rc = unmarshal_unknown_req(&obj, req);
+        msgpack_unpacked_destroy(&msgpack);
+        return -3;
+    }
+
+    for (i = 0; i < req_parsers_size; ++i) {
+        if (!strcmp(method_str, req_parsers[i].method)) {
+            int rc = req_parsers[i].parser(&obj, req);
             msgpack_unpacked_destroy(&msgpack);
             return rc;
         }
     }
 
     vlogE(TAG_RPC "Not a valid method.");
+    rc = unmarshal_unknown_req(&obj, req);
     msgpack_unpacked_destroy(&msgpack);
-    return -1;
+    return rc < 0 ? -1 : -2;
 }
 
-static
-int rpc_unmarshal_err_resp(ErrResp **err)
-{
-    const msgpack_object *tsx_id;
-    const msgpack_object *code;
-    ErrResp *tmp;
 
-    map_iter_kvs(&msgpack.data, {
-        (void)map_val_str("version");
-        tsx_id  = map_val_u64("id");
-        map_iter_kvs(map_val_map("error"), {
-            code = map_val_i64("code");
-        });
-    });
-
-    if (!code)
-        return -1;
-
-    tmp = rc_zalloc(sizeof(ErrResp), NULL);
-    if (!tmp)
-        return -1;
-
-    tmp->tsx_id = tsx_id->u64_val;
-    tmp->ec     = code->i64_val;
-
-    *err = tmp;
-    return 0;
-}
-
-int rpc_unmarshal_decl_owner_resp(DeclOwnerResp **resp, ErrResp **err)
-{
-    const msgpack_object *tsx_id;
-    const msgpack_object *phase;
-    const msgpack_object *did;
-    const msgpack_object *tsx_payload;
-    DeclOwnerResp *tmp;
-    void *buf;
-
-    if (!rpc_unmarshal_err_resp(err)) {
-        msgpack_unpacked_destroy(&msgpack);
-        return 0;
-    }
-
-    map_iter_kvs(&msgpack.data, {
-        (void)map_val_str("version");
-        tsx_id = map_val_u64("id");
-        map_iter_kvs(map_val_map("result"), {
-            phase       = map_val_str("phase");
-            did         = map_val_str("did");
-            tsx_payload = map_val_str("transaction_payload");
-        });
-    });
-
-    if (!phase || !((phase->str_sz == strlen("did_imported") &&
-                     !memcmp(phase->str_val, "did_imported", phase->str_sz)) ?
-                    (did && tsx_payload && tsx_payload->str_sz) :
-                    (!did && !tsx_payload))) {
-        vlogE(TAG_RPC "Invalid declare_owner response.");
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp = rc_zalloc(sizeof(DeclOwnerResp) + str_reserve_spc(phase) +
-                    str_reserve_spc(did) + str_reserve_spc(tsx_payload), NULL);
-    if (!tmp) {
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    buf = tmp + 1;
-    tmp->tsx_id       = tsx_id->u64_val;
-    tmp->result.phase = strncpy(buf, phase->str_val, phase->str_sz);
-
-    if (did) {
-        buf += str_reserve_spc(phase);
-        tmp->result.did         = strncpy(buf, did->str_val, did->str_sz);
-        buf += str_reserve_spc(did);
-        tmp->result.tsx_payload = strncpy(buf, tsx_payload->str_val, tsx_payload->str_sz);
-    }
-
-    *resp = tmp;
-
-    msgpack_unpacked_destroy(&msgpack);
-    return 0;
-}
-
-int rpc_unmarshal_imp_did_resp(ImpDIDResp **resp, ErrResp **err)
-{
-    const msgpack_object *tsx_id;
-    const msgpack_object *did;
-    const msgpack_object *tsx_payload;
-    ImpDIDResp *tmp;
-    void *buf;
-
-    if (!rpc_unmarshal_err_resp(err)) {
-        msgpack_unpacked_destroy(&msgpack);
-        return 0;
-    }
-
-    map_iter_kvs(&msgpack.data, {
-        (void)map_val_str("version");
-        tsx_id  = map_val_u64("id");
-        map_iter_kvs(map_val_map("result"), {
-            did         = map_val_str("did");
-            tsx_payload = map_val_str("transaction_payload");
-        });
-    });
-
-    if (!did || !tsx_payload || !tsx_payload->str_sz) {
-        vlogE(TAG_RPC "Invalid import_did response.");
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp = rc_zalloc(sizeof(ImpDIDResp) + str_reserve_spc(did) +
-                    str_reserve_spc(tsx_payload), NULL);
-    if (!tmp) {
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    buf = tmp + 1;
-    tmp->tsx_id             = tsx_id->u64_val;
-    tmp->result.did         = strncpy(buf, did->str_val, did->str_sz);
-    buf += str_reserve_spc(did);
-    tmp->result.tsx_payload = strncpy(buf, tsx_payload->str_val, tsx_payload->str_sz);
-
-    *resp = tmp;
-
-    msgpack_unpacked_destroy(&msgpack);
-    return 0;
-}
-
-int rpc_unmarshal_iss_vc_resp(IssVCResp **resp, ErrResp **err)
-{
-    const msgpack_object *tsx_id;
-    IssVCResp *tmp;
-
-    if (!rpc_unmarshal_err_resp(err)) {
-        msgpack_unpacked_destroy(&msgpack);
-        return 0;
-    }
-
-    map_iter_kvs(&msgpack.data, {
-        (void)map_val_str("version");
-        tsx_id  = map_val_u64("id");
-    });
-
-    tmp = rc_zalloc(sizeof(IssVCResp), NULL);
-    if (!tmp) {
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp->tsx_id = tsx_id->u64_val;
-
-    *resp = tmp;
-
-    msgpack_unpacked_destroy(&msgpack);
-    return 0;
-}
-
-int rpc_unmarshal_update_vc_resp(UpdateVCResp **resp, ErrResp **err)
-{
-    const msgpack_object *tsx_id;
-    UpdateVCResp *tmp;
-
-    if (!rpc_unmarshal_err_resp(err)) {
-        msgpack_unpacked_destroy(&msgpack);
-        return 0;
-    }
-
-    map_iter_kvs(&msgpack.data, {
-        (void)map_val_str("version");
-        tsx_id  = map_val_u64("id");
-    });
-
-    tmp = rc_zalloc(sizeof(UpdateVCResp), NULL);
-    if (!tmp) {
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp->tsx_id = tsx_id->u64_val;
-
-    *resp = tmp;
-
-    msgpack_unpacked_destroy(&msgpack);
-    return 0;
-}
-
-int rpc_unmarshal_signin_req_chal_resp(SigninReqChalResp **resp, ErrResp **err)
-{
-    const msgpack_object *tsx_id;
-    const msgpack_object *vc_req;
-    const msgpack_object *jws;
-    const msgpack_object *vc;
-    SigninReqChalResp *tmp;
-    void *buf;
-
-    if (!rpc_unmarshal_err_resp(err)) {
-        msgpack_unpacked_destroy(&msgpack);
-        return 0;
-    }
-
-    map_iter_kvs(&msgpack.data, {
-        (void)map_val_str("version");
-        tsx_id  = map_val_u64("id");
-        map_iter_kvs(map_val_map("result"), {
-            vc_req = map_val_bool("credential_required");
-            jws    = map_val_str("jws");
-            vc     = map_val_str("credential");
-        });
-    });
-
-    if (!vc_req || !jws || !jws->str_sz || (vc && !vc->str_sz)) {
-        vlogE(TAG_RPC "Invalid sigin_request_challenge response.");
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp = rc_zalloc(sizeof(SigninReqChalResp) + str_reserve_spc(jws) +
-                    str_reserve_spc(vc), NULL);
-    if (!tmp) {
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    buf = tmp + 1;
-    tmp->tsx_id        = tsx_id->u64_val;
-    tmp->result.vc_req = vc_req->bool_val;
-    tmp->result.jws    = strncpy(buf, jws->str_val, jws->str_sz);
-
-    if (vc) {
-        buf += str_reserve_spc(jws);
-        tmp->result.vc = strncpy(buf, vc->str_val, vc->str_sz);
-    }
-
-    *resp = tmp;
-
-    msgpack_unpacked_destroy(&msgpack);
-    return 0;
-}
-
-int rpc_unmarshal_signin_conf_chal_resp(SigninConfChalResp **resp, ErrResp **err)
-{
-    const msgpack_object *tsx_id;
-    const msgpack_object *tk;
-    const msgpack_object *exp;
-    SigninConfChalResp *tmp;
-    void *buf;
-
-    if (!rpc_unmarshal_err_resp(err)) {
-        msgpack_unpacked_destroy(&msgpack);
-        return 0;
-    }
-
-    map_iter_kvs(&msgpack.data, {
-        (void)map_val_str("version");
-        tsx_id  = map_val_u64("id");
-        map_iter_kvs(map_val_map("result"), {
-            tk  = map_val_str("access_token");
-            exp = map_val_u64("exp");
-        });
-    });
-
-    if (!tk || !tk->str_sz || !exp) {
-        vlogE(TAG_RPC "Invalid signin_confirm_challenge response.");
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp = rc_zalloc(sizeof(SigninConfChalResp) + str_reserve_spc(tk), NULL);
-    if (!tmp) {
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    buf = tmp + 1;
-    tmp->tsx_id     = tsx_id->u64_val;
-    tmp->result.tk  = strncpy(buf, tk->str_val, tk->str_sz);
-    tmp->result.exp = exp->u64_val;
-
-    *resp = tmp;
-
-    msgpack_unpacked_destroy(&msgpack);
-    return 0;
-}
-
-int rpc_unmarshal_create_chan_resp(CreateChanResp **resp, ErrResp **err)
-{
-    const msgpack_object *tsx_id;
-    const msgpack_object *chan_id;
-    CreateChanResp *tmp;
-
-    if (!rpc_unmarshal_err_resp(err)) {
-        msgpack_unpacked_destroy(&msgpack);
-        return 0;
-    }
-
-    map_iter_kvs(&msgpack.data, {
-        (void)map_val_str("version");
-        tsx_id  = map_val_u64("id");
-        map_iter_kvs(map_val_map("result"), {
-            chan_id = map_val_u64("id");
-        });
-    });
-
-    if (!chan_id) {
-        vlogE(TAG_RPC "Invalid create_channel response.");
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp = rc_zalloc(sizeof(CreateChanResp), NULL);
-    if (!tmp) {
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp->tsx_id    = tsx_id->u64_val;
-    tmp->result.id = chan_id->u64_val;
-
-    *resp = tmp;
-
-    msgpack_unpacked_destroy(&msgpack);
-    return 0;
-}
-
-int rpc_unmarshal_pub_post_resp(PubPostResp **resp, ErrResp **err)
-{
-    const msgpack_object *tsx_id;
-    const msgpack_object *post_id;
-    PubPostResp *tmp;
-
-    if (!rpc_unmarshal_err_resp(err)) {
-        msgpack_unpacked_destroy(&msgpack);
-        return 0;
-    }
-
-    map_iter_kvs(&msgpack.data, {
-        (void)map_val_str("version");
-        tsx_id  = map_val_u64("id");
-        map_iter_kvs(map_val_map("result"), {
-            post_id = map_val_u64("id");
-        });
-    });
-
-    if (!post_id) {
-        vlogE(TAG_RPC "Invalid publish_post response.");
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp = rc_zalloc(sizeof(PubPostResp), NULL);
-    if (!tmp) {
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp->tsx_id    = tsx_id->u64_val;
-    tmp->result.id = post_id->u64_val;
-
-    *resp = tmp;
-
-    msgpack_unpacked_destroy(&msgpack);
-    return 0;
-}
-
-int rpc_unmarshal_declare_post_resp(DeclarePostResp **resp, ErrResp **err)
-{
-    const msgpack_object *tsx_id;
-    const msgpack_object *post_id;
-    DeclarePostResp *tmp;
-
-    if (!rpc_unmarshal_err_resp(err)) {
-        msgpack_unpacked_destroy(&msgpack);
-        return 0;
-    }
-
-    map_iter_kvs(&msgpack.data, {
-        (void)map_val_str("version");
-        tsx_id  = map_val_u64("id");
-        map_iter_kvs(map_val_map("result"), {
-            post_id = map_val_u64("id");
-        });
-    });
-
-    if (!post_id) {
-        vlogE(TAG_RPC "Invalid declare_post response.");
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp = rc_zalloc(sizeof(DeclarePostResp), NULL);
-    if (!tmp) {
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp->tsx_id    = tsx_id->u64_val;
-    tmp->result.id = post_id->u64_val;
-
-    *resp = tmp;
-
-    msgpack_unpacked_destroy(&msgpack);
-    return 0;
-}
-
-int rpc_unmarshal_post_cmt_resp(PostCmtResp **resp, ErrResp **err)
-{
-    const msgpack_object *tsx_id;
-    const msgpack_object *cmt_id;
-    PostCmtResp *tmp;
-
-    if (!rpc_unmarshal_err_resp(err)) {
-        msgpack_unpacked_destroy(&msgpack);
-        return 0;
-    }
-
-    map_iter_kvs(&msgpack.data, {
-        (void)map_val_str("version");
-        tsx_id  = map_val_u64("id");
-        map_iter_kvs(map_val_map("result"), {
-            cmt_id = map_val_u64("id");
-        });
-    });
-
-    if (!cmt_id) {
-        vlogE(TAG_RPC "Invalid post_comment response.");
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp = rc_zalloc(sizeof(PostCmtResp), NULL);
-    if (!tmp) {
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp->tsx_id    = tsx_id->u64_val;
-    tmp->result.id = cmt_id->u64_val;
-
-    *resp = tmp;
-
-    msgpack_unpacked_destroy(&msgpack);
-    return 0;
-}
-
-int rpc_unmarshal_post_like_resp(PostLikeResp **resp, ErrResp **err)
-{
-    const msgpack_object *tsx_id;
-    const msgpack_object *result;
-    PostLikeResp *tmp;
-
-    if (!rpc_unmarshal_err_resp(err)) {
-        msgpack_unpacked_destroy(&msgpack);
-        return 0;
-    }
-
-    map_iter_kvs(&msgpack.data, {
-        (void)map_val_str("version");
-        tsx_id  = map_val_u64("id");
-        result  = map_val_nil("result");
-    });
-
-    if (!result) {
-        vlogE(TAG_RPC "Invalid post_like response.");
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp = rc_zalloc(sizeof(PostLikeResp), NULL);
-    if (!tmp) {
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp->tsx_id = tsx_id->u64_val;
-
-    *resp = tmp;
-
-    msgpack_unpacked_destroy(&msgpack);
-    return 0;
-}
-
-int rpc_unmarshal_post_unlike_resp(PostUnlikeResp **resp, ErrResp **err)
-{
-    const msgpack_object *tsx_id;
-    const msgpack_object *result;
-    PostUnlikeResp *tmp;
-
-    if (!rpc_unmarshal_err_resp(err)) {
-        msgpack_unpacked_destroy(&msgpack);
-        return 0;
-    }
-
-    map_iter_kvs(&msgpack.data, {
-        (void)map_val_str("version");
-        tsx_id  = map_val_u64("id");
-        result  = map_val_nil("result");
-    });
-
-    if (!result) {
-        vlogE(TAG_RPC "Invalid post_unlike response.");
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp = rc_zalloc(sizeof(PostUnlikeResp), NULL);
-    if (!tmp) {
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp->tsx_id = tsx_id->u64_val;
-
-    *resp = tmp;
-
-    msgpack_unpacked_destroy(&msgpack);
-    return 0;
-}
 
 static
 void get_my_chans_resp_dtor(void *obj)
@@ -3202,95 +2626,6 @@ void get_my_chans_resp_dtor(void *obj)
     cvector_free(resp->result.cinfos);
 }
 
-int rpc_unmarshal_get_my_chans_resp(GetMyChansResp **resp, ErrResp **err)
-{
-    const msgpack_object *tsx_id;
-    const msgpack_object *is_last;
-    const msgpack_object *chans;
-    GetMyChansResp *tmp;
-    int i;
-
-    if (!rpc_unmarshal_err_resp(err)) {
-        msgpack_unpacked_destroy(&msgpack);
-        return 0;
-    }
-
-    map_iter_kvs(&msgpack.data, {
-        (void)map_val_str("version");
-        tsx_id  = map_val_u64("id");
-        map_iter_kvs(map_val_map("result"), {
-            is_last = map_val_bool("is_last");
-            chans   = map_val_arr("channels");
-        });
-    });
-
-    if (!is_last || !chans) {
-        vlogE(TAG_RPC "Invalid get_my_channels response: invalid result.");
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp = rc_zalloc(sizeof(GetMyChansResp), get_my_chans_resp_dtor);
-    if (!tmp) {
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp->tsx_id         = tsx_id->u64_val;
-    tmp->result.is_last = is_last->bool_val;
-
-    for (i = 0; i < chans->arr_sz; ++i) {
-        const msgpack_object *chan_id;
-        const msgpack_object *name;
-        const msgpack_object *intro;
-        const msgpack_object *subs;
-        const msgpack_object *avatar;
-        ChanInfo *ci;
-        void *buf;
-
-        map_iter_kvs(arr_val_map(chans, i), {
-            chan_id = map_val_u64("id");
-            name    = map_val_str("name");
-            intro   = map_val_str("introduction");
-            subs    = map_val_u64("subscribers");
-            avatar  = map_val_bin("avatar");
-        });
-
-        if (!chan_id || !name || !name->str_sz || !intro || !intro->str_sz ||
-            !subs || !avatar || !avatar->bin_sz) {
-            vlogE(TAG_RPC "Invalid get_my_channels response: invalid result element.");
-            msgpack_unpacked_destroy(&msgpack);
-            deref(tmp);
-            return -1;
-        }
-
-        ci = rc_zalloc(sizeof(ChanInfo) + str_reserve_spc(name) +
-                       str_reserve_spc(intro) + avatar->bin_sz, NULL);
-        if (!ci) {
-            msgpack_unpacked_destroy(&msgpack);
-            deref(tmp);
-            return -1;
-        }
-
-        buf = ci + 1;
-        ci->chan_id = chan_id->u64_val;
-        ci->name    = strncpy(buf, name->str_val, name->str_sz);
-        buf += str_reserve_spc(name);
-        ci->intro   = strncpy(buf, intro->str_val, intro->str_sz);
-        buf += str_reserve_spc(intro);
-        ci->subs    = subs->u64_val;
-        ci->avatar  = memcpy(buf, avatar->bin_val, avatar->bin_sz);
-        ci->len     = avatar->bin_sz;
-
-        cvector_push_back(tmp->result.cinfos, ci);
-    }
-
-    *resp = tmp;
-
-    msgpack_unpacked_destroy(&msgpack);
-    return 0;
-}
-
 static
 void get_my_chans_meta_resp_dtor(void *obj)
 {
@@ -3300,74 +2635,6 @@ void get_my_chans_meta_resp_dtor(void *obj)
     cvector_foreach(resp->result.cinfos, ci)
         deref(*ci);
     cvector_free(resp->result.cinfos);
-}
-
-int rpc_unmarshal_get_my_chans_meta_resp(GetMyChansMetaResp **resp, ErrResp **err)
-{
-    const msgpack_object *tsx_id;
-    const msgpack_object *result;
-    GetMyChansMetaResp *tmp;
-    int i;
-
-    if (!rpc_unmarshal_err_resp(err)) {
-        msgpack_unpacked_destroy(&msgpack);
-        return 0;
-    }
-
-    map_iter_kvs(&msgpack.data, {
-        (void)map_val_str("version");
-        tsx_id  = map_val_u64("id");
-        result  = map_val_arr("result");
-    });
-
-    if (!result) {
-        vlogE(TAG_RPC "Invalid get_my_channels_metadata response: invalid result.");
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp = rc_zalloc(sizeof(GetMyChansMetaResp), get_my_chans_meta_resp_dtor);
-    if (!tmp) {
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp->tsx_id = tsx_id->u64_val;
-
-    for (i = 0; i < result->arr_sz; ++i) {
-        const msgpack_object *chan_id;
-        const msgpack_object *subs;
-        ChanInfo *ci;
-
-        map_iter_kvs(arr_val_map(result, i), {
-            chan_id = map_val_u64("id");
-            subs    = map_val_u64("subscribers");
-        });
-
-        if (!chan_id || !subs) {
-            vlogE(TAG_RPC "Invalid get_my_channels_metadata response: invalid result element.");
-            msgpack_unpacked_destroy(&msgpack);
-            deref(tmp);
-            return -1;
-        }
-
-        ci = rc_zalloc(sizeof(ChanInfo), NULL);
-        if (!ci) {
-            msgpack_unpacked_destroy(&msgpack);
-            deref(tmp);
-            return -1;
-        }
-
-        ci->chan_id = chan_id->u64_val;
-        ci->subs    = subs->u64_val;
-
-        cvector_push_back(tmp->result.cinfos, ci);
-    }
-
-    *resp = tmp;
-
-    msgpack_unpacked_destroy(&msgpack);
-    return 0;
 }
 
 typedef struct {
@@ -3388,187 +2655,10 @@ void get_chans_resp_dtor(void *obj)
     cvector_free(resp->result.cinfos);
 }
 
-int rpc_unmarshal_get_chans_resp(GetChansResp **resp, ErrResp **err)
-{
-    const msgpack_object *tsx_id;
-    const msgpack_object *is_last;
-    const msgpack_object *chans;
-    GetChansResp *tmp;
-    int i;
-
-    if (!rpc_unmarshal_err_resp(err)) {
-        msgpack_unpacked_destroy(&msgpack);
-        return 0;
-    }
-
-    map_iter_kvs(&msgpack.data, {
-        (void)map_val_str("version");
-        tsx_id  = map_val_u64("id");
-        map_iter_kvs(map_val_map("result"), {
-            is_last = map_val_bool("is_last");
-            chans   = map_val_arr("channels");
-        });
-    });
-
-    if (!is_last || !chans) {
-        vlogE(TAG_RPC "Invalid get_channels response: invalid result.");
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp = rc_zalloc(sizeof(GetChansResp), get_chans_resp_dtor);
-    if (!tmp) {
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp->tsx_id         = tsx_id->u64_val;
-    tmp->result.is_last = is_last->bool_val;
-
-    for (i = 0; i < chans->arr_sz; ++i) {
-        const msgpack_object *chan_id;
-        const msgpack_object *name;
-        const msgpack_object *intro;
-        const msgpack_object *owner_name;
-        const msgpack_object *owner_did;
-        const msgpack_object *subs;
-        const msgpack_object *upd_at;
-        const msgpack_object *avatar;
-        ChanInfoWithOwner *ci;
-        void *buf;
-
-        map_iter_kvs(arr_val_map(chans, i), {
-            chan_id    = map_val_u64("id");
-            name       = map_val_str("name");
-            intro      = map_val_str("introduction");
-            owner_name = map_val_str("owner_name");
-            owner_did  = map_val_str("owner_did");
-            subs       = map_val_u64("subscribers");
-            upd_at     = map_val_u64("last_update");
-            avatar     = map_val_bin("avatar");
-        });
-
-        if (!chan_id || !name || !name->str_sz || !intro || !intro->str_sz ||
-            !owner_name || !owner_name->str_sz || !owner_did || !owner_did->str_sz ||
-            !subs || !upd_at || !avatar || !avatar->bin_sz) {
-            vlogE(TAG_RPC "Invalid get_channels response: invalid result element.");
-            msgpack_unpacked_destroy(&msgpack);
-            deref(tmp);
-            return -1;
-        }
-
-        ci = rc_zalloc(sizeof(ChanInfoWithOwner) + str_reserve_spc(name) +
-                       str_reserve_spc(intro) + str_reserve_spc(owner_name) +
-                       str_reserve_spc(owner_did) + avatar->bin_sz, NULL);
-        if (!ci) {
-            msgpack_unpacked_destroy(&msgpack);
-            deref(tmp);
-            return -1;
-        }
-
-        buf = ci + 1;
-        ci->ci.chan_id     = chan_id->u64_val;
-        ci->ci.name        = strncpy(buf, name->str_val, name->str_sz);
-        buf += str_reserve_spc(name);
-        ci->ci.intro       = strncpy(buf, intro->str_val, intro->str_sz);
-        buf += str_reserve_spc(intro);
-        ci->ci.owner       = &ci->owner;
-        ci->ci.owner->name = strncpy(buf, owner_name->str_val, owner_name->str_sz);
-        buf += str_reserve_spc(owner_name);
-        ci->ci.owner->did  = strncpy(buf, owner_did->str_val, owner_did->str_sz);
-        buf += str_reserve_spc(owner_did);
-        ci->ci.subs        = subs->u64_val;
-        ci->ci.upd_at      = upd_at->u64_val;
-        ci->ci.avatar      = memcpy(buf, avatar->bin_val, avatar->bin_sz);
-        ci->ci.len         = avatar->bin_sz;
-
-        cvector_push_back(tmp->result.cinfos, &ci->ci);
-    }
-
-    *resp = tmp;
-
-    msgpack_unpacked_destroy(&msgpack);
-    return 0;
-}
-
 typedef struct {
     GetChanDtlResp resp;
     ChanInfoWithOwner ci;
 } GetChanDtlRespWithChanInfo;
-
-int rpc_unmarshal_get_chan_dtl_resp(GetChanDtlResp **resp, ErrResp **err)
-{
-    const msgpack_object *tsx_id;
-    const msgpack_object *chan_id;
-    const msgpack_object *name;
-    const msgpack_object *intro;
-    const msgpack_object *owner_name;
-    const msgpack_object *owner_did;
-    const msgpack_object *subs;
-    const msgpack_object *upd_at;
-    const msgpack_object *avatar;
-    GetChanDtlRespWithChanInfo *tmp;
-    void *buf;
-
-    if (!rpc_unmarshal_err_resp(err)) {
-        msgpack_unpacked_destroy(&msgpack);
-        return 0;
-    }
-
-    map_iter_kvs(&msgpack.data, {
-        (void)map_val_str("version");
-        tsx_id  = map_val_u64("id");
-        map_iter_kvs(map_val_map("result"), {
-            chan_id    = map_val_u64("id");
-            name       = map_val_str("name");
-            intro      = map_val_str("introduction");
-            owner_name = map_val_str("owner_name");
-            owner_did  = map_val_str("owner_did");
-            subs       = map_val_u64("subscribers");
-            upd_at     = map_val_u64("last_update");
-            avatar     = map_val_bin("avatar");
-        });
-    });
-
-    if (!chan_id || !name || !name->str_sz || !intro || !intro->str_sz ||
-        !owner_name || !owner_name->str_sz || !owner_did || !owner_did->str_sz ||
-        !subs || !upd_at || !avatar || !avatar->bin_sz) {
-        vlogE(TAG_RPC "Invalid get_channel_detail response.");
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp = rc_zalloc(sizeof(GetChanDtlRespWithChanInfo) + str_reserve_spc(name) +
-                    str_reserve_spc(intro) + str_reserve_spc(owner_name) +
-                    str_reserve_spc(owner_did) + avatar->bin_sz, NULL);
-    if (!tmp) {
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    buf = tmp + 1;
-    tmp->resp.tsx_id                    = tsx_id->u64_val;
-    tmp->resp.result.cinfo              = &tmp->ci.ci;
-    tmp->resp.result.cinfo->chan_id     = chan_id->u64_val;
-    tmp->resp.result.cinfo->name        = strncpy(buf, name->str_val, name->str_sz);
-    buf += str_reserve_spc(name);
-    tmp->resp.result.cinfo->intro       = strncpy(buf, intro->str_val, intro->str_sz);
-    buf += str_reserve_spc(intro);
-    tmp->resp.result.cinfo->owner       = &tmp->ci.owner;
-    tmp->resp.result.cinfo->owner->name = strncpy(buf, owner_name->str_val, owner_name->str_sz);
-    buf += str_reserve_spc(owner_name);
-    tmp->resp.result.cinfo->owner->did  = strncpy(buf, owner_did->str_val, owner_did->str_sz);
-    buf += str_reserve_spc(owner_did);
-    tmp->resp.result.cinfo->subs        = subs->u64_val;
-    tmp->resp.result.cinfo->upd_at      = upd_at->u64_val;
-    tmp->resp.result.cinfo->avatar      = memcpy(buf, avatar->bin_val, avatar->bin_sz);
-    tmp->resp.result.cinfo->len         = avatar->bin_sz;
-
-    *resp = &tmp->resp;
-
-    msgpack_unpacked_destroy(&msgpack);
-    return 0;
-}
 
 static
 void get_sub_chans_resp_dtor(void *obj)
@@ -3583,109 +2673,6 @@ void get_sub_chans_resp_dtor(void *obj)
     cvector_free(resp->result.cinfos);
 }
 
-int rpc_unmarshal_get_sub_chans_resp(GetSubChansResp **resp, ErrResp **err)
-{
-    const msgpack_object *tsx_id;
-    const msgpack_object *is_last;
-    const msgpack_object *chans;
-    GetSubChansResp *tmp;
-    int i;
-
-    if (!rpc_unmarshal_err_resp(err)) {
-        msgpack_unpacked_destroy(&msgpack);
-        return 0;
-    }
-
-    map_iter_kvs(&msgpack.data, {
-        (void)map_val_str("version");
-        tsx_id  = map_val_u64("id");
-        map_iter_kvs(map_val_map("result"), {
-            is_last = map_val_bool("is_last");
-            chans   = map_val_arr("channels");
-        });
-    });
-
-    if (!is_last || !chans) {
-        vlogE(TAG_RPC "Invalid get_subscribed_channels response: invalid result.");
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp = rc_zalloc(sizeof(GetSubChansResp), get_sub_chans_resp_dtor);
-    if (!tmp) {
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp->tsx_id         = tsx_id->u64_val;
-    tmp->result.is_last = is_last->bool_val;
-
-    for (i = 0; i < chans->arr_sz; ++i) {
-        const msgpack_object *chan_id;
-        const msgpack_object *name;
-        const msgpack_object *intro;
-        const msgpack_object *owner_name;
-        const msgpack_object *owner_did;
-        const msgpack_object *subs;
-        const msgpack_object *upd_at;
-        const msgpack_object *avatar;
-        ChanInfoWithOwner *ci;
-        void *buf;
-
-        map_iter_kvs(arr_val_map(chans, i), {
-            chan_id    = map_val_u64("id");
-            name       = map_val_str("name");
-            intro      = map_val_str("introduction");
-            owner_name = map_val_str("owner_name");
-            owner_did  = map_val_str("owner_did");
-            subs       = map_val_u64("subscribers");
-            upd_at     = map_val_u64("last_update");
-            avatar     = map_val_bin("avatar");
-        });
-
-        if (!chan_id || !name || !name->str_sz || !intro || !intro->str_sz ||
-            !owner_name || !owner_name->str_sz || !owner_did || !owner_did->str_sz ||
-            !subs || !upd_at || !avatar || !avatar->bin_sz) {
-            vlogE(TAG_RPC "Invalid get_subscribed_channels response: invalid result element.");
-            msgpack_unpacked_destroy(&msgpack);
-            deref(tmp);
-            return -1;
-        }
-
-        ci = rc_zalloc(sizeof(ChanInfoWithOwner) + str_reserve_spc(name) +
-                       str_reserve_spc(intro) + str_reserve_spc(owner_name) +
-                       str_reserve_spc(owner_did) + avatar->bin_sz, NULL);
-        if (!ci) {
-            msgpack_unpacked_destroy(&msgpack);
-            deref(tmp);
-            return -1;
-        }
-
-        buf = ci + 1;
-        ci->ci.chan_id     = chan_id->u64_val;
-        ci->ci.name        = strncpy(buf, name->str_val, name->str_sz);
-        buf += str_reserve_spc(name);
-        ci->ci.intro       = strncpy(buf, intro->str_val, intro->str_sz);
-        buf += str_reserve_spc(intro);
-        ci->ci.owner       = &ci->owner;
-        ci->ci.owner->name = strncpy(buf, owner_name->str_val, owner_name->str_sz);
-        buf += str_reserve_spc(owner_name);
-        ci->ci.owner->did  = strncpy(buf, owner_did->str_val, owner_did->str_sz);
-        buf += str_reserve_spc(owner_did);
-        ci->ci.subs        = subs->u64_val;
-        ci->ci.upd_at      = upd_at->u64_val;
-        ci->ci.avatar      = memcpy(buf, avatar->bin_val, avatar->bin_sz);
-        ci->ci.len         = avatar->bin_sz;
-
-        cvector_push_back(tmp->result.cinfos, &ci->ci);
-    }
-
-    *resp = tmp;
-
-    msgpack_unpacked_destroy(&msgpack);
-    return 0;
-}
-
 static
 void get_posts_resp_dtor(void *obj)
 {
@@ -3695,96 +2682,6 @@ void get_posts_resp_dtor(void *obj)
     cvector_foreach(resp->result.pinfos, pi)
         deref(*pi);
     cvector_free(resp->result.pinfos);
-}
-
-int rpc_unmarshal_get_posts_resp(GetPostsResp **resp, ErrResp **err)
-{
-    const msgpack_object *tsx_id;
-    const msgpack_object *is_last;
-    const msgpack_object *posts;
-    GetPostsResp *tmp;
-    int i;
-
-    if (!rpc_unmarshal_err_resp(err)) {
-        msgpack_unpacked_destroy(&msgpack);
-        return 0;
-    }
-
-    map_iter_kvs(&msgpack.data, {
-        (void)map_val_str("version");
-        tsx_id  = map_val_u64("id");
-        map_iter_kvs(map_val_map("result"), {
-            is_last = map_val_bool("is_last");
-            posts   = map_val_arr("posts");
-        });
-    });
-
-    if (!is_last || !posts) {
-        vlogE(TAG_RPC "Invalid get_posts response: invalid result.");
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp = rc_zalloc(sizeof(GetPostsResp), get_posts_resp_dtor);
-    if (!tmp) {
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp->tsx_id         = tsx_id->u64_val;
-    tmp->result.is_last = is_last->bool_val;
-
-    for (i = 0; i < posts->arr_sz; ++i) {
-        const msgpack_object *chan_id;
-        const msgpack_object *post_id;
-        const msgpack_object *content;
-        const msgpack_object *cmts;
-        const msgpack_object *likes;
-        const msgpack_object *created_at;
-        PostInfo *pi;
-        void *buf;
-
-        map_iter_kvs(arr_val_map(posts, i), {
-            chan_id    = map_val_u64("channel_id");
-            post_id    = map_val_u64("id");
-            content    = map_val_bin("content");
-            cmts       = map_val_u64("comments");
-            likes      = map_val_u64("likes");
-            created_at = map_val_u64("created_at");
-        });
-
-        if (!chan_id || !chan_id_is_valid(chan_id->u64_val) ||
-            !post_id || !post_id_is_valid(post_id->u64_val) ||
-            !content || !content->bin_sz || !cmts || !likes || !created_at) {
-            vlogE(TAG_RPC "Invalid get_posts response: invalid result element.");
-            msgpack_unpacked_destroy(&msgpack);
-            deref(tmp);
-            return -1;
-        }
-
-        pi = rc_zalloc(sizeof(PostInfo) + content->bin_sz, NULL);
-        if (!pi) {
-            msgpack_unpacked_destroy(&msgpack);
-            deref(tmp);
-            return -1;
-        }
-
-        buf = pi + 1;
-        pi->chan_id    = chan_id->u64_val;
-        pi->post_id    = post_id->u64_val;
-        pi->content    = memcpy(buf, content->bin_val, content->bin_sz);
-        pi->len        = content->bin_sz;
-        pi->cmts       = cmts->u64_val;
-        pi->likes      = likes->u64_val;
-        pi->created_at = created_at->u64_val;
-
-        cvector_push_back(tmp->result.pinfos, pi);
-    }
-
-    *resp = tmp;
-
-    msgpack_unpacked_destroy(&msgpack);
-    return 0;
 }
 
 static
@@ -3798,96 +2695,6 @@ void get_liked_posts_resp_dtor(void *obj)
     cvector_free(resp->result.pinfos);
 }
 
-int rpc_unmarshal_get_liked_posts_resp(GetLikedPostsResp **resp, ErrResp **err)
-{
-    const msgpack_object *tsx_id;
-    const msgpack_object *is_last;
-    const msgpack_object *posts;
-    GetLikedPostsResp *tmp;
-    int i;
-
-    if (!rpc_unmarshal_err_resp(err)) {
-        msgpack_unpacked_destroy(&msgpack);
-        return 0;
-    }
-
-    map_iter_kvs(&msgpack.data, {
-        (void)map_val_str("version");
-        tsx_id  = map_val_u64("id");
-        map_iter_kvs(map_val_map("result"), {
-            is_last = map_val_bool("is_last");
-            posts   = map_val_arr("posts");
-        });
-    });
-
-    if (!is_last || !posts) {
-        vlogE(TAG_RPC "Invalid get_liked_posts response: invalid result.");
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp = rc_zalloc(sizeof(GetLikedPostsResp), get_liked_posts_resp_dtor);
-    if (!tmp) {
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp->tsx_id         = tsx_id->u64_val;
-    tmp->result.is_last = is_last->bool_val;
-
-    for (i = 0; i < posts->arr_sz; ++i) {
-        const msgpack_object *chan_id;
-        const msgpack_object *post_id;
-        const msgpack_object *content;
-        const msgpack_object *cmts;
-        const msgpack_object *likes;
-        const msgpack_object *created_at;
-        PostInfo *pi;
-        void *buf;
-
-        map_iter_kvs(arr_val_map(posts, i), {
-            chan_id    = map_val_u64("channel_id");
-            post_id    = map_val_u64("id");
-            content    = map_val_bin("content");
-            cmts       = map_val_u64("comments");
-            likes      = map_val_u64("likes");
-            created_at = map_val_u64("created_at");
-        });
-
-        if (!chan_id || !chan_id_is_valid(chan_id->u64_val) ||
-            !post_id || !post_id_is_valid(post_id->u64_val) ||
-            !content || !content->bin_sz || !cmts || !likes || !created_at) {
-            vlogE(TAG_RPC "Invalid get_liked_posts response: invalid result element.");
-            msgpack_unpacked_destroy(&msgpack);
-            deref(tmp);
-            return -1;
-        }
-
-        pi = rc_zalloc(sizeof(PostInfo) + content->bin_sz, NULL);
-        if (!pi) {
-            msgpack_unpacked_destroy(&msgpack);
-            deref(tmp);
-            return -1;
-        }
-
-        buf = pi + 1;
-        pi->chan_id    = chan_id->u64_val;
-        pi->post_id    = post_id->u64_val;
-        pi->content    = memcpy(buf, content->bin_val, content->bin_sz);
-        pi->len        = content->bin_sz;
-        pi->cmts       = cmts->u64_val;
-        pi->likes      = likes->u64_val;
-        pi->created_at = created_at->u64_val;
-
-        cvector_push_back(tmp->result.pinfos, pi);
-    }
-
-    *resp = tmp;
-
-    msgpack_unpacked_destroy(&msgpack);
-    return 0;
-}
-
 static
 void get_cmts_resp_dtor(void *obj)
 {
@@ -3897,265 +2704,6 @@ void get_cmts_resp_dtor(void *obj)
     cvector_foreach(resp->result.cinfos, ci)
         deref(*ci);
     cvector_free(resp->result.cinfos);
-}
-
-int rpc_unmarshal_get_cmts_resp(GetCmtsResp **resp, ErrResp **err)
-{
-    const msgpack_object *tsx_id;
-    const msgpack_object *is_last;
-    const msgpack_object *cmts;
-    GetCmtsResp *tmp;
-    int i;
-
-    if (!rpc_unmarshal_err_resp(err)) {
-        msgpack_unpacked_destroy(&msgpack);
-        return 0;
-    }
-
-    map_iter_kvs(&msgpack.data, {
-        (void)map_val_str("version");
-        tsx_id  = map_val_u64("id");
-        map_iter_kvs(map_val_map("result"), {
-            is_last = map_val_bool("is_last");
-            cmts    = map_val_arr("comments");
-        });
-    });
-
-    if (!is_last || !cmts) {
-        vlogE(TAG_RPC "Invalid get_comments response: invalid result.");
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp = rc_zalloc(sizeof(GetCmtsResp), get_cmts_resp_dtor);
-    if (!tmp) {
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp->tsx_id         = tsx_id->u64_val;
-    tmp->result.is_last = is_last->bool_val;
-
-    for (i = 0; i < cmts->arr_sz; ++i) {
-        const msgpack_object *chan_id;
-        const msgpack_object *post_id;
-        const msgpack_object *id;
-        const msgpack_object *cmt_id;
-        const msgpack_object *user_name;
-        const msgpack_object *content;
-        const msgpack_object *likes;
-        const msgpack_object *created_at;
-        CmtInfo *ci;
-        void *buf;
-
-        map_iter_kvs(arr_val_map(cmts, i), {
-            chan_id    = map_val_u64("channel_id");
-            post_id    = map_val_u64("post_id");
-            id         = map_val_u64("id");
-            cmt_id     = map_val_u64("comment_id");
-            user_name  = map_val_str("user_name");
-            content    = map_val_bin("content");
-            likes      = map_val_u64("likes");
-            created_at = map_val_u64("created_at");
-        });
-
-        if (!chan_id || !chan_id_is_valid(chan_id->u64_val) ||
-            !post_id || !post_id_is_valid(post_id->u64_val) ||
-            !id || !cmt_id_is_valid(id->u64_val) ||
-            !user_name || !user_name->str_sz ||
-            !content || !content->bin_sz || !likes || !created_at) {
-            vlogE(TAG_RPC "Invalid get_comments response: invalid result element.");
-            msgpack_unpacked_destroy(&msgpack);
-            deref(tmp);
-            return -1;
-        }
-
-        ci = rc_zalloc(sizeof(CmtInfo) + str_reserve_spc(user_name) +
-                       content->bin_sz, NULL);
-        if (!ci) {
-            msgpack_unpacked_destroy(&msgpack);
-            deref(tmp);
-            return -1;
-        }
-
-        buf = ci + 1;
-        ci->chan_id      = chan_id->u64_val;
-        ci->post_id      = post_id->u64_val;
-        ci->cmt_id       = id->u64_val;
-        ci->reply_to_cmt = cmt_id->u64_val;
-        ci->user.name    = strncpy(buf, user_name->str_val, user_name->str_sz);
-        buf += str_reserve_spc(user_name);
-        ci->content      = memcpy(buf, content->bin_val, content->bin_sz);
-        ci->len          = content->bin_sz;
-        ci->likes        = likes->u64_val;
-        ci->created_at   = created_at->u64_val;
-
-        cvector_push_back(tmp->result.cinfos, ci);
-    }
-
-    *resp = tmp;
-
-    msgpack_unpacked_destroy(&msgpack);
-    return 0;
-}
-
-int rpc_unmarshal_get_stats_resp(GetStatsResp **resp, ErrResp **err)
-{
-    const msgpack_object *tsx_id;
-    const msgpack_object *did;
-    const msgpack_object *conn_cs;
-    const msgpack_object *total_cs;
-    GetStatsResp *tmp;
-    void *buf;
-
-    if (!rpc_unmarshal_err_resp(err)) {
-        msgpack_unpacked_destroy(&msgpack);
-        return 0;
-    }
-
-    map_iter_kvs(&msgpack.data, {
-        (void)map_val_str("version");
-        tsx_id  = map_val_u64("id");
-        map_iter_kvs(map_val_map("result"), {
-            did     = map_val_str("did");
-            conn_cs = map_val_u64("connecting_clients");
-            total_cs = map_val_u64("total_clients");
-        });
-    });
-
-    if (!did || !did->str_sz || !conn_cs || !total_cs) {
-        vlogE(TAG_RPC "Invalid get_statistics response.");
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp = rc_zalloc(sizeof(GetStatsResp) + str_reserve_spc(did), NULL);
-    if (!tmp) {
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    buf = tmp + 1;
-    tmp->tsx_id         = tsx_id->u64_val;
-    tmp->result.did     = strncpy(buf, did->str_val, did->str_sz);
-    tmp->result.conn_cs = conn_cs->u64_val;
-    tmp->result.total_cs = total_cs->u64_val;
-
-    *resp = tmp;
-
-    msgpack_unpacked_destroy(&msgpack);
-    return 0;
-}
-
-int rpc_unmarshal_sub_chan_resp(SubChanResp **resp, ErrResp **err)
-{
-    const msgpack_object *tsx_id;
-    const msgpack_object *result;
-    SubChanResp *tmp;
-
-    if (!rpc_unmarshal_err_resp(err)) {
-        msgpack_unpacked_destroy(&msgpack);
-        return 0;
-    }
-
-    map_iter_kvs(&msgpack.data, {
-        (void)map_val_str("version");
-        tsx_id  = map_val_u64("id");
-        result  = map_val_nil("result");
-    });
-
-    if (!result) {
-        vlogE(TAG_RPC "Invalid subscribe_channel response.");
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp = rc_zalloc(sizeof(SubChanResp), NULL);
-    if (!tmp) {
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp->tsx_id = tsx_id->u64_val;
-
-    *resp = tmp;
-
-    msgpack_unpacked_destroy(&msgpack);
-    return 0;
-}
-
-int rpc_unmarshal_unsub_chan_resp(UnsubChanResp **resp, ErrResp **err)
-{
-    const msgpack_object *tsx_id;
-    const msgpack_object *result;
-    UnsubChanResp *tmp;
-
-    if (!rpc_unmarshal_err_resp(err)) {
-        msgpack_unpacked_destroy(&msgpack);
-        return 0;
-    }
-
-    map_iter_kvs(&msgpack.data, {
-        (void)map_val_str("version");
-        tsx_id  = map_val_u64("id");
-        result  = map_val_nil("result");
-    });
-
-    if (!result) {
-        vlogE(TAG_RPC "Invalid unsubscribe_channel response.");
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp = rc_zalloc(sizeof(UnsubChanResp), NULL);
-    if (!tmp) {
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp->tsx_id = tsx_id->u64_val;
-
-    *resp = tmp;
-
-    msgpack_unpacked_destroy(&msgpack);
-    return 0;
-}
-
-int rpc_unmarshal_enbl_notif_resp(EnblNotifResp **resp, ErrResp **err)
-{
-    const msgpack_object *tsx_id;
-    const msgpack_object *result;
-    EnblNotifResp *tmp;
-
-    if (!rpc_unmarshal_err_resp(err)) {
-        msgpack_unpacked_destroy(&msgpack);
-        return 0;
-    }
-
-    map_iter_kvs(&msgpack.data, {
-        (void)map_val_str("version");
-        tsx_id  = map_val_u64("id");
-        result  = map_val_nil("result");
-    });
-
-    if (!result) {
-        vlogE(TAG_RPC "Invalid enable_notification response.");
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp = rc_zalloc(sizeof(EnblNotifResp), NULL);
-    if (!tmp) {
-        msgpack_unpacked_destroy(&msgpack);
-        return -1;
-    }
-
-    tmp->tsx_id = tsx_id->u64_val;
-
-    *resp = tmp;
-
-    msgpack_unpacked_destroy(&msgpack);
-    return 0;
 }
 
 static inline
@@ -4287,297 +2835,6 @@ void mintl_dtor(void *obj)
 
     if (m->buf)
         msgpack_sbuffer_free(m->buf);
-}
-
-Marshalled *rpc_marshal_decl_owner_req(const DeclOwnerReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 4, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "declare_owner");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 2, {
-            pack_kv_str(pk, "nonce", req->params.nonce);
-            pack_kv_str(pk, "owner_did", req->params.owner_did);
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
-Marshalled *rpc_marshal_decl_owner_resp(const DeclOwnerResp *resp)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 3, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_u64(pk, "id", resp->tsx_id);
-        pack_kv_map(pk, "result", resp->result.did ? 3 : 1, {
-            pack_kv_str(pk, "phase", resp->result.phase);
-            pack_kv_str(pk, "did", resp->result.did);
-            pack_kv_str(pk, "transaction_payload", resp->result.tsx_payload);
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
-Marshalled *rpc_marshal_imp_did_req(const ImpDIDReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-    int params_cnt = !!req->params.mnemo + !!req->params.passphrase + !!req->params.idx;
-
-    pack_map(pk, params_cnt ? 4 : 3, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "import_did");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", params_cnt, {
-            pack_kv_str(pk, "mnemonic", req->params.mnemo);
-            pack_kv_str(pk, "passphrase", req->params.passphrase);
-            pack_kv_u64(pk, "index", req->params.idx);
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
-Marshalled *rpc_marshal_imp_did_resp(const ImpDIDResp *resp)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 3, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_u64(pk, "id", resp->tsx_id);
-        pack_kv_map(pk, "result", 2, {
-            pack_kv_str(pk, "did", resp->result.did);
-            pack_kv_str(pk, "transaction_payload", resp->result.tsx_payload);
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
-Marshalled *rpc_marshal_iss_vc_req(const IssVCReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 4, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "issue_credential");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 1, {
-            pack_kv_str(pk, "credential", req->params.vc);
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
-Marshalled *rpc_marshal_iss_vc_resp(const IssVCResp *resp)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 3, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_u64(pk, "id", resp->tsx_id);
-        pack_kv_nil(pk, "result");
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
-Marshalled *rpc_marshal_update_vc_req(const UpdateVCReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 4, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "update_credential");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 1, {
-            pack_kv_str(pk, "access_token", req->params.tk);
-            pack_kv_str(pk, "credential", req->params.vc);
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
-Marshalled *rpc_marshal_update_vc_resp(const UpdateVCResp *resp)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 3, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_u64(pk, "id", resp->tsx_id);
-        pack_kv_nil(pk, "result");
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
-Marshalled *rpc_marshal_signin_req_chal_req(const SigninReqChalReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 4, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "signin_request_challenge");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 2, {
-            pack_kv_str(pk, "iss", req->params.iss);
-            pack_kv_bool(pk, "credential_required", req->params.vc_req);
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
-Marshalled *rpc_marshal_signin_req_chal_resp(const SigninReqChalResp *resp)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 3, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_u64(pk, "id", resp->tsx_id);
-        pack_kv_map(pk, "result", resp->result.vc ? 3 : 2, {
-            pack_kv_bool(pk, "credential_required", resp->result.vc_req);
-            pack_kv_str(pk, "jws", resp->result.jws);
-            pack_kv_str(pk, "credential", resp->result.vc);
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
-Marshalled *rpc_marshal_signin_conf_chal_req(const SigninConfChalReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 4, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "signin_confirm_challenge");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", req->params.vc ? 2 : 1, {
-            pack_kv_str(pk, "jws", req->params.jws);
-            pack_kv_str(pk, "credential", req->params.vc);
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
-Marshalled *rpc_marshal_signin_conf_chal_resp(const SigninConfChalResp *resp)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 3, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_u64(pk, "id", resp->tsx_id);
-        pack_kv_map(pk, "result", 2, {
-            pack_kv_str(pk, "access_token", resp->result.tk);
-            pack_kv_u64(pk, "exp", resp->result.exp);
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
 }
 
 Marshalled *rpc_marshal_new_post_notif(const NewPostNotif *notif)
@@ -4836,26 +3093,21 @@ Marshalled *rpc_marshal_report_cmt_notif(const ReportCmtNotif *notif)
     return &m->m;
 }
 
-Marshalled *rpc_marshal_err_resp(const ErrResp *resp)
-{
-    return rpc_marshal_err(resp->tsx_id, resp->ec, err_strerror(resp->ec));
-}
 
-Marshalled *rpc_marshal_create_chan_req(const CreateChanReq *req)
+
+Marshalled *rpc_marshal_decl_owner_resp(const DeclOwnerResp *resp)
 {
     msgpack_sbuffer *buf = msgpack_sbuffer_new();
     msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
-    pack_map(pk, 4, {
+    pack_map(pk, 3, {
         pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "create_channel");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 4, {
-            pack_kv_str(pk, "access_token", req->params.tk);
-            pack_kv_str(pk, "name", req->params.name);
-            pack_kv_str(pk, "introduction", req->params.intro);
-            pack_kv_bin(pk, "avatar", req->params.avatar, req->params.sz);
+        pack_kv_u64(pk, "id", resp->tsx_id);
+        pack_kv_map(pk, "result", resp->result.did ? 3 : 1, {
+            pack_kv_str(pk, "phase", resp->result.phase);
+            pack_kv_str(pk, "did", resp->result.did);
+            pack_kv_str(pk, "transaction_payload", resp->result.tsx_payload);
         });
     });
 
@@ -4866,6 +3118,127 @@ Marshalled *rpc_marshal_create_chan_req(const CreateChanReq *req)
     msgpack_packer_free(pk);
 
     return &m->m;
+}
+
+Marshalled *rpc_marshal_imp_did_resp(const ImpDIDResp *resp)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_u64(pk, "id", resp->tsx_id);
+        pack_kv_map(pk, "result", 2, {
+            pack_kv_str(pk, "did", resp->result.did);
+            pack_kv_str(pk, "transaction_payload", resp->result.tsx_payload);
+        });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_iss_vc_resp(const IssVCResp *resp)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_u64(pk, "id", resp->tsx_id);
+        pack_kv_nil(pk, "result");
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_update_vc_resp(const UpdateVCResp *resp)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_u64(pk, "id", resp->tsx_id);
+        pack_kv_nil(pk, "result");
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_signin_req_chal_resp(const SigninReqChalResp *resp)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_u64(pk, "id", resp->tsx_id);
+        pack_kv_map(pk, "result", resp->result.vc ? 3 : 2, {
+            pack_kv_bool(pk, "credential_required", resp->result.vc_req);
+            pack_kv_str(pk, "jws", resp->result.jws);
+            pack_kv_str(pk, "credential", resp->result.vc);
+        });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_signin_conf_chal_resp(const SigninConfChalResp *resp)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_u64(pk, "id", resp->tsx_id);
+        pack_kv_map(pk, "result", 2, {
+            pack_kv_str(pk, "access_token", resp->result.tk);
+            pack_kv_u64(pk, "exp", resp->result.exp);
+        });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+
+Marshalled *rpc_marshal_err_resp(const ErrResp *resp)
+{
+    return rpc_marshal_err(resp->tsx_id, resp->ec, err_strerror(resp->ec));
 }
 
 Marshalled *rpc_marshal_create_chan_resp(const CreateChanResp *resp)
@@ -4912,32 +3285,6 @@ Marshalled *rpc_marshal_upd_chan_resp(const UpdChanResp *resp)
     return &m->m;
 }
 
-Marshalled *rpc_marshal_pub_post_req(const PubPostReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 4, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "publish_post");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 3, {
-            pack_kv_str(pk, "access_token", req->params.tk);
-            pack_kv_u64(pk, "channel_id", req->params.chan_id);
-            pack_kv_bin(pk, "content", req->params.content, req->params.sz);
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
 Marshalled *rpc_marshal_pub_post_resp(const PubPostResp *resp)
 {
     msgpack_sbuffer *buf = msgpack_sbuffer_new();
@@ -4961,33 +3308,6 @@ Marshalled *rpc_marshal_pub_post_resp(const PubPostResp *resp)
     return &m->m;
 }
 
-Marshalled *rpc_marshal_declare_post_req(const DeclarePostReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 4, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "declarelish_post");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 4, {
-            pack_kv_str(pk, "access_token", req->params.tk);
-            pack_kv_u64(pk, "channel_id", req->params.chan_id);
-            pack_kv_bin(pk, "content", req->params.content, req->params.sz);
-            pack_kv_bool(pk, "with_notify", req->params.with_notify);
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
 Marshalled *rpc_marshal_declare_post_resp(const DeclarePostResp *resp)
 {
     msgpack_sbuffer *buf = msgpack_sbuffer_new();
@@ -4999,32 +3319,6 @@ Marshalled *rpc_marshal_declare_post_resp(const DeclarePostResp *resp)
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_map(pk, "result", 1, {
             pack_kv_u64(pk, "id", resp->result.id);
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
-Marshalled *rpc_marshal_notify_post_req(const NotifyPostReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 4, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "notifylish_post");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 4, {
-            pack_kv_str(pk, "access_token", req->params.tk);
-            pack_kv_u64(pk, "channel_id", req->params.chan_id);
-            pack_kv_u64(pk, "post_id", req->params.post_id);
         });
     });
 
@@ -5089,34 +3383,6 @@ Marshalled *rpc_marshal_del_post_resp(const DelPostResp *resp)
         pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_nil(pk, "result");
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
-Marshalled *rpc_marshal_post_cmt_req(const PostCmtReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 4, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "post_comment");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 5, {
-            pack_kv_str(pk, "access_token", req->params.tk);
-            pack_kv_u64(pk, "channel_id", req->params.chan_id);
-            pack_kv_u64(pk, "post_id", req->params.post_id);
-            pack_kv_u64(pk, "comment_id", req->params.cmt_id);
-            pack_kv_bin(pk, "content", req->params.content, req->params.sz);
-        });
     });
 
     m->m.data = buf->data;
@@ -5235,34 +3501,6 @@ Marshalled *rpc_marshal_unblock_cmt_resp(const UnblockCmtResp *resp)
     return &m->m;
 }
 
-
-Marshalled *rpc_marshal_post_like_req(const PostLikeReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 4, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "post_like");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 4, {
-            pack_kv_str(pk, "access_token", req->params.tk);
-            pack_kv_u64(pk, "channel_id", req->params.chan_id);
-            pack_kv_u64(pk, "post_id", req->params.post_id);
-            pack_kv_u64(pk, "comment_id", req->params.cmt_id);
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
 Marshalled *rpc_marshal_post_like_resp(const PostLikeResp *resp)
 {
     msgpack_sbuffer *buf = msgpack_sbuffer_new();
@@ -5284,33 +3522,6 @@ Marshalled *rpc_marshal_post_like_resp(const PostLikeResp *resp)
     return &m->m;
 }
 
-Marshalled *rpc_marshal_post_unlike_req(const PostUnlikeReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 4, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "post_unlike");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 4, {
-            pack_kv_str(pk, "access_token", req->params.tk);
-            pack_kv_u64(pk, "channel_id", req->params.chan_id);
-            pack_kv_u64(pk, "post_id", req->params.post_id);
-            pack_kv_u64(pk, "comment_id", req->params.cmt_id);
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
 Marshalled *rpc_marshal_post_unlike_resp(const PostUnlikeResp *resp)
 {
     msgpack_sbuffer *buf = msgpack_sbuffer_new();
@@ -5321,34 +3532,6 @@ Marshalled *rpc_marshal_post_unlike_resp(const PostUnlikeResp *resp)
         pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_nil(pk, "result");
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
-Marshalled *rpc_marshal_get_my_chans_req(const GetMyChansReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 4, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "get_my_channels");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 5, {
-            pack_kv_str(pk, "access_token", req->params.tk);
-            pack_kv_u64(pk, "by", req->params.qc.by);
-            pack_kv_u64(pk, "upper_bound", req->params.qc.upper);
-            pack_kv_u64(pk, "lower_bound", req->params.qc.lower);
-            pack_kv_u64(pk, "max_count", req->params.qc.maxcnt);
-        });
     });
 
     m->m.data = buf->data;
@@ -5395,34 +3578,6 @@ Marshalled *rpc_marshal_get_my_chans_resp(const GetMyChansResp *resp)
     return &m->m;
 }
 
-Marshalled *rpc_marshal_get_my_chans_meta_req(const GetMyChansMetaReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 4, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "get_my_channels_metadata");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 5, {
-            pack_kv_str(pk, "access_token", req->params.tk);
-            pack_kv_u64(pk, "by", req->params.qc.by);
-            pack_kv_u64(pk, "upper_bound", req->params.qc.upper);
-            pack_kv_u64(pk, "lower_bound", req->params.qc.lower);
-            pack_kv_u64(pk, "max_count", req->params.qc.maxcnt);
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
 Marshalled *rpc_marshal_get_my_chans_meta_resp(const GetMyChansMetaResp *resp)
 {
     msgpack_sbuffer *buf = msgpack_sbuffer_new();
@@ -5440,34 +3595,6 @@ Marshalled *rpc_marshal_get_my_chans_meta_resp(const GetMyChansMetaResp *resp)
                     pack_kv_u64(pk, "subscribers", (*cinfo)->subs);
                 });
             }
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
-Marshalled *rpc_marshal_get_chans_req(const GetChansReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 4, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "get_channels");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 5, {
-            pack_kv_str(pk, "access_token", req->params.tk);
-            pack_kv_u64(pk, "by", req->params.qc.by);
-            pack_kv_u64(pk, "upper_bound", req->params.qc.upper);
-            pack_kv_u64(pk, "lower_bound", req->params.qc.lower);
-            pack_kv_u64(pk, "max_count", req->params.qc.maxcnt);
         });
     });
 
@@ -5518,31 +3645,6 @@ Marshalled *rpc_marshal_get_chans_resp(const GetChansResp *resp)
     return &m->m;
 }
 
-Marshalled *rpc_marshal_get_chan_dtl_req(const GetChanDtlReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 4, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "get_channel_detail");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 2, {
-            pack_kv_str(pk, "access_token", req->params.tk);
-            pack_kv_u64(pk, "id", req->params.id);
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
 Marshalled *rpc_marshal_get_chan_dtl_resp(const GetChanDtlResp *resp)
 {
     msgpack_sbuffer *buf = msgpack_sbuffer_new();
@@ -5561,34 +3663,6 @@ Marshalled *rpc_marshal_get_chan_dtl_resp(const GetChanDtlResp *resp)
             pack_kv_u64(pk, "subscribers", resp->result.cinfo->subs);
             pack_kv_u64(pk, "last_update", resp->result.cinfo->upd_at);
             pack_kv_bin(pk, "avatar", resp->result.cinfo->avatar, resp->result.cinfo->len);
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
-Marshalled *rpc_marshal_get_sub_chans_req(const GetSubChansReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 4, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "get_subscribed_channels");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 5, {
-            pack_kv_str(pk, "access_token", req->params.tk);
-            pack_kv_u64(pk, "by", req->params.qc.by);
-            pack_kv_u64(pk, "upper_bound", req->params.qc.upper);
-            pack_kv_u64(pk, "lower_bound", req->params.qc.lower);
-            pack_kv_u64(pk, "max_count", req->params.qc.maxcnt);
         });
     });
 
@@ -5627,35 +3701,6 @@ Marshalled *rpc_marshal_get_sub_chans_resp(const GetSubChansResp *resp)
                     });
                 }
             });
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
-Marshalled *rpc_marshal_get_posts_req(const GetPostsReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 4, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "get_posts");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 6, {
-            pack_kv_str(pk, "access_token", req->params.tk);
-            pack_kv_u64(pk, "channel_id", req->params.chan_id);
-            pack_kv_u64(pk, "by", req->params.qc.by);
-            pack_kv_u64(pk, "upper_bound", req->params.qc.upper);
-            pack_kv_u64(pk, "lower_bound", req->params.qc.lower);
-            pack_kv_u64(pk, "max_count", req->params.qc.maxcnt);
         });
     });
 
@@ -5740,34 +3785,6 @@ Marshalled *rpc_marshal_get_posts_lac_resp(const GetPostsLACResp *resp)
     return &m->m;
 }
 
-Marshalled *rpc_marshal_get_liked_posts_req(const GetLikedPostsReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 4, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "get_liked_posts");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 5, {
-            pack_kv_str(pk, "access_token", req->params.tk);
-            pack_kv_u64(pk, "by", req->params.qc.by);
-            pack_kv_u64(pk, "upper_bound", req->params.qc.upper);
-            pack_kv_u64(pk, "lower_bound", req->params.qc.lower);
-            pack_kv_u64(pk, "max_count", req->params.qc.maxcnt);
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
 Marshalled *rpc_marshal_get_liked_posts_resp(const GetLikedPostsResp *resp)
 {
     msgpack_sbuffer *buf = msgpack_sbuffer_new();
@@ -5792,36 +3809,6 @@ Marshalled *rpc_marshal_get_liked_posts_resp(const GetLikedPostsResp *resp)
                     });
                 }
             });
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
-Marshalled *rpc_marshal_get_cmts_req(const GetCmtsReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 4, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "get_comments");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 7, {
-            pack_kv_str(pk, "access_token", req->params.tk);
-            pack_kv_u64(pk, "channel_id", req->params.chan_id);
-            pack_kv_u64(pk, "post_id", req->params.post_id);
-            pack_kv_u64(pk, "by", req->params.qc.by);
-            pack_kv_u64(pk, "upper_bound", req->params.qc.upper);
-            pack_kv_u64(pk, "lower_bound", req->params.qc.lower);
-            pack_kv_u64(pk, "max_count", req->params.qc.maxcnt);
         });
     });
 
@@ -5909,30 +3896,6 @@ Marshalled *rpc_marshal_get_cmts_likes_resp(const GetCmtsLikesResp *resp)
     return &m->m;
 }
 
-Marshalled *rpc_marshal_get_stats_req(const GetStatsReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 4, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "get_statistics");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 1, {
-            pack_kv_str(pk, "access_token", req->params.tk);
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
 Marshalled *rpc_marshal_get_stats_resp(const GetStatsResp *resp)
 {
     msgpack_sbuffer *buf = msgpack_sbuffer_new();
@@ -5946,31 +3909,6 @@ Marshalled *rpc_marshal_get_stats_resp(const GetStatsResp *resp)
             pack_kv_str(pk, "did", resp->result.did);
             pack_kv_u64(pk, "connecting_clients", resp->result.conn_cs);
             pack_kv_u64(pk, "total_clients", resp->result.total_cs);
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
-Marshalled *rpc_marshal_sub_chan_req(const SubChanReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 4, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "subscribe_channel");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 2, {
-            pack_kv_str(pk, "access_token", req->params.tk);
-            pack_kv_u64(pk, "id", req->params.id);
         });
     });
 
@@ -6018,31 +3956,6 @@ Marshalled *rpc_marshal_sub_chan_resp(const SubChanResp *resp)
     return &m->m;
 }
 
-Marshalled *rpc_marshal_unsub_chan_req(const UnsubChanReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 4, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "unsubscribe_channel");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 2, {
-            pack_kv_str(pk, "access_token", req->params.tk);
-            pack_kv_u64(pk, "id", req->params.id);
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
 Marshalled *rpc_marshal_unsub_chan_resp(const UnsubChanResp *resp)
 {
     msgpack_sbuffer *buf = msgpack_sbuffer_new();
@@ -6064,30 +3977,6 @@ Marshalled *rpc_marshal_unsub_chan_resp(const UnsubChanResp *resp)
     return &m->m;
 }
 
-Marshalled *rpc_marshal_enbl_notif_req(const EnblNotifReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 4, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "enable_notification");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 1, {
-            pack_kv_str(pk, "access_token", req->params.tk);
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
 Marshalled *rpc_marshal_enbl_notif_resp(const EnblNotifResp *resp)
 {
     msgpack_sbuffer *buf = msgpack_sbuffer_new();
@@ -6098,30 +3987,6 @@ Marshalled *rpc_marshal_enbl_notif_resp(const EnblNotifResp *resp)
         pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_nil(pk, "result");
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
-Marshalled *rpc_marshal_get_srv_ver_req(const GetSrvVerReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 4, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "enable_notification");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 1, {
-            pack_kv_str(pk, "access_token", req->params.tk);
-        });
     });
 
     m->m.data = buf->data;
@@ -6157,34 +4022,6 @@ Marshalled *rpc_marshal_get_srv_ver_resp(const GetSrvVerResp *resp)
     return &m->m;
 }
 
-Marshalled *rpc_marshal_report_illegal_cmt_req(const ReportIllegalCmtReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 4, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "report_illegal_comment");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 5, {
-            pack_kv_str(pk, "access_token", req->params.tk);
-            pack_kv_u64(pk, "channel_id", req->params.chan_id);
-            pack_kv_u64(pk, "post_id", req->params.post_id);
-            pack_kv_u64(pk, "comment_id", req->params.cmt_id);
-            pack_kv_str(pk, "reasons", req->params.reasons);
-        });
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
 Marshalled *rpc_marshal_report_illegal_cmt_resp(const ReportIllegalCmtResp *resp)
 {
     msgpack_sbuffer *buf = msgpack_sbuffer_new();
@@ -6195,34 +4032,6 @@ Marshalled *rpc_marshal_report_illegal_cmt_resp(const ReportIllegalCmtResp *resp
         pack_kv_str(pk, "version", "1.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
         pack_kv_nil(pk, "result");
-    });
-
-    m->m.data = buf->data;
-    m->m.sz   = buf->size;
-    m->buf    = buf;
-
-    msgpack_packer_free(pk);
-
-    return &m->m;
-}
-
-Marshalled *rpc_marshal_get_reported_cmts_req(const GetReportedCmtsReq *req)
-{
-    msgpack_sbuffer *buf = msgpack_sbuffer_new();
-    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
-    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
-
-    pack_map(pk, 4, {
-        pack_kv_str(pk, "version", "1.0");
-        pack_kv_str(pk, "method", "get_comments");
-        pack_kv_u64(pk, "id", req->tsx_id);
-        pack_kv_map(pk, "params", 5, {
-            pack_kv_str(pk, "access_token", req->params.tk);
-            pack_kv_u64(pk, "by", req->params.qc.by);
-            pack_kv_u64(pk, "upper_bound", req->params.qc.upper);
-            pack_kv_u64(pk, "lower_bound", req->params.qc.lower);
-            pack_kv_u64(pk, "max_count", req->params.qc.maxcnt);
-        });
     });
 
     m->m.data = buf->data;
@@ -6271,7 +4080,7 @@ Marshalled *rpc_marshal_get_reported_cmts_resp(const GetReportedCmtsResp *resp)
     return &m->m;
 }
 
-Marshalled *marshal_set_binary_resp(const Resp *resp)
+Marshalled *rpc_marshal_set_binary_resp(const Resp *resp)
 {
     SetBinaryResp *wrap_resp = (SetBinaryResp*)resp;
 
@@ -6296,7 +4105,7 @@ Marshalled *marshal_set_binary_resp(const Resp *resp)
     return &m->m;
 }
 
-Marshalled *marshal_get_binary_resp(const Resp *resp)
+Marshalled *rpc_marshal_get_binary_resp(const Resp *resp)
 {
     GetBinaryResp *wrap_resp = (GetBinaryResp*)resp;
 
@@ -6331,8 +4140,8 @@ struct RespSerializer {
     RespHdlr *serializer;
 };
 static struct RespSerializer resp_serializers_1_0[] = {
-    {"set_binary"              , marshal_set_binary_resp        },
-    {"get_binary"              , marshal_get_binary_resp        },
+    {"set_binary"              , rpc_marshal_set_binary_resp        },
+    {"get_binary"              , rpc_marshal_get_binary_resp        },
 };
 
 Marshalled *rpc_marshal_resp(const char* method, const Resp *resp)
