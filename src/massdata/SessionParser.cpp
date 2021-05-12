@@ -1,8 +1,16 @@
+#if defined(_WIN32) || defined(_WIN64)
+#include <winsock2.h>
+#endif
+
 #include "SessionParser.hpp"
 
 #include <Random.hpp>
 #include <SafePtr.hpp>
 #include <DateTime.hpp>
+
+#ifdef _MSC_VER
+#define typeof(v)        decltype(v)
+#endif
 
 #if defined(__linux__) and not defined(__ANDROID__)
 #include <arpa/inet.h>
@@ -144,6 +152,7 @@ int SessionParser::unpackProtocol(const std::vector<uint8_t>& data, int offset)
 
         auto dataPtr = cachingData.data();
 
+        //auto netOrderMagicNum = *(int64_t*)(dataPtr);
         auto netOrderMagicNum = *((typeof(protocol->info.magicNumber)*)(dataPtr));
         protocol->info.magicNumber = ntoh(netOrderMagicNum);
         dataPtr += sizeof(protocol->info.magicNumber);
@@ -209,12 +218,12 @@ int SessionParser::unpackBodyData(const std::vector<uint8_t>& data, int offset,
     return realSize;
 }
 
-int64_t SessionParser::ntoh(int64_t value) const 
+int64_t SessionParser::ntoh(int64_t value) const
 {
     return ntohll(value);
 }
 
-int64_t SessionParser::hton(int64_t value) const 
+int64_t SessionParser::hton(int64_t value) const
 {
     return htonll(value);
 }
@@ -224,7 +233,7 @@ int32_t SessionParser::ntoh(int32_t value) const
     return ntohl(value);
 }
 
-int32_t SessionParser::hton(int32_t value) const 
+int32_t SessionParser::hton(int32_t value) const
 {
     return htonl(value);
 }
@@ -234,7 +243,7 @@ uint32_t SessionParser::ntoh(uint32_t value) const
     return ntohl(value);
 }
 
-uint32_t SessionParser::hton(uint32_t value) const 
+uint32_t SessionParser::hton(uint32_t value) const
 {
     return htonl(value);
 }

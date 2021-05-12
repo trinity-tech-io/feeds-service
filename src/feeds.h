@@ -24,7 +24,6 @@
 #define __FEEDS_H__
 
 #include <stddef.h>
-
 #include <carrier.h>
 
 #include "cfg.h"

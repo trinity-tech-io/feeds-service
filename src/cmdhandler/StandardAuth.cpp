@@ -86,6 +86,8 @@ int StandardAuth::SaveLocalDIDDocument(DID* did, DIDDocument* doc)
 
 DIDDocument* StandardAuth::LoadLocalDIDDocument(DID* did)
 {
+    DIDDocument *doc;
+
     if(did == nullptr) {
         return nullptr;
     }
@@ -94,7 +96,7 @@ DIDDocument* StandardAuth::LoadLocalDIDDocument(DID* did)
         // adapt old process from local_resolver()
         auto oldResolverDoc = local_resolver(did);
         if(oldResolverDoc != nullptr) {
-            return oldResolverDoc; 
+            return oldResolverDoc;
         }
     }
 
@@ -112,7 +114,7 @@ DIDDocument* StandardAuth::LoadLocalDIDDocument(DID* did)
     // Log::D(Log::Tag::Cmd, "Load did document from local: %s", docFilePath.c_str());
 
     auto docSize = std::filesystem::file_size(docFilePath);
-    char docStr[docSize];
+    char *docStr = new char[docSize];
 
     std::fstream docStream;
     docStream.open(docFilePath, std::ios::binary | std::ios::in);
@@ -120,7 +122,9 @@ DIDDocument* StandardAuth::LoadLocalDIDDocument(DID* did)
     docStream.read(docStr, docSize);
     docStream.close();
 
-    return DIDDocument_FromJson(docStr);
+    doc = DIDDocument_FromJson(docStr);
+    delete[] docStr;
+    return doc;
 }
 
 /* =========================================== */
@@ -397,7 +401,8 @@ int StandardAuth::checkAuthToken(const std::string& userName, const std::string&
     auto count = Presentation_GetCredentialCount(vp.get());
     CHECK_DIDSDK(count >= 1, ErrCode::AuthVerifiableCredentialBadCount, "The credential count is error.");
 
-    Credential* vcArray[count];
+    Credential **vcArray = new Credential*[count];
+
     int ret = Presentation_GetCredentials(vp.get(), vcArray, count);
     CHECK_DIDSDK(ret >= 1, ErrCode::AuthCredentialNotExists, "The credential isn't exist.");
 
@@ -409,7 +414,7 @@ int StandardAuth::checkAuthToken(const std::string& userName, const std::string&
 
     auto instanceDidUrl = Credential_GetId(vc);
     auto instanceDid = DIDURL_GetDid(instanceDidUrl);
-    char instanceDidBuf[ELA_MAX_DID_LEN];
+    char *instanceDidBuf = new char[ELA_MAX_DID_LEN];
     auto instanceDidStr = DID_ToString(instanceDid, instanceDidBuf, sizeof(instanceDidBuf));
     CHECK_DIDSDK(instanceDidStr != nullptr, ErrCode::AuthCredentialIdNotExists, "The credential id isn't exist.");
     CHECK_ASSERT(authSecret.did == instanceDidStr, ErrCode::AuthCredentialBadInstanceId);
@@ -445,17 +450,19 @@ int StandardAuth::checkAuthToken(const std::string& userName, const std::string&
     CHECK_DIDSDK(expirationDate > 0, ErrCode::AuthCredentialExpirationError, "Faile to get credential expiration date.");
     credentialInfo.expiration = expirationDate;
 
+    delete[] instanceDidBuf;
+    delete[] vcArray;
+
     return 0;
 }
 
 int StandardAuth::adaptOldLogin(const CredentialInfo& credentialInfo)
 {
-    UserInfo uinfo = {
-        .uid = 0,
-        .did = const_cast<char*>(credentialInfo.userDid.c_str()),
-        .name = const_cast<char*>(credentialInfo.name.c_str()),
-        .email = const_cast<char*>(credentialInfo.email.c_str()),
-    };
+    UserInfo uinfo;
+    uinfo.uid = 0;
+    uinfo.did = const_cast<char*>(credentialInfo.userDid.c_str());
+    uinfo.name = const_cast<char*>(credentialInfo.name.c_str());
+    uinfo.email = const_cast<char*>(credentialInfo.email.c_str());
 
     if(credentialInfo.userDid == feeds_owner_info.did) {
         int ret = oinfo_upd(&uinfo);

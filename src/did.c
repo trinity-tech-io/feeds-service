@@ -21,13 +21,18 @@
  */
 
 #include <limits.h>
+#ifndef _MSC_VER
 #include <unistd.h>
+#endif
+#include <time.h>
+#include <inttypes.h>
 
-#include <ela_did.h>
-#include <ela_jwt.h>
 #include <crystal.h>
+
 #include <qrencode.h>
 #include <png.h>
+#include <ela_did.h>
+#include <ela_jwt.h>
 
 #include "auth.h"
 #include "sandbird.h"
@@ -371,7 +376,7 @@ void stop_binding_svc()
     pthread_mutex_unlock(&http_mutex);
 
     pthread_join(http_tid, NULL);
-    http_tid = 0;
+    //http_tid = 0;
 }
 
 static

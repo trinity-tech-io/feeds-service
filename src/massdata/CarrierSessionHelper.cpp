@@ -24,7 +24,7 @@ int CarrierSessionHelper::Factory::Init(
         std::weak_ptr<Carrier> carrier,
         const std::function<OnRequest>& listener)
 {
-    auto ptr = SAFE_GET_PTR(carrier);
+    SAFE_GET_PTR(ptr, carrier);
 
     int ret = carrier_session_init(ptr.get());
     if (ret < 0) {
@@ -41,7 +41,7 @@ int CarrierSessionHelper::Factory::Init(
             const char *bundle, const char *sdp, size_t len, void *context)
     {
         Log::D(Log::Tag::Msg, "Carrier session request callback!");
-        OnRequestListener(CarrierHandler, from, sdp);            
+        OnRequestListener(CarrierHandler, from, sdp);
     };
     ret = carrier_session_set_callback(ptr.get(), nullptr, onSessionRequest, nullptr);
     if (ret < 0) {
@@ -184,7 +184,7 @@ CarrierSessionHelper::~CarrierSessionHelper() noexcept
 
 int CarrierSessionHelper::makeSessionAndStream(const std::string& peerId)
 {
-    auto carrier = SAFE_GET_PTR(Factory::CarrierHandler);
+    SAFE_GET_PTR(carrier, Factory::CarrierHandler);
 
     auto creater = [&]() -> CarrierSession* {
         auto ptr = carrier_session_new(carrier.get(), peerId.c_str());
@@ -259,7 +259,7 @@ int CarrierSessionHelper::makeSessionAndStream(const std::string& peerId)
     {
         auto thiz = reinterpret_cast<CarrierSessionHelper*>(context);
         auto weakPtr = thiz->weak_from_this();
-        auto carrierSession = SAFE_GET_PTR_NO_RETVAL(weakPtr);
+        SAFE_GET_PTR_NO_RETVAL(carrierSession, weakPtr);
 
         if(carrierSession->connectListener != nullptr) {
             auto dataCast = reinterpret_cast<const uint8_t*>(data);

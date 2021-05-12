@@ -63,7 +63,7 @@ int DataBase::config(const std::filesystem::path& databaseFilePath)
 {
     Log::D(Log::Tag::Db, "Config database.");
 
-    handler = std::make_shared<SQLite::Database>(databaseFilePath, SQLite::OPEN_READWRITE|SQLite::OPEN_CREATE);
+    handler = std::make_shared<SQLite::Database>(databaseFilePath.string().c_str(), SQLite::OPEN_READWRITE|SQLite::OPEN_CREATE);
     CHECK_ASSERT(handler != nullptr, ErrCode::DBOpenFailed);
 
     int ret = db_init(handler->getHandle());

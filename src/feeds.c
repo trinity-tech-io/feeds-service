@@ -21,6 +21,7 @@
  */
 
 #include <crystal.h>
+#include <inttypes.h>
 
 #include "feeds.h"
 #include "msgq.h"
@@ -37,53 +38,53 @@ extern Carrier *carrier;
 extern size_t connecting_clients;
 
 typedef struct {
-    hash_entry_t he_name_key;
-    hash_entry_t he_id_key;
-    list_t *aspcs;
+    linked_hash_entry_t he_name_key;
+    linked_hash_entry_t he_id_key;
+    linked_list_t *aspcs;
     ChanInfo info;
 } Chan;
 
 typedef struct {
-    hash_entry_t he;
-    hashtable_t *aspcs;
-    hashtable_t *ndpass;
+    linked_hash_entry_t he;
+    linked_hashtable_t *aspcs;
+    linked_hashtable_t *ndpass;
     uint64_t uid;
 } ActiveSuber;
 
 typedef struct {
-    list_entry_t le;
-    hash_entry_t he;
+    linked_list_entry_t le;
+    linked_hash_entry_t he;
     const Chan *chan;
     const ActiveSuber *as;
 } ActiveSuberPerChan;
 
 typedef struct {
-    hash_entry_t he;
+    linked_hash_entry_t he;
     char node_id[ELA_MAX_ID_LEN + 1];
-    list_t *ndpass;
+    linked_list_t *ndpass;
 } NotifDest;
 
 typedef struct {
-    hash_entry_t he;
-    list_entry_t le;
+    linked_hash_entry_t he;
+    linked_list_entry_t le;
     ActiveSuber *as;
     NotifDest *nd;
 } NotifDestPerActiveSuber;
 
 static uint64_t nxt_chan_id = CHAN_ID_START;
-static hashtable_t *ass;
-static hashtable_t *nds;
-static hashtable_t *chans_by_name;
-static hashtable_t *chans_by_id;
+static linked_hashtable_t *ass;
+static linked_hashtable_t *nds;
+static linked_hashtable_t *chans_by_name;
+static linked_hashtable_t *chans_by_id;
 
 #define hashtable_foreach(htab, entry)                                \
-    for (hashtable_iterate((htab), &it);                              \
-         hashtable_iterator_next(&it, NULL, NULL, (void **)&(entry)); \
+    for (linked_hashtable_iterate((htab), &it);                              \
+         linked_hashtable_iterator_next(&it, NULL, NULL, (void **)&(entry)); \
          deref((entry)))
 
 #define list_foreach(list, entry)                    \
-    for (list_iterate((list), &it);                  \
-         list_iterator_next(&it, (void **)&(entry)); \
+    for (linked_list_iterate((list), &it);                  \
+         linked_list_iterator_next(&it, (void **)&(entry)); \
          deref((entry)))
 
 #define foreach_db_obj(entry) \
@@ -92,29 +93,29 @@ static hashtable_t *chans_by_id;
 static inline
 Chan *chan_put(Chan *chan)
 {
-    hashtable_put(chans_by_name, &chan->he_name_key);
-    return hashtable_put(chans_by_id, &chan->he_id_key);
+    linked_hashtable_put(chans_by_name, &chan->he_name_key);
+    return linked_hashtable_put(chans_by_id, &chan->he_id_key);
 }
 
 static inline
 Chan *chan_rm(Chan *chan)
 {
-    deref(hashtable_remove(chans_by_name, chan->info.name, strlen(chan->info.name)));
-    return hashtable_remove(chans_by_id, &chan->info.chan_id, sizeof(chan->info.chan_id));
+    deref(linked_hashtable_remove(chans_by_name, chan->info.name, strlen(chan->info.name)));
+    return linked_hashtable_remove(chans_by_id, &chan->info.chan_id, sizeof(chan->info.chan_id));
 }
 
 static inline
 Chan *chan_sub(Chan *upd, Chan *old)
 {
     ActiveSuberPerChan *aspc;
-    list_iterator_t it;
+    linked_list_iterator_t it;
 
     deref(chan_rm(old));
 
     list_foreach(upd->aspcs, aspc)
         aspc->chan = upd;
-    hashtable_put(chans_by_name, &upd->he_name_key);
-    return hashtable_put(chans_by_id, &upd->he_id_key);
+    linked_hashtable_put(chans_by_name, &upd->he_name_key);
+    return linked_hashtable_put(chans_by_id, &upd->he_id_key);
 }
 
 static
@@ -145,7 +146,7 @@ Chan *chan_create(const ChanInfo *ci)
     if (!chan)
         return NULL;
 
-    chan->aspcs = list_create(0, NULL);
+    chan->aspcs = linked_list_create(0, NULL);
     if (!chan->aspcs) {
         deref(chan);
         return NULL;
@@ -154,9 +155,9 @@ Chan *chan_create(const ChanInfo *ci)
     buf = chan + 1;
     chan->info        = *ci;
     chan->info.name   = strcpy(buf, ci->name);
-    buf += strlen(ci->name) + 1;
+    buf = (char*)buf + strlen(ci->name) + 1;
     chan->info.intro  = strcpy(buf, ci->intro);
-    buf += strlen(ci->intro) + 1;
+    buf = (char*)buf + strlen(ci->intro) + 1;
     chan->info.avatar = memcpy(buf, ci->avatar, ci->len);
 
     chan->he_name_key.data   = chan;
@@ -186,9 +187,9 @@ Chan *chan_create_upd(const Chan *from, const ChanInfo *ci)
     buf = chan + 1;
     chan->info        = *ci;
     chan->info.name   = strcpy(buf, ci->name);
-    buf += strlen(ci->name) + 1;
+    buf = (char*)buf + strlen(ci->name) + 1;
     chan->info.intro  = strcpy(buf, ci->intro);
-    buf += strlen(ci->intro) + 1;
+    buf = (char*)buf + strlen(ci->intro) + 1;
     chan->info.avatar = memcpy(buf, ci->avatar, ci->len);
 
     chan->he_name_key.data   = chan;
@@ -243,25 +244,25 @@ int feeds_init(FeedsConfig *cfg)
 {
     int rc;
 
-    chans_by_name = hashtable_create(8, 0, NULL, NULL);
+    chans_by_name = linked_hashtable_create(8, 0, NULL, NULL);
     if (!chans_by_name) {
         vlogE(TAG_CMD"Creating channels by name failed");
         goto failure;
     }
 
-    chans_by_id = hashtable_create(8, 0, NULL, u64_cmp);
+    chans_by_id = linked_hashtable_create(8, 0, NULL, u64_cmp);
     if (!chans_by_id) {
         vlogE(TAG_CMD"Creating channels by id failed");
         goto failure;
     }
 
-    ass = hashtable_create(8, 0, NULL, u64_cmp);
+    ass = linked_hashtable_create(8, 0, NULL, u64_cmp);
     if (!ass) {
         vlogE(TAG_CMD "Creating active subscribers failed");
         goto failure;
     }
 
-    nds = hashtable_create(8, 0, NULL, NULL);
+    nds = linked_hashtable_create(8, 0, NULL, NULL);
     if (!nds) {
         vlogE(TAG_CMD "Creating notification destinations failed");
         goto failure;
@@ -508,13 +509,13 @@ ActiveSuber *as_create(uint64_t uid)
     if (!as)
         return NULL;
 
-    as->aspcs = hashtable_create(8, 0, NULL, u64_cmp);
+    as->aspcs = linked_hashtable_create(8, 0, NULL, u64_cmp);
     if (!as->aspcs) {
         deref(as);
         return NULL;
     }
 
-    as->ndpass = hashtable_create(8, 0, NULL, NULL);
+    as->ndpass = linked_hashtable_create(8, 0, NULL, NULL);
     if (!as->ndpass) {
         deref(as);
         return NULL;
@@ -552,75 +553,75 @@ ActiveSuberPerChan *aspc_create(const ActiveSuber *as, const Chan *chan)
 static inline
 int chan_exist_by_name(const char *name)
 {
-    return hashtable_exist(chans_by_name, name, strlen(name));
+    return linked_hashtable_exist(chans_by_name, name, strlen(name));
 }
 
 static inline
 Chan *chan_get_by_id(uint64_t id)
 {
-    return hashtable_get(chans_by_id, &id, sizeof(id));
+    return linked_hashtable_get(chans_by_id, &id, sizeof(id));
 }
 
 static inline
 int chan_exist_by_id(uint64_t id)
 {
-    return hashtable_exist(chans_by_id, &id, sizeof(id));
+    return linked_hashtable_exist(chans_by_id, &id, sizeof(id));
 }
 
 static inline
 ActiveSuber *as_get(uint64_t uid)
 {
-    return hashtable_get(ass, &uid, sizeof(uid));
+    return linked_hashtable_get(ass, &uid, sizeof(uid));
 }
 
 static inline
 ActiveSuber *as_remove(uint64_t uid)
 {
-    return hashtable_remove(ass, &uid, sizeof(uid));
+    return linked_hashtable_remove(ass, &uid, sizeof(uid));
 }
 
 static inline
 ActiveSuber *as_put(ActiveSuber *as)
 {
-    return hashtable_put(ass, &as->he);
+    return linked_hashtable_put(ass, &as->he);
 }
 
 static inline
 NotifDest *nd_get(const char *node_id)
 {
-    return hashtable_get(nds, node_id, strlen(node_id));
+    return linked_hashtable_get(nds, node_id, strlen(node_id));
 }
 
 static inline
 NotifDest *nd_put(NotifDest *nd)
 {
-    return hashtable_put(nds, &nd->he);
+    return linked_hashtable_put(nds, &nd->he);
 }
 
 static inline
 NotifDest *nd_remove(const char *node_id)
 {
-    return hashtable_remove(nds, node_id, strlen(node_id));
+    return linked_hashtable_remove(nds, node_id, strlen(node_id));
 }
 
 static inline
 int ndpas_exist(ActiveSuber *as, const char *node_id)
 {
-    return hashtable_exist(as->ndpass, node_id, strlen(node_id));
+    return linked_hashtable_exist(as->ndpass, node_id, strlen(node_id));
 }
 
 static inline
 NotifDestPerActiveSuber *ndpas_put(NotifDestPerActiveSuber *ndpas)
 {
-    list_add(ndpas->nd->ndpass, &ndpas->le);
-    return hashtable_put(ndpas->as->ndpass, &ndpas->he);
+    linked_list_add(ndpas->nd->ndpass, &ndpas->le);
+    return linked_hashtable_put(ndpas->as->ndpass, &ndpas->he);
 }
 
 static inline
 ActiveSuberPerChan *aspc_put(ActiveSuberPerChan *aspc)
 {
-    list_add(aspc->chan->aspcs, &aspc->le);
-    return hashtable_put(aspc->as->aspcs, &aspc->he);
+    linked_list_add(aspc->chan->aspcs, &aspc->le);
+    return linked_hashtable_put(aspc->as->aspcs, &aspc->he);
 }
 
 static inline
@@ -633,13 +634,13 @@ ActiveSuberPerChan *aspc_remove(uint64_t uid, Chan *chan)
     if (!as)
         return NULL;
 
-    aspc = hashtable_remove(as->aspcs, &chan->info.chan_id, sizeof(chan->info.chan_id));
+    aspc = linked_hashtable_remove(as->aspcs, &chan->info.chan_id, sizeof(chan->info.chan_id));
     if (!aspc) {
         deref(as);
         return NULL;
     }
 
-    deref(list_remove_entry(chan->aspcs, &aspc->le));
+    deref(linked_list_remove_entry(chan->aspcs, &aspc->le));
     deref(as);
 
     return aspc;
@@ -759,7 +760,7 @@ void hdl_upd_chan_req(Carrier *c, const char *from, Req *base)
     ActiveSuberPerChan *aspc;
     UserInfo *uinfo = NULL;
     Chan *chan_upd = NULL;
-    list_iterator_t it;
+    linked_list_iterator_t it;
     Chan *chan = NULL;
     ChanInfo ci;
     int rc;
@@ -861,7 +862,7 @@ void hdl_upd_chan_req(Carrier *c, const char *from, Req *base)
 
     list_foreach(chan->aspcs, aspc) {
         NotifDestPerActiveSuber *ndpas;
-        hashtable_iterator_t it;
+        linked_hashtable_iterator_t it;
 
         hashtable_foreach(aspc->as->ndpass, ndpas)
             notify_of_chan_upd(ndpas->nd->node_id, &ci);
@@ -883,7 +884,7 @@ void hdl_pub_post_req(Carrier *c, const char *from, Req *base)
     Marshalled *resp_marshal = NULL;
     ActiveSuberPerChan *aspc;
     UserInfo *uinfo = NULL;
-    list_iterator_t it;
+    linked_list_iterator_t it;
     Chan *chan = NULL;
     PostInfo new_post;
     time_t now;
@@ -967,7 +968,7 @@ void hdl_pub_post_req(Carrier *c, const char *from, Req *base)
 
     list_foreach(chan->aspcs, aspc) {
         NotifDestPerActiveSuber *ndpas;
-        hashtable_iterator_t it;
+        linked_hashtable_iterator_t it;
 
         hashtable_foreach(aspc->as->ndpass, ndpas)
             notify_of_new_post(ndpas->nd->node_id, &new_post);
@@ -988,7 +989,7 @@ void hdl_declare_post_req(Carrier *c, const char *from, Req *base)
     Marshalled *resp_marshal = NULL;
     ActiveSuberPerChan *aspc;
     UserInfo *uinfo = NULL;
-    list_iterator_t it;
+    linked_list_iterator_t it;
     Chan *chan = NULL;
     PostInfo new_post;
     time_t now;
@@ -1074,7 +1075,7 @@ void hdl_declare_post_req(Carrier *c, const char *from, Req *base)
     if(req->params.with_notify) {
         list_foreach(chan->aspcs, aspc) {
             NotifDestPerActiveSuber *ndpas;
-            hashtable_iterator_t it;
+            linked_hashtable_iterator_t it;
 
             hashtable_foreach(aspc->as->ndpass, ndpas)
                 notify_of_new_post(ndpas->nd->node_id, &new_post);
@@ -1096,7 +1097,7 @@ void hdl_notify_post_req(Carrier *c, const char *from, Req *base)
     Marshalled *resp_marshal = NULL;
     ActiveSuberPerChan *aspc;
     UserInfo *uinfo = NULL;
-    list_iterator_t it;
+    linked_list_iterator_t it;
     Chan *chan = NULL;
     PostInfo post_notify;
     int rc;
@@ -1201,7 +1202,7 @@ void hdl_notify_post_req(Carrier *c, const char *from, Req *base)
 
     list_foreach(chan->aspcs, aspc) {
         NotifDestPerActiveSuber *ndpas;
-        hashtable_iterator_t it;
+        linked_hashtable_iterator_t it;
 
         hashtable_foreach(aspc->as->ndpass, ndpas)
             notify_of_post_upd(ndpas->nd->node_id, &post_notify);
@@ -1224,7 +1225,7 @@ void hdl_edit_post_req(Carrier *c, const char *from, Req *base)
     Marshalled *resp_marshal = NULL;
     ActiveSuberPerChan *aspc;
     UserInfo *uinfo = NULL;
-    list_iterator_t it;
+    linked_list_iterator_t it;
     Chan *chan = NULL;
     PostInfo post_mod;
     int rc;
@@ -1311,7 +1312,7 @@ void hdl_edit_post_req(Carrier *c, const char *from, Req *base)
 
     list_foreach(chan->aspcs, aspc) {
         NotifDestPerActiveSuber *ndpas;
-        hashtable_iterator_t it;
+        linked_hashtable_iterator_t it;
 
         hashtable_foreach(aspc->as->ndpass, ndpas)
             notify_of_post_upd(ndpas->nd->node_id, &post_mod);
@@ -1332,7 +1333,7 @@ void hdl_del_post_req(Carrier *c, const char *from, Req *base)
     Marshalled *resp_marshal = NULL;
     ActiveSuberPerChan *aspc;
     UserInfo *uinfo = NULL;
-    list_iterator_t it;
+    linked_list_iterator_t it;
     Chan *chan = NULL;
     PostInfo post_del;
     int rc;
@@ -1417,7 +1418,7 @@ void hdl_del_post_req(Carrier *c, const char *from, Req *base)
 
     list_foreach(chan->aspcs, aspc) {
         NotifDestPerActiveSuber *ndpas;
-        hashtable_iterator_t it;
+        linked_hashtable_iterator_t it;
 
         hashtable_foreach(aspc->as->ndpass, ndpas)
             notify_of_post_upd(ndpas->nd->node_id, &post_del);
@@ -1438,7 +1439,7 @@ void hdl_post_cmt_req(Carrier *c, const char *from, Req *base)
     Marshalled *resp_marshal = NULL;
     ActiveSuberPerChan *aspc;
     UserInfo *uinfo = NULL;
-    list_iterator_t it;
+    linked_list_iterator_t it;
     Chan *chan = NULL;
     CmtInfo new_cmt;
     time_t now;
@@ -1536,7 +1537,7 @@ void hdl_post_cmt_req(Carrier *c, const char *from, Req *base)
 
     list_foreach(chan->aspcs, aspc) {
         NotifDestPerActiveSuber *ndpas;
-        hashtable_iterator_t it;
+        linked_hashtable_iterator_t it;
 
         hashtable_foreach(aspc->as->ndpass, ndpas)
             notify_of_new_cmt(ndpas->nd->node_id, &new_cmt);
@@ -1557,7 +1558,7 @@ void hdl_edit_cmt_req(Carrier *c, const char *from, Req *base)
     Marshalled *resp_marshal = NULL;
     ActiveSuberPerChan *aspc;
     UserInfo *uinfo = NULL;
-    list_iterator_t it;
+    linked_list_iterator_t it;
     Chan *chan = NULL;
     uint64_t cmt_uid;
     CmtInfo cmt_mod;
@@ -1679,7 +1680,7 @@ void hdl_edit_cmt_req(Carrier *c, const char *from, Req *base)
 
     list_foreach(chan->aspcs, aspc) {
         NotifDestPerActiveSuber *ndpas;
-        hashtable_iterator_t it;
+        linked_hashtable_iterator_t it;
 
         hashtable_foreach(aspc->as->ndpass, ndpas)
             notify_of_cmt_upd(ndpas->nd->node_id, &cmt_mod);
@@ -1700,7 +1701,7 @@ void hdl_del_cmt_req(Carrier *c, const char *from, Req *base)
     Marshalled *resp_marshal = NULL;
     ActiveSuberPerChan *aspc;
     UserInfo *uinfo = NULL;
-    list_iterator_t it;
+    linked_list_iterator_t it;
     Chan *chan = NULL;
     uint64_t cmt_uid;
     CmtInfo cmt_del;
@@ -1804,7 +1805,7 @@ void hdl_del_cmt_req(Carrier *c, const char *from, Req *base)
 
     list_foreach(chan->aspcs, aspc) {
         NotifDestPerActiveSuber *ndpas;
-        hashtable_iterator_t it;
+        linked_hashtable_iterator_t it;
 
         hashtable_foreach(aspc->as->ndpass, ndpas)
             notify_of_cmt_upd(ndpas->nd->node_id, &cmt_del);
@@ -1825,7 +1826,7 @@ void hdl_block_cmt_req(Carrier *c, const char *from, Req *base)
     Marshalled *resp_marshal = NULL;
     ActiveSuberPerChan *aspc;
     UserInfo *uinfo = NULL;
-    list_iterator_t it;
+    linked_list_iterator_t it;
     Chan *chan = NULL;
     uint64_t cmt_uid;
     CmtInfo cmt_block;
@@ -1929,7 +1930,7 @@ void hdl_block_cmt_req(Carrier *c, const char *from, Req *base)
 
     list_foreach(chan->aspcs, aspc) {
         NotifDestPerActiveSuber *ndpas;
-        hashtable_iterator_t it;
+        linked_hashtable_iterator_t it;
 
         hashtable_foreach(aspc->as->ndpass, ndpas)
             notify_of_cmt_upd(ndpas->nd->node_id, &cmt_block);
@@ -1950,7 +1951,7 @@ void hdl_unblock_cmt_req(Carrier *c, const char *from, Req *base)
     Marshalled *resp_marshal = NULL;
     ActiveSuberPerChan *aspc;
     UserInfo *uinfo = NULL;
-    list_iterator_t it;
+    linked_list_iterator_t it;
     Chan *chan = NULL;
     uint64_t cmt_uid;
     CmtInfo cmt_unblock;
@@ -2054,7 +2055,7 @@ void hdl_unblock_cmt_req(Carrier *c, const char *from, Req *base)
 
     list_foreach(chan->aspcs, aspc) {
         NotifDestPerActiveSuber *ndpas;
-        hashtable_iterator_t it;
+        linked_hashtable_iterator_t it;
 
         hashtable_foreach(aspc->as->ndpass, ndpas)
             notify_of_cmt_upd(ndpas->nd->node_id, &cmt_unblock);
@@ -2075,7 +2076,7 @@ void hdl_post_like_req(Carrier *c, const char *from, Req *base)
     Marshalled *resp_marshal = NULL;
     UserInfo *uinfo = NULL;
     ActiveSuberPerChan *aspc;
-    list_iterator_t it;
+    linked_list_iterator_t it;
     Chan *chan = NULL;
     LikeInfo li;
     int rc;
@@ -2176,7 +2177,7 @@ void hdl_post_like_req(Carrier *c, const char *from, Req *base)
 
     list_foreach(chan->aspcs, aspc) {
         NotifDestPerActiveSuber *ndpas;
-        hashtable_iterator_t it;
+        linked_hashtable_iterator_t it;
 
         hashtable_foreach(aspc->as->ndpass, ndpas)
             notify_of_new_like(ndpas->nd->node_id, &li);
@@ -3571,7 +3572,7 @@ void hdl_sub_chan_req(Carrier *c, const char *from, Req *base)
     }
 
     if ((owner = as_get(OWNER_USER_ID))) {
-        hashtable_iterator_t it;
+        linked_hashtable_iterator_t it;
         NotifDestPerActiveSuber *ndpas;
 
         hashtable_foreach(owner->ndpass, ndpas)
@@ -3687,7 +3688,7 @@ NotifDest *nd_create(const char *node_id)
         return NULL;
     }
 
-    nd->ndpass = list_create(0, NULL);
+    nd->ndpass = linked_list_create(0, NULL);
     if (!nd->ndpass) {
         deref(nd);
         return NULL;
@@ -3890,7 +3891,6 @@ void hdl_get_srv_ver_req(Carrier *c, const char *from, Req *base)
 {
     GetSrvVerReq *req = (GetSrvVerReq *)base;
     Marshalled *resp_marshal = NULL;
-    int rc;
 
     vlogD(TAG_CMD "Received get_service_version request from [%s]: ", from);
 
@@ -3905,7 +3905,6 @@ void hdl_get_srv_ver_req(Carrier *c, const char *from, Req *base)
     vlogD(TAG_CMD "get_service_version response: "
           "{version: %s, version_code:%lld}", resp.result.version, resp.result.version_code);
 
-finally:
     if (resp_marshal) {
         msgq_enq(from, resp_marshal);
         deref(resp_marshal);
@@ -3917,8 +3916,6 @@ void hdl_report_illegal_cmt_req(Carrier *c, const char *from, Req *base)
     ReportIllegalCmtReq *req = (ReportIllegalCmtReq *)base;
     Marshalled *resp_marshal = NULL;
     UserInfo *uinfo = NULL;
-    ActiveSuberPerChan *aspc;
-    list_iterator_t it;
     Chan *chan = NULL;
     ActiveSuber *owner = NULL;
     ReportedCmtInfo li;
@@ -4021,7 +4018,7 @@ void hdl_report_illegal_cmt_req(Carrier *c, const char *from, Req *base)
     li.reporter    = *uinfo;
 
     if ((owner = as_get(OWNER_USER_ID))) {
-        hashtable_iterator_t it;
+        linked_hashtable_iterator_t it;
         NotifDestPerActiveSuber *ndpas;
 
         hashtable_foreach(owner->ndpass, ndpas)
@@ -4196,7 +4193,7 @@ void hdl_unknown_req(Carrier *c, const char *from, Req *base)
 
 void feeds_deactivate_suber(const char *node_id)
 {
-    list_iterator_t it;
+    linked_list_iterator_t it;
     NotifDest *nd;
     NotifDestPerActiveSuber *ndpas;
 
@@ -4206,13 +4203,13 @@ void feeds_deactivate_suber(const char *node_id)
 
     list_foreach(nd->ndpass, ndpas) {
         ActiveSuber *as = ndpas->as;
-        deref(hashtable_remove(as->ndpass, node_id, strlen(node_id)));
-        if (hashtable_is_empty(as->ndpass)) {
-            hashtable_iterator_t it;
+        deref(linked_hashtable_remove(as->ndpass, node_id, strlen(node_id)));
+        if (linked_hashtable_is_empty(as->ndpass)) {
+            linked_hashtable_iterator_t it;
             ActiveSuberPerChan *aspc;
 
             hashtable_foreach(as->aspcs, aspc)
-                deref(list_remove_entry(aspc->chan->aspcs, &aspc->le));
+                deref(linked_list_remove_entry(aspc->chan->aspcs, &aspc->le));
             deref(as_remove(as->uid));
         }
     }
@@ -4222,13 +4219,13 @@ void feeds_deactivate_suber(const char *node_id)
 
 void hdl_stats_changed_notify()
 {
-    hashtable_iterator_t it;
+    linked_hashtable_iterator_t it;
     NotifDest *nd;
     NotifDestPerActiveSuber *ndpas;
     int total_clients = db_get_user_count();
 
     hashtable_foreach(nds, nd) {
-        list_iterator_t it;
+        linked_list_iterator_t it;
         list_foreach(nd->ndpass, ndpas) {
             ActiveSuber *as = ndpas->as;
             notify_of_stats_changed(ndpas->nd->node_id, total_clients);

@@ -1,7 +1,7 @@
 /**
  * @file	PlatformDarwin.hpp
  * @brief	PlatformDarwin
- * @details	
+ * @details
  *
  * @author	xxx
  * @author	<xxx@xxx.com>
@@ -28,7 +28,7 @@
 #elif defined(__linux__)
 #include "PlatformUnixLike.hpp"
 #else
-#error "Unsupport Platform"
+//#error "Unsupport Platform"
 #endif
 
 namespace trinity {
@@ -39,6 +39,8 @@ class Platform : public PlatformDarwin {
 #endif
 #elif defined(__linux__)
 class Platform : public PlatformUnixLike {
+#else
+class Platform {
 #endif
 public:
     /*** type define ***/
