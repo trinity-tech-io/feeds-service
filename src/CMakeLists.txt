@@ -51,6 +51,8 @@ if(HAVE_SIGACTION)
     add_definitions(-DHAVE_SIGACTION=1)
 endif()
 
+add_definitions(-DLIBCONFIG_STATIC)
+
 message(STATUS "Configuring ver.h")
 configure_file(ver.h.in ${CMAKE_CURRENT_BINARY_DIR}/gen/ver.h)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/gen)
@@ -71,8 +73,8 @@ add_executable(feedsd
     feeds.c)
 
 add_dependencies(feedsd
-    Elastos.NET.Carrier.Native.SDK
-    Elastos.DID.Native.SDK
+    carrier
+    did
     msgpack-c
     libcrystal
     libconfig
@@ -82,19 +84,39 @@ add_dependencies(feedsd
     mkdirs
     sandbird)
 
-target_link_libraries(feedsd
-    msgpackc
-    sqlite3
-    config
+if(WIN32)
+    set(CONFIG_LIBS libconfig.lib)
+    set(SYSTEM_LIBS Winmm Ws2_32 Iphlpapi Shlwapi)
+else()
+    set(CONFIG_LIBS config)
+    set(SYSTEM_LIBS dl m)
+endif()
+
+set(LIBS
     libcarrier-static
     libeladid-static
     libqrencode-static
+    crystal
     cvector
     mkdirs
     sandbird
-    pthread
-    dl
-    m)
+    pthread)
+
+if(WIN32)
+    add_definitions(-DWIN32_LEAN_AND_MEAN
+        -D_CRT_SECURE_NO_WARNINGS
+        -D_CRT_NONSTDC_NO_WARNINGS)
+
+    # Force source code encoding to utf-8
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /utf-8")
+endif()
+
+target_link_libraries(feedsd
+    msgpackc
+    sqlite3
+    ${LIBS}
+    ${CONFIG_LIBS}
+    ${SYSTEM_LIBS})
 
 set(FEEDSD_LISTEN_IP 0.0.0.0)
 if(CMAKE_SYSTEM_NAME STREQUAL Linux)

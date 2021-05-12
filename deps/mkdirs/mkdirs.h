@@ -23,7 +23,19 @@
 #ifndef __MKDIRS_H__
 #define __MKDIRS_H__
 
-#include "sys/stat.h"
+#include <sys/stat.h>
+
+#if defined(_WIN32) || defined(_WIN64)
+#include <stdint.h>
+#include <direct.h>
+#include <windows.h>
+
+typedef uint32_t                mode_t;
+#define mkdir(dir, mode)        _mkdir(dir)
+#define PATH_MAX                MAX_PATH
+#define S_ISDIR(m)              (((m) & S_IFMT) == S_IFDIR)
+
+#endif
 
 int makedirs(const char *path, mode_t mode);
 

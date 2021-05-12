@@ -114,12 +114,12 @@ int CommandHandler::send(const std::string &to, const std::vector<uint8_t> &data
     CHECK_ASSERT(threadPool != nullptr, ErrCode::PointerReleasedError);
 
     threadPool->post([this, to = std::move(to), data = std::move(data), receiptCallback, receiptContext] {
-       auto carrier = SAFE_GET_PTR_NO_RETVAL(this->getCarrierHandler());
-       auto msgid = carrier_send_friend_message(carrier.get(), to.c_str(),
+        SAFE_GET_PTR_NO_RETVAL(carrier, this->getCarrierHandler());
+        auto msgid = carrier_send_friend_message(carrier.get(), to.c_str(),
                                                 data.data(), data.size(),
                                                 nullptr,
                                                 receiptCallback, receiptContext);
-       if(msgid < 0) {
+        if(msgid < 0) {
            PrintCarrierError("Failed to send message to: [" + to + "].");
            return;
        }

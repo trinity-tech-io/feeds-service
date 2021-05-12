@@ -5,7 +5,7 @@
 //  Copyright © 2016 mengxk. All rights reserved.
 //
 
-#if defined(__linux__) and not defined(__ANDROID__)
+#if defined(__linux__) && !defined(__ANDROID__)
 
 #include "PlatformUnixLike.hpp"
 

@@ -23,6 +23,7 @@
 #include <mutex>
 #include <carrier.h>
 #include <crystal.h>
+#include <inttypes.h>
 
 #undef static_assert // fix double conflict between crystal and std functional
 #include <CommandHandler.hpp>
@@ -31,55 +32,55 @@
 #define TAG_MSG "[Feedsd.Msg ]: "
 
 typedef struct {
-    hash_entry_t he;
+    linked_hash_entry_t he;
     char peer[CARRIER_MAX_ID_LEN + 1];
-    list_t *q;
+    linked_list_t *q;
     bool depr;
 } MsgQ;
 
 typedef struct {
-    list_entry_t le;
+    linked_list_entry_t le;
     Marshalled *data;
 } Msg;
 
 extern Carrier *carrier;
 
-static hashtable_t *msgqs;
+static linked_hashtable_t *msgqs;
 static std::recursive_mutex mutex;
 
 static inline
 MsgQ *msgq_get(const char *peer)
 {
     std::lock_guard<decltype(mutex)> lock(mutex);
-    return (MsgQ*)hashtable_get(msgqs, peer, strlen(peer));
+    return (MsgQ*)linked_hashtable_get(msgqs, peer, strlen(peer));
 }
 
 static inline
 MsgQ *msgq_put(MsgQ *q)
 {
     std::lock_guard<decltype(mutex)> lock(mutex);
-    return (MsgQ*)hashtable_put(msgqs, &q->he);
+    return (MsgQ*)linked_hashtable_put(msgqs, &q->he);
 }
 
 static inline
 MsgQ *msgq_rm(const char *peer)
 {
     std::lock_guard<decltype(mutex)> lock(mutex);
-    return (MsgQ*)hashtable_remove(msgqs, peer, strlen(peer));
+    return (MsgQ*)linked_hashtable_remove(msgqs, peer, strlen(peer));
 }
 
 static inline
 Msg *msgq_pop_head(MsgQ *q)
 {
     std::lock_guard<decltype(mutex)> lock(mutex);
-    return (Msg*)(list_is_empty(q->q) ? NULL : list_pop_head(q->q));
+    return (Msg*)(linked_list_is_empty(q->q) ? NULL : linked_list_pop_head(q->q));
 }
 
 static inline
 void msgq_push_tail(MsgQ *q, Msg *m)
 {
     std::lock_guard<decltype(mutex)> lock(mutex);
-    list_push_tail(q->q, &m->le);
+    linked_list_push_tail(q->q, &m->le);
 }
 
 static
@@ -122,7 +123,7 @@ MsgQ *msgq_create(const char *to)
     if (!q)
         return NULL;
 
-    q->q = list_create(0, NULL);
+    q->q = linked_list_create(0, NULL);
     if (!q->q) {
         deref(q);
         return NULL;
@@ -225,7 +226,7 @@ void msgq_peer_offline(const char *peer)
 
 int msgq_init()
 {
-    msgqs = hashtable_create(8, 0, NULL, NULL);
+    msgqs = linked_hashtable_create(8, 0, NULL, NULL);
     if (!msgqs) {
         vlogE(TAG_MSG "Creating message queues failed");
         return -1;

@@ -1,27 +1,43 @@
 project(libsodium)
 
+include(FeedsDefaults)
 include(ExternalProject)
 
-set(CONFIGURE_CMD "./configure")
-set(CONFIGURE_ARGS
-    --prefix=${FEEDS_INT_DIST_DIR}
-    --enable-shared=no
-    --disable-shared
-    --enable-static
-    --with-pic=yes
-    --with-pthreads=yes
-    ${EXTERNAL_AUTOCONF_PROJECT_ADDITIONAL_ARGS})
+if(WIN32)
+    set_win_build_options(WIN_BUILD_OPTIONS "")
 
-if(RASPBERRYPI)
+    set(CONFIGURE_CMD "echo")
+    set(CONFIGURE_ARGS "Done")
+
+    set(BUILD_CMD "msbuild")
+    set(BUILD_ARGS ${WIN_BUILD_OPTIONS} "libsodium.sln")
+
+    set(INSTALL_CMD "echo")
+    set(INSTALL_ARGS "Done")
+else()
+    include(ExternalConfigureArgs)
+
+    set(CONFIGURE_CMD "./configure")
     set(CONFIGURE_ARGS
-        ${CONFIGURE_ARGS}
-        --with-sysroot=${CMAKE_SYSROOT})
+        --prefix=${FEEDS_INT_DIST_DIR}
+        --enable-shared=no
+        --disable-shared
+        --enable-static
+        --with-pic=yes
+        --with-pthreads=yes
+        ${EXTERNAL_AUTOCONF_PROJECT_ADDITIONAL_ARGS})
+
+    if(RASPBERRYPI)
+        set(CONFIGURE_ARGS
+            ${CONFIGURE_ARGS}
+            --with-sysroot=${CMAKE_SYSROOT})
+    endif()
+
+    set(BUILD_CMD make)
+
+    set(INSTALL_CMD make)
+    set(INSTALL_ARGS install)
 endif()
-
-set(BUILD_CMD make)
-
-set(INSTALL_CMD make)
-set(INSTALL_ARGS install)
 
 ExternalProject_Add(
     libsodium
@@ -35,10 +51,22 @@ ExternalProject_Add(
 
     BUILD_IN_SOURCE 1
 
+    PATCH_COMMAND ${PATCH_EXE} -s -p1 < ${CMAKE_CURRENT_LIST_DIR}/libsodium.patch
+
     CONFIGURE_COMMAND ${CONFIGURE_CMD} ${CONFIGURE_ARGS}
     BUILD_COMMAND ${BUILD_CMD} ${BUILD_ARGS}
     INSTALL_COMMAND ${INSTALL_CMD} ${INSTALL_ARGS}
 )
+
+if(ENABLE_STATIC)
+    if(WIN32)
+        set(_LIBNAME libsodium)
+    else()
+        set(_LIBNAME sodium)
+    endif()
+
+    export_static_library(${_LIBNAME})
+endif()
 
 add_library(libsodium-static INTERFACE)
 target_link_libraries(libsodium-static INTERFACE sodium)

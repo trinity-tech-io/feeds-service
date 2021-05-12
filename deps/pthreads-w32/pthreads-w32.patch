@@ -1,0 +1,71 @@
+diff -ruN pthread/pthreads.2/Makefile pthread-mod/pthreads.2/Makefile
+--- pthread/pthreads.2/Makefile	2012-05-27 14:18:10.000000000 +0800
++++ pthread-mod/pthreads.2/Makefile	2021-04-29 10:08:25.000000000 +0800
+@@ -1,7 +1,7 @@
+ # This makefile is compatible with MS nmake and can be used as a
+ # replacement for buildlib.bat. I've changed the target from an ordinary dll
+ # (/LD) to a debugging dll (/LDd).
+-# 
++#
+ # The variables $DLLDEST and $LIBDEST hold the destination directories for the
+ # dll and the lib, respectively. Probably all that needs to change is $DEVROOT.
+ 
+@@ -13,7 +13,7 @@
+ 
+ DEVROOT	= C:\pthreads
+ 
+-DLLDEST	= $(DEVROOT)\dll
++DLLDEST	= $(DEVROOT)\bin
+ LIBDEST	= $(DEVROOT)\lib
+ HDRDEST	= $(DEVROOT)\include
+ 
+@@ -243,7 +243,7 @@
+ 		pthread_setcancelstate.c \
+ 		pthread_setcanceltype.c \
+ 		pthread_testcancel.c \
+-		pthread_cancel.c 
++		pthread_cancel.c
+ 
+ CONDVAR_SRCS	= \
+ 		ptw32_cond_check_need_init.c \
+@@ -299,7 +299,7 @@
+ 		pthread_delay_np.c \
+ 		pthread_num_processors_np.c \
+ 		pthread_win32_attach_detach_np.c \
+-		pthread_timechange_handler_np.c 
++		pthread_timechange_handler_np.c
+ 
+ PRIVATE_SRCS	= \
+ 		ptw32_is_attr.c \
+@@ -469,11 +469,14 @@
+ 
+ 
+ install:
+-	copy pthread*.dll $(DLLDEST)
+-	copy pthread*.lib $(LIBDEST)
+-	copy pthread.h $(HDRDEST)
+-	copy sched.h $(HDRDEST)
+-	copy semaphore.h $(HDRDEST)
++	if not exist "$(DLLDEST)" mkdir "$(DLLDEST)"
++	if not exist "$(LIBDEST)" mkdir "$(LIBDEST)"
++	if not exist "$(HDRDEST)" mkdir "$(HDRDEST)"
++	copy "pthread*.dll" "$(DLLDEST)"
++	copy "pthread*.lib" "$(LIBDEST)"
++	copy "pthread.h" "$(HDRDEST)"
++	copy "sched.h" "$(HDRDEST)"
++	copy "semaphore.h" "$(HDRDEST)"
+ 
+ $(DLLS): $(DLL_OBJS)
+ 	$(CC) /LDd /Zi /nologo $(DLL_OBJS) /link /implib:$*.lib $(XLIBS) /out:$@
+diff -ruN pthread/pthreads.2/pthread.h pthread-mod/pthreads.2/pthread.h
+--- pthread/pthreads.2/pthread.h	2012-05-27 14:18:10.000000000 +0800
++++ pthread-mod/pthreads.2/pthread.h	2021-04-29 09:57:30.000000000 +0800
+@@ -313,7 +313,7 @@
+ #endif
+ #endif
+ 
+-#if !defined(HAVE_STRUCT_TIMESPEC)
++#if !defined(HAVE_STRUCT_TIMESPEC) && (_MSC_VER < 1900)
+ #define HAVE_STRUCT_TIMESPEC
+ #if !defined(_TIMESPEC_DEFINED)
+ #define _TIMESPEC_DEFINED

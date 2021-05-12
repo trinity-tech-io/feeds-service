@@ -28,7 +28,6 @@
 #include <limits.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <unistd.h>
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -68,14 +67,16 @@ extern "C" {
 #include "db.h"
 #include "ver.h"
 #undef new
+
+size_t connecting_clients;
+Carrier *carrier;
 }
 
 #define TAG_MAIN "[Feedsd.Main]: "
 
 static const char *resolver = "http://api.elastos.io:20606";
-size_t connecting_clients;
 std::shared_ptr<Carrier> carrier_instance;
-Carrier *carrier;
+
 static std::atomic<bool> stop;
 
 static void transport_deinit();
@@ -85,10 +86,6 @@ void on_receiving_message(Carrier *c, const char *from,
                           const void *msg, size_t len, int64_t timestamp,
                           bool offline, void *context)
 {
-    Req *req;
-    int rc;
-    int i;
-
     (void)offline;
     (void)context;
 
@@ -209,6 +206,7 @@ void shutdown_proc(int signum)
     stop = true;
 }
 
+#if !defined(_WIN32) && !defined(_WIN64)
 static
 void print_backtrace(int sig) {
     std::cerr << "Error: signal " << sig << std::endl;
@@ -218,10 +216,12 @@ void print_backtrace(int sig) {
 
     exit(sig);
 }
+#endif
 
 static
 int daemonize()
 {
+#if !defined(_WIN32) && !defined(_WIN64)
     pid_t pid;
     struct sigaction sa;
 
@@ -266,6 +266,7 @@ int daemonize()
     open("/dev/null", O_RDWR);
     dup(0);
     dup(0);
+#endif
 
     return 0;
 }
@@ -388,8 +389,10 @@ int main(int argc, char *argv[])
         }
     }
 
+#if !defined(_WIN32) && !defined(_WIN64)
     setvbuf(stdout, NULL, _IOLBF, 0);
     setvbuf(stderr, NULL, _IOLBF, 0);
+#endif
 
     if (wait_for_attach) {
         printf("Wait for debugger attaching, process id is: %d.\n", getpid());
@@ -464,8 +467,10 @@ int main(int argc, char *argv[])
     signal(SIGINT, shutdown_proc);
     signal(SIGTERM, shutdown_proc);
 
+#if !defined(_WIN32) && !defined(_WIN64)
     signal(SIGSEGV, print_backtrace);
     signal(SIGABRT, print_backtrace);
+#endif
 
     vlogI(TAG_MAIN "Feedsd version: %s", FEEDSD_VER);
     vlogI(TAG_MAIN "Carrier node identities:");
