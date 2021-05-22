@@ -1103,7 +1103,8 @@ int unmarshal_post_cmt_req(const msgpack_object *req, Req **req_unmarshal)
         return -1;
     }
 
-    tmp = rc_zalloc(sizeof(PostCmtReq) + str_reserve_spc(method) + str_reserve_spc(tk), NULL);
+    tmp = rc_zalloc(sizeof(PostCmtReq) + str_reserve_spc(method)
+            + str_reserve_spc(tk) + 3, NULL);  //3 space for empty v2.0 item
     if (!tmp)
         return -1;
 
@@ -1116,11 +1117,87 @@ int unmarshal_post_cmt_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.post_id = post_id->u64_val;
     tmp->params.cmt_id  = cmt_id->u64_val;
     tmp->params.content = (void *)content->bin_val;
-    tmp->params.sz      = content->bin_sz;
+    tmp->params.con_sz      = content->bin_sz;
+    buf += str_reserve_spc(tk);  //2.0
+    tmp->params.hash_id = strcpy(buf, "\0");   //empty for v2.0
+    buf += 1;
+    tmp->params.proof   = strcpy(buf, "\0");   //empty for v2.0
+    buf += 1;
+    tmp->params.thumbnails = memcpy(buf, "\0", 1);   //empty for v2.0
 
     *req_unmarshal = (Req *)tmp;
     return 0;
 }
+
+static
+int unmarshal_post_cmt_req_2(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *tk;
+    const msgpack_object *chan_id;
+    const msgpack_object *post_id;
+    const msgpack_object *cmt_id;
+    const msgpack_object *content;
+    const msgpack_object *hash_id;  //2.0
+    const msgpack_object *proof;  //2.0
+    const msgpack_object *thumbnails;  //2.0
+    PostCmtReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        (void)map_val_str("version");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            tk      = map_val_str("access_token");
+            chan_id = map_val_u64("channel_id");
+            post_id = map_val_u64("post_id");
+            cmt_id  = map_val_u64("comment_id");
+            content = map_val_bin("content");
+            hash_id = map_val_str("hash_id");  //v2.0
+            proof   = map_val_str("proof");  //v2.0
+            thumbnails = map_val_bin("thumbnails");  //v2.0
+        });
+    });
+
+    if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
+        !post_id || !post_id_is_valid(post_id->u64_val) || !cmt_id ||
+        !content || !content->bin_sz || !hash_id || !hash_id->str_sz ||
+        !proof || !proof->str_sz || !thumbnails || !thumbnails->bin_sz) {
+        vlogE(TAG_RPC "Invalid post_comment request.");
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(PostCmtReq) + str_reserve_spc(method)
+            + str_reserve_spc(tk) + str_reserve_spc(hash_id) +
+            str_reserve_spc(proof), NULL);  //2.0
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method         = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->tsx_id         = tsx_id->u64_val;
+    tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
+    tmp->params.chan_id = chan_id->u64_val;
+    tmp->params.post_id = post_id->u64_val;
+    tmp->params.cmt_id  = cmt_id->u64_val;
+    tmp->params.content = (void *)content->bin_val;
+    tmp->params.con_sz  = content->bin_sz;
+    buf += str_reserve_spc(tk);  //2.0
+    tmp->params.hash_id = strncpy(buf, hash_id->str_val, hash_id->str_sz);  //2.0
+    buf += str_reserve_spc(hash_id);
+    tmp->params.proof   = strncpy(buf, proof->str_val, proof->str_sz);  //2.0
+    tmp->params.thumbnails = (void *)thumbnails->bin_val;  //2.0
+    tmp->params.thu_sz     = thumbnails->bin_sz;
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
+
 
 static
 int unmarshal_edit_cmt_req(const msgpack_object *req, Req **req_unmarshal)
@@ -2500,7 +2577,7 @@ static struct ReqParser req_parsers_2_0[] = {
     {"notify_post"                 , unmarshal_notify_post_req        },
     {"edit_post"                   , unmarshal_edit_post_req_2        },
     {"delete_post"                 , unmarshal_del_post_req           },
-    {"post_comment"                , unmarshal_post_cmt_req           },
+    {"post_comment"                , unmarshal_post_cmt_req_2         },
     {"edit_comment"                , unmarshal_edit_cmt_req           },
     {"delete_comment"              , unmarshal_del_cmt_req            },
     {"block_comment"               , unmarshal_block_cmt_req          },
@@ -2715,7 +2792,7 @@ int unmarshal_new_cmt_notif(const msgpack_object *notif, Notif **notif_unmarshal
     tmp->notif.params.cinfo->user.name    = strncpy(buf, user_name->str_val, user_name->str_sz);
     buf += str_reserve_spc(user_name);
     tmp->notif.params.cinfo->content      = memcpy(buf, content->bin_val, content->bin_sz);
-    tmp->notif.params.cinfo->len          = content->bin_sz;
+    tmp->notif.params.cinfo->con_len          = content->bin_sz;
     tmp->notif.params.cinfo->created_at   = created_at->u64_val;
 
     *notif_unmarshal = (Notif *)&tmp->notif;
@@ -3142,7 +3219,7 @@ Marshalled *rpc_marshal_new_cmt_notif(const NewCmtNotif *notif)
             pack_kv_u64(pk, "comment_id", notif->params.cinfo->reply_to_cmt);
             pack_kv_str(pk, "user_name", notif->params.cinfo->user.name);
             pack_kv_str(pk, "user_did", notif->params.cinfo->user.did);
-            pack_kv_bin(pk, "content", notif->params.cinfo->content, notif->params.cinfo->len);
+            pack_kv_bin(pk, "content", notif->params.cinfo->content, notif->params.cinfo->con_len);
             pack_kv_u64(pk, "created_at", notif->params.cinfo->created_at);
         });
     });
@@ -3174,7 +3251,7 @@ Marshalled *rpc_marshal_cmt_upd_notif(const CmtUpdNotif *notif)
             pack_kv_str(pk, "user_name", notif->params.cinfo->user.name);
             pack_kv_str(pk, "user_did", notif->params.cinfo->user.did);
             notif->params.cinfo->stat == CMT_AVAILABLE ? pack_kv_bin(pk, "content", notif->params.cinfo->content,
-                                                                     notif->params.cinfo->len) :
+                                                                     notif->params.cinfo->con_len) :
                                                          pack_kv_nil(pk, "content");
             pack_kv_u64(pk, "likes", notif->params.cinfo->likes);
             pack_kv_u64(pk, "created_at", notif->params.cinfo->created_at);
@@ -4072,7 +4149,7 @@ Marshalled *rpc_marshal_get_cmts_resp(const GetCmtsResp *resp)
                         pack_kv_u64(pk, "comment_id", (*cinfo)->reply_to_cmt);
                         pack_kv_str(pk, "user_name", (*cinfo)->user.name);
                         pack_kv_str(pk, "user_did", (*cinfo)->user.did);
-                        (*cinfo)->stat == CMT_AVAILABLE ? pack_kv_bin(pk, "content", (*cinfo)->content, (*cinfo)->len) :
+                        (*cinfo)->stat == CMT_AVAILABLE ? pack_kv_bin(pk, "content", (*cinfo)->content, (*cinfo)->con_len) :
                                                           pack_kv_nil(pk, "content");
                         pack_kv_u64(pk, "likes", (*cinfo)->likes);
                         pack_kv_u64(pk, "created_at", (*cinfo)->created_at);
