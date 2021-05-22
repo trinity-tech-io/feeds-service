@@ -1172,8 +1172,8 @@ int unmarshal_post_cmt_req_2(const msgpack_object *req, Req **req_unmarshal)
     }
 
     tmp = rc_zalloc(sizeof(PostCmtReq) + str_reserve_spc(method)
-            + str_reserve_spc(tk) + str_reserve_spc(hash_id) +
-            str_reserve_spc(proof), NULL);  //2.0
+            + str_reserve_spc(tk) + str_reserve_spc(hash_id)
+            + str_reserve_spc(proof), NULL);  //2.0
     if (!tmp)
         return -1;
 
@@ -1197,7 +1197,6 @@ int unmarshal_post_cmt_req_2(const msgpack_object *req, Req **req_unmarshal)
     *req_unmarshal = (Req *)tmp;
     return 0;
 }
-
 
 static
 int unmarshal_edit_cmt_req(const msgpack_object *req, Req **req_unmarshal)
@@ -1237,7 +1236,8 @@ int unmarshal_edit_cmt_req(const msgpack_object *req, Req **req_unmarshal)
         return -1;
     }
 
-    tmp = rc_zalloc(sizeof(EditCmtReq) + str_reserve_spc(method) + str_reserve_spc(tk), NULL);
+    tmp = rc_zalloc(sizeof(EditCmtReq) + str_reserve_spc(method)
+            + str_reserve_spc(tk) + 3, NULL);  //3 space for empty v2.0 item
     if (!tmp)
         return -1;
 
@@ -1251,7 +1251,86 @@ int unmarshal_edit_cmt_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.id      = id->u64_val;
     tmp->params.cmt_id  = cmt_id->u64_val;
     tmp->params.content = (void *)content->bin_val;
-    tmp->params.sz      = content->bin_sz;
+    tmp->params.con_sz      = content->bin_sz;
+    buf += str_reserve_spc(tk);  //2.0
+    tmp->params.hash_id = strcpy(buf, "\0");   //empty for v2.0
+    buf += 1;
+    tmp->params.proof   = strcpy(buf, "\0");   //empty for v2.0
+    buf += 1;
+    tmp->params.thumbnails = memcpy(buf, "\0", 1);   //empty for v2.0
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
+
+static
+int unmarshal_edit_cmt_req_2(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *tk;
+    const msgpack_object *chan_id;
+    const msgpack_object *post_id;
+    const msgpack_object *id;
+    const msgpack_object *cmt_id;
+    const msgpack_object *content;
+    const msgpack_object *hash_id;  //2.0
+    const msgpack_object *proof;  //2.0
+    const msgpack_object *thumbnails;  //2.0
+    EditCmtReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        (void)map_val_str("version");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            tk      = map_val_str("access_token");
+            chan_id = map_val_u64("channel_id");
+            post_id = map_val_u64("post_id");
+            id      = map_val_u64("id");
+            cmt_id  = map_val_u64("comment_id");
+            content = map_val_bin("content");
+            hash_id = map_val_str("hash_id");  //v2.0
+            proof   = map_val_str("proof");  //v2.0
+            thumbnails = map_val_bin("thumbnails");  //v2.0
+        });
+    });
+
+    if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
+        !post_id || !post_id_is_valid(post_id->u64_val) || !id ||
+        !cmt_id_is_valid(id->u64_val) || !cmt_id || !content ||
+        !content->bin_sz || !hash_id || !hash_id->str_sz || !proof ||
+        !proof->str_sz || !thumbnails || !thumbnails->bin_sz) {
+        vlogE(TAG_RPC "Invalid edit_comment request.");
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(EditCmtReq) + str_reserve_spc(method)
+            + str_reserve_spc(tk) + str_reserve_spc(hash_id)
+            + str_reserve_spc(proof), NULL);  //2.0
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method         = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->tsx_id         = tsx_id->u64_val;
+    tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
+    tmp->params.chan_id = chan_id->u64_val;
+    tmp->params.post_id = post_id->u64_val;
+    tmp->params.id      = id->u64_val;
+    tmp->params.cmt_id  = cmt_id->u64_val;
+    tmp->params.content = (void *)content->bin_val;
+    tmp->params.con_sz  = content->bin_sz;
+    buf += str_reserve_spc(tk);  //2.0
+    tmp->params.hash_id = strncpy(buf, hash_id->str_val, hash_id->str_sz);  //2.0
+    buf += str_reserve_spc(hash_id);
+    tmp->params.proof   = strncpy(buf, proof->str_val, proof->str_sz);  //2.0
+    tmp->params.thumbnails = (void *)thumbnails->bin_val;  //2.0
+    tmp->params.thu_sz     = thumbnails->bin_sz;
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -2578,7 +2657,7 @@ static struct ReqParser req_parsers_2_0[] = {
     {"edit_post"                   , unmarshal_edit_post_req_2        },
     {"delete_post"                 , unmarshal_del_post_req           },
     {"post_comment"                , unmarshal_post_cmt_req_2         },
-    {"edit_comment"                , unmarshal_edit_cmt_req           },
+    {"edit_comment"                , unmarshal_edit_cmt_req_2         },
     {"delete_comment"              , unmarshal_del_cmt_req            },
     {"block_comment"               , unmarshal_block_cmt_req          },
     {"unblock_comment"             , unmarshal_unblock_cmt_req        },
