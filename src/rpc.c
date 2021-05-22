@@ -4073,6 +4073,9 @@ Marshalled *rpc_marshal_get_chans_resp(const GetChansResp *resp)
                         pack_kv_u64(pk, "subscribers", (*cinfo)->subs);
                         pack_kv_u64(pk, "last_update", (*cinfo)->upd_at);
                         pack_kv_bin(pk, "avatar", (*cinfo)->avatar, (*cinfo)->len);
+                        pack_kv_str(pk, "tip_methods", (*cinfo)->tip_methods);  //2.0
+                        pack_kv_str(pk, "proof", (*cinfo)->proof);  //2.0
+                        pack_kv_u64(pk, "status", (*cinfo)->status);  //2.0
                     });
                 }
             });
