@@ -344,6 +344,7 @@ typedef struct {
         uint64_t    chan_id;
         uint64_t    post_id;
         uint64_t    cmt_id;
+        char       *proof;  //2.0
     } params;
 } PostLikeReq;
 
