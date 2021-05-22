@@ -2151,8 +2151,9 @@ void hdl_post_like_req(Carrier *c, const char *from, Req *base)
 
     vlogD(TAG_CMD "Received post_like request from [%s]: "
           "{access_token: %s, channel_id: %" PRIu64
-          ", post_id: %" PRIu64 ", comment_id: %" PRIu64 "}",
-          from, req->params.tk, req->params.chan_id, req->params.post_id, req->params.cmt_id);
+          ", post_id: %" PRIu64 ", comment_id: %" PRIu64 ", proof: %s}",
+          from, req->params.tk, req->params.chan_id, req->params.post_id,
+          req->params.cmt_id, req->params.proof);
 
     if (!did_is_ready()) {
         vlogE(TAG_CMD "Feeds DID is not ready.");
@@ -2216,7 +2217,8 @@ void hdl_post_like_req(Carrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    rc = db_add_like(uinfo->uid, req->params.chan_id, req->params.post_id, req->params.cmt_id, &li.total_cnt);
+    rc = db_add_like(uinfo->uid, req->params.chan_id, req->params.post_id, 
+            req->params.cmt_id, req->params.proof, &li.total_cnt);
     if (rc < 0) {
         vlogE(TAG_CMD "Adding like to database failed");
         ErrResp resp = {
@@ -2227,8 +2229,10 @@ void hdl_post_like_req(Carrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    vlogI(TAG_CMD "Like on channel [%" PRIu64 "] post [%" PRIu64 "] comment [%" PRIu64 "] by [%s].",
-          req->params.chan_id, req->params.post_id, req->params.cmt_id, uinfo->did);
+    vlogI(TAG_CMD "Like on channel [%" PRIu64 "] post [%" PRIu64 "]"
+            "comment [%" PRIu64 "] proof [%s] by [%s].",
+            req->params.chan_id, req->params.post_id, req->params.cmt_id,
+            req->params.proof, uinfo->did);
 
     {
         PostLikeResp resp = {
@@ -2242,6 +2246,7 @@ void hdl_post_like_req(Carrier *c, const char *from, Req *base)
     li.post_id = req->params.post_id;
     li.cmt_id  = req->params.cmt_id;
     li.user    = *uinfo;
+    li.proof   = req->params.proof;
 
     list_foreach(chan->aspcs, aspc) {
         NotifDestPerActiveSuber *ndpas;
