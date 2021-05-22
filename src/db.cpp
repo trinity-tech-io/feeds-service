@@ -837,6 +837,8 @@ int db_upd_post(PostInfo *pi)
     do {
         sql = "UPDATE posts"
               "  SET updated_at = :upd_at, content = :content"
+              "  hash_id = :hash_id, proof = :proof,"  //2.0
+              "  origin_post_url = :origin_post_url, thumbnails = :thumbnails"
               "  WHERE channel_id = :channel_id AND post_id = :post_id";
 
         if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
@@ -850,6 +852,18 @@ int db_upd_post(PostInfo *pi)
         rc |= sqlite3_bind_blob(stmt,
                 sqlite3_bind_parameter_index(stmt, ":content"),
                 pi->content, pi->con_len, NULL);
+        rc |= sqlite3_bind_text(stmt,  //2.0
+                sqlite3_bind_parameter_index(stmt, ":hash_id"),
+                pi->hash_id, -1, NULL);
+        rc |= sqlite3_bind_text(stmt,  //2.0
+                sqlite3_bind_parameter_index(stmt, ":proof"),
+                pi->proof, -1, NULL);
+        rc |= sqlite3_bind_text(stmt,  //2.0
+                sqlite3_bind_parameter_index(stmt, ":origin_post_url"),
+                pi->origin_post_url, -1, NULL);
+        rc |= sqlite3_bind_blob(stmt,  //2.0
+                sqlite3_bind_parameter_index(stmt, ":thumbnails"),
+                pi->thumbnails, pi->thu_len, NULL);
         rc |= sqlite3_bind_int64(stmt,
                 sqlite3_bind_parameter_index(stmt, ":channel_id"),
                 pi->chan_id);
