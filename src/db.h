@@ -53,7 +53,7 @@ int db_add_cmt(CmtInfo *ci, uint64_t *id);
 int db_upd_cmt(CmtInfo *ci);
 int db_set_cmt_status(CmtInfo *ci);
 int db_like_exists(uint64_t uid, uint64_t channel_id, uint64_t post_id, uint64_t comment_id);
-int db_add_like(uint64_t uid, uint64_t channel_id, uint64_t post_id, uint64_t comment_id, uint64_t *likes);
+int db_add_like(uint64_t uid, uint64_t channel_id, uint64_t post_id, uint64_t comment_id, const char *proof, uint64_t *likes);
 int db_rm_like(uint64_t uid, uint64_t channel_id, uint64_t post_id, uint64_t comment_id);
 int db_add_sub(uint64_t uid, uint64_t channel_id, const char *proof);
 int db_unsub(uint64_t uid, uint64_t channel_id);

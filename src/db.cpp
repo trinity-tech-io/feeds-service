@@ -1869,7 +1869,7 @@ int db_like_exists(uint64_t uid, uint64_t channel_id, uint64_t post_id, uint64_t
 }
 
 int db_add_like(uint64_t uid, uint64_t channel_id, uint64_t post_id,
-        uint64_t comment_id, uint64_t *likes)
+        uint64_t comment_id, const char *proof, uint64_t *likes)
 {
     sqlite3_stmt *stmt;
     const char *sql;
@@ -1930,8 +1930,9 @@ int db_add_like(uint64_t uid, uint64_t channel_id, uint64_t post_id,
             break;
         }
 
-        sql = "INSERT INTO likes(user_id, channel_id, post_id, comment_id, created_at) "
-              "  VALUES (:uid, :channel_id, :post_id, :comment_id, :ts)";
+        sql = "INSERT INTO likes(user_id, channel_id, post_id, comment_id,"
+              "created_at, proof) "
+              "  VALUES (:uid, :channel_id, :post_id, :comment_id, :ts, :proof)";
 
         if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
             vlogE(TAG_DB "sqlite3_prepare_v2() failed");
@@ -1953,6 +1954,9 @@ int db_add_like(uint64_t uid, uint64_t channel_id, uint64_t post_id,
         rc |= sqlite3_bind_int64(stmt,
                 sqlite3_bind_parameter_index(stmt, ":ts"),
                 time(NULL));
+        rc |= sqlite3_bind_text(stmt,  //2.0
+                sqlite3_bind_parameter_index(stmt, ":proof"),
+                proof, -1, NULL);
         if (SQLITE_OK != rc) {
             vlogE(TAG_DB "Binding parameter failed");
             sqlite3_finalize(stmt);
@@ -2542,7 +2546,7 @@ void *row2chan(sqlite3_stmt *stmt)
     ci->avatar       = memcpy(buf, sqlite3_column_blob(stmt, 7), avatar_sz);
     buf += avatar_sz;
     ci->len          = avatar_sz;
-    ci->tip_methods         = strcpy((char *)buf, tipm);
+    ci->tip_methods  = strcpy((char *)buf, tipm);
     buf += strlen(tipm) + 1;
     ci->proof        = strcpy((char *)buf, proof);
     ci->status       = sqlite3_column_int64(stmt, 11);
