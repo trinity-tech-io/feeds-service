@@ -1276,8 +1276,12 @@ void hdl_edit_post_req(Carrier *c, const char *from, Req *base)
     int rc;
 
     vlogD(TAG_CMD "Received edit_post request from [%s]: "
-          "{access_token: %s, channel_id: %" PRIu64 ", post_id: %" PRIu64 ", content_length: %zu}",
-          from, req->params.tk, req->params.chan_id, req->params.post_id, req->params.sz);
+          "{access_token: %s, channel_id: %" PRIu64 ", post_id: %" PRIu64 ","
+          "content_length: %zu, hash_id: %s, proof: %s, origin_post_url: %s,"
+          "thumbnails_length: %zu}",
+          from, req->params.tk, req->params.chan_id, req->params.post_id,
+          req->params.con_sz, req->params.hash_id, req->params.proof,
+          req->params.origin_post_url, req->params.thu_sz);
 
     if (!did_is_ready()) {
         vlogE(TAG_CMD "Feeds DID is not ready.");
@@ -1332,7 +1336,12 @@ void hdl_edit_post_req(Carrier *c, const char *from, Req *base)
     post_mod.stat       = POST_AVAILABLE;
     post_mod.upd_at     = time(NULL);
     post_mod.content    = req->params.content;
-    post_mod.con_len    = req->params.sz;
+    post_mod.con_len    = req->params.con_sz;
+    post_mod.thumbnails = req->params.thumbnails;  //2.0
+    post_mod.thu_len    = req->params.thu_sz;  //2.0
+    post_mod.hash_id    = req->params.hash_id;  //2.0
+    post_mod.proof      = req->params.proof;  //2.0
+    post_mod.origin_post_url = req->params.origin_post_url;  //2.0
 
     rc = db_upd_post(&post_mod);
     if (rc < 0) {
@@ -1345,7 +1354,8 @@ void hdl_edit_post_req(Carrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    vlogI(TAG_CMD "Post [%" PRIu64 "] on channel [%" PRIu64 "] updated.", post_mod.post_id, post_mod.chan_id);
+    vlogI(TAG_CMD "Post [%" PRIu64 "] on channel [%" PRIu64 "] updated.",
+            post_mod.post_id, post_mod.chan_id);
 
     {
         EditPostResp resp = {
