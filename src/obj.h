@@ -167,6 +167,7 @@ typedef struct {
     uint64_t cmt_id;
     UserInfo user;
     uint64_t total_cnt;
+    const char *proof;  //2.0
 } LikeInfo;
 
 typedef struct {
