@@ -595,7 +595,8 @@ int db_upd_chan(const ChanInfo *ci)
     int rc;
 
     sql = "UPDATE channels"
-          "  SET updated_at = :upd_at, name = :name, intro = :intro, avatar = :avatar"
+          "  SET updated_at = :upd_at, name = :name, intro = :intro,"
+          "  avatar = :avatar, tip_methods = :tipm, proof = :proof"
           "  WHERE channel_id = :channel_id";
 
     if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
@@ -615,6 +616,12 @@ int db_upd_chan(const ChanInfo *ci)
     rc |= sqlite3_bind_blob(stmt,
                            sqlite3_bind_parameter_index(stmt, ":avatar"),
                            ci->avatar, ci->len, NULL);
+    rc |= sqlite3_bind_text(stmt,
+                           sqlite3_bind_parameter_index(stmt, ":tipm"),
+                           ci->tip_methods, -1, NULL);
+    rc |= sqlite3_bind_text(stmt,
+                           sqlite3_bind_parameter_index(stmt, ":proof"),
+                           ci->proof, -1, NULL);
     rc |= sqlite3_bind_int64(stmt,
                             sqlite3_bind_parameter_index(stmt, ":channel_id"),
                             ci->chan_id);
