@@ -575,7 +575,7 @@ int unmarshal_upd_chan_req(const msgpack_object *req, Req **req_unmarshal)
 
     tmp = rc_zalloc(sizeof(UpdChanReq) + str_reserve_spc(method) +
                     str_reserve_spc(tk) + str_reserve_spc(name) +
-                    str_reserve_spc(intro), NULL);
+                    str_reserve_spc(intro) + 2, NULL);  //2 space for empty v2.0 item
     if (!tmp)
         return -1;
 
@@ -591,10 +591,82 @@ int unmarshal_upd_chan_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.intro   = strncpy(buf, intro->str_val, intro->str_sz);
     tmp->params.avatar  = (void *)avatar->bin_val;
     tmp->params.sz      = avatar->bin_sz;
+    buf += str_reserve_spc(intro);
+    tmp->params.tipm   = strcpy(buf, "\0");   //empty for v2.0
+    buf += 1;
+    tmp->params.proof  = strcpy(buf, "\0");   //empty for v2.0
 
     *req_unmarshal = (Req *)tmp;
     return 0;
 }
+
+static
+int unmarshal_upd_chan_req_2(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *tk;
+    const msgpack_object *chan_id;
+    const msgpack_object *name;
+    const msgpack_object *intro;
+    const msgpack_object *avatar;
+    const msgpack_object *tipm;  //v2.0
+    const msgpack_object *proof;  //v2.0
+    UpdChanReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        (void)map_val_str("version");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            tk      = map_val_str("access_token");
+            chan_id = map_val_u64("id");
+            name    = map_val_str("name");
+            intro   = map_val_str("introduction");
+            avatar  = map_val_bin("avatar");
+            tipm   = map_val_str("tip_methods");  //v2.0
+            proof  = map_val_str("proof");  //v2.0
+        });
+    });
+
+    if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
+        !name || !name->str_sz || !intro || !intro->str_sz || !avatar || 
+        !avatar->bin_sz || !tipm || !tipm->str_sz || !proof || !proof->str_sz) {
+        vlogE(TAG_RPC "Invalid update_feedinfo request.");
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(UpdChanReq) + str_reserve_spc(method) +
+                    str_reserve_spc(tk) + str_reserve_spc(name) +
+                    str_reserve_spc(intro) + str_reserve_spc(tipm) +
+                    str_reserve_spc(proof), NULL);
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method         = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->tsx_id         = tsx_id->u64_val;
+    tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
+    buf += str_reserve_spc(tk);
+    tmp->params.chan_id = chan_id->u64_val;
+    tmp->params.name    = strncpy(buf, name->str_val, name->str_sz);
+    buf += str_reserve_spc(name);
+    tmp->params.intro   = strncpy(buf, intro->str_val, intro->str_sz);
+    tmp->params.avatar  = (void *)avatar->bin_val;
+    tmp->params.sz      = avatar->bin_sz;
+    buf += str_reserve_spc(intro);
+    tmp->params.tipm   = strncpy(buf, tipm->str_val, tipm->str_sz);  //v2.0
+    buf += str_reserve_spc(tipm);
+    tmp->params.proof  = strncpy(buf, proof->str_val, proof->str_sz);  //v2.0
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
+
 
 static
 int unmarshal_pub_post_req(const msgpack_object *req, Req **req_unmarshal)
@@ -2262,7 +2334,7 @@ static struct ReqParser req_parsers_2_0[] = {
     {"signin_request_challenge"    , unmarshal_signin_req_chal_req    },
     {"signin_confirm_challenge"    , unmarshal_signin_conf_chal_req   },
     {"create_channel"              , unmarshal_create_chan_req_2      },
-    {"update_feedinfo"             , unmarshal_upd_chan_req           },
+    {"update_feedinfo"             , unmarshal_upd_chan_req_2         },
     {"publish_post"                , unmarshal_pub_post_req           },
     {"declare_post"                , unmarshal_declare_post_req       },
     {"notify_post"                 , unmarshal_notify_post_req        },

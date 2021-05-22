@@ -178,6 +178,8 @@ typedef struct {
         char       *intro;
         void       *avatar;
         size_t      sz;
+        char       *tipm;    //v2.0
+        char       *proof;   //v2.0
     } params;
 } UpdChanReq;
 
