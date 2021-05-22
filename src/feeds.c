@@ -1625,10 +1625,12 @@ void hdl_edit_cmt_req(Carrier *c, const char *from, Req *base)
     int rc;
 
     vlogD(TAG_CMD "Received edit_comment request from [%s]: "
-          "{access_token: %s, channel_id: %" PRIu64
-          ", post_id: %" PRIu64 ", id: %" PRIu64 ", comment_id: %" PRIu64 ", content_length: %zu}",
-          from, req->params.tk, req->params.chan_id, req->params.post_id, req->params.id,
-          req->params.cmt_id, req->params.sz);
+            "{access_token: %s, channel_id: %" PRIu64 ", post_id: %" PRIu64 ","
+            "id: %" PRIu64 ", comment_id: %" PRIu64 ", content_length: %zu,"
+            "hash_id: %s, proof: %s, thumbnails_length: %zu}",
+            from, req->params.tk, req->params.chan_id, req->params.post_id,
+            req->params.id, req->params.cmt_id, req->params.con_sz,
+            req->params.hash_id, req->params.proof, req->params.thu_sz);
 
     if (!did_is_ready()) {
         vlogE(TAG_CMD "Feeds DID is not ready.");
@@ -1713,8 +1715,12 @@ void hdl_edit_cmt_req(Carrier *c, const char *from, Req *base)
     cmt_mod.user         = *uinfo;
     cmt_mod.reply_to_cmt = req->params.cmt_id;
     cmt_mod.content      = req->params.content;
-    cmt_mod.con_len          = req->params.sz;
+    cmt_mod.con_len      = req->params.con_sz;
     cmt_mod.upd_at       = time(NULL);
+    cmt_mod.thumbnails   = req->params.thumbnails;  //2.0
+    cmt_mod.thu_len      = req->params.thu_sz;  //2.0
+    cmt_mod.hash_id      = req->params.hash_id;  //2.0
+    cmt_mod.proof        = req->params.proof;  //2.0
 
     rc = db_upd_cmt(&cmt_mod);
     if (rc < 0) {
