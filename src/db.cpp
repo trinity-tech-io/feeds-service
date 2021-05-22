@@ -1575,8 +1575,11 @@ int db_upd_cmt(CmtInfo *ci)
 
     do {
         sql = "UPDATE comments"
-              "  SET updated_at = :upd_at, content = :content, refcomment_id = :ref_cmt_id"
-              "  WHERE channel_id = :channel_id AND post_id = :post_id AND comment_id = :comment_id";
+              "  SET updated_at = :upd_at, content = :content,"
+              "  refcomment_id = :ref_cmt_id, hash_id = :hash_id,"  //2.0
+              "  proof = :proof, thumbnails = :thumbnails"
+              "  WHERE channel_id = :channel_id AND post_id = :post_id"
+              "  AND comment_id = :comment_id";
 
         if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
             vlogE(TAG_DB "sqlite3_prepare_v2() failed");
@@ -1592,6 +1595,15 @@ int db_upd_cmt(CmtInfo *ci)
         rc |= sqlite3_bind_int64(stmt,
                 sqlite3_bind_parameter_index(stmt, ":ref_cmt_id"),
                 ci->reply_to_cmt);
+        rc |= sqlite3_bind_text(stmt,  //2.0
+                sqlite3_bind_parameter_index(stmt, ":hash_id"),
+                ci->hash_id, -1, NULL);
+        rc |= sqlite3_bind_text(stmt,  //2.0
+                sqlite3_bind_parameter_index(stmt, ":proof"),
+                ci->proof, -1, NULL);
+        rc |= sqlite3_bind_blob(stmt,  //2.0
+                sqlite3_bind_parameter_index(stmt, ":thumbnails"),
+                ci->thumbnails, ci->thu_len, NULL);
         rc |= sqlite3_bind_int64(stmt,
                 sqlite3_bind_parameter_index(stmt, ":channel_id"),
                 ci->chan_id);
