@@ -1515,7 +1515,63 @@ int unmarshal_post_like_req(const msgpack_object *req, Req **req_unmarshal)
         return -1;
     }
 
-    tmp = rc_zalloc(sizeof(PostLikeReq) + str_reserve_spc(method) + str_reserve_spc(tk), NULL);
+    tmp = rc_zalloc(sizeof(PostLikeReq) + str_reserve_spc(method) +
+            str_reserve_spc(tk) + 1, NULL);  //1 space for empty v2.0 item
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method         = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->tsx_id         = tsx_id->u64_val;
+    tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
+    tmp->params.chan_id = chan_id->u64_val;
+    tmp->params.post_id = post_id->u64_val;
+    tmp->params.cmt_id  = cmt_id->u64_val;
+    buf += str_reserve_spc(tk);
+    tmp->params.proof  = strcpy(buf, "\0");   //empty for v2.0
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
+
+static
+int unmarshal_post_like_req_2(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *tk;
+    const msgpack_object *chan_id;
+    const msgpack_object *post_id;
+    const msgpack_object *cmt_id;
+    const msgpack_object *proof;  //v2.0
+    PostLikeReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        (void)map_val_str("version");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            tk      = map_val_str("access_token");
+            chan_id = map_val_u64("channel_id");
+            post_id = map_val_u64("post_id");
+            cmt_id  = map_val_u64("comment_id");
+            proof   = map_val_str("proof");  //v2.0
+        });
+    });
+
+    if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
+        !post_id || !post_id_is_valid(post_id->u64_val) || !cmt_id || !proof ||
+        !proof->str_sz) {
+        vlogE(TAG_RPC "Invalid post_like request.");
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(PostLikeReq) + str_reserve_spc(method) +
+            str_reserve_spc(tk) + str_reserve_spc(proof), NULL);
     if (!tmp)
         return -1;
 
@@ -1527,6 +1583,8 @@ int unmarshal_post_like_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.chan_id = chan_id->u64_val;
     tmp->params.post_id = post_id->u64_val;
     tmp->params.cmt_id  = cmt_id->u64_val;
+    buf += str_reserve_spc(tk);
+    tmp->params.proof   = strncpy(buf, proof->str_val, proof->str_sz);  //v2.0
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -2661,7 +2719,7 @@ static struct ReqParser req_parsers_2_0[] = {
     {"delete_comment"              , unmarshal_del_cmt_req            },
     {"block_comment"               , unmarshal_block_cmt_req          },
     {"unblock_comment"             , unmarshal_unblock_cmt_req        },
-    {"post_like"                   , unmarshal_post_like_req          },
+    {"post_like"                   , unmarshal_post_like_req_2        },
     {"post_unlike"                 , unmarshal_post_unlike_req        },
     {"get_my_channels"             , unmarshal_get_my_chans_req       },
     {"get_my_channels_metadata"    , unmarshal_get_my_chans_meta_req  },
