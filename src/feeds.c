@@ -357,7 +357,7 @@ void notify_of_post_upd(const char *peer, const PostInfo *pi)
           "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", status: %s, content_len: %zu"
           ", comments: %" PRIu64 ", likes: %" PRIu64 ", created_at: %" PRIu64
           ", updated_at: %" PRIu64 "}",
-          peer, pi->chan_id, pi->post_id, post_stat_str(pi->stat), pi->len, pi->cmts,
+          peer, pi->chan_id, pi->post_id, post_stat_str(pi->stat), pi->con_len, pi->cmts,
           pi->likes, pi->created_at, pi->upd_at);
     msgq_enq(peer, notif_marshal);
     deref(notif_marshal);
@@ -929,7 +929,7 @@ void hdl_pub_post_req(Carrier *c, const char *from, Req *base)
 
     vlogD(TAG_CMD "Received publish_post request from [%s]: "
           "{access_token: %s, channel_id: %" PRIu64 ", content_length: %zu}",
-          from, req->params.tk, req->params.chan_id, req->params.sz);
+          from, req->params.tk, req->params.chan_id, req->params.con_sz);
 
     if (!did_is_ready()) {
         vlogE(TAG_CMD "Feeds DID is not ready.");
@@ -974,8 +974,13 @@ void hdl_pub_post_req(Carrier *c, const char *from, Req *base)
     new_post.created_at = now = time(NULL);
     new_post.upd_at     = now;
     new_post.content    = req->params.content;
-    new_post.len        = req->params.sz;
+    new_post.con_len    = req->params.con_sz;
     new_post.stat       = POST_AVAILABLE;
+    new_post.thumbnails = req->params.thumbnails;  //2.0
+    new_post.thu_len    = req->params.thu_sz;  //2.0
+    new_post.hash_id    = req->params.hash_id;  //2.0
+    new_post.proof      = req->params.proof;  //2.0
+    new_post.origin_post_url = req->params.origin_post_url;  //2.0
 
     rc = db_add_post(&new_post);
     if (rc < 0) {
@@ -989,7 +994,8 @@ void hdl_pub_post_req(Carrier *c, const char *from, Req *base)
     }
 
     ++chan->info.next_post_id;
-    vlogI(TAG_CMD "Post [%" PRIu64 "] on channel [%" PRIu64 "] created.", new_post.post_id, new_post.chan_id);
+    vlogI(TAG_CMD "Post [%" PRIu64 "] on channel [%" PRIu64 "] created.",
+            new_post.post_id, new_post.chan_id);
 
     {
         PubPostResp resp = {
@@ -1079,7 +1085,7 @@ void hdl_declare_post_req(Carrier *c, const char *from, Req *base)
     new_post.created_at = now = time(NULL);
     new_post.upd_at     = now;
     new_post.content    = req->params.content;
-    new_post.len        = req->params.sz;
+    new_post.con_len    = req->params.sz;
     new_post.stat       = (req->params.with_notify ? POST_AVAILABLE : POST_DECLARED);
 
     rc = db_add_post(&new_post);
@@ -1324,7 +1330,7 @@ void hdl_edit_post_req(Carrier *c, const char *from, Req *base)
     post_mod.stat       = POST_AVAILABLE;
     post_mod.upd_at     = time(NULL);
     post_mod.content    = req->params.content;
-    post_mod.len        = req->params.sz;
+    post_mod.con_len    = req->params.sz;
 
     rc = db_upd_post(&post_mod);
     if (rc < 0) {
@@ -2908,7 +2914,7 @@ void hdl_get_posts_req(Carrier *c, const char *from, Req *base)
               "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", status: %s, comments: %" PRIu64
               ", likes: %" PRIu64 ", created_at: %" PRIu64 ", updated_at: %" PRIu64 ", content_length: %zu}",
               pinfo->chan_id, pinfo->post_id, post_stat_str(pinfo->stat), pinfo->cmts,
-              pinfo->likes, pinfo->created_at, pinfo->upd_at, pinfo->len);
+              pinfo->likes, pinfo->created_at, pinfo->upd_at, pinfo->con_len);
     }
     if (rc < 0) {
         vlogE(TAG_CMD "Iterating posts failed.");
@@ -2939,10 +2945,10 @@ void hdl_get_posts_req(Carrier *c, const char *from, Req *base)
         }
 
         for (i = 0; i < cvector_size(pinfos); ++i) {
-            left -= pinfos[i]->len;
+            left -= pinfos[i]->con_len;
             cvector_push_back(pinfos_tmp, pinfos[i]);
 
-            if (!(!left || i == cvector_size(pinfos) - 1 || pinfos[i + 1]->len > left))
+            if (!(!left || i == cvector_size(pinfos) - 1 || pinfos[i + 1]->con_len > left))
                 continue;
 
             GetPostsResp resp = {
@@ -3126,7 +3132,7 @@ void hdl_get_liked_posts_req(Carrier *c, const char *from, Req *base)
         vlogD(TAG_CMD "Retrieved post: "
               "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", comments: %" PRIu64
               ", likes: %" PRIu64 ", created_at: %" PRIu64 ", content_length: %zu}",
-              pinfo->chan_id, pinfo->post_id, pinfo->cmts, pinfo->likes, pinfo->created_at, pinfo->len);
+              pinfo->chan_id, pinfo->post_id, pinfo->cmts, pinfo->likes, pinfo->created_at, pinfo->con_len);
     }
     if (rc < 0) {
         vlogE(TAG_CMD "Iterating posts failed.");
@@ -3157,10 +3163,10 @@ void hdl_get_liked_posts_req(Carrier *c, const char *from, Req *base)
         }
 
         for (i = 0; i < cvector_size(pinfos); ++i) {
-            left -= pinfos[i]->len;
+            left -= pinfos[i]->con_len;
             cvector_push_back(pinfos_tmp, pinfos[i]);
 
-            if (!(!left || i == cvector_size(pinfos) - 1 || pinfos[i + 1]->len > left))
+            if (!(!left || i == cvector_size(pinfos) - 1 || pinfos[i + 1]->con_len > left))
                 continue;
 
             GetLikedPostsResp resp = {
