@@ -662,8 +662,10 @@ int db_add_post(const PostInfo *pi)
     }
 
     do {
-        sql = "INSERT INTO posts(channel_id, post_id, created_at, updated_at, content, status) "
-            "  VALUES (:channel_id, :post_id, :ts, :ts, :content, :status)";
+        sql = "INSERT INTO posts(channel_id, post_id, created_at, updated_at,"
+            "  content, status, hash_id, proof, origin_post_url, thumbnails) "
+            "  VALUES (:channel_id, :post_id, :ts, :ts, :content, :status,"
+            "  :hash_id, :proof, :origin_post_url, :thumbnails)";  //2.0
 
         if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
             vlogE(TAG_DB "sqlite3_prepare_v2() failed");
@@ -681,10 +683,22 @@ int db_add_post(const PostInfo *pi)
                 pi->created_at);
         rc |= sqlite3_bind_blob(stmt,
                 sqlite3_bind_parameter_index(stmt, ":content"),
-                pi->content, pi->len, NULL);
+                pi->content, pi->con_len, NULL);
         rc |= sqlite3_bind_int64(stmt,
                 sqlite3_bind_parameter_index(stmt, ":status"),
                 pi->stat);
+        rc |= sqlite3_bind_text(stmt,  //2.0
+                sqlite3_bind_parameter_index(stmt, ":hash_id"),
+                pi->hash_id, -1, NULL);
+        rc |= sqlite3_bind_text(stmt,  //2.0
+                sqlite3_bind_parameter_index(stmt, ":proof"),
+                pi->proof, -1, NULL);
+        rc |= sqlite3_bind_text(stmt,  //2.0
+                sqlite3_bind_parameter_index(stmt, ":origin_post_url"),
+                pi->origin_post_url, -1, NULL);
+        rc |= sqlite3_bind_blob(stmt,  //2.0
+                sqlite3_bind_parameter_index(stmt, ":thumbnails"),
+                pi->thumbnails, pi->thu_len, NULL);
         if (SQLITE_OK != rc) {
             vlogE(TAG_DB "Binding parameter failed");
             sqlite3_finalize(stmt);
@@ -835,7 +849,7 @@ int db_upd_post(PostInfo *pi)
                 pi->upd_at);
         rc |= sqlite3_bind_blob(stmt,
                 sqlite3_bind_parameter_index(stmt, ":content"),
-                pi->content, pi->len, NULL);
+                pi->content, pi->con_len, NULL);
         rc |= sqlite3_bind_int64(stmt,
                 sqlite3_bind_parameter_index(stmt, ":channel_id"),
                 pi->chan_id);
@@ -1475,7 +1489,7 @@ int db_get_post(uint64_t chan_id, uint64_t post_id, PostInfo *pi)
         int content_size = sqlite3_column_int64(stmt, 2); 
         pi->content = rc_zalloc(content_size, NULL);
         memcpy(pi->content, content, content_size);
-        pi->len = content_size;
+        pi->con_len = content_size;
         pi->cmts = sqlite3_column_int64(stmt, 3); 
         pi->likes = sqlite3_column_int64(stmt, 4); 
         pi->created_at = sqlite3_column_int64(stmt, 5); 
@@ -2687,7 +2701,7 @@ void *row2post(sqlite3_stmt *stmt)
     if (stat == POST_AVAILABLE) {
         buf = pi + 1;
         pi->content = memcpy(buf, sqlite3_column_blob(stmt, 3), len);
-        pi->len     = len;
+        pi->con_len     = len;
     }
     pi->cmts        = sqlite3_column_int64(stmt, 5);
     pi->likes       = sqlite3_column_int64(stmt, 6);
@@ -2850,7 +2864,7 @@ void *row2likedpost(sqlite3_stmt *stmt)
     pi->post_id    = sqlite3_column_int64(stmt, 1);
     buf = pi + 1;
     pi->content    = memcpy(buf, sqlite3_column_blob(stmt, 2), len);
-    pi->len        = len;
+    pi->con_len    = len;
     pi->cmts       = sqlite3_column_int64(stmt, 4);
     pi->likes      = sqlite3_column_int64(stmt, 5);
     pi->created_at = sqlite3_column_int64(stmt, 6);
