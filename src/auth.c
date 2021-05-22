@@ -659,6 +659,11 @@ UserInfo *create_uinfo_from_access_token(const char *token_marshal)
     uinfo->info.uid   = JWT_GetClaimAsInteger(token, "uid");
     uinfo->info.name  = (char *)JWT_GetClaim(token, "name");
     uinfo->info.email = (char *)JWT_GetClaim(token, "email");
+    uinfo->info.display_name = (char *)JWT_GetClaim(token, "display_name");  //2,0
+    uinfo->info.upd_at   = JWT_GetClaimAsInteger(token, "upd_at");  //2.0
+    uinfo->info.memo = (char *)JWT_GetClaim(token, "memo");  //2,0
+    uinfo->info.avatar = (void *)JWT_GetClaim(token, "avatar");  //2,0
+    uinfo->info.len   = JWT_GetClaimAsInteger(token, "len");  //2.0
     uinfo->token      = token;
 
     token = NULL;

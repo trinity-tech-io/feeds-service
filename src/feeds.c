@@ -142,7 +142,7 @@ Chan *chan_create(const ChanInfo *ci)
     void *buf;
 
     chan = rc_zalloc(sizeof(Chan) + strlen(ci->name) +
-                     strlen(ci->intro) + strlen(ci->tip_methods) +
+                     strlen(ci->intro) + strlen(ci->tip_methods) +  //2.0
                      strlen(ci->proof) + 4 + ci->len, chan_dtor);
     if (!chan)
         return NULL;
@@ -184,7 +184,8 @@ Chan *chan_create_upd(const Chan *from, const ChanInfo *ci)
     void *buf;
 
     chan = rc_zalloc(sizeof(Chan) + strlen(ci->name) +
-                     strlen(ci->intro) + 2 + ci->len, chan_dtor);
+                     strlen(ci->intro) + strlen(ci->tip_methods) +  //2.0
+                     strlen(ci->proof) + 4 + ci->len, chan_dtor);
     if (!chan)
         return NULL;
 
@@ -195,7 +196,11 @@ Chan *chan_create_upd(const Chan *from, const ChanInfo *ci)
     chan->info.name   = strcpy(buf, ci->name);
     buf = (char*)buf + strlen(ci->name) + 1;
     chan->info.intro  = strcpy(buf, ci->intro);
-    buf = (char*)buf + strlen(ci->intro) + 1;
+    buf += strlen(ci->intro) + 1;
+    chan->info.tip_methods = strcpy(buf, ci->tip_methods);  //v2.0
+    buf += strlen(ci->tip_methods) + 1;
+    chan->info.proof  = strcpy(buf, ci->proof);   //v2.0
+    buf += strlen(ci->proof) + 1;
     chan->info.avatar = memcpy(buf, ci->avatar, ci->len);
 
     chan->he_name_key.data   = chan;
@@ -795,8 +800,10 @@ void hdl_upd_chan_req(Carrier *c, const char *from, Req *base)
     int rc;
 
     vlogD(TAG_CMD "Received update_feedinfo request from [%s]: "
-          "{access_token: %s, channel_id: %" PRIu64 ", name: %s, introduction: %s, avatar_length: %zu}",
-          from, req->params.tk, req->params.chan_id, req->params.name, req->params.intro, req->params.sz);
+          "{access_token: %s, channel_id: %" PRIu64 ", name: %s,"
+          "introduction: %s, avatar_length: %zu}, tip_methods: %s, proof: %s",
+          from, req->params.tk, req->params.chan_id, req->params.name,
+          req->params.intro, req->params.sz, req->params.tipm, req->params.proof);
 
     if (!did_is_ready()) {
         vlogE(TAG_CMD "Feeds DID is not ready.");
@@ -856,6 +863,9 @@ void hdl_upd_chan_req(Carrier *c, const char *from, Req *base)
     ci.next_post_id = chan->info.next_post_id;
     ci.avatar       = req->params.avatar;
     ci.len          = req->params.sz;
+    ci.tip_methods  = req->params.tipm;  //2.0
+    ci.proof        = req->params.proof;  //2.0
+    ci.status       = chan->info.status;  //2.0
     chan_upd = chan_create_upd(chan, &ci);
     if (!chan_upd) {
         vlogE(TAG_CMD "Creating updated channel failed.");
@@ -3592,16 +3602,10 @@ void hdl_sub_chan_req(Carrier *c, const char *from, Req *base)
     ++chan->info.subs;
     vlogI(TAG_CMD "[%s] subscribed to channel [%" PRIu64 "]", uinfo->did, req->params.id);
 
-    if (get_rpc_version() == 1) {
+    {
         SubChanResp resp = {
             .tsx_id = req->tsx_id,
-        };
-        resp_marshal = rpc_marshal_sub_chan_resp(&resp);
-        vlogD(TAG_CMD "Sending subscribe_channel response.");
-    } else {   //rpc v2.0 response
-        SubChanResp resp = {
-            .tsx_id = req->tsx_id,
-            .result = {  //v2.0
+            .result = {
                 .is_last = true,
                 .cinfo = &chan->info
             }
