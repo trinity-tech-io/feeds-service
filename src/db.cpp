@@ -1227,14 +1227,15 @@ int db_add_cmt(CmtInfo *ci, uint64_t *id)
     do {
         sql = "INSERT INTO comments("
               "  channel_id, post_id, comment_id, "
-              "  refcomment_id, user_id, created_at, updated_at, content"
+              "  refcomment_id, user_id, created_at, updated_at, content,"
+              "  hash_id, proof, thumbnails"  //2.0
               ") VALUES ("
               "  :channel_id, :post_id, "
               "  (SELECT next_comment_id "
               "     FROM posts "
               "     WHERE channel_id = :channel_id AND "
               "           post_id = :post_id), "
-              "  :comment_id, :uid, :ts, :ts, :content"
+              "  :comment_id, :uid, :ts, :ts, :content, :hash_id, :proof, :thumbnails"
               ")";
 
         if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
@@ -1259,7 +1260,16 @@ int db_add_cmt(CmtInfo *ci, uint64_t *id)
                 ci->created_at);
         rc |= sqlite3_bind_blob(stmt,
                 sqlite3_bind_parameter_index(stmt, ":content"),
-                ci->content, ci->len, NULL);
+                ci->content, ci->con_len, NULL);
+        rc |= sqlite3_bind_text(stmt,  //2.0
+                sqlite3_bind_parameter_index(stmt, ":hash_id"),
+                ci->hash_id, -1, NULL);
+        rc |= sqlite3_bind_text(stmt,  //2.0
+                sqlite3_bind_parameter_index(stmt, ":proof"),
+                ci->proof, -1, NULL);
+        rc |= sqlite3_bind_blob(stmt,  //2.0
+                sqlite3_bind_parameter_index(stmt, ":thumbnails"),
+                ci->thumbnails, ci->thu_len, NULL);
         if (SQLITE_OK != rc) {
             vlogE(TAG_DB "Binding parameter failed");
             sqlite3_finalize(stmt);
@@ -1578,7 +1588,7 @@ int db_upd_cmt(CmtInfo *ci)
                 ci->upd_at);
         rc |= sqlite3_bind_blob(stmt,
                 sqlite3_bind_parameter_index(stmt, ":content"),
-                ci->content, ci->len, NULL);
+                ci->content, ci->con_len, NULL);
         rc |= sqlite3_bind_int64(stmt,
                 sqlite3_bind_parameter_index(stmt, ":ref_cmt_id"),
                 ci->reply_to_cmt);
@@ -2978,7 +2988,7 @@ void *row2cmt(sqlite3_stmt *stmt)
     if (stat == CMT_AVAILABLE) {
         buf += strlen(did) + 1;
         ci->content  = memcpy(buf, sqlite3_column_blob(stmt, 7), content_len);
-        ci->len      = content_len;
+        ci->con_len  = content_len;
     }
     ci->likes        = sqlite3_column_int64(stmt, 9);
     ci->created_at   = sqlite3_column_int64(stmt, 10);
