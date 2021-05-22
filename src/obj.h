@@ -112,8 +112,13 @@ typedef struct {
     uint64_t    upd_at;
     uint64_t    cmts;
     uint64_t    likes;
-    void        *content;
-    size_t      len;
+    void       *content;
+    size_t      con_len;
+    void       *thumbnails;  //2.0
+    size_t      thu_len;  //2.0
+    const char *hash_id;  //2.0
+    const char *proof;  //2.0
+    const char *origin_post_url;  //2.0
 } PostInfo;
 
 typedef enum {
