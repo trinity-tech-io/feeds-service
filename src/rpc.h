@@ -279,7 +279,11 @@ typedef struct {
         uint64_t    id;
         uint64_t    cmt_id;
         void       *content;
-        size_t      sz;
+        size_t      con_sz;
+        void       *thumbnails;  //2.0
+        size_t      thu_sz;  //2.0
+        char       *hash_id;  //2.0
+        char       *proof;  //2.0
     } params;
 } EditCmtReq;
 
