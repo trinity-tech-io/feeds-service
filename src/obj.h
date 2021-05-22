@@ -151,10 +151,14 @@ typedef struct {
     UserInfo    user;
     uint64_t    reply_to_cmt;
     const void *content;
-    size_t      len;
+    size_t      con_len;
     uint64_t    created_at;
     uint64_t    upd_at;
     uint64_t    likes;
+    void       *thumbnails;  //2.0
+    size_t      thu_len;  //2.0
+    const char *hash_id;  //2.0
+    const char *proof;  //2.0
 } CmtInfo;
 
 typedef struct {

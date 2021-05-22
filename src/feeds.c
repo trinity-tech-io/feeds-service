@@ -1499,9 +1499,12 @@ void hdl_post_cmt_req(Carrier *c, const char *from, Req *base)
     int rc;
 
     vlogD(TAG_CMD "Received post_comment request from [%s]: "
-          "{access_token: %s, channel_id: %" PRIu64
-          ", post_id: %" PRIu64 ", comment_id: %" PRIu64 ", content_length: %zu}",
-          from, req->params.tk, req->params.chan_id, req->params.post_id, req->params.cmt_id, req->params.sz);
+            "{access_token: %s, channel_id: %" PRIu64 ", post_id: %" PRIu64 ","
+            "comment_id: %" PRIu64 ", content_length: %zu, hash_id: %s, proof: %s,"
+            "thumbnails_length: %zu}",
+            from, req->params.tk, req->params.chan_id, req->params.post_id,
+            req->params.cmt_id, req->params.con_sz, req->params.hash_id,
+            req->params.proof, req->params.thu_sz);
 
     if (!did_is_ready()) {
         vlogE(TAG_CMD "Feeds DID is not ready.");
@@ -1559,9 +1562,13 @@ void hdl_post_cmt_req(Carrier *c, const char *from, Req *base)
     new_cmt.user         = *uinfo;
     new_cmt.reply_to_cmt = req->params.cmt_id;
     new_cmt.content      = req->params.content;
-    new_cmt.len          = req->params.sz;
+    new_cmt.con_len      = req->params.con_sz;
     new_cmt.created_at   = now = time(NULL);
     new_cmt.upd_at       = now;
+    new_cmt.thumbnails   = req->params.thumbnails;  //2.0
+    new_cmt.thu_len      = req->params.thu_sz;  //2.0
+    new_cmt.hash_id      = req->params.hash_id;  //2.0
+    new_cmt.proof        = req->params.proof;  //2.0
 
     rc = db_add_cmt(&new_cmt, &new_cmt.cmt_id);
     if (rc < 0) {
@@ -1706,7 +1713,7 @@ void hdl_edit_cmt_req(Carrier *c, const char *from, Req *base)
     cmt_mod.user         = *uinfo;
     cmt_mod.reply_to_cmt = req->params.cmt_id;
     cmt_mod.content      = req->params.content;
-    cmt_mod.len          = req->params.sz;
+    cmt_mod.con_len          = req->params.sz;
     cmt_mod.upd_at       = time(NULL);
 
     rc = db_upd_cmt(&cmt_mod);
@@ -3290,7 +3297,7 @@ void hdl_get_cmts_req(Carrier *c, const char *from, Req *base)
               PRIu64 ", created_at: %" PRIu64 "updated_at: %" PRIu64 ", content_length: %zu}",
               cinfo->chan_id, cinfo->post_id, cinfo->cmt_id, cmt_stat_str(cinfo->stat),
               cinfo->reply_to_cmt, cinfo->user.name, cinfo->user.did, cinfo->likes, cinfo->created_at,
-              cinfo->upd_at, cinfo->len);
+              cinfo->upd_at, cinfo->con_len);
     }
     if (rc < 0) {
         vlogE(TAG_CMD "Iterating comments failed.");
@@ -3321,10 +3328,10 @@ void hdl_get_cmts_req(Carrier *c, const char *from, Req *base)
         }
 
         for (i = 0; i < cvector_size(cinfos); ++i) {
-            left -= cinfos[i]->len;
+            left -= cinfos[i]->con_len;
             cvector_push_back(cinfos_tmp, cinfos[i]);
 
-            if (!(!left || i == cvector_size(cinfos) - 1 || cinfos[i + 1]->len > left))
+            if (!(!left || i == cvector_size(cinfos) - 1 || cinfos[i + 1]->con_len > left))
                 continue;
 
             GetCmtsResp resp = {
