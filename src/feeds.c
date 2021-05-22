@@ -2588,7 +2588,8 @@ void hdl_get_chans_req(Carrier *c, const char *from, Req *base)
     vlogD(TAG_CMD "Received get_channels request from [%s]: "
           "{access_token: %s, by: %" PRIu64 ", upper_bound: %" PRIu64
           ", lower_bound: %" PRIu64 ", max_count: %" PRIu64 "}",
-          from, req->params.tk, req->params.qc.by, req->params.qc.upper, req->params.qc.lower, req->params.qc.maxcnt);
+          from, req->params.tk, req->params.qc.by, req->params.qc.upper,
+          req->params.qc.lower, req->params.qc.maxcnt);
 
     if (!did_is_ready()) {
         vlogE(TAG_CMD "Feeds DID is not ready.");
