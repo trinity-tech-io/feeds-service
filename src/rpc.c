@@ -4173,7 +4173,7 @@ Marshalled *rpc_marshal_get_posts_resp(const GetPostsResp *resp)
             pack_kv_bool(pk, "is_last", resp->result.is_last);
             pack_kv_arr(pk, "posts", cvector_size(resp->result.pinfos), {
                 cvector_foreach(resp->result.pinfos, pinfo) {
-                    pack_map(pk, 8, {
+                    pack_map(pk, 12, {
                         pack_kv_u64(pk, "channel_id", (*pinfo)->chan_id);
                         pack_kv_u64(pk, "id", (*pinfo)->post_id);
                         pack_kv_u64(pk, "status", (*pinfo)->stat);
@@ -4286,7 +4286,7 @@ Marshalled *rpc_marshal_get_cmts_resp(const GetCmtsResp *resp)
             pack_kv_bool(pk, "is_last", resp->result.is_last);
             pack_kv_arr(pk, "comments", cvector_size(resp->result.cinfos), {
                 cvector_foreach(resp->result.cinfos, cinfo) {
-                    pack_map(pk, 11, {
+                    pack_map(pk, 14, {
                         pack_kv_u64(pk, "channel_id", (*cinfo)->chan_id);
                         pack_kv_u64(pk, "post_id", (*cinfo)->post_id);
                         pack_kv_u64(pk, "id", (*cinfo)->cmt_id);
@@ -4299,6 +4299,10 @@ Marshalled *rpc_marshal_get_cmts_resp(const GetCmtsResp *resp)
                         pack_kv_u64(pk, "likes", (*cinfo)->likes);
                         pack_kv_u64(pk, "created_at", (*cinfo)->created_at);
                         pack_kv_u64(pk, "updated_at", (*cinfo)->upd_at);
+                        (*cinfo)->stat == CMT_AVAILABLE ? pack_kv_bin(pk, "thumbnails", (*cinfo)->thumbnails, (*cinfo)->thu_len) :
+                                                          pack_kv_nil(pk, "thumbnails");  //2.0
+                        pack_kv_str(pk, "hash_id", (*cinfo)->hash_id);  //2.0
+                        pack_kv_str(pk, "proof", (*cinfo)->proof);  //2.0
                     });
                 }
             });
