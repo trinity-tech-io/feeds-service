@@ -792,7 +792,6 @@ int unmarshal_pub_post_req_2(const msgpack_object *req, Req **req_unmarshal)
     return 0;
 }
 
-
 static
 int unmarshal_declare_post_req(const msgpack_object *req, Req **req_unmarshal)
 {
@@ -825,7 +824,8 @@ int unmarshal_declare_post_req(const msgpack_object *req, Req **req_unmarshal)
         return -1;
     }
 
-    tmp = rc_zalloc(sizeof(DeclarePostReq) + str_reserve_spc(method) + str_reserve_spc(tk), NULL);
+    tmp = rc_zalloc(sizeof(DeclarePostReq) + str_reserve_spc(method)
+            + str_reserve_spc(tk) + 4, NULL);  //4 space for empty v2.0 item
     if (!tmp)
         return -1;
 
@@ -836,8 +836,87 @@ int unmarshal_declare_post_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.chan_id = chan_id->u64_val;
     tmp->params.content = (void *)content->bin_val;
-    tmp->params.sz      = content->bin_sz;
+    tmp->params.con_sz      = content->bin_sz;
     tmp->params.with_notify = with_notify->bool_val;
+    buf += str_reserve_spc(tk);  //2.0
+    tmp->params.hash_id = strcpy(buf, "\0");   //empty for v2.0
+    buf += 1;
+    tmp->params.proof   = strcpy(buf, "\0");   //empty for v2.0
+    buf += 1;
+    tmp->params.origin_post_url = strcpy(buf, "\0");   //empty for v2.0
+    buf += 1;
+    tmp->params.thumbnails = memcpy(buf, "\0", 1);   //empty for v2.0
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
+
+static
+int unmarshal_declare_post_req_2(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *tk;
+    const msgpack_object *chan_id;
+    const msgpack_object *content;
+    const msgpack_object *with_notify;
+    const msgpack_object *hash_id;  //2.0
+    const msgpack_object *proof;  //2.0
+    const msgpack_object *origin_post_url;  //2.0
+    const msgpack_object *thumbnails;  //2.0
+    DeclarePostReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        (void)map_val_str("version");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            tk      = map_val_str("access_token");
+            chan_id = map_val_u64("channel_id");
+            content = map_val_bin("content");
+            with_notify = map_val_bool("with_notify");
+            hash_id = map_val_str("hash_id");  //v2.0
+            proof   = map_val_str("proof");  //v2.0
+            origin_post_url = map_val_str("origin_post_url");  //v2.0
+            thumbnails = map_val_bin("thumbnails");  //v2.0
+        });
+    });
+
+    if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
+        !content || !content->bin_sz || !hash_id || !hash_id->str_sz || !proof ||
+        !proof->str_sz || !origin_post_url || !origin_post_url->str_sz ||
+        !thumbnails || !thumbnails->bin_sz) {
+        vlogE(TAG_RPC "Invalid declare_post request.");
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(DeclarePostReq) + str_reserve_spc(method) +
+            str_reserve_spc(tk) + str_reserve_spc(hash_id) +
+            str_reserve_spc(proof) + str_reserve_spc(origin_post_url), NULL);  //2.0
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method         = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->tsx_id         = tsx_id->u64_val;
+    tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
+    tmp->params.chan_id = chan_id->u64_val;
+    tmp->params.content = (void *)content->bin_val;
+    tmp->params.con_sz      = content->bin_sz;
+    tmp->params.with_notify = with_notify->bool_val;
+    buf += str_reserve_spc(tk);  //2.0
+    tmp->params.hash_id = strncpy(buf, hash_id->str_val, hash_id->str_sz);  //2.0
+    buf += str_reserve_spc(hash_id);
+    tmp->params.proof   = strncpy(buf, proof->str_val, proof->str_sz);  //2.0
+    buf += str_reserve_spc(proof);
+    tmp->params.origin_post_url = strncpy(buf, origin_post_url->str_val,
+            origin_post_url->str_sz);  //2.0
+    tmp->params.thumbnails = (void *)thumbnails->bin_val;  //2.0
+    tmp->params.thu_sz     = thumbnails->bin_sz;
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -2710,7 +2789,7 @@ static struct ReqParser req_parsers_2_0[] = {
     {"create_channel"              , unmarshal_create_chan_req_2      },
     {"update_feedinfo"             , unmarshal_upd_chan_req_2         },
     {"publish_post"                , unmarshal_pub_post_req_2         },
-    {"declare_post"                , unmarshal_declare_post_req       },
+    {"declare_post"                , unmarshal_declare_post_req_2     },
     {"notify_post"                 , unmarshal_notify_post_req        },
     {"edit_post"                   , unmarshal_edit_post_req_2        },
     {"delete_post"                 , unmarshal_del_post_req           },
@@ -4385,8 +4464,8 @@ Marshalled *rpc_marshal_sub_chan_resp(const SubChanResp *resp)
     pack_map(pk, 3, {
         pack_kv_str(pk, "version", "2.0");
         pack_kv_u64(pk, "id", resp->tsx_id);
-        pack_kv_map(pk, "result", 11, {
-//            pack_kv_bool(pk, "is_last", resp->result.is_last);
+        pack_kv_map(pk, "result", 12, {
+            pack_kv_bool(pk, "is_last", resp->result.is_last);
             pack_kv_u64(pk, "id", resp->result.cinfo->chan_id);
             pack_kv_str(pk, "name", resp->result.cinfo->name);
             pack_kv_str(pk, "introduction", resp->result.cinfo->intro);
