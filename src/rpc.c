@@ -3375,7 +3375,7 @@ Marshalled *rpc_marshal_new_post_notif(const NewPostNotif *notif)
     pack_map(pk, 3, {
         pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "new_post");
-        pack_kv_map(pk, "params", 4, {
+        pack_kv_map(pk, "params", 12, {
             pack_kv_u64(pk, "channel_id", notif->params.pinfo->chan_id);
             pack_kv_u64(pk, "id", notif->params.pinfo->post_id);
             pack_kv_u64(pk, "status", notif->params.pinfo->stat);
@@ -3409,7 +3409,7 @@ Marshalled *rpc_marshal_post_upd_notif(const PostUpdNotif *notif)
     pack_map(pk, 3, {
         pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "post_update");
-        pack_kv_map(pk, "params", 8, {
+        pack_kv_map(pk, "params", 12, {
             pack_kv_u64(pk, "channel_id", notif->params.pinfo->chan_id);
             pack_kv_u64(pk, "id", notif->params.pinfo->post_id);
             pack_kv_u64(pk, "status", notif->params.pinfo->stat);
@@ -3420,6 +3420,12 @@ Marshalled *rpc_marshal_post_upd_notif(const PostUpdNotif *notif)
             pack_kv_u64(pk, "likes", notif->params.pinfo->likes);
             pack_kv_u64(pk, "created_at", notif->params.pinfo->created_at);
             pack_kv_u64(pk, "updated_at", notif->params.pinfo->upd_at);
+            notif->params.pinfo->stat == POST_DELETED ? pack_kv_nil(pk, "thumbnails") :  //2.0
+                                                        pack_kv_bin(pk, "thumbnails", notif->params.pinfo->thumbnails,
+                                                                    notif->params.pinfo->thu_len);
+            pack_kv_str(pk, "hash_id", notif->params.pinfo->hash_id);  //2.0
+            pack_kv_str(pk, "proof", notif->params.pinfo->proof);  //2.0
+            pack_kv_str(pk, "origin_post_url", notif->params.pinfo->origin_post_url);  //2.0
         });
     });
 
