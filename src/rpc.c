@@ -719,6 +719,7 @@ int unmarshal_pub_post_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.origin_post_url = strcpy(buf, "\0");   //empty for v2.0
     buf += 1;
     tmp->params.thumbnails = memcpy(buf, "\0", 1);   //empty for v2.0
+    tmp->params.thu_sz = 0;
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -846,6 +847,7 @@ int unmarshal_declare_post_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.origin_post_url = strcpy(buf, "\0");   //empty for v2.0
     buf += 1;
     tmp->params.thumbnails = memcpy(buf, "\0", 1);   //empty for v2.0
+    tmp->params.thu_sz = 0;
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -1023,6 +1025,7 @@ int unmarshal_edit_post_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.origin_post_url = strcpy(buf, "\0");   //empty for v2.0
     buf += 1;
     tmp->params.thumbnails = memcpy(buf, "\0", 1);   //empty for v2.0
+    tmp->params.thu_sz = 0;
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -1203,6 +1206,7 @@ int unmarshal_post_cmt_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.proof   = strcpy(buf, "\0");   //empty for v2.0
     buf += 1;
     tmp->params.thumbnails = memcpy(buf, "\0", 1);   //empty for v2.0
+    tmp->params.thu_sz = 0;
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -1337,6 +1341,7 @@ int unmarshal_edit_cmt_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.proof   = strcpy(buf, "\0");   //empty for v2.0
     buf += 1;
     tmp->params.thumbnails = memcpy(buf, "\0", 1);   //empty for v2.0
+    tmp->params.thu_sz = 0;
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -3373,8 +3378,16 @@ Marshalled *rpc_marshal_new_post_notif(const NewPostNotif *notif)
         pack_kv_map(pk, "params", 4, {
             pack_kv_u64(pk, "channel_id", notif->params.pinfo->chan_id);
             pack_kv_u64(pk, "id", notif->params.pinfo->post_id);
+            pack_kv_u64(pk, "status", notif->params.pinfo->stat);
             pack_kv_bin(pk, "content", notif->params.pinfo->content, notif->params.pinfo->con_len);
+            pack_kv_u64(pk, "comments", notif->params.pinfo->cmts);
+            pack_kv_u64(pk, "likes", notif->params.pinfo->likes);
             pack_kv_u64(pk, "created_at", notif->params.pinfo->created_at);
+            pack_kv_u64(pk, "updated_at", notif->params.pinfo->upd_at);
+            pack_kv_bin(pk, "thumbnails", notif->params.pinfo->thumbnails, notif->params.pinfo->thu_len);  //2.0
+            pack_kv_str(pk, "hash_id", notif->params.pinfo->hash_id);  //2.0
+            pack_kv_str(pk, "proof", notif->params.pinfo->proof);  //2.0
+            pack_kv_str(pk, "origin_post_url", notif->params.pinfo->origin_post_url);  //2.0
         });
     });
 
