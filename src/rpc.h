@@ -659,8 +659,13 @@ typedef struct {
         AccessToken tk;
         uint64_t    chan_id;
         void       *content;
-        size_t      sz;
+        size_t      con_sz;
         bool  with_notify;
+        void       *thumbnails;  //2.0
+        size_t      thu_sz;  //2.0
+        char       *hash_id;  //2.0
+        char       *proof;  //2.0
+        char       *origin_post_url;  //2.0
     } params;
 } DeclarePostReq;
 
