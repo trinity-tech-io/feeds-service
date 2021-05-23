@@ -3312,12 +3312,14 @@ void hdl_get_cmts_req(Carrier *c, const char *from, Req *base)
     foreach_db_obj(cinfo) {
         cvector_push_back(cinfos, ref(cinfo));
         vlogD(TAG_CMD "Retrieved comment: "
-              "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", comment_id: %" PRIu64
-              ",status: %s, refcomment_id: %" PRIu64 ", user_name: %s, user_did: %s, likes: %"
-              PRIu64 ", created_at: %" PRIu64 "updated_at: %" PRIu64 ", content_length: %zu}",
+              "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", comment_id: %" PRIu64 ","
+              "status: %s, refcomment_id: %" PRIu64 ", user_name: %s, user_did: %s,"
+              "likes: %" PRIu64 ", created_at: %" PRIu64 "updated_at: %" PRIu64 ","
+              "content_length: %zu, hash_id: %s, proof: %s, thu_length: %zu}",
               cinfo->chan_id, cinfo->post_id, cinfo->cmt_id, cmt_stat_str(cinfo->stat),
-              cinfo->reply_to_cmt, cinfo->user.name, cinfo->user.did, cinfo->likes, cinfo->created_at,
-              cinfo->upd_at, cinfo->con_len);
+              cinfo->reply_to_cmt, cinfo->user.name, cinfo->user.did, cinfo->likes,
+              cinfo->created_at, cinfo->upd_at, cinfo->con_len, cinfo->hash_id,
+              cinfo->proof, cinfo->thu_len);
     }
     if (rc < 0) {
         vlogE(TAG_CMD "Iterating comments failed.");
@@ -3351,7 +3353,8 @@ void hdl_get_cmts_req(Carrier *c, const char *from, Req *base)
             left -= cinfos[i]->con_len;
             cvector_push_back(cinfos_tmp, cinfos[i]);
 
-            if (!(!left || i == cvector_size(cinfos) - 1 || cinfos[i + 1]->con_len > left))
+            if (!(!left || i == cvector_size(cinfos) - 1 ||
+                    cinfos[i + 1]->con_len + cinfos[i + 1]->thu_len > left))  //2.0
                 continue;
 
             GetCmtsResp resp = {
