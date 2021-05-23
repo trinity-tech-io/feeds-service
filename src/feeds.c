@@ -2775,7 +2775,8 @@ void hdl_get_sub_chans_req(Carrier *c, const char *from, Req *base)
     vlogD(TAG_CMD "Received get_subscribed_channels request from [%s]: "
           "{access_token: %s, by: %" PRIu64 ", upper_bound: %" PRIu64
           ", lower_bound: %" PRIu64 ", max_count: %" PRIu64 "}",
-          from, req->params.tk, req->params.qc.by, req->params.qc.upper, req->params.qc.lower, req->params.qc.maxcnt);
+          from, req->params.tk, req->params.qc.by, req->params.qc.upper,
+          req->params.qc.lower, req->params.qc.maxcnt);
 
     if (!did_is_ready()) {
         vlogE(TAG_CMD "Feeds DID is not ready.");
@@ -2942,10 +2943,13 @@ void hdl_get_posts_req(Carrier *c, const char *from, Req *base)
     foreach_db_obj(pinfo) {
         cvector_push_back(pinfos, ref(pinfo));
         vlogD(TAG_CMD "Retrieved post: "
-              "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", status: %s, comments: %" PRIu64
-              ", likes: %" PRIu64 ", created_at: %" PRIu64 ", updated_at: %" PRIu64 ", content_length: %zu}",
+              "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", status: %s,"
+              "comments: %" PRIu64 ", likes: %" PRIu64 ", created_at: %" PRIu64 ","
+              "updated_at: %" PRIu64 ", content_length: %zu, hash_id: %s,"
+              "proof: %s, url: %s, thu_length: %zu}",
               pinfo->chan_id, pinfo->post_id, post_stat_str(pinfo->stat), pinfo->cmts,
-              pinfo->likes, pinfo->created_at, pinfo->upd_at, pinfo->con_len);
+              pinfo->likes, pinfo->created_at, pinfo->upd_at, pinfo->con_len,
+              pinfo->hash_id, pinfo->proof, pinfo->origin_post_url, pinfo->thu_len);
     }
     if (rc < 0) {
         vlogE(TAG_CMD "Iterating posts failed.");
@@ -2977,9 +2981,11 @@ void hdl_get_posts_req(Carrier *c, const char *from, Req *base)
 
         for (i = 0; i < cvector_size(pinfos); ++i) {
             left -= pinfos[i]->con_len;
+            left -= pinfos[i]->thu_len;
             cvector_push_back(pinfos_tmp, pinfos[i]);
 
-            if (!(!left || i == cvector_size(pinfos) - 1 || pinfos[i + 1]->con_len > left))
+            if (!(!left || i == cvector_size(pinfos) - 1 ||
+                    pinfos[i + 1]->con_len + pinfos[i + 1]->thu_len > left))  //2.0
                 continue;
 
             GetPostsResp resp = {
