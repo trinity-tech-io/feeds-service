@@ -3523,13 +3523,14 @@ Marshalled *rpc_marshal_new_like_notif(const NewLikeNotif *notif)
     pack_map(pk, 3, {
         pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "new_like");
-        pack_kv_map(pk, "params", 6, {
+        pack_kv_map(pk, "params", 7, {
             pack_kv_u64(pk, "channel_id", notif->params.li->chan_id);
             pack_kv_u64(pk, "post_id", notif->params.li->post_id);
             pack_kv_u64(pk, "comment_id", notif->params.li->cmt_id);
             pack_kv_str(pk, "user_name", notif->params.li->user.name);
             pack_kv_str(pk, "user_did", notif->params.li->user.did);
             pack_kv_u64(pk, "total_count", notif->params.li->total_cnt);
+            pack_kv_str(pk, "proof", notif->params.li->proof);  //2.0
         });
     });
 
