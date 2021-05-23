@@ -1039,8 +1039,11 @@ void hdl_declare_post_req(Carrier *c, const char *from, Req *base)
     int rc;
 
     vlogD(TAG_CMD "Received declare_post request from [%s]: "
-          "{access_token: %s, channel_id: %" PRIu64 ", content_length: %zu}",
-          from, req->params.tk, req->params.chan_id, req->params.sz);
+          "{access_token: %s, channel_id: %" PRIu64 ", content_length: %zu,"
+          "hash_id: %s, proof: %s, url: %s, thu_length: %zu}",
+          from, req->params.tk, req->params.chan_id, req->params.con_sz,
+          req->params.hash_id, req->params.proof, req->params.origin_post_url,
+          req->params.thu_sz);  //2.0
 
     if (!did_is_ready()) {
         vlogE(TAG_CMD "Feeds DID is not ready.");
@@ -1085,8 +1088,13 @@ void hdl_declare_post_req(Carrier *c, const char *from, Req *base)
     new_post.created_at = now = time(NULL);
     new_post.upd_at     = now;
     new_post.content    = req->params.content;
-    new_post.con_len    = req->params.sz;
+    new_post.con_len    = req->params.con_sz;
     new_post.stat       = (req->params.with_notify ? POST_AVAILABLE : POST_DECLARED);
+    new_post.thumbnails = req->params.thumbnails;  //2.0
+    new_post.thu_len    = req->params.thu_sz;  //2.0
+    new_post.hash_id    = req->params.hash_id;  //2.0
+    new_post.proof      = req->params.proof;  //2.0
+    new_post.origin_post_url = req->params.origin_post_url;  //2.0
 
     rc = db_add_post(&new_post);
     if (rc < 0) {
