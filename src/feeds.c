@@ -2254,7 +2254,7 @@ void hdl_post_like_req(Carrier *c, const char *from, Req *base)
     li.post_id = req->params.post_id;
     li.cmt_id  = req->params.cmt_id;
     li.user    = *uinfo;
-    li.proof   = req->params.proof;
+    li.proof   = req->params.proof;  //2.0
 
     list_foreach(chan->aspcs, aspc) {
         NotifDestPerActiveSuber *ndpas;
