@@ -3577,13 +3577,18 @@ Marshalled *rpc_marshal_chan_upd_notif(const ChanUpdNotif *notif)
     pack_map(pk, 3, {
         pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "feedinfo_update");
-        pack_kv_map(pk, "params", 6, {
+        pack_kv_map(pk, "params", 11, {
             pack_kv_u64(pk, "id", notif->params.cinfo->chan_id);
             pack_kv_str(pk, "name", notif->params.cinfo->name);
             pack_kv_str(pk, "introduction", notif->params.cinfo->intro);
+            pack_kv_str(pk, "owner_name", notif->params.cinfo->owner->name);
+            pack_kv_str(pk, "owner_did", notif->params.cinfo->owner->did);
             pack_kv_u64(pk, "subscribers", notif->params.cinfo->subs);
             pack_kv_u64(pk, "last_update", notif->params.cinfo->upd_at);
             pack_kv_bin(pk, "avatar", notif->params.cinfo->avatar, notif->params.cinfo->len);
+            pack_kv_str(pk, "tip_methods", notif->params.cinfo->tip_methods);  //2.0
+            pack_kv_str(pk, "proof", notif->params.cinfo->proof);  //2.0
+            pack_kv_u64(pk, "status", notif->params.cinfo->status);  //2.0
         });
     });
 
