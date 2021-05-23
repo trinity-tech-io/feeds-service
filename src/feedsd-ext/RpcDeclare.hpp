@@ -104,6 +104,9 @@ struct GetMultiCommentsResponse : Response {
             int64_t likes = -1;
             int64_t created_at = -1;
             int64_t updated_at = -1;
+            std::vector<uint8_t> thumbnails;  //2.0
+            std::string hash_id;  //2.0
+            std::string proof;  //2.0
             MSGPACK_DEFINE(channel_id, post_id, comment_id, refer_comment_id,
                            status, user_did, user_name, content, likes, created_at, updated_at);
         };

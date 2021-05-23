@@ -62,7 +62,8 @@ int ChannelMethod::onGetMultiComments(std::shared_ptr<Rpc::Request> request,
     std::stringstream sql;
     sql << " SELECT channel_id, post_id, comment_id, refcomment_id,";
     sql << " did, name,";
-    sql << " status, likes, created_at, updated_at, content";
+    sql << " status, likes, created_at, updated_at, content,";
+    sql << " hash_id, proof, thumbnails";  //2.0
     sql << " FROM comments JOIN users USING (user_id)";
     params.channel_id > 0 ? (sql << " WHERE channel_id = " << params.channel_id)
                           : (sql << " WHERE channel_id = " << "channel_id");
@@ -112,11 +113,20 @@ int ChannelMethod::onGetMultiComments(std::shared_ptr<Rpc::Request> request,
             (uint8_t*)stmt.getColumn(10).getBlob(),
             (uint8_t*)stmt.getColumn(10).getBlob() + stmt.getColumn(10).getBytes()
         });
+        comment.hash_id = stmt.getColumn(11).getString();  //2.0
+        comment.proof = stmt.getColumn(12).getString();  //2.0
+        comment.thumbnails = std::move(std::vector<uint8_t> {  //2.0
+            (uint8_t*)stmt.getColumn(13).getBlob(),
+            (uint8_t*)stmt.getColumn(13).getBlob() + stmt.getColumn(13).getBytes()
+        });
 
         commentsSize += sizeof(comment)
                      - sizeof(comment.user_did) + comment.user_did.length()
                      - sizeof(comment.user_name) + comment.user_name.length()
-                     - sizeof(comment.content) + comment.content.size();
+                     - sizeof(comment.content) + comment.content.size()
+                     - sizeof(comment.hash_id) + comment.hash_id.length()  //2.0
+                     - sizeof(comment.proof) + comment.proof.length()  //2.0
+                     - sizeof(comment.thumbnails) + comment.thumbnails.size();  //2.0
 
         if(response == nullptr) {
             response = makeResponse();
