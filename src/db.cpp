@@ -3003,10 +3003,14 @@ void *row2cmt(sqlite3_stmt *stmt)
 {
     CmtStat stat = (CmtStat)sqlite3_column_int64(stmt, 3);
     size_t content_len = stat == CMT_AVAILABLE ? sqlite3_column_int64(stmt, 8) : 0;
+    size_t thu_len = stat == CMT_AVAILABLE ? sqlite3_column_int64(stmt, 15) : 0;
+    const char *hash_id = (const char *)sqlite3_column_text(stmt, 12);  //2.0
+    const char *proof = (const char *)sqlite3_column_text(stmt, 13);  //2.0
     const char *name = (const char *)sqlite3_column_text(stmt, 5);
     const char *did = (const char *)sqlite3_column_text(stmt, 6);
-    CmtInfo *ci = (CmtInfo *)rc_zalloc(sizeof(CmtInfo) + content_len +
-                            strlen(name) + strlen(did) + 3, NULL);
+    CmtInfo *ci = (CmtInfo *)rc_zalloc(sizeof(CmtInfo) + content_len + thu_len +
+                            strlen(hash_id) + strlen(proof) + strlen(name) +
+                            strlen(did) + 6, NULL);
     void *buf;
 
     if (!ci) {
@@ -3014,20 +3018,26 @@ void *row2cmt(sqlite3_stmt *stmt)
         return NULL;
     }
 
-    buf = ci + 1;
-
     ci->chan_id      = sqlite3_column_int64(stmt, 0);
     ci->post_id      = sqlite3_column_int64(stmt, 1);
     ci->cmt_id       = sqlite3_column_int64(stmt, 2);
     ci->stat         = stat;
     ci->reply_to_cmt = sqlite3_column_int64(stmt, 4);
+    buf = ci + 1;
     ci->user.name    = strcpy((char *)buf, name);
     buf += strlen(name) + 1;
     ci->user.did     = strcpy((char *)buf, did);
+    buf += strlen(did) + 1;
+    ci->hash_id      = strcpy((char *)buf, hash_id);  //2.0
+    buf += strlen(hash_id) + 1;  //2.0
+    ci->proof        = strcpy((char *)buf, proof);  //2.0
     if (stat == CMT_AVAILABLE) {
-        buf += strlen(did) + 1;
+        buf += strlen(proof) + 1;  //2.0
         ci->content  = memcpy(buf, sqlite3_column_blob(stmt, 7), content_len);
         ci->con_len  = content_len;
+        buf += content_len + 1;   //2.0
+        ci->thumbnails = memcpy(buf, sqlite3_column_blob(stmt, 14), thu_len);  //2.0
+        ci->thu_len = thu_len;  //2.0
     }
     ci->likes        = sqlite3_column_int64(stmt, 9);
     ci->created_at   = sqlite3_column_int64(stmt, 10);
@@ -3076,7 +3086,8 @@ DBObjIt *db_iter_cmts(uint64_t chan_id, uint64_t post_id, const QryCriteria *qc)
 
     rc = sprintf(sql,
                  "SELECT channel_id, post_id, comment_id, status, refcomment_id, "
-                 "       name, did, content, length(content), likes, created_at, updated_at "
+                 "       name, did, content, length(content), likes, created_at, "
+                 "       updated_at, hash_id, proof, thumbnails, length(thumbnails) "
                  "  FROM comments JOIN users USING (user_id) "
                  "  WHERE channel_id = :channel_id AND post_id = :post_id");
     if (qc->by) {
