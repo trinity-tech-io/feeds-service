@@ -10,6 +10,7 @@ CMakeFiles
 *cmake*
 *.a
 CMakeCache.txt
-feedsd*
 intermediates
+feedsd.conf
+feedsd
 gen
