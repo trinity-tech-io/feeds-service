@@ -3483,7 +3483,7 @@ Marshalled *rpc_marshal_cmt_upd_notif(const CmtUpdNotif *notif)
     pack_map(pk, 3, {
         pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "comment_update");
-        pack_kv_map(pk, "params", 11, {
+        pack_kv_map(pk, "params", 14, {
             pack_kv_u64(pk, "channel_id", notif->params.cinfo->chan_id);
             pack_kv_u64(pk, "post_id", notif->params.cinfo->post_id);
             pack_kv_u64(pk, "id", notif->params.cinfo->cmt_id);
@@ -3497,6 +3497,11 @@ Marshalled *rpc_marshal_cmt_upd_notif(const CmtUpdNotif *notif)
             pack_kv_u64(pk, "likes", notif->params.cinfo->likes);
             pack_kv_u64(pk, "created_at", notif->params.cinfo->created_at);
             pack_kv_u64(pk, "updated_at", notif->params.cinfo->upd_at);
+            notif->params.cinfo->stat == CMT_AVAILABLE ? pack_kv_bin(pk, "thumbnails", notif->params.cinfo->thumbnails,
+                                                                     notif->params.cinfo->thu_len) :
+                                                         pack_kv_nil(pk, "content");  //2.0
+            pack_kv_str(pk, "hash_id", notif->params.cinfo->hash_id);  //2.0
+            pack_kv_str(pk, "proof", notif->params.cinfo->proof);  //2.0
         });
     });
 
