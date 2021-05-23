@@ -3447,15 +3447,21 @@ Marshalled *rpc_marshal_new_cmt_notif(const NewCmtNotif *notif)
     pack_map(pk, 3, {
         pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "new_comment");
-        pack_kv_map(pk, "params", 8, {
+        pack_kv_map(pk, "params", 14, {
             pack_kv_u64(pk, "channel_id", notif->params.cinfo->chan_id);
             pack_kv_u64(pk, "post_id", notif->params.cinfo->post_id);
             pack_kv_u64(pk, "id", notif->params.cinfo->cmt_id);
+            pack_kv_u64(pk, "status", notif->params.cinfo->stat);
             pack_kv_u64(pk, "comment_id", notif->params.cinfo->reply_to_cmt);
             pack_kv_str(pk, "user_name", notif->params.cinfo->user.name);
             pack_kv_str(pk, "user_did", notif->params.cinfo->user.did);
             pack_kv_bin(pk, "content", notif->params.cinfo->content, notif->params.cinfo->con_len);
+            pack_kv_u64(pk, "likes", notif->params.cinfo->likes);
             pack_kv_u64(pk, "created_at", notif->params.cinfo->created_at);
+            pack_kv_u64(pk, "updated_at", notif->params.cinfo->upd_at);
+            pack_kv_bin(pk, "thumbnails", notif->params.cinfo->thumbnails, notif->params.cinfo->thu_len);  //2.0
+            pack_kv_str(pk, "hash_id", notif->params.cinfo->hash_id);  //2.0
+            pack_kv_str(pk, "proof", notif->params.cinfo->proof);  //2.0
         });
     });
 
