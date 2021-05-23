@@ -4178,11 +4178,16 @@ Marshalled *rpc_marshal_get_posts_resp(const GetPostsResp *resp)
                         pack_kv_u64(pk, "id", (*pinfo)->post_id);
                         pack_kv_u64(pk, "status", (*pinfo)->stat);
                         (*pinfo)->stat == POST_DELETED ? pack_kv_nil(pk, "content") :
-                                                         pack_kv_bin(pk, "content", (*pinfo)->content, (*pinfo)->con_len);
+                            pack_kv_bin(pk, "content", (*pinfo)->content, (*pinfo)->con_len);
                         pack_kv_u64(pk, "comments", (*pinfo)->cmts);
                         pack_kv_u64(pk, "likes", (*pinfo)->likes);
                         pack_kv_u64(pk, "created_at", (*pinfo)->created_at);
                         pack_kv_u64(pk, "updated_at", (*pinfo)->upd_at);
+                        (*pinfo)->stat == POST_DELETED ? pack_kv_nil(pk, "thumbnails") :  //2.0
+                            pack_kv_bin(pk, "thumbnails", (*pinfo)->thumbnails, (*pinfo)->thu_len);
+                        pack_kv_str(pk, "hash_id", (*pinfo)->hash_id);  //2.0
+                        pack_kv_str(pk, "proof", (*pinfo)->proof);  //2.0
+                        pack_kv_str(pk, "origin_post_url", (*pinfo)->origin_post_url);  //2.0
                     });
                 }
             });
