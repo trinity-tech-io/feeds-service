@@ -2670,6 +2670,14 @@ DBObjIt *db_iter_sub_chans(uint64_t uid, const QryCriteria *qc)
                  "          FROM subscriptions "
                  "          WHERE user_id = :uid) JOIN channels USING (channel_id)");
 
+/*    rc = sprintf(sql,
+            "SELECT channels.channel_id, channels.name, channels.intro,"
+            "  channels.subscribers, channels.updated_at, channels.avatar,"
+            "  length(channels.avatar), subscriptions.create_at, subscriptions.proof"
+            "    FROM channels, subscriptions"
+            "    WHERE channels.channel_id = subscriptions.channel_id"
+            "      and subscriptions.user_id = :uid"
+*/
     if (qc->by) {
         qcol = query_column(CHANNEL, (QryFld)qc->by);
         if (qc->lower || qc->upper)
@@ -2725,11 +2733,15 @@ static
 void *row2post(sqlite3_stmt *stmt)
 {
     PostStat stat = (PostStat)sqlite3_column_int64(stmt, 2);
-    size_t len = (stat != POST_AVAILABLE ? 0 : sqlite3_column_int64(stmt, 4));
-    PostInfo *pi;
+    size_t con_len = (stat != POST_AVAILABLE ? 0 : sqlite3_column_int64(stmt, 4));
+    size_t thu_len = (stat != POST_AVAILABLE ? 0 : sqlite3_column_int64(stmt, 13));  //2.0
+    const char *hash_id = (const char *)sqlite3_column_text(stmt, 9);  //2.0
+    const char *proof = (const char *)sqlite3_column_text(stmt, 10);  //2.0
+    const char *origin_post_url = (const char *)sqlite3_column_text(stmt, 11);  //2.0
     void *buf;
 
-    pi = (PostInfo *)rc_zalloc(sizeof(PostInfo) + len, NULL);
+    PostInfo *pi = (PostInfo *)rc_zalloc(sizeof(PostInfo) + con_len + thu_len +
+            strlen(hash_id) + strlen(proof) + strlen(origin_post_url) + 5, NULL);  //2.0
     if (!pi) {
         vlogE(TAG_DB "OOM");
         return NULL;
@@ -2738,15 +2750,24 @@ void *row2post(sqlite3_stmt *stmt)
     pi->chan_id     = sqlite3_column_int64(stmt, 0);
     pi->post_id     = sqlite3_column_int64(stmt, 1);
     pi->stat        = stat;
-    if (stat == POST_AVAILABLE) {
-        buf = pi + 1;
-        pi->content = memcpy(buf, sqlite3_column_blob(stmt, 3), len);
-        pi->con_len     = len;
-    }
     pi->cmts        = sqlite3_column_int64(stmt, 5);
     pi->likes       = sqlite3_column_int64(stmt, 6);
     pi->created_at  = sqlite3_column_int64(stmt, 7);
     pi->upd_at      = sqlite3_column_int64(stmt, 8);
+    buf = pi + 1;  //2.0
+    pi->hash_id     = strcpy((char *)buf, hash_id);  //2.0
+    buf += strlen(hash_id) + 1;  //2.0
+    pi->proof       = strcpy((char *)buf, proof);  //2.0
+    buf += strlen(proof) + 1;  //2.0
+    pi->origin_post_url = strcpy((char *)buf, origin_post_url);  //2.0
+    if (stat == POST_AVAILABLE) {
+        buf += strlen(origin_post_url) + 1;
+        pi->content = memcpy(buf, sqlite3_column_blob(stmt, 3), con_len);
+        pi->con_len = con_len;
+        buf += con_len + 1;   //2.0
+        pi->thumbnails = memcpy(buf, sqlite3_column_blob(stmt, 12), thu_len);  //2.0
+        pi->thu_len = thu_len;  //2.0
+    }
 
     return pi;
 }
@@ -2760,10 +2781,12 @@ DBObjIt *db_iter_posts(uint64_t chan_id, const QryCriteria *qc)
     int rc;
 
     rc = sprintf(sql,
-                 "SELECT channel_id, post_id, status, content, length(content), "
-                 "       next_comment_id - 1 AS comments, likes, created_at, updated_at "
+                 "SELECT channel_id, post_id, status, content, length(content),"
+                 "       next_comment_id - 1 AS comments, likes, created_at,"
+                 "       updated_at, hash_id, proof, origin_post_url, thumbnails,"
+                 "       length(thumbnails)"
                  "  FROM posts "
-                 "  WHERE channel_id = :channel_id");
+                 "  WHERE channel_id = :channel_id");  //2.0
     rc += sprintf(sql + rc, " AND (status=%d OR status=%d)", POST_AVAILABLE, POST_DELETED);
     if (qc->by) {
         qcol = query_column(POST, (QryFld)qc->by);
@@ -2983,7 +3006,7 @@ void *row2cmt(sqlite3_stmt *stmt)
     const char *name = (const char *)sqlite3_column_text(stmt, 5);
     const char *did = (const char *)sqlite3_column_text(stmt, 6);
     CmtInfo *ci = (CmtInfo *)rc_zalloc(sizeof(CmtInfo) + content_len +
-                            strlen(name) + strlen(did) + 2, NULL);
+                            strlen(name) + strlen(did) + 3, NULL);
     void *buf;
 
     if (!ci) {
