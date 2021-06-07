@@ -34,6 +34,7 @@ void feeds_deinit();
 void feeds_deactivate_suber(const char *node_id);
 void hdl_create_chan_req(Carrier *c, const char *from, Req *base);
 void hdl_upd_chan_req(Carrier *c, const char *from, Req *base);
+void hdl_upd_user_info_req(Carrier *c, const char *from, Req *base);
 void hdl_pub_post_req(Carrier *c, const char *from, Req *base);
 void hdl_declare_post_req(Carrier *c, const char *from, Req *base);
 void hdl_notify_post_req(Carrier *c, const char *from, Req *base);
