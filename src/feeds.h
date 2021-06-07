@@ -54,6 +54,7 @@ void hdl_get_sub_chans_req(Carrier *c, const char *from, Req *base);
 void hdl_get_posts_req(Carrier *c, const char *from, Req *base);
 void hdl_get_posts_lac_req(Carrier *c, const char *from, Req *base);
 void hdl_get_liked_posts_req(Carrier *c, const char *from, Req *base);
+void hdl_get_liked_data_req(Carrier *c, const char *from, Req *base);
 void hdl_get_cmts_req(Carrier *c, const char *from, Req *base);
 void hdl_get_cmts_likes_req(Carrier *c, const char *from, Req *base);
 void hdl_get_stats_req(Carrier *c, const char *from, Req *base);
