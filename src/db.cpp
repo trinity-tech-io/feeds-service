@@ -1931,8 +1931,9 @@ int db_add_like(uint64_t uid, uint64_t channel_id, uint64_t post_id,
         }
 
         sql = "INSERT INTO likes(user_id, channel_id, post_id, comment_id,"
-              "created_at, proof) "
-              "  VALUES (:uid, :channel_id, :post_id, :comment_id, :ts, :proof)";
+              "created_at, proof, memo) "
+              "  VALUES (:uid, :channel_id, :post_id, :comment_id, :ts, :proof, '')";
+        //TODO memo keep empty until ? 
 
         if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
             vlogE(TAG_DB "sqlite3_prepare_v2() failed");
@@ -2990,6 +2991,97 @@ DBObjIt *db_iter_liked_posts(uint64_t uid, const QryCriteria *qc)
     }
 
     it = it_create(stmt, row2likedpost);
+    if (!it) {
+        sqlite3_finalize(stmt);
+        return NULL;
+    }
+
+    return it;
+}
+
+static
+void *row2likeddata(sqlite3_stmt *stmt)
+{
+    const char *proof = (const char *)sqlite3_column_text(stmt, 4);
+    const char *name = (const char *)sqlite3_column_text(stmt, 5);
+    const char *did = (const char *)sqlite3_column_text(stmt, 6);
+    LikeInfo *li = (LikeInfo *)rc_zalloc(sizeof(LikeInfo) + strlen(proof) + 
+            strlen(name) + strlen(did) + 3, NULL);
+    void *buf;
+
+    if (!li) {
+        vlogE(TAG_DB "OOM");
+        return NULL;
+    }
+
+    li->chan_id    = sqlite3_column_int64(stmt, 0);
+    li->post_id    = sqlite3_column_int64(stmt, 1);
+    li->cmt_id     = sqlite3_column_int64(stmt, 2);
+    li->created_at = sqlite3_column_int64(stmt, 3);
+    buf = li + 1;
+    li->user.name    = strcpy((char *)buf, name);
+    buf += strlen(name) + 1;
+    li->user.did     = strcpy((char *)buf, did);
+    buf += strlen(did) + 1;
+    li->proof      = strcpy((char *)buf, proof);
+
+    return li;
+}
+
+DBObjIt *db_iter_liked_data(uint64_t uid, const QryCriteria *qc)
+{
+    sqlite3_stmt *stmt;
+    const char *qcol;
+    char sql[1024] = {0};
+    DBObjIt *it;
+    int rc;
+
+    rc = sprintf(sql,
+          /*       "SELECT channel_id, post_id, comment_id, created_at, proof "
+                 "  FROM (SELECT user_id FROM users "
+                 "          WHERE user_id = :uid) JOIN "
+                 "          likes USING (user_id)"
+                 "  WHERE status = :avail");*/
+                 "SELECT channel_id, post_id, comment_id, created_at, proof, "
+                 "  name, did FROM likes JOIN users USING (user_id) "
+                 "  where user_id = :uid");
+    if (qc->by) {
+        qcol = query_column(POST, (QryFld)qc->by);
+        if (qc->lower)
+            rc += sprintf(sql + rc, " AND %s >= :lower", qcol);
+        if (qc->upper)
+            rc += sprintf(sql + rc, " AND %s <= :upper", qcol);
+        rc += sprintf(sql + rc, " ORDER BY %s %s", qcol, qc->by == ID ? "ASC" : "DESC");
+    }
+    if (qc->maxcnt)
+        rc += sprintf(sql + rc, " LIMIT :maxcnt");
+
+    if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
+        vlogE(TAG_DB "sqlite3_prepare_v2() failed");
+        return NULL;
+    }
+
+    rc = sqlite3_bind_int64(stmt, sqlite3_bind_parameter_index(stmt, ":uid"),
+                            uid);
+    if (qc->lower) {
+        rc |= sqlite3_bind_int64(stmt, sqlite3_bind_parameter_index(stmt, ":lower"),
+                                qc->lower);
+    }
+    if (qc->upper) {
+        rc |= sqlite3_bind_int64(stmt, sqlite3_bind_parameter_index(stmt, ":upper"),
+                                qc->upper);
+    }
+    if (qc->maxcnt) {
+        rc |= sqlite3_bind_int64(stmt, sqlite3_bind_parameter_index(stmt, ":maxcnt"),
+                                qc->maxcnt);
+    }
+    if (SQLITE_OK != rc) {
+        vlogE(TAG_DB "Binding parameter failed");
+        sqlite3_finalize(stmt);
+        return NULL;
+    }
+
+    it = it_create(stmt, row2likeddata);
     if (!it) {
         sqlite3_finalize(stmt);
         return NULL;
