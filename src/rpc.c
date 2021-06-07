@@ -2132,6 +2132,58 @@ int unmarshal_get_liked_posts_req(const msgpack_object *req, Req **req_unmarshal
 }
 
 static
+int unmarshal_get_liked_data_req(const msgpack_object *req, Req **req_unmarshal)
+{
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *tk;
+    const msgpack_object *by;
+    const msgpack_object *upper;
+    const msgpack_object *lower;
+    const msgpack_object *maxcnt;
+    GetLikedDataReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        (void)map_val_str("version");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            tk      = map_val_str("access_token");
+            by      = map_val_u64("by");
+            upper   = map_val_u64("upper_bound");
+            lower   = map_val_u64("lower_bound");
+            maxcnt  = map_val_u64("max_count");
+        });
+    });
+
+    if (!tk || !tk->str_sz || !by || !qry_fld_is_valid(by->u64_val) ||
+        !upper || !lower || !maxcnt) {
+        vlogE(TAG_RPC "Invalid get_liked_data request.");
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(GetLikedDataReq) + str_reserve_spc(method) + str_reserve_spc(tk), NULL);
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->method           = strncpy(buf, method->str_val, method->str_sz);
+    buf += str_reserve_spc(method);
+    tmp->tsx_id           = tsx_id->u64_val;
+    tmp->params.tk        = strncpy(buf, tk->str_val, tk->str_sz);
+    tmp->params.qc.by     = by->u64_val;
+    tmp->params.qc.upper  = upper->u64_val;
+    tmp->params.qc.lower  = lower->u64_val;
+    tmp->params.qc.maxcnt = maxcnt->u64_val;
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
+
+static
 int unmarshal_get_cmts_req(const msgpack_object *req, Req **req_unmarshal)
 {
     const msgpack_object *method;
@@ -2771,6 +2823,7 @@ static struct ReqParser req_parsers_1_0[] = {
     {"get_posts"                   , unmarshal_get_posts_req          },
     {"get_posts_likes_and_comments", unmarshal_get_posts_lac_req      },
     {"get_liked_posts"             , unmarshal_get_liked_posts_req    },
+    {"get_liked_data"              , unmarshal_get_liked_data_req     },
     {"get_comments"                , unmarshal_get_cmts_req           },
     {"get_comments_likes"          , unmarshal_get_cmts_likes_req     },
     {"get_statistics"              , unmarshal_get_stats_req          },
@@ -2813,6 +2866,7 @@ static struct ReqParser req_parsers_2_0[] = {
     {"get_posts"                   , unmarshal_get_posts_req          },
     {"get_posts_likes_and_comments", unmarshal_get_posts_lac_req      },
     {"get_liked_posts"             , unmarshal_get_liked_posts_req    },
+    {"get_liked_data"              , unmarshal_get_liked_data_req     },
     {"get_comments"                , unmarshal_get_cmts_req           },
     {"get_comments_likes"          , unmarshal_get_cmts_likes_req     },
     {"get_statistics"              , unmarshal_get_stats_req          },
@@ -4372,6 +4426,43 @@ Marshalled *rpc_marshal_get_liked_posts_resp(const GetLikedPostsResp *resp)
                         pack_kv_u64(pk, "comments", (*pinfo)->cmts);
                         pack_kv_u64(pk, "likes", (*pinfo)->likes);
                         pack_kv_u64(pk, "created_at", (*pinfo)->created_at);
+                    });
+                }
+            });
+        });
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_get_liked_data_resp(const GetLikedDataResp *resp)  //2.0
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+    LikeInfo **linfo;
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_u64(pk, "id", resp->tsx_id);
+        pack_kv_map(pk, "result", 2, {
+            pack_kv_bool(pk, "is_last", resp->result.is_last);
+            pack_kv_arr(pk, "liked", cvector_size(resp->result.linfos), {
+                cvector_foreach(resp->result.linfos, linfo) {
+                    pack_map(pk, 7, {
+                        pack_kv_u64(pk, "channel_id", (*linfo)->chan_id);
+                        pack_kv_u64(pk, "post_id", (*linfo)->post_id);
+                        pack_kv_u64(pk, "comment_id", (*linfo)->cmt_id);
+                        pack_kv_str(pk, "user_name", (*linfo)->user.name);
+                        pack_kv_str(pk, "user_did", (*linfo)->user.did);
+                        pack_kv_u64(pk, "created_at", (*linfo)->created_at);
+                        pack_kv_str(pk, "proof", (*linfo)->proof);
                     });
                 }
             });
