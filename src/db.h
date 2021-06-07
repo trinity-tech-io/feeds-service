@@ -64,6 +64,7 @@ DBObjIt *db_iter_sub_chans(uint64_t uid, const QryCriteria *qc);
 DBObjIt *db_iter_posts(uint64_t chan_id, const QryCriteria *qc);
 DBObjIt *db_iter_posts_lac(uint64_t chan_id, const QryCriteria *qc);
 DBObjIt *db_iter_liked_posts(uint64_t uid, const QryCriteria *qc);
+DBObjIt *db_iter_liked_data(uint64_t uid, const QryCriteria *qc);
 DBObjIt *db_iter_cmts(uint64_t chan_id, uint64_t post_id, const QryCriteria *qc);
 DBObjIt *db_iter_cmts_likes(uint64_t chan_id, uint64_t post_id, const QryCriteria *qc);
 int db_is_suber(uint64_t uid, uint64_t chan_id);
