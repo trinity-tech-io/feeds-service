@@ -167,6 +167,7 @@ typedef struct {
     uint64_t cmt_id;
     UserInfo user;
     uint64_t total_cnt;
+    uint64_t created_at;  //add for read only in 2.0
     const char *proof;  //2.0
 } LikeInfo;
 

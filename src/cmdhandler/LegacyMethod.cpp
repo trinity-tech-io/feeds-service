@@ -50,6 +50,7 @@ static struct {
     {"get_posts"                   , hdl_get_posts_req          },
     {"get_posts_likes_and_comments", hdl_get_posts_lac_req      },
     {"get_liked_posts"             , hdl_get_liked_posts_req    },
+    {"get_liked_data"              , hdl_get_liked_data_req     },
     {"get_comments"                , hdl_get_cmts_req           },
     {"get_comments_likes"          , hdl_get_cmts_likes_req     },
     {"get_statistics"              , hdl_get_stats_req          },

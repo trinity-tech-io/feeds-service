@@ -3251,6 +3251,139 @@ finally:
     deref(it);
 }
 
+void hdl_get_liked_data_req(Carrier *c, const char *from, Req *base)
+{
+    GetLikedDataReq *req = (GetLikedDataReq *)base;
+    cvector_vector_type(LikeInfo *) linfos = NULL;
+    Marshalled *resp_marshal = NULL;
+    UserInfo *uinfo = NULL;
+    DBObjIt *it = NULL;
+    LikeInfo *linfo;
+    int rc;
+
+    vlogD(TAG_CMD "Received get_liked_data request from [%s]: "
+          "{access_token: %s, by: %" PRIu64 ", upper_bound: %" PRIu64
+          ", lower_bound: %" PRIu64 ", max_count: %" PRIu64 "}",
+          from, req->params.tk, req->params.qc.by, req->params.qc.upper, req->params.qc.lower, req->params.qc.maxcnt);
+
+    if (!did_is_ready()) {
+        vlogE(TAG_CMD "Feeds DID is not ready.");
+        return;
+    }
+
+    uinfo = create_uinfo_from_access_token(req->params.tk);
+    if (!uinfo) {
+        vlogE(TAG_CMD "Invalid access token.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_ACCESS_TOKEN_EXP
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    it = db_iter_liked_data(uinfo->uid, &req->params.qc);
+    if (!it) {
+        vlogE(TAG_CMD "Getting liked data from database failed.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    foreach_db_obj(linfo) {
+        cvector_push_back(linfos, ref(linfo));
+        vlogD(TAG_CMD "Retrieved liked: "
+              "{channel_id: %" PRIu64 ", post_id: %" PRIu64 ", "
+              "comment_id: %" PRIu64 ", created_at: %" PRIu64 ", proof: %s,"
+              "name: %s, did: %s}",
+              linfo->chan_id, linfo->post_id, 
+              linfo->cmt_id, linfo->created_at, linfo->proof,
+              linfo->user.name, linfo->user.did);
+    }
+    if (rc < 0) {
+        vlogE(TAG_CMD "Iterating likes failed.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    {
+        size_t left = MAX_CONTENT_LEN;
+        cvector_vector_type(LikeInfo *) linfos_tmp = NULL;
+        int i;
+
+        if (!cvector_size(linfos)) {
+            GetLikedDataResp resp = {
+                .tsx_id = req->tsx_id,
+                .result = {
+                    .is_last = true,
+                    .linfos  = linfos
+                }
+            };
+            resp_marshal = rpc_marshal_get_liked_data_resp(&resp);
+            vlogD(TAG_CMD "Sending get_liked_data response.");
+            goto finally;
+        }
+
+        for (i = 0; i < cvector_size(linfos); ++i) {
+            left = left - sizeof(linfo) - strlen(linfos[i]->proof) -1 
+                - strlen(linfos[i]->user.name) - 1
+                - strlen(linfos[i]->user.did) - 1;
+            cvector_push_back(linfos_tmp, linfos[i]);
+
+            if (!(!left || i == cvector_size(linfos) - 1 || 
+                sizeof(linfo) + strlen(linfos[i]->proof) + 1 + 
+                strlen(linfos[i]->user.name) + 1 + 
+                strlen(linfos[i]->user.did) + 1 > left)) {
+                continue;
+            }
+
+            GetLikedDataResp resp = {
+                .tsx_id = req->tsx_id,
+                .result = {
+                    .is_last = i == cvector_size(linfos) - 1,
+                    .linfos  = linfos_tmp
+                }
+            };
+            resp_marshal = rpc_marshal_get_liked_data_resp(&resp);
+
+            vlogD(TAG_CMD "Sending get_liked_data response.");
+
+            rc = msgq_enq(from, resp_marshal);
+            deref(resp_marshal);
+            resp_marshal = NULL;
+            if (rc < 0)
+                break;
+
+            cvector_set_size(linfos_tmp, 0);
+            left = MAX_CONTENT_LEN;
+        }
+
+        cvector_free(linfos_tmp);
+    }
+
+finally:
+    if (resp_marshal) {
+        msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
+    if (linfos) {
+        LikeInfo **i;
+        cvector_foreach(linfos, i)
+            deref(*i);
+        cvector_free(linfos);
+    }
+    deref(uinfo);
+    deref(it);
+}
+
+
 void hdl_get_cmts_req(Carrier *c, const char *from, Req *base)
 {
     GetCmtsReq *req = (GetCmtsReq *)base;
