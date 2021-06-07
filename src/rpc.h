@@ -349,6 +349,7 @@ typedef struct {
         uint64_t    post_id;
         uint64_t    cmt_id;
         char       *proof;  //2.0
+        char       *memo;  //2.0
     } params;
 } PostLikeReq;
 
@@ -505,6 +506,23 @@ typedef struct {
         cvector_vector_type(PostInfo *) pinfos;
     } result;
 } GetLikedPostsResp;
+
+typedef struct {  //2.0
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        AccessToken tk;
+        QryCriteria qc;
+    } params;
+} GetLikedDataReq;
+
+typedef struct {  //2.0
+    uint64_t tsx_id;
+    struct {
+        bool is_last;
+        cvector_vector_type(LikeInfo *) linfos;
+    } result;
+} GetLikedDataResp;
 
 typedef struct {
     char    *method;
@@ -852,6 +870,7 @@ Marshalled *rpc_marshal_get_sub_chans_resp(const GetSubChansResp *resp);
 Marshalled *rpc_marshal_get_posts_resp(const GetPostsResp *resp);
 Marshalled *rpc_marshal_get_posts_lac_resp(const GetPostsLACResp *resp);
 Marshalled *rpc_marshal_get_liked_posts_resp(const GetLikedPostsResp *resp);
+Marshalled *rpc_marshal_get_liked_data_resp(const GetLikedDataResp *resp);
 Marshalled *rpc_marshal_get_cmts_resp(const GetCmtsResp *resp);
 Marshalled *rpc_marshal_get_cmts_likes_resp(const GetCmtsLikesResp *resp);
 Marshalled *rpc_marshal_get_stats_resp(const GetStatsResp *resp);
