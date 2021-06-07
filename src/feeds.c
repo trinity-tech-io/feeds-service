@@ -686,7 +686,7 @@ void hdl_create_chan_req(Carrier *c, const char *from, Req *base)
 
     int total_channels = db_get_count("channels");
     vlogD(TAG_CMD "Got existed channels number: %d", total_channels);
-    if (total_channels >= 5) {  //TODO ljq_test
+    if (total_channels >= 5) {  //ljq_test
         vlogE(TAG_CMD "There are 5 channels already.");
         ErrResp resp = {
             .tsx_id = req->tsx_id,
@@ -801,7 +801,7 @@ void hdl_upd_chan_req(Carrier *c, const char *from, Req *base)
 
     vlogD(TAG_CMD "Received update_feedinfo request from [%s]: "
           "{access_token: %s, channel_id: %" PRIu64 ", name: %s,"
-          "introduction: %s, avatar_length: %zu}, tip_methods: %s, proof: %s",
+          "introduction: %s, avatar_length: %zu, tip_methods: %s, proof: %s}",
           from, req->params.tk, req->params.chan_id, req->params.name,
           req->params.intro, req->params.sz, req->params.tipm, req->params.proof);
 
@@ -915,6 +915,69 @@ finally:
     deref(uinfo);
     deref(chan);
     deref(chan_upd);
+}
+
+void hdl_upd_user_info_req(Carrier *c, const char *from, Req *base)
+{
+    UpdUserInfoReq *req = (UpdUserInfoReq *)base;
+    Marshalled *resp_marshal = NULL;
+    UserInfo *uinfo = NULL;
+    int rc;
+
+    vlogD(TAG_CMD "Received update_user_info request from [%s]: "
+          "access_token: %s, name: %s, email: %s, display_name: %s,"
+          "avatar_length: %zu",
+          from, req->params.tk, req->params.uinfo.name, req->params.uinfo.email,
+          req->params.uinfo.display_name, req->params.uinfo.len);
+
+    if (!did_is_ready()) {
+        vlogE(TAG_CMD "Feeds DID is not ready.");
+        return;
+    }
+
+    uinfo = create_uinfo_from_access_token(req->params.tk);
+    if (!uinfo) {
+        vlogE(TAG_CMD "Invalid access token.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_ACCESS_TOKEN_EXP
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    uinfo->name     = req->params.uinfo.name;
+    uinfo->email    = req->params.uinfo.email;
+    uinfo->display_name = req->params.uinfo.display_name;
+    uinfo->upd_at   = time(NULL);
+    uinfo->avatar   = req->params.uinfo.avatar;
+    uinfo->len      = req->params.uinfo.len;
+
+    rc = db_update_user_info(uinfo);
+    if (rc < 0) {
+        vlogE(TAG_CMD "Updating user info to database failed.");
+        ErrResp resp = {
+            .tsx_id = req->tsx_id,
+            .ec     = ERR_INTERNAL_ERROR
+        };
+        resp_marshal = rpc_marshal_err_resp(&resp);
+        goto finally;
+    }
+
+    {
+        UpdUserInfoResp resp = {
+            .tsx_id = req->tsx_id,
+        };
+        resp_marshal = rpc_marshal_upd_user_info_resp(&resp);
+        vlogD(TAG_CMD "Sending update_feedinfo response.");
+    }
+
+finally:
+    if (resp_marshal) {
+        msgq_enq(from, resp_marshal);
+        deref(resp_marshal);
+    }
+    deref(uinfo);
 }
 
 void hdl_pub_post_req(Carrier *c, const char *from, Req *base)

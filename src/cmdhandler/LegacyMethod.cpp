@@ -30,6 +30,7 @@ static struct {
     {"signin_confirm_challenge"    , hdl_signin_conf_chal_req   },
     {"create_channel"              , hdl_create_chan_req        },
     {"update_feedinfo"             , hdl_upd_chan_req           },
+    {"update_user_info"            , hdl_upd_user_info_req      },  //2.0
     {"publish_post"                , hdl_pub_post_req           },
     {"declare_post"                , hdl_declare_post_req       },
     {"notify_post"                 , hdl_notify_post_req        },
@@ -50,7 +51,7 @@ static struct {
     {"get_posts"                   , hdl_get_posts_req          },
     {"get_posts_likes_and_comments", hdl_get_posts_lac_req      },
     {"get_liked_posts"             , hdl_get_liked_posts_req    },
-    {"get_liked_data"              , hdl_get_liked_data_req     },
+    {"get_liked_data"              , hdl_get_liked_data_req     },  //2.0
     {"get_comments"                , hdl_get_cmts_req           },
     {"get_comments_likes"          , hdl_get_cmts_likes_req     },
     {"get_statistics"              , hdl_get_stats_req          },
