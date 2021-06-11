@@ -540,6 +540,64 @@ int unmarshal_create_chan_req_2(const msgpack_object *req, Req **req_unmarshal)
 }
 
 static
+int unmarshal_upd_user_info_req(const msgpack_object *req, Req **req_unmarshal)  //2.0
+{
+    const msgpack_object *method;
+    const msgpack_object *tsx_id;
+    const msgpack_object *tk;
+    const msgpack_object *name;
+    const msgpack_object *email;
+    const msgpack_object *display_name;
+    const msgpack_object *avatar;
+    //TODO subscriptions needs
+    UpdUserInfoReq *tmp;
+    void *buf;
+
+    assert(req->type == MSGPACK_OBJECT_MAP);
+
+    map_iter_kvs(req, {
+        (void)map_val_str("version");
+        method  = map_val_str("method");
+        tsx_id  = map_val_u64("id");
+        map_iter_kvs(map_val_map("params"), {
+            tk      = map_val_str("access_token");
+            name    = map_val_str("name");
+            email   = map_val_str("email");
+            display_name  = map_val_str("display_name");
+            avatar  = map_val_bin("avatar");
+        });
+    });
+
+    if (!tk || !tk->str_sz || !name || !name->str_sz || !email || 
+            !email->str_sz || !display_name || !display_name->str_sz ||
+            !avatar || !avatar->bin_sz) {
+        vlogE(TAG_RPC "Invalid update_user_info request.");
+        return -1;
+    }
+
+    tmp = rc_zalloc(sizeof(UpdUserInfoReq) + str_reserve_spc(method) +
+            str_reserve_spc(tk) + str_reserve_spc(name) +
+            str_reserve_spc(email) + str_reserve_spc(display_name), NULL);
+    if (!tmp)
+        return -1;
+
+    buf = tmp + 1;
+    tmp->tsx_id         = tsx_id->u64_val;
+    tmp->params.tk      = strncpy(buf, tk->str_val, tk->str_sz);
+    buf += str_reserve_spc(tk);
+    tmp->params.uinfo.name = strncpy(buf, name->str_val, name->str_sz);
+    buf += str_reserve_spc(name);
+    tmp->params.uinfo.email = strncpy(buf, email->str_val, email->str_sz);
+    buf += str_reserve_spc(email);
+    tmp->params.uinfo.display_name = strncpy(buf, display_name->str_val, display_name->str_sz);
+    tmp->params.uinfo.avatar = (void *)avatar->bin_val;
+    tmp->params.uinfo.len  = avatar->bin_sz;
+
+    *req_unmarshal = (Req *)tmp;
+    return 0;
+}
+
+static
 int unmarshal_upd_chan_req(const msgpack_object *req, Req **req_unmarshal)
 {
     const msgpack_object *method;
@@ -2803,6 +2861,7 @@ static struct ReqParser req_parsers_1_0[] = {
     {"signin_confirm_challenge"    , unmarshal_signin_conf_chal_req   },
     {"create_channel"              , unmarshal_create_chan_req        },
     {"update_feedinfo"             , unmarshal_upd_chan_req           },
+    {"update_user_info"            , unmarshal_upd_user_info_req      },  //2.0
     {"publish_post"                , unmarshal_pub_post_req           },
     {"declare_post"                , unmarshal_declare_post_req       },
     {"notify_post"                 , unmarshal_notify_post_req        },
@@ -2846,6 +2905,7 @@ static struct ReqParser req_parsers_2_0[] = {
     {"signin_confirm_challenge"    , unmarshal_signin_conf_chal_req   },
     {"create_channel"              , unmarshal_create_chan_req_2      },
     {"update_feedinfo"             , unmarshal_upd_chan_req_2         },
+    {"update_user_info"            , unmarshal_upd_user_info_req      },  //2.0
     {"publish_post"                , unmarshal_pub_post_req_2         },
     {"declare_post"                , unmarshal_declare_post_req_2     },
     {"notify_post"                 , unmarshal_notify_post_req        },
@@ -3877,6 +3937,27 @@ Marshalled *rpc_marshal_create_chan_resp(const CreateChanResp *resp)
 }
 
 Marshalled *rpc_marshal_upd_chan_resp(const UpdChanResp *resp)
+{
+    msgpack_sbuffer *buf = msgpack_sbuffer_new();
+    msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
+    MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
+
+    pack_map(pk, 3, {
+        pack_kv_str(pk, "version", "1.0");
+        pack_kv_u64(pk, "id", resp->tsx_id);
+        pack_kv_nil(pk, "result");
+    });
+
+    m->m.data = buf->data;
+    m->m.sz   = buf->size;
+    m->buf    = buf;
+
+    msgpack_packer_free(pk);
+
+    return &m->m;
+}
+
+Marshalled *rpc_marshal_upd_user_info_resp(const UpdUserInfoResp *resp)
 {
     msgpack_sbuffer *buf = msgpack_sbuffer_new();
     msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
