@@ -187,6 +187,20 @@ typedef struct {
     uint64_t tsx_id;
 } UpdChanResp;
 
+typedef struct {  //2.0
+    char    *method;
+    uint64_t tsx_id;
+    struct {
+        AccessToken tk;
+        UserInfo uinfo;
+    } params;
+} UpdUserInfoReq;
+
+typedef struct {  //2.0
+    uint64_t tsx_id;
+} UpdUserInfoResp;
+
+
 typedef struct {
     char    *method;
     uint64_t tsx_id;
@@ -846,6 +860,7 @@ Marshalled *rpc_marshal_signin_conf_chal_resp(const SigninConfChalResp *resp);
 Marshalled *rpc_marshal_err_resp(const ErrResp *resp);
 Marshalled *rpc_marshal_create_chan_resp(const CreateChanResp *resp);
 Marshalled *rpc_marshal_upd_chan_resp(const UpdChanResp *resp);
+Marshalled *rpc_marshal_upd_user_info_resp(const UpdUserInfoResp *resp);
 Marshalled *rpc_marshal_pub_post_resp(const PubPostResp *resp);
 Marshalled *rpc_marshal_declare_post_resp(const DeclarePostResp *resp);
 Marshalled *rpc_marshal_notify_post_resp(const NotifyPostResp *resp);
