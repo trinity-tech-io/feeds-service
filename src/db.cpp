@@ -2392,6 +2392,57 @@ int db_unsub(uint64_t uid, uint64_t channel_id)
     return -1;
 }
 
+int db_update_user_info(const UserInfo *ui)  //TODO add name&url field params
+{
+    sqlite3_stmt *stmt;
+    const char *sql;
+    int rc;
+
+    sql = "UPDATE users"
+        "  SET name = :name, email = :email, display_name = :display_name,"
+        "  avatar = :avatar, update_at = :upd_at, memo = ''"
+        "  WHERE did = :did";
+
+    if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
+        vlogE(TAG_DB "sqlite3_prepare_v2() failed");
+        return -1;
+    }
+
+    rc = sqlite3_bind_text(stmt,
+            sqlite3_bind_parameter_index(stmt, ":did"),
+            ui->did, -1, NULL);
+    rc |= sqlite3_bind_text(stmt,
+            sqlite3_bind_parameter_index(stmt, ":name"),
+            ui->name, -1, NULL);
+    rc |= sqlite3_bind_text(stmt,
+            sqlite3_bind_parameter_index(stmt, ":email"),
+            ui->email, -1, NULL);
+    rc |= sqlite3_bind_text(stmt,
+            sqlite3_bind_parameter_index(stmt, ":display_name"),
+            ui->display_name, -1, NULL);
+    rc |= sqlite3_bind_blob(stmt,
+            sqlite3_bind_parameter_index(stmt, ":avatar"),
+            ui->avatar, ui->len, NULL);  //TODO 
+    rc |= sqlite3_bind_int64(stmt,  //v2.0
+            sqlite3_bind_parameter_index(stmt, ":upd_at"),
+            time(NULL));
+    if (SQLITE_OK != rc) {
+        vlogE(TAG_DB "Binding parameter failed");
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (SQLITE_DONE != rc) {
+        vlogE(TAG_DB "Executing INSERT failed");
+        return -1;
+    }
+
+    return 0;
+}
+
+
 int db_upsert_user(const UserInfo *ui, uint64_t *uid)
 {
     sqlite3_stmt *stmt;
