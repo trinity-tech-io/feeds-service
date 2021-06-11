@@ -57,6 +57,7 @@ int db_add_like(uint64_t uid, uint64_t channel_id, uint64_t post_id, uint64_t co
 int db_rm_like(uint64_t uid, uint64_t channel_id, uint64_t post_id, uint64_t comment_id);
 int db_add_sub(uint64_t uid, uint64_t channel_id, const char *proof);
 int db_unsub(uint64_t uid, uint64_t channel_id);
+int db_update_user_info(const UserInfo *ui);
 int db_upsert_user(const UserInfo *ui, uint64_t *uid);
 int db_iter_nxt(DBObjIt *it, void **obj);
 DBObjIt *db_iter_chans(const QryCriteria *qc);
