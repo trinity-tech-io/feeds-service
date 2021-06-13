@@ -777,7 +777,7 @@ int unmarshal_pub_post_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.origin_post_url = strcpy(buf, "\0");   //empty for v2.0
     buf += 1;
     tmp->params.thumbnails = memcpy(buf, "\0", 1);   //empty for v2.0
-    tmp->params.thu_sz = 0;
+    tmp->params.thu_sz = 1;
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -905,7 +905,7 @@ int unmarshal_declare_post_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.origin_post_url = strcpy(buf, "\0");   //empty for v2.0
     buf += 1;
     tmp->params.thumbnails = memcpy(buf, "\0", 1);   //empty for v2.0
-    tmp->params.thu_sz = 0;
+    tmp->params.thu_sz = 1;
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -1083,7 +1083,7 @@ int unmarshal_edit_post_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.origin_post_url = strcpy(buf, "\0");   //empty for v2.0
     buf += 1;
     tmp->params.thumbnails = memcpy(buf, "\0", 1);   //empty for v2.0
-    tmp->params.thu_sz = 0;
+    tmp->params.thu_sz = 1;
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -1264,7 +1264,7 @@ int unmarshal_post_cmt_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.proof   = strcpy(buf, "\0");   //empty for v2.0
     buf += 1;
     tmp->params.thumbnails = memcpy(buf, "\0", 1);   //empty for v2.0
-    tmp->params.thu_sz = 0;
+    tmp->params.thu_sz = 1;
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -1399,7 +1399,7 @@ int unmarshal_edit_cmt_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.proof   = strcpy(buf, "\0");   //empty for v2.0
     buf += 1;
     tmp->params.thumbnails = memcpy(buf, "\0", 1);   //empty for v2.0
-    tmp->params.thu_sz = 0;
+    tmp->params.thu_sz = 1;
 
     *req_unmarshal = (Req *)tmp;
     return 0;
