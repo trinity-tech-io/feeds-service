@@ -663,9 +663,9 @@ int db_add_post(const PostInfo *pi)
 
     do {
         sql = "INSERT INTO posts(channel_id, post_id, created_at, updated_at,"
-            "  content, status, hash_id, proof, origin_post_url, thumbnails) "
+            "  content, status, hash_id, proof, origin_post_url, thumbnails, iid, memo) "
             "  VALUES (:channel_id, :post_id, :ts, :ts, :content, :status,"
-            "  :hash_id, :proof, :origin_post_url, :thumbnails)";  //2.0
+            "  :hash_id, :proof, :origin_post_url, :thumbnails, '', '')";  //2.0
 
         if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
             vlogE(TAG_DB "sqlite3_prepare_v2() failed");
@@ -708,7 +708,7 @@ int db_add_post(const PostInfo *pi)
         rc = sqlite3_step(stmt);
         sqlite3_finalize(stmt);
         if (SQLITE_DONE != rc) {
-            vlogE(TAG_DB "Executing INSERT failed");
+            vlogE(TAG_DB "Executing INSERT into posts failed");
             break;
         }
 
@@ -1228,14 +1228,14 @@ int db_add_cmt(CmtInfo *ci, uint64_t *id)
         sql = "INSERT INTO comments("
               "  channel_id, post_id, comment_id, "
               "  refcomment_id, user_id, created_at, updated_at, content,"
-              "  hash_id, proof, thumbnails"  //2.0
+              "  hash_id, proof, thumbnails, iid, memo"  //2.0
               ") VALUES ("
               "  :channel_id, :post_id, "
               "  (SELECT next_comment_id "
               "     FROM posts "
               "     WHERE channel_id = :channel_id AND "
               "           post_id = :post_id), "
-              "  :comment_id, :uid, :ts, :ts, :content, :hash_id, :proof, :thumbnails"
+              "  :comment_id, :uid, :ts, :ts, :content, :hash_id, :proof, :thumbnails, '', ''"
               ")";
 
         if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
