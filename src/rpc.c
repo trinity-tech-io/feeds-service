@@ -451,7 +451,7 @@ int unmarshal_create_chan_req(const msgpack_object *req, Req **req_unmarshal)
 
     tmp = rc_zalloc(sizeof(CreateChanReq) + str_reserve_spc(method) +
                     str_reserve_spc(tk) + str_reserve_spc(name) +
-                    str_reserve_spc(intro) + 2, NULL);  //2 space for empty v2.0 item
+                    str_reserve_spc(intro) + 6, NULL);  //2 space for empty v2.0 item
     if (!tmp)
         return -1;
 
@@ -467,9 +467,9 @@ int unmarshal_create_chan_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.avatar = (void *)avatar->bin_val;
     tmp->params.sz     = avatar->bin_sz;
     buf += str_reserve_spc(intro);
-    tmp->params.tipm   = strcpy(buf, "\0");   //empty for v2.0
-    buf += 1;
-    tmp->params.proof  = strcpy(buf, "\0");   //empty for v2.0
+    tmp->params.tipm   = strcpy(buf, "NA");   //empty for v2.0
+    buf += 3;
+    tmp->params.proof  = strcpy(buf, "NA");   //empty for v2.0
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -633,7 +633,7 @@ int unmarshal_upd_chan_req(const msgpack_object *req, Req **req_unmarshal)
 
     tmp = rc_zalloc(sizeof(UpdChanReq) + str_reserve_spc(method) +
                     str_reserve_spc(tk) + str_reserve_spc(name) +
-                    str_reserve_spc(intro) + 2, NULL);  //2 space for empty v2.0 item
+                    str_reserve_spc(intro) + 6, NULL);  //2 space for empty v2.0 item
     if (!tmp)
         return -1;
 
@@ -650,9 +650,9 @@ int unmarshal_upd_chan_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.avatar  = (void *)avatar->bin_val;
     tmp->params.sz      = avatar->bin_sz;
     buf += str_reserve_spc(intro);
-    tmp->params.tipm   = strcpy(buf, "\0");   //empty for v2.0
-    buf += 1;
-    tmp->params.proof  = strcpy(buf, "\0");   //empty for v2.0
+    tmp->params.tipm   = strcpy(buf, "NA");   //empty for v2.0
+    buf += 3;
+    tmp->params.proof  = strcpy(buf, "NA");   //empty for v2.0
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -757,7 +757,7 @@ int unmarshal_pub_post_req(const msgpack_object *req, Req **req_unmarshal)
     }
 
     tmp = rc_zalloc(sizeof(PubPostReq) + str_reserve_spc(method)
-            + str_reserve_spc(tk) + 4, NULL);  //4 space for empty v2.0 item
+            + str_reserve_spc(tk) + 12, NULL);  //4 space for empty v2.0 item
     if (!tmp)
         return -1;
 
@@ -770,14 +770,14 @@ int unmarshal_pub_post_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.content = (void *)content->bin_val;
     tmp->params.con_sz  = content->bin_sz;
     buf += str_reserve_spc(tk);  //2.0
-    tmp->params.hash_id = strcpy(buf, "\0");   //empty for v2.0
-    buf += 1;
-    tmp->params.proof   = strcpy(buf, "\0");   //empty for v2.0
-    buf += 1;
-    tmp->params.origin_post_url = strcpy(buf, "\0");   //empty for v2.0
-    buf += 1;
-    tmp->params.thumbnails = memcpy(buf, "\0", 1);   //empty for v2.0
-    tmp->params.thu_sz = 1;
+    tmp->params.hash_id = strcpy(buf, "NA");   //empty for v2.0
+    buf += 3;
+    tmp->params.proof   = strcpy(buf, "NA");   //empty for v2.0
+    buf += 3;
+    tmp->params.origin_post_url = strcpy(buf, "NA");   //empty for v2.0
+    buf += 3;
+    tmp->params.thumbnails = memcpy(buf, "NA", 3);   //empty for v2.0
+    tmp->params.thu_sz = 3;
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -884,7 +884,7 @@ int unmarshal_declare_post_req(const msgpack_object *req, Req **req_unmarshal)
     }
 
     tmp = rc_zalloc(sizeof(DeclarePostReq) + str_reserve_spc(method)
-            + str_reserve_spc(tk) + 4, NULL);  //4 space for empty v2.0 item
+            + str_reserve_spc(tk) + 12, NULL);  //4 space for empty v2.0 item
     if (!tmp)
         return -1;
 
@@ -898,14 +898,14 @@ int unmarshal_declare_post_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.con_sz      = content->bin_sz;
     tmp->params.with_notify = with_notify->bool_val;
     buf += str_reserve_spc(tk);  //2.0
-    tmp->params.hash_id = strcpy(buf, "\0");   //empty for v2.0
-    buf += 1;
-    tmp->params.proof   = strcpy(buf, "\0");   //empty for v2.0
-    buf += 1;
-    tmp->params.origin_post_url = strcpy(buf, "\0");   //empty for v2.0
-    buf += 1;
-    tmp->params.thumbnails = memcpy(buf, "\0", 1);   //empty for v2.0
-    tmp->params.thu_sz = 1;
+    tmp->params.hash_id = strcpy(buf, "NA");   //empty for v2.0
+    buf += 3;
+    tmp->params.proof   = strcpy(buf, "NA");   //empty for v2.0
+    buf += 3;
+    tmp->params.origin_post_url = strcpy(buf, "NA");   //empty for v2.0
+    buf += 3;
+    tmp->params.thumbnails = memcpy(buf, "NA", 3);   //empty for v2.0
+    tmp->params.thu_sz = 3;
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -1062,7 +1062,7 @@ int unmarshal_edit_post_req(const msgpack_object *req, Req **req_unmarshal)
     }
 
     tmp = rc_zalloc(sizeof(EditPostReq) + str_reserve_spc(method)
-            + str_reserve_spc(tk) + 4, NULL);  //4 space for empty v2.0 item
+            + str_reserve_spc(tk) + 12, NULL);  //4 space for empty v2.0 item
     if (!tmp)
         return -1;
 
@@ -1076,14 +1076,14 @@ int unmarshal_edit_post_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.content = (void *)content->bin_val;
     tmp->params.con_sz  = content->bin_sz;
     buf += str_reserve_spc(tk);  //2.0
-    tmp->params.hash_id = strcpy(buf, "\0");   //empty for v2.0
-    buf += 1;
-    tmp->params.proof   = strcpy(buf, "\0");   //empty for v2.0
-    buf += 1;
-    tmp->params.origin_post_url = strcpy(buf, "\0");   //empty for v2.0
-    buf += 1;
-    tmp->params.thumbnails = memcpy(buf, "\0", 1);   //empty for v2.0
-    tmp->params.thu_sz = 1;
+    tmp->params.hash_id = strcpy(buf, "NA");   //empty for v2.0
+    buf += 3;
+    tmp->params.proof   = strcpy(buf, "NA");   //empty for v2.0
+    buf += 3;
+    tmp->params.origin_post_url = strcpy(buf, "NA");   //empty for v2.0
+    buf += 3;
+    tmp->params.thumbnails = memcpy(buf, "NA", 3);   //empty for v2.0
+    tmp->params.thu_sz = 3;
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -1244,7 +1244,7 @@ int unmarshal_post_cmt_req(const msgpack_object *req, Req **req_unmarshal)
     }
 
     tmp = rc_zalloc(sizeof(PostCmtReq) + str_reserve_spc(method)
-            + str_reserve_spc(tk) + 3, NULL);  //3 space for empty v2.0 item
+            + str_reserve_spc(tk) + 9, NULL);  //3 space for empty v2.0 item
     if (!tmp)
         return -1;
 
@@ -1259,12 +1259,12 @@ int unmarshal_post_cmt_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.content = (void *)content->bin_val;
     tmp->params.con_sz      = content->bin_sz;
     buf += str_reserve_spc(tk);  //2.0
-    tmp->params.hash_id = strcpy(buf, "\0");   //empty for v2.0
-    buf += 1;
-    tmp->params.proof   = strcpy(buf, "\0");   //empty for v2.0
-    buf += 1;
-    tmp->params.thumbnails = memcpy(buf, "\0", 1);   //empty for v2.0
-    tmp->params.thu_sz = 1;
+    tmp->params.hash_id = strcpy(buf, "NA");   //empty for v2.0
+    buf += 3;
+    tmp->params.proof   = strcpy(buf, "NA");   //empty for v2.0
+    buf += 3;
+    tmp->params.thumbnails = memcpy(buf, "NA", 3);   //empty for v2.0
+    tmp->params.thu_sz = 3;
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -1378,7 +1378,7 @@ int unmarshal_edit_cmt_req(const msgpack_object *req, Req **req_unmarshal)
     }
 
     tmp = rc_zalloc(sizeof(EditCmtReq) + str_reserve_spc(method)
-            + str_reserve_spc(tk) + 3, NULL);  //3 space for empty v2.0 item
+            + str_reserve_spc(tk) + 9, NULL);  //3 space for empty v2.0 item
     if (!tmp)
         return -1;
 
@@ -1394,12 +1394,12 @@ int unmarshal_edit_cmt_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.content = (void *)content->bin_val;
     tmp->params.con_sz      = content->bin_sz;
     buf += str_reserve_spc(tk);  //2.0
-    tmp->params.hash_id = strcpy(buf, "\0");   //empty for v2.0
-    buf += 1;
-    tmp->params.proof   = strcpy(buf, "\0");   //empty for v2.0
-    buf += 1;
-    tmp->params.thumbnails = memcpy(buf, "\0", 1);   //empty for v2.0
-    tmp->params.thu_sz = 1;
+    tmp->params.hash_id = strcpy(buf, "NA");   //empty for v2.0
+    buf += 3;
+    tmp->params.proof   = strcpy(buf, "NA");   //empty for v2.0
+    buf += 3;
+    tmp->params.thumbnails = memcpy(buf, "NA", 3);   //empty for v2.0
+    tmp->params.thu_sz = 3;
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -1658,7 +1658,7 @@ int unmarshal_post_like_req(const msgpack_object *req, Req **req_unmarshal)
     }
 
     tmp = rc_zalloc(sizeof(PostLikeReq) + str_reserve_spc(method) +
-            str_reserve_spc(tk) + 1, NULL);  //1 space for empty v2.0 item
+            str_reserve_spc(tk) + 3, NULL);  //1 space for empty v2.0 item
     if (!tmp)
         return -1;
 
@@ -1671,7 +1671,7 @@ int unmarshal_post_like_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.post_id = post_id->u64_val;
     tmp->params.cmt_id  = cmt_id->u64_val;
     buf += str_reserve_spc(tk);
-    tmp->params.proof  = strcpy(buf, "\0");   //empty for v2.0
+    tmp->params.proof  = strcpy(buf, "NA");   //empty for v2.0
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -2426,7 +2426,7 @@ int unmarshal_sub_chan_req(const msgpack_object *req, Req **req_unmarshal)
     }
 
     tmp = rc_zalloc(sizeof(SubChanReq) + str_reserve_spc(method) + 
-            str_reserve_spc(tk) + 1, NULL);  //1 space for empty v2.0 item
+            str_reserve_spc(tk) + 3, NULL);  //1 space for empty v2.0 item
     if (!tmp)
         return -1;
 
@@ -2437,7 +2437,7 @@ int unmarshal_sub_chan_req(const msgpack_object *req, Req **req_unmarshal)
     tmp->params.tk = strncpy(buf, tk->str_val, tk->str_sz);
     tmp->params.id = id->u64_val;
     buf += str_reserve_spc(tk);
-    tmp->params.proof  = strcpy(buf, "\0");   //empty for v2.0
+    tmp->params.proof  = strcpy(buf, "NA");   //empty for v2.0
 
     *req_unmarshal = (Req *)tmp;
     return 0;

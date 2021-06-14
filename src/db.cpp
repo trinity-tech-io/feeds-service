@@ -51,7 +51,7 @@ typedef struct {
     const char *idx_param = NULL;
     const char *backup_sql = NULL;
     const char *create_sql = NULL;
-    const char *retrive_sql = NULL;
+    char retrive_sql[400] = {0};
     int (*p_check)(const char *, int) = NULL;
     int (*p_del_idx)(const char *) = NULL;
     int (*p_add_idx)(const char *, const char *) = NULL;
@@ -213,242 +213,239 @@ int db_init(sqlite3 *handle)
     std::vector<DBInitOperator *> operator_vec;
 
     //init tables operator
-    DBInitOperator channels_op = {
-        .item_num = 13,
-        .table_name = "channels",
-        .idx_param = "",
-        .backup_sql = "ALTER TABLE channels RENAME TO channels_backup",
-        .create_sql = "CREATE TABLE IF NOT EXISTS channels ("
-            "  channel_id    INTEGER PRIMARY KEY AUTOINCREMENT,"
-            "  created_at    REAL    NOT NULL,"
-            "  updated_at    REAL    NOT NULL,"
-            "  name          TEXT    NOT NULL UNIQUE,"
-            "  intro         TEXT    NOT NULL,"
-            "  next_post_id  INTEGER NOT NULL DEFAULT 1,"
-            "  subscribers   INTEGER NOT NULL DEFAULT 0,"
-            "  status        INTEGER NOT NULL DEFAULT 0,"
-            "  iid           TEXT    NOT NULL,"
-            "  tip_methods   TEXT    NOT NULL,"
-            "  proof         TEXT    NOT NULL,"
-            "  memo          TEXT    NOT NULL,"
-            "  avatar        BLOB    NOT NULL"
-            ")",
-        .retrive_sql = "INSERT INTO channels SELECT"
+    DBInitOperator channels_op;
+    channels_op.item_num = 13;
+    channels_op.table_name = "channels";
+    channels_op.idx_param = "";
+    channels_op.backup_sql = "ALTER TABLE channels RENAME TO channels_backup";
+    channels_op.create_sql = "CREATE TABLE IF NOT EXISTS channels ("
+        "  channel_id    INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "  created_at    REAL    NOT NULL,"
+        "  updated_at    REAL    NOT NULL,"
+        "  name          TEXT    NOT NULL UNIQUE,"
+        "  intro         TEXT    NOT NULL,"
+        "  next_post_id  INTEGER NOT NULL DEFAULT 1,"
+        "  subscribers   INTEGER NOT NULL DEFAULT 0,"
+        "  status        INTEGER NOT NULL DEFAULT 0,"
+        "  iid           TEXT    NOT NULL,"
+        "  tip_methods   TEXT    NOT NULL,"
+        "  proof         TEXT    NOT NULL,"
+        "  memo          TEXT    NOT NULL,"
+        "  avatar        BLOB    NOT NULL"
+        ")";
+    strcpy(channels_op.retrive_sql,
+            "INSERT INTO channels SELECT"
             " channel_id, created_at, updated_at, name, intro, next_post_id,"
-            " subscribers, 0, '', '', '', '', avatar"
-            " FROM channels_backup",
-        .p_check = check_table_valid,
-        .p_del_idx = delete_old_index,
-        .p_add_idx = create_new_index
-    };
+            " subscribers, 0, 'NA', 'NA', 'NA', 'NA', avatar"
+            " FROM channels_backup");
+    channels_op.p_check = check_table_valid;
+    channels_op.p_del_idx = delete_old_index;
+    channels_op.p_add_idx = create_new_index;
     operator_vec.push_back(&channels_op);
 
-    DBInitOperator posts_op = {
-        .item_num = 14,
-        .table_name = "posts",
-        .idx_param = "channel_id, ",
-        .backup_sql = "ALTER TABLE posts RENAME TO posts_backup",
-        .create_sql = "CREATE TABLE IF NOT EXISTS posts ("
-            "  channel_id      INTEGER NOT NULL REFERENCES channels(channel_id),"
-            "  post_id         INTEGER NOT NULL,"
-            "  created_at      REAL    NOT NULL,"
-            "  updated_at      REAL    NOT NULL,"
-            "  next_comment_id INTEGER NOT NULL DEFAULT 1,"
-            "  likes           INTEGER NOT NULL DEFAULT 0,"
-            "  status          INTEGER NOT NULL DEFAULT 0,"
-            "  iid             TEXT    NOT NULL,"
-            "  hash_id         TEXT    NOT NULL,"
-            "  proof           TEXT    NOT NULL,"
-            "  origin_post_url TEXT    NOT NULL,"
-            "  memo            TEXT    NOT NULL,"
-            "  thumbnails      BLOB    NOT NULL,"
-            "  content         BLOB    NOT NULL,"
-            "  PRIMARY KEY(channel_id, post_id)"
-            ")",
-        .retrive_sql = "INSERT INTO posts SELECT"
+    DBInitOperator posts_op;
+    posts_op.item_num = 14;
+    posts_op.table_name = "posts";
+    posts_op.idx_param = "channel_id, ";
+    posts_op.backup_sql = "ALTER TABLE posts RENAME TO posts_backup";
+    posts_op.create_sql = "CREATE TABLE IF NOT EXISTS posts ("
+        "  channel_id      INTEGER NOT NULL REFERENCES channels(channel_id),"
+        "  post_id         INTEGER NOT NULL,"
+        "  created_at      REAL    NOT NULL,"
+        "  updated_at      REAL    NOT NULL,"
+        "  next_comment_id INTEGER NOT NULL DEFAULT 1,"
+        "  likes           INTEGER NOT NULL DEFAULT 0,"
+        "  status          INTEGER NOT NULL DEFAULT 0,"
+        "  iid             TEXT    NOT NULL,"
+        "  hash_id         TEXT    NOT NULL,"
+        "  proof           TEXT    NOT NULL,"
+        "  origin_post_url TEXT    NOT NULL,"
+        "  memo            TEXT    NOT NULL,"
+        "  thumbnails      BLOB    NOT NULL,"
+        "  content         BLOB    NOT NULL,"
+        "  PRIMARY KEY(channel_id, post_id)"
+        ")";
+    strcpy(posts_op.retrive_sql,
+            "INSERT INTO posts SELECT"
             " channel_id, post_id, created_at, updated_at, next_comment_id,"
-            " likes, status, '', '', '', '', '', '', content"
-            " FROM posts_backup",
-        .p_check = check_table_valid,
-        .p_del_idx = delete_old_index,
-        .p_add_idx = create_new_index
-    };
+            " likes, status, 'NA', 'NA', 'NA', 'NA', 'NA', 'NA', content"
+            " FROM posts_backup");
+    posts_op.p_check = check_table_valid;
+    posts_op.p_del_idx = delete_old_index;
+    posts_op.p_add_idx = create_new_index;
     operator_vec.push_back(&posts_op);
 
-    DBInitOperator comments_op = {
-        .item_num = 15,
-        .table_name = "comments",
-        .idx_param = "channel_id, post_id, ",
-        .backup_sql = "ALTER TABLE comments RENAME TO comments_backup",
-        .create_sql = "CREATE TABLE IF NOT EXISTS comments ("
-            "  channel_id    INTEGER NOT NULL,"
-            "  post_id       INTEGER NOT NULL,"
-            "  comment_id    INTEGER NOT NULL,"
-            "  refcomment_id INTEGER NOT NULL,"
-            "  user_id       INTEGER NOT NULL REFERENCES users(user_id),"
-            "  created_at    REAL    NOT NULL,"
-            "  updated_at    REAL    NOT NULL,"
-            "  likes         INTEGER NOT NULL DEFAULT 0,"
-            "  status        INTEGER NOT NULL DEFAULT 0,"
-            "  iid           TEXT    NOT NULL,"
-            "  hash_id       TEXT    NOT NULL,"
-            "  proof         TEXT    NOT NULL,"
-            "  memo          TEXT    NOT NULL,"
-            "  thumbnails    BLOB    NOT NULL,"
-            "  content       BLOB    NOT NULL,"
-            "  PRIMARY KEY(channel_id, post_id, comment_id)"
-            "  FOREIGN KEY(channel_id, post_id) REFERENCES posts(channel_id, post_id)"
-            ")",
-        .retrive_sql = "INSERT INTO comments SELECT"
+    DBInitOperator comments_op;
+    comments_op.item_num = 15;
+    comments_op.table_name = "comments";
+    comments_op.idx_param = "channel_id, post_id, ";
+    comments_op.backup_sql = "ALTER TABLE comments RENAME TO comments_backup";
+    comments_op.create_sql = "CREATE TABLE IF NOT EXISTS comments ("
+        "  channel_id    INTEGER NOT NULL,"
+        "  post_id       INTEGER NOT NULL,"
+        "  comment_id    INTEGER NOT NULL,"
+        "  refcomment_id INTEGER NOT NULL,"
+        "  user_id       INTEGER NOT NULL REFERENCES users(user_id),"
+        "  created_at    REAL    NOT NULL,"
+        "  updated_at    REAL    NOT NULL,"
+        "  likes         INTEGER NOT NULL DEFAULT 0,"
+        "  status        INTEGER NOT NULL DEFAULT 0,"
+        "  iid           TEXT    NOT NULL,"
+        "  hash_id       TEXT    NOT NULL,"
+        "  proof         TEXT    NOT NULL,"
+        "  memo          TEXT    NOT NULL,"
+        "  thumbnails    BLOB    NOT NULL,"
+        "  content       BLOB    NOT NULL,"
+        "  PRIMARY KEY(channel_id, post_id, comment_id)"
+        "  FOREIGN KEY(channel_id, post_id) REFERENCES posts(channel_id, post_id)"
+        ")";
+    strcpy(comments_op.retrive_sql,
+            "INSERT INTO comments SELECT"
             " channel_id, post_id, comment_id, refcomment_id, user_id,"
-            " created_at, updated_at, likes, status, '', '', '', '', '', content"
-            " FROM comments_backup",
-        .p_check = check_table_valid,
-        .p_del_idx = delete_old_index,
-        .p_add_idx = create_new_index
-    };
+            " created_at, updated_at, likes, status, 'NA', 'NA', 'NA', 'NA', 'NA', content"
+            " FROM comments_backup");
+    comments_op.p_check = check_table_valid;
+    comments_op.p_del_idx = delete_old_index;
+    comments_op.p_add_idx = create_new_index;
     operator_vec.push_back(&comments_op);
 
-    DBInitOperator users_op = {
-        .item_num = 8,
-        .table_name = "users",
-        .idx_param = NULL,
-        .backup_sql = "ALTER TABLE users RENAME TO users_backup",
-        .create_sql = "CREATE TABLE IF NOT EXISTS users ("
-            "  user_id      INTEGER PRIMARY KEY AUTOINCREMENT,"
-            "  did          TEXT NOT NULL UNIQUE,"
-            "  name         TEXT NOT NULL DEFAULT 'NA',"
-            "  email        TEXT NOT NULL DEFAULT 'NA',"
-            "  display_name TEXT NOT NULL DEFAULT 'NA',"
-            "  update_at    REAL NOT NULL,"
-            "  memo         TEXT NOT NULL,"
-            "  avatar       BLOB NOT NULL"
-            ")",
-        .retrive_sql = "INSERT INTO users SELECT"
-            " user_id, did, name, email, '', '', '', ''"
-            " FROM users_backup",
-        .p_check = check_table_valid,
-        .p_del_idx = NULL,
-        .p_add_idx = NULL
-    };
+    DBInitOperator users_op;
+    users_op.item_num = 8;
+    users_op.table_name = "users";
+    users_op.idx_param = NULL;
+    users_op.backup_sql = "ALTER TABLE users RENAME TO users_backup";
+    users_op.create_sql = "CREATE TABLE IF NOT EXISTS users ("
+        "  user_id      INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "  did          TEXT NOT NULL UNIQUE,"
+        "  name         TEXT NOT NULL DEFAULT 'NA',"
+        "  email        TEXT NOT NULL DEFAULT 'NA',"
+        "  display_name TEXT NOT NULL DEFAULT 'NA',"
+        "  update_at    REAL NOT NULL,"
+        "  memo         TEXT NOT NULL,"
+        "  avatar       BLOB NOT NULL"
+        ")";
+    sprintf(users_op.retrive_sql,
+            "INSERT INTO users SELECT"
+            " user_id, did, name, email, 'NA', %lu, 'NA', 'NA'"
+            " FROM users_backup", time(NULL));
+    users_op.p_check = check_table_valid;
+    users_op.p_del_idx = NULL;
+    users_op.p_add_idx = NULL;
     operator_vec.push_back(&users_op);
 
-    DBInitOperator subscriptions_op = {
-        .item_num = 5,
-        .table_name = "subscriptions",
-        .idx_param = NULL,
-        .backup_sql = "ALTER TABLE subscriptions RENAME TO subscriptions_backup",
-        .create_sql = "CREATE TABLE IF NOT EXISTS subscriptions ("
-            "  user_id    INTEGER NOT NULL REFERENCES users(user_id),"
-            "  channel_id INTEGER NOT NULL REFERENCES channels(channel_id),"
-            "  create_at  REAL    NOT NULL,"
-            "  proof      TEXT    NOT NULL,"
-            "  memo       TEXT    NOT NULL,"
-            "  PRIMARY KEY(user_id, channel_id)"
-            ")",
-        .retrive_sql = "INSERT INTO subscriptions SELECT"
-            " user_id, channel_id, '', '', ''"
-            " FROM subscriptions_backup",
-        .p_check = check_table_valid,
-        .p_del_idx = NULL,
-        .p_add_idx = NULL
-    };
+    DBInitOperator subscriptions_op;
+    subscriptions_op.item_num = 5;
+    subscriptions_op.table_name = "subscriptions";
+    subscriptions_op.idx_param = NULL;
+    subscriptions_op.backup_sql = "ALTER TABLE subscriptions RENAME TO subscriptions_backup";
+    subscriptions_op.create_sql = "CREATE TABLE IF NOT EXISTS subscriptions ("
+        "  user_id    INTEGER NOT NULL REFERENCES users(user_id),"
+        "  channel_id INTEGER NOT NULL REFERENCES channels(channel_id),"
+        "  create_at  REAL    NOT NULL,"
+        "  proof      TEXT    NOT NULL,"
+        "  memo       TEXT    NOT NULL,"
+        "  PRIMARY KEY(user_id, channel_id)"
+        ")";
+    sprintf(subscriptions_op.retrive_sql,
+            "INSERT INTO subscriptions SELECT"
+            " user_id, channel_id, %lu, 'NA', 'NA'"
+            " FROM subscriptions_backup", time(NULL));
+    subscriptions_op.p_check = check_table_valid;
+    subscriptions_op.p_del_idx = NULL;
+    subscriptions_op.p_add_idx = NULL;
     operator_vec.push_back(&subscriptions_op);
 
-    DBInitOperator likes_op = {
-        .item_num = 7,
-        .table_name = "likes",
-        .idx_param = NULL,
-        .backup_sql = "ALTER TABLE likes RENAME TO likes_backup",
-        .create_sql = "CREATE TABLE IF NOT EXISTS likes ("
-            "  channel_id INTEGER NOT NULL,"
-            "  post_id    INTEGER NOT NULL,"
-            "  comment_id INTEGER NOT NULL,"
-            "  user_id    INTEGER NOT NULL REFERENCES users(user_id),"
-            "  created_at REAL    NOT NULL,"
-            "  proof      TEXT    NOT NULL,"
-            "  memo       TEXT    NOT NULL,"
-            "  FOREIGN KEY(channel_id, post_id) REFERENCES posts(channel_id, post_id)"
-            "  PRIMARY KEY(user_id, channel_id, post_id, comment_id)"
-            ")",
-        .retrive_sql = "INSERT INTO likes SELECT"
-            " channel_id, post_id, comment_id, user_id, created_at, '', ''"
-            " FROM likes_backup",
-        .p_check = check_table_valid,
-        .p_del_idx = NULL,
-        .p_add_idx = NULL
-    };
+    DBInitOperator likes_op;
+    likes_op.item_num = 7;
+    likes_op.table_name = "likes";
+    likes_op.idx_param = NULL;
+    likes_op.backup_sql = "ALTER TABLE likes RENAME TO likes_backup";
+    likes_op.create_sql = "CREATE TABLE IF NOT EXISTS likes ("
+        "  channel_id INTEGER NOT NULL,"
+        "  post_id    INTEGER NOT NULL,"
+        "  comment_id INTEGER NOT NULL,"
+        "  user_id    INTEGER NOT NULL REFERENCES users(user_id),"
+        "  created_at REAL    NOT NULL,"
+        "  proof      TEXT    NOT NULL,"
+        "  memo       TEXT    NOT NULL,"
+        "  FOREIGN KEY(channel_id, post_id) REFERENCES posts(channel_id, post_id)"
+        "  PRIMARY KEY(user_id, channel_id, post_id, comment_id)"
+        ")";
+    strcpy(likes_op.retrive_sql,
+            "INSERT INTO likes SELECT"
+            " channel_id, post_id, comment_id, user_id, created_at, 'NA', 'NA'"
+            " FROM likes_backup");
+    likes_op.p_check = check_table_valid;
+    likes_op.p_del_idx = NULL;
+    likes_op.p_add_idx = NULL;
     operator_vec.push_back(&likes_op);
 
-    DBInitOperator reported_comments_op = {
-        .item_num = 6,
-        .table_name = "reported_comments",
-        .idx_param = NULL,
-        .backup_sql = NULL,
-        .create_sql = "CREATE TABLE IF NOT EXISTS reported_comments ("
-            "  channel_id  INTEGER NOT NULL,"
-            "  post_id     INTEGER NOT NULL,"
-            "  comment_id  INTEGER NOT NULL,"
-            "  reporter_id INTEGER NOT NULL REFERENCES users(user_id),"
-            "  created_at  REAL    NOT NULL,"
-            "  reasons     TEXT    NOT NULL DEFAULT 'NA',"
-            "  PRIMARY KEY(channel_id, post_id, comment_id, reporter_id)"
-            "  FOREIGN KEY(channel_id, post_id) REFERENCES posts(channel_id, post_id)"
-            ")",
-        .retrive_sql = NULL,
-        .p_check = check_table_valid,
-        .p_del_idx = NULL,
-        .p_add_idx = NULL
-    };
+    DBInitOperator reported_comments_op;
+    reported_comments_op.item_num = 6;
+    reported_comments_op.table_name = "reported_comments";
+    reported_comments_op.idx_param = NULL;
+    reported_comments_op.backup_sql = NULL;
+    reported_comments_op.create_sql = "CREATE TABLE IF NOT EXISTS reported_comments ("
+        "  channel_id  INTEGER NOT NULL,"
+        "  post_id     INTEGER NOT NULL,"
+        "  comment_id  INTEGER NOT NULL,"
+        "  reporter_id INTEGER NOT NULL REFERENCES users(user_id),"
+        "  created_at  REAL    NOT NULL,"
+        "  reasons     TEXT    NOT NULL DEFAULT 'NA',"
+        "  PRIMARY KEY(channel_id, post_id, comment_id, reporter_id)"
+        "  FOREIGN KEY(channel_id, post_id) REFERENCES posts(channel_id, post_id)"
+        ")";
+    memset(reported_comments_op.retrive_sql, 0, sizeof(reported_comments_op.retrive_sql));
+    reported_comments_op.p_check = check_table_valid;
+    reported_comments_op.p_del_idx = NULL;
+    reported_comments_op.p_add_idx = NULL;
     operator_vec.push_back(&reported_comments_op);
 
-    DBInitOperator tipping_op = {
-        .item_num = 10,
-        .table_name = "tipping",
-        .idx_param = NULL,
-        .backup_sql = NULL,
-        .create_sql = "CREATE TABLE IF NOT EXISTS tipping ("
-            "  id           INTEGER NOT NULL,"
-            "  channel_id   INTEGER NOT NULL,"
-            "  post_id      INTEGER NOT NULL,"
-            "  created_at   REAL    NOT NULL,"
-            "  token_mount  REAL    NOT NULL,"
-            "  token_symbol TEXT    NOT NULL,"
-            "  proof        TEXT    NOT NULL,"
-            "  user_did     TEXT    NOT NULL,"
-            "  user_name    TEXT    NOT NULL,"
-            "  memo         TEXT    NOT NULL,"
-            "  PRIMARY KEY(channel_id, post_id)"
-            ")",
-        .retrive_sql = NULL,
-        .p_check = check_table_valid,
-        .p_del_idx = NULL,
-        .p_add_idx = NULL
-    };
+    DBInitOperator tipping_op;
+    tipping_op.item_num = 10;
+    tipping_op.table_name = "tipping";
+    tipping_op.idx_param = NULL;
+    tipping_op.backup_sql = NULL;
+    tipping_op.create_sql = "CREATE TABLE IF NOT EXISTS tipping ("
+        "  id           INTEGER NOT NULL,"
+        "  channel_id   INTEGER NOT NULL,"
+        "  post_id      INTEGER NOT NULL,"
+        "  created_at   REAL    NOT NULL,"
+        "  token_mount  REAL    NOT NULL,"
+        "  token_symbol TEXT    NOT NULL,"
+        "  proof        TEXT    NOT NULL,"
+        "  user_did     TEXT    NOT NULL,"
+        "  user_name    TEXT    NOT NULL,"
+        "  memo         TEXT    NOT NULL,"
+        "  PRIMARY KEY(channel_id, post_id)"
+        ")";
+    memset(tipping_op.retrive_sql, 0, sizeof(tipping_op.retrive_sql));
+    tipping_op.p_check = check_table_valid;
+    tipping_op.p_del_idx = NULL;
+    tipping_op.p_add_idx = NULL;
     operator_vec.push_back(&tipping_op);
 
-    DBInitOperator notification_op = {
-        .item_num = 9,
-        .table_name = "notification",
-        .idx_param = NULL,
-        .backup_sql = NULL,
-        .create_sql = "CREATE TABLE IF NOT EXISTS notification ("
-            "  notification_id INTEGER NOT NULL,"
-            "  channel_id      INTEGER NOT NULL,"
-            "  post_id         INTEGER NOT NULL,"
-            "  comment_id      INTEGER NOT NULL,"
-            "  action_type     INTEGER NOT NULL,"
-            "  user_did        TEXT    NOT NULL,"
-            "  user_name       TEXT    NOT NULL,"
-            "  created_at      REAL    NOT NULL,"
-            "  memo            TEXT    NOT NULL,"
-            "  PRIMARY KEY(channel_id, post_id, comment_id)"
-            ")",
-        .retrive_sql = NULL,
-        .p_check = check_table_valid,
-        .p_del_idx = NULL,
-        .p_add_idx = NULL
-    };
+    DBInitOperator notification_op;
+    notification_op.item_num = 9;
+    notification_op.table_name = "notification";
+    notification_op.idx_param = NULL;
+    notification_op.backup_sql = NULL;
+    notification_op.create_sql = "CREATE TABLE IF NOT EXISTS notification ("
+        "  notification_id INTEGER NOT NULL,"
+        "  channel_id      INTEGER NOT NULL,"
+        "  post_id         INTEGER NOT NULL,"
+        "  comment_id      INTEGER NOT NULL,"
+        "  action_type     INTEGER NOT NULL,"
+        "  user_did        TEXT    NOT NULL,"
+        "  user_name       TEXT    NOT NULL,"
+        "  created_at      REAL    NOT NULL,"
+        "  memo            TEXT    NOT NULL,"
+        "  PRIMARY KEY(channel_id, post_id, comment_id)"
+        ")";
+    memset(notification_op.retrive_sql, 0, sizeof(notification_op.retrive_sql));
+    notification_op.p_check = check_table_valid;
+    notification_op.p_del_idx = NULL;
+    notification_op.p_add_idx = NULL;
     operator_vec.push_back(&notification_op);
 
     /* ================== stmt-sep BEGIN ================== */
@@ -547,7 +544,8 @@ int db_create_chan(const ChanInfo *ci)
 
     sql = "INSERT INTO channels(created_at, updated_at,"
           " name, intro, avatar, iid, memo, tip_methods, proof) "
-          " VALUES (:ts, :ts, :name, :intro, :avatar, '', '', :tip_methods, :proof)";
+          " VALUES (:ts, :ts, :name, :intro, :avatar, 'NA', 'NA', :tip_methods, :proof)";
+    //iid memo keep NA
 
     if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
         vlogE(TAG_DB "sqlite3_prepare_v2() failed");
@@ -665,7 +663,7 @@ int db_add_post(const PostInfo *pi)
         sql = "INSERT INTO posts(channel_id, post_id, created_at, updated_at,"
             "  content, status, hash_id, proof, origin_post_url, thumbnails, iid, memo) "
             "  VALUES (:channel_id, :post_id, :ts, :ts, :content, :status,"
-            "  :hash_id, :proof, :origin_post_url, :thumbnails, '', '')";  //2.0
+            "  :hash_id, :proof, :origin_post_url, :thumbnails, 'NA', 'NA')";  //2.0
 
         if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
             vlogE(TAG_DB "sqlite3_prepare_v2() failed");
@@ -1235,7 +1233,7 @@ int db_add_cmt(CmtInfo *ci, uint64_t *id)
               "     FROM posts "
               "     WHERE channel_id = :channel_id AND "
               "           post_id = :post_id), "
-              "  :comment_id, :uid, :ts, :ts, :content, :hash_id, :proof, :thumbnails, '', ''"
+              "  :comment_id, :uid, :ts, :ts, :content, :hash_id, :proof, :thumbnails, 'NA', 'NA'"
               ")";
 
         if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
@@ -1932,8 +1930,8 @@ int db_add_like(uint64_t uid, uint64_t channel_id, uint64_t post_id,
 
         sql = "INSERT INTO likes(user_id, channel_id, post_id, comment_id,"
               "created_at, proof, memo) "
-              "  VALUES (:uid, :channel_id, :post_id, :comment_id, :ts, :proof, '')";
-        //TODO memo keep empty until ? 
+              "  VALUES (:uid, :channel_id, :post_id, :comment_id, :ts, :proof, 'NA')";
+        //keep memo NA 
 
         if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
             vlogE(TAG_DB "sqlite3_prepare_v2() failed");
@@ -2196,7 +2194,7 @@ int db_add_sub(uint64_t uid, uint64_t channel_id, const char *proof)
 
     do {
         sql = "INSERT INTO subscriptions(user_id, channel_id, create_at, proof, memo)"
-              "  VALUES (:uid, :channel_id, :create_at, :proof, '')";  //TODO how to fill items?
+              "  VALUES (:uid, :channel_id, :create_at, :proof, 'NA')";
 
         if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
             vlogE(TAG_DB "sqlite3_prepare_v2() failed");
@@ -2392,7 +2390,7 @@ int db_unsub(uint64_t uid, uint64_t channel_id)
     return -1;
 }
 
-int db_update_user_info(const UserInfo *ui)  //TODO add name&url field params
+int db_update_user_info(const UserInfo *ui)
 {
     sqlite3_stmt *stmt;
     const char *sql;
@@ -2400,7 +2398,7 @@ int db_update_user_info(const UserInfo *ui)  //TODO add name&url field params
 
     sql = "UPDATE users"
         "  SET name = :name, email = :email, display_name = :display_name,"
-        "  avatar = :avatar, update_at = :upd_at, memo = ''"
+        "  avatar = :avatar, update_at = :upd_at, memo = 'NA'"
         "  WHERE did = :did";
 
     if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
@@ -2422,7 +2420,7 @@ int db_update_user_info(const UserInfo *ui)  //TODO add name&url field params
             ui->display_name, -1, NULL);
     rc |= sqlite3_bind_blob(stmt,
             sqlite3_bind_parameter_index(stmt, ":avatar"),
-            ui->avatar, ui->len, NULL);  //TODO 
+            ui->avatar, ui->len, NULL);
     rc |= sqlite3_bind_int64(stmt,  //v2.0
             sqlite3_bind_parameter_index(stmt, ":upd_at"),
             time(NULL));
@@ -2450,12 +2448,11 @@ int db_upsert_user(const UserInfo *ui, uint64_t *uid)
     int rc;
 
     sql = "INSERT INTO users(did, name, email, display_name, update_at, memo, avatar)"
-          " VALUES (:did, :name, :email, '', :upd_at, '', '')"  //TODO how to fill new item?
+          " VALUES (:did, :name, :email, :display_name, :upd_at, 'NA', :avatar)"
           " ON CONFLICT (did) "
           " DO UPDATE "
           "       SET name = :name, email = :email "
           "       WHERE excluded.name IS NOT name OR excluded.email IS NOT email";
-
     if (SQLITE_OK != sqlite3_prepare_v2(db, sql, -1, &stmt, NULL)) {
         vlogE(TAG_DB "sqlite3_prepare_v2() failed");
         return -1;
@@ -2470,9 +2467,27 @@ int db_upsert_user(const UserInfo *ui, uint64_t *uid)
     rc |= sqlite3_bind_text(stmt,
             sqlite3_bind_parameter_index(stmt, ":email"),
             ui->email, -1, NULL);
+    if (NULL != ui->display_name) {
+        rc |= sqlite3_bind_text(stmt,
+                sqlite3_bind_parameter_index(stmt, ":display_name"),
+                ui->display_name, -1, NULL);
+    } else {
+        rc |= sqlite3_bind_text(stmt,
+                sqlite3_bind_parameter_index(stmt, ":display_name"),
+                "NA", -1, NULL);
+    }
     rc |= sqlite3_bind_int64(stmt,  //v2.0
             sqlite3_bind_parameter_index(stmt, ":upd_at"),
             time(NULL));
+    if (NULL != ui->avatar) {
+        rc |= sqlite3_bind_blob(stmt,  //2.0
+                sqlite3_bind_parameter_index(stmt, ":avatar"),
+                ui->avatar, ui->len, NULL);
+    } else {
+        rc |= sqlite3_bind_blob(stmt,  //2.0
+                sqlite3_bind_parameter_index(stmt, ":avatar"),
+                "NA", 3, NULL);
+    }
     if (SQLITE_OK != rc) {
         vlogE(TAG_DB "Binding parameter failed");
         sqlite3_finalize(stmt);
