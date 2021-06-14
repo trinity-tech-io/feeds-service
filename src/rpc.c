@@ -50,6 +50,13 @@ static int rpc_version = 1;
 static inline
 bool map_key_correct(const msgpack_object *map, size_t idx, const char *key)
 {
+/*    vlogE(TAG_RPC "!!!!!!!!!!!!!!key= -%s-", key);
+    vlogE(TAG_RPC "idx= -%u-", idx);
+    vlogE(TAG_RPC "map->map_sz= -%u-", map->map_sz);
+    vlogE(TAG_RPC "map->map_key(idx).type= -%u-", map->map_key(idx).type);
+    vlogE(TAG_RPC "map->map_key(idx).str_sz= -%u-", map->map_key(idx).str_sz);
+    vlogE(TAG_RPC "strlen(key)= -%u-", strlen(key));
+    vlogE(TAG_RPC " ");*/
     return idx < map->map_sz &&
            map->map_key(idx).type == MSGPACK_OBJECT_STR &&
            map->map_key(idx).str_sz == strlen(key) &&
@@ -59,6 +66,8 @@ bool map_key_correct(const msgpack_object *map, size_t idx, const char *key)
 static inline
 const msgpack_object *map_nxt_val_str(const msgpack_object *map, size_t *nxt_idx, const char *key)
 {
+//    vlogE(TAG_RPC "in str key= -%s-------------------------------", key);
+//    vlogE(TAG_RPC "in str nxt_idx= -%u-------------------------------", *nxt_idx);
     return (map && map_key_correct(map, *nxt_idx, key) &&
             map->map_val(*nxt_idx).type == MSGPACK_OBJECT_STR) ?
            &map->map_val((*nxt_idx)++) : NULL;
@@ -67,6 +76,8 @@ const msgpack_object *map_nxt_val_str(const msgpack_object *map, size_t *nxt_idx
 static inline
 const msgpack_object *map_nxt_val_i64(const msgpack_object *map, size_t *nxt_idx, const char *key)
 {
+//    vlogE(TAG_RPC "in i64 key= -%s-------------------------------", key);
+//    vlogE(TAG_RPC "in i64 nxt_idx= -%u-------------------------------", *nxt_idx);
     return (map && map_key_correct(map, *nxt_idx, key) &&
             map->map_val(*nxt_idx).type == MSGPACK_OBJECT_NEGATIVE_INTEGER) ?
            &map->map_val((*nxt_idx)++) : NULL;
@@ -75,6 +86,8 @@ const msgpack_object *map_nxt_val_i64(const msgpack_object *map, size_t *nxt_idx
 static inline
 const msgpack_object *map_nxt_val_u64(const msgpack_object *map, size_t *nxt_idx, const char *key)
 {
+//    vlogE(TAG_RPC "in u64 key= -%s-------------------------------", key);
+//    vlogE(TAG_RPC "in u64 nxt_idx= -%u-------------------------------", *nxt_idx);
     return (map && map_key_correct(map, *nxt_idx, key) &&
             map->map_val(*nxt_idx).type == MSGPACK_OBJECT_POSITIVE_INTEGER) ?
            &map->map_val((*nxt_idx)++) : NULL;
@@ -83,6 +96,8 @@ const msgpack_object *map_nxt_val_u64(const msgpack_object *map, size_t *nxt_idx
 static inline
 const msgpack_object *map_nxt_val_map(const msgpack_object *map, size_t *nxt_idx, const char *key)
 {
+//    vlogE(TAG_RPC "in map key= -%s-------------------------------", key);
+//    vlogE(TAG_RPC "in map nxt_idx= -%u-------------------------------", *nxt_idx);
     return (map && map_key_correct(map, *nxt_idx, key) &&
             map->map_val(*nxt_idx).type == MSGPACK_OBJECT_MAP) ?
            &map->map_val((*nxt_idx)++) : NULL;
@@ -99,6 +114,8 @@ const msgpack_object *map_nxt_val_arr(const msgpack_object *map, size_t *nxt_idx
 static inline
 const msgpack_object *map_nxt_val_bin(const msgpack_object *map, size_t *nxt_idx, const char *key)
 {
+//    vlogE(TAG_RPC "in bin key= -%s-------------------------------", key);
+//    vlogE(TAG_RPC "in bin nxt_idx= -%u-------------------------------", *nxt_idx);
     return (map && map_key_correct(map, *nxt_idx, key) &&
             map->map_val(*nxt_idx).type == MSGPACK_OBJECT_BIN) ?
            &map->map_val((*nxt_idx)++) : NULL;
@@ -107,6 +124,8 @@ const msgpack_object *map_nxt_val_bin(const msgpack_object *map, size_t *nxt_idx
 static inline
 const msgpack_object *map_nxt_val_bool(const msgpack_object *map, size_t *nxt_idx, const char *key)
 {
+//    vlogE(TAG_RPC "in bool key= -%s-------------------------------", key);
+//    vlogE(TAG_RPC "in bool nxt_idx= -%u-------------------------------", *nxt_idx);
     return (map && map_key_correct(map, *nxt_idx, key) &&
             map->map_val(*nxt_idx).type == MSGPACK_OBJECT_BOOLEAN) ?
            &map->map_val((*nxt_idx)++) : NULL;
@@ -757,7 +776,7 @@ int unmarshal_pub_post_req(const msgpack_object *req, Req **req_unmarshal)
     }
 
     tmp = rc_zalloc(sizeof(PubPostReq) + str_reserve_spc(method)
-            + str_reserve_spc(tk) + 12, NULL);  //4 space for empty v2.0 item
+            + str_reserve_spc(tk) + 10, NULL);  //4 space for empty v2.0 item
     if (!tmp)
         return -1;
 
@@ -776,8 +795,9 @@ int unmarshal_pub_post_req(const msgpack_object *req, Req **req_unmarshal)
     buf += 3;
     tmp->params.origin_post_url = strcpy(buf, "NA");   //empty for v2.0
     buf += 3;
-    tmp->params.thumbnails = memcpy(buf, "NA", 3);   //empty for v2.0
-    tmp->params.thu_sz = 3;
+    char n = 0xA0;
+    tmp->params.thumbnails = memcpy(buf, &n, 1);   //empty for v2.0
+    tmp->params.thu_sz = 1;
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -884,7 +904,7 @@ int unmarshal_declare_post_req(const msgpack_object *req, Req **req_unmarshal)
     }
 
     tmp = rc_zalloc(sizeof(DeclarePostReq) + str_reserve_spc(method)
-            + str_reserve_spc(tk) + 12, NULL);  //4 space for empty v2.0 item
+            + str_reserve_spc(tk) + 10, NULL);  //4 space for empty v2.0 item
     if (!tmp)
         return -1;
 
@@ -904,8 +924,9 @@ int unmarshal_declare_post_req(const msgpack_object *req, Req **req_unmarshal)
     buf += 3;
     tmp->params.origin_post_url = strcpy(buf, "NA");   //empty for v2.0
     buf += 3;
-    tmp->params.thumbnails = memcpy(buf, "NA", 3);   //empty for v2.0
-    tmp->params.thu_sz = 3;
+    char n = 0xA0;
+    tmp->params.thumbnails = memcpy(buf, &n, 1);   //empty for v2.0
+    tmp->params.thu_sz = 1;
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -938,18 +959,18 @@ int unmarshal_declare_post_req_2(const msgpack_object *req, Req **req_unmarshal)
             chan_id = map_val_u64("channel_id");
             content = map_val_bin("content");
             with_notify = map_val_bool("with_notify");
+            thumbnails = map_val_bin("thumbnails");  //v2.0
             hash_id = map_val_str("hash_id");  //v2.0
             proof   = map_val_str("proof");  //v2.0
             origin_post_url = map_val_str("origin_post_url");  //v2.0
-            thumbnails = map_val_bin("thumbnails");  //v2.0
         });
     });
 
     if (!tk || !tk->str_sz || !chan_id || !chan_id_is_valid(chan_id->u64_val) ||
         !content || !content->bin_sz || !hash_id || !hash_id->str_sz || !proof ||
-        !proof->str_sz || !origin_post_url || !origin_post_url->str_sz ||
-        !thumbnails || !thumbnails->bin_sz) {
-        vlogE(TAG_RPC "Invalid declare_post request.");
+        !proof->str_sz || !origin_post_url || !origin_post_url->str_sz 
+        || !thumbnails || !thumbnails->bin_sz) {
+        vlogE(TAG_RPC "Invalid declare_post 2.0 request.");
         return -1;
     }
 
@@ -1062,7 +1083,7 @@ int unmarshal_edit_post_req(const msgpack_object *req, Req **req_unmarshal)
     }
 
     tmp = rc_zalloc(sizeof(EditPostReq) + str_reserve_spc(method)
-            + str_reserve_spc(tk) + 12, NULL);  //4 space for empty v2.0 item
+            + str_reserve_spc(tk) + 10, NULL);  //4 space for empty v2.0 item
     if (!tmp)
         return -1;
 
@@ -1082,8 +1103,9 @@ int unmarshal_edit_post_req(const msgpack_object *req, Req **req_unmarshal)
     buf += 3;
     tmp->params.origin_post_url = strcpy(buf, "NA");   //empty for v2.0
     buf += 3;
-    tmp->params.thumbnails = memcpy(buf, "NA", 3);   //empty for v2.0
-    tmp->params.thu_sz = 3;
+    char n = 0xA0;
+    tmp->params.thumbnails = memcpy(buf, &n, 1);   //empty for v2.0
+    tmp->params.thu_sz = 1;
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -1244,7 +1266,7 @@ int unmarshal_post_cmt_req(const msgpack_object *req, Req **req_unmarshal)
     }
 
     tmp = rc_zalloc(sizeof(PostCmtReq) + str_reserve_spc(method)
-            + str_reserve_spc(tk) + 9, NULL);  //3 space for empty v2.0 item
+            + str_reserve_spc(tk) + 7, NULL);  //3 space for empty v2.0 item
     if (!tmp)
         return -1;
 
@@ -1263,8 +1285,9 @@ int unmarshal_post_cmt_req(const msgpack_object *req, Req **req_unmarshal)
     buf += 3;
     tmp->params.proof   = strcpy(buf, "NA");   //empty for v2.0
     buf += 3;
-    tmp->params.thumbnails = memcpy(buf, "NA", 3);   //empty for v2.0
-    tmp->params.thu_sz = 3;
+    char n = 0xA0;
+    tmp->params.thumbnails = memcpy(buf, &n, 1);   //empty for v2.0
+    tmp->params.thu_sz = 1;
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -1378,7 +1401,7 @@ int unmarshal_edit_cmt_req(const msgpack_object *req, Req **req_unmarshal)
     }
 
     tmp = rc_zalloc(sizeof(EditCmtReq) + str_reserve_spc(method)
-            + str_reserve_spc(tk) + 9, NULL);  //3 space for empty v2.0 item
+            + str_reserve_spc(tk) + 7, NULL);  //3 space for empty v2.0 item
     if (!tmp)
         return -1;
 
@@ -1398,8 +1421,9 @@ int unmarshal_edit_cmt_req(const msgpack_object *req, Req **req_unmarshal)
     buf += 3;
     tmp->params.proof   = strcpy(buf, "NA");   //empty for v2.0
     buf += 3;
-    tmp->params.thumbnails = memcpy(buf, "NA", 3);   //empty for v2.0
-    tmp->params.thu_sz = 3;
+    char n = 0xA0;
+    tmp->params.thumbnails = memcpy(buf, &n, 1);   //empty for v2.0
+    tmp->params.thu_sz = 1;
 
     *req_unmarshal = (Req *)tmp;
     return 0;
@@ -3486,6 +3510,18 @@ Marshalled *rpc_marshal_new_post_notif(const NewPostNotif *notif)
     msgpack_packer *pk = msgpack_packer_new(buf, msgpack_sbuffer_write);
     MarshalledIntl *m = rc_zalloc(sizeof(MarshalledIntl), mintl_dtor);
 
+/*    vlogE(TAG_RPC "channel_id = %lu", notif->params.pinfo->chan_id);
+    vlogE(TAG_RPC "id = %lu", notif->params.pinfo->post_id);
+    vlogE(TAG_RPC "status = %lu", notif->params.pinfo->stat);
+    vlogE(TAG_RPC "content size = %lu", notif->params.pinfo->con_len);
+    vlogE(TAG_RPC "th size = %lu", notif->params.pinfo->thu_len);
+    vlogE(TAG_RPC "comments = %lu", notif->params.pinfo->cmts);
+    vlogE(TAG_RPC "likes = %lu", notif->params.pinfo->likes);
+    vlogE(TAG_RPC "created_at = %lu", notif->params.pinfo->created_at);
+    vlogE(TAG_RPC "updated_at = %lu", notif->params.pinfo->upd_at);
+    vlogE(TAG_RPC "hash_id = %s", notif->params.pinfo->hash_id);
+    vlogE(TAG_RPC "proof = %s", notif->params.pinfo->proof);
+    vlogE(TAG_RPC "origin_post_url = %s", notif->params.pinfo->origin_post_url);*/
     pack_map(pk, 3, {
         pack_kv_str(pk, "version", "1.0");
         pack_kv_str(pk, "method", "new_post");
