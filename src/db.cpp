@@ -268,7 +268,7 @@ int db_init(sqlite3 *handle)
     strcpy(posts_op.retrive_sql,
             "INSERT INTO posts SELECT"
             " channel_id, post_id, created_at, updated_at, next_comment_id,"
-            " likes, status, 'NA', 'NA', 'NA', 'NA', 'NA', 'NA', content"
+            " likes, status, 'NA', 'NA', 'NA', 'NA', 'NA', X'A0', content"
             " FROM posts_backup");
     posts_op.p_check = check_table_valid;
     posts_op.p_del_idx = delete_old_index;
@@ -302,7 +302,7 @@ int db_init(sqlite3 *handle)
     strcpy(comments_op.retrive_sql,
             "INSERT INTO comments SELECT"
             " channel_id, post_id, comment_id, refcomment_id, user_id,"
-            " created_at, updated_at, likes, status, 'NA', 'NA', 'NA', 'NA', 'NA', content"
+            " created_at, updated_at, likes, status, 'NA', 'NA', 'NA', 'NA', X'A0', content"
             " FROM comments_backup");
     comments_op.p_check = check_table_valid;
     comments_op.p_del_idx = delete_old_index;
@@ -1479,7 +1479,8 @@ int db_get_post(uint64_t chan_id, uint64_t post_id, PostInfo *pi)
 
     do {
         sql = "SELECT status, content, length(content), "
-              "       next_comment_id - 1 AS comments, likes, created_at, updated_at "
+              "       next_comment_id - 1 AS comments, likes, created_at, updated_at, "
+              "       thumbnails, length(thumbnails), hash_id, proof, origin_post_url"
               "  FROM posts "
               "  WHERE channel_id = :channel_id AND post_id = :post_id";
 
@@ -1514,8 +1515,25 @@ int db_get_post(uint64_t chan_id, uint64_t post_id, PostInfo *pi)
         pi->con_len = content_size;
         pi->cmts = sqlite3_column_int64(stmt, 3); 
         pi->likes = sqlite3_column_int64(stmt, 4); 
-        pi->created_at = sqlite3_column_int64(stmt, 5); 
-        pi->upd_at = sqlite3_column_int64(stmt, 6); 
+        pi->created_at = sqlite3_column_int64(stmt, 5);
+        pi->upd_at = sqlite3_column_int64(stmt, 6);
+        const void* thumbnails = sqlite3_column_blob(stmt, 7);
+        int thumbnails_size = sqlite3_column_int64(stmt, 8);
+        pi->thumbnails = rc_zalloc(thumbnails_size, NULL);
+        pi->thu_len = thumbnails_size;
+        memcpy(pi->thumbnails, thumbnails, thumbnails_size);
+
+        char *tmp = (char *)sqlite3_column_text(stmt, 9);
+        char *hash_id = (char *)rc_zalloc(strlen(tmp) + 1, NULL);
+        pi->hash_id = strcpy(hash_id, tmp);
+
+        tmp = (char *)sqlite3_column_text(stmt, 10);
+        char *proof = (char *)rc_zalloc(strlen(tmp) + 1, NULL);
+        pi->proof = strcpy(proof, tmp);
+
+        tmp = (char *)sqlite3_column_text(stmt, 11);
+        char *origin_post_url = (char *)rc_zalloc(strlen(tmp) + 1, NULL);
+        pi->origin_post_url = strcpy(origin_post_url, tmp);
         sqlite3_finalize(stmt);
 
         sql = "END";
