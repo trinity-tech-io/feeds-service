@@ -834,7 +834,7 @@ int db_upd_post(PostInfo *pi)
 
     do {
         sql = "UPDATE posts"
-              "  SET updated_at = :upd_at, content = :content"
+              "  SET updated_at = :upd_at, content = :content,"
               "  hash_id = :hash_id, proof = :proof,"  //2.0
               "  origin_post_url = :origin_post_url, thumbnails = :thumbnails"
               "  WHERE channel_id = :channel_id AND post_id = :post_id";
@@ -2717,8 +2717,11 @@ void *row2subchan(sqlite3_stmt *stmt)
 {
     const char *name = (const char *)sqlite3_column_text(stmt, 1);
     const char *intro = (const char *)sqlite3_column_text(stmt, 2);
-    size_t avatar_sz = sqlite3_column_int64(stmt, 6);
-    ChanInfo *ci = (ChanInfo *)rc_zalloc(sizeof(ChanInfo) + strlen(name) + strlen(intro) + 2 + avatar_sz, NULL);
+    size_t avatar_sz = sqlite3_column_int64(stmt, 7);
+    const char *proof = (const char *)sqlite3_column_text(stmt, 8);
+
+    ChanInfo *ci = (ChanInfo *)rc_zalloc(sizeof(ChanInfo) 
+            + strlen(name) + strlen(intro) + strlen(proof) + 3 + avatar_sz, NULL);
     void *buf;
 
     if (!ci) {
@@ -2732,10 +2735,13 @@ void *row2subchan(sqlite3_stmt *stmt)
     buf += strlen(name) + 1;
     ci->intro   = strcpy((char *)buf, intro);
     buf += strlen(intro) + 1;
+    ci->proof   = strcpy((char *)buf, proof);
+    buf += strlen(proof) + 1;
     ci->subs    = sqlite3_column_int64(stmt, 3);
-    ci->upd_at  = sqlite3_column_int64(stmt, 4);
+    ci->created_at  = sqlite3_column_int64(stmt, 4);
+    ci->upd_at  = sqlite3_column_int64(stmt, 5);
     ci->owner   = &feeds_owner_info;
-    ci->avatar  = memcpy(buf, sqlite3_column_blob(stmt, 5), avatar_sz);
+    ci->avatar  = memcpy(buf, sqlite3_column_blob(stmt, 6), avatar_sz);
     ci->len     = avatar_sz;
 
     return ci;
@@ -2750,19 +2756,11 @@ DBObjIt *db_iter_sub_chans(uint64_t uid, const QryCriteria *qc)
     int rc;
 
     rc = sprintf(sql,
-                 "SELECT channel_id, name, intro, subscribers, updated_at, avatar, length(avatar) "
+                 "SELECT channel_id, name, intro, subscribers, created_at, updated_at,"
+                 "  avatar, length(avatar), proof"
                  "  FROM (SELECT channel_id "
                  "          FROM subscriptions "
                  "          WHERE user_id = :uid) JOIN channels USING (channel_id)");
-
-/*    rc = sprintf(sql,
-            "SELECT channels.channel_id, channels.name, channels.intro,"
-            "  channels.subscribers, channels.updated_at, channels.avatar,"
-            "  length(channels.avatar), subscriptions.create_at, subscriptions.proof"
-            "    FROM channels, subscriptions"
-            "    WHERE channels.channel_id = subscriptions.channel_id"
-            "      and subscriptions.user_id = :uid"
-*/
     if (qc->by) {
         qcol = query_column(CHANNEL, (QryFld)qc->by);
         if (qc->lower || qc->upper)
