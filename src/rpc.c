@@ -4430,7 +4430,7 @@ Marshalled *rpc_marshal_get_sub_chans_resp(const GetSubChansResp *resp)
                         pack_kv_u64(pk, "subscribers", (*cinfo)->subs);
                         pack_kv_u64(pk, "last_update", (*cinfo)->upd_at);
                         pack_kv_bin(pk, "avatar", (*cinfo)->avatar, (*cinfo)->len);
-                        pack_kv_u64(pk, "proof", (*cinfo)->proof);
+                        pack_kv_str(pk, "proof", (*cinfo)->proof);
                         pack_kv_u64(pk, "created_at", (*cinfo)->created_at);
                     });
                 }
