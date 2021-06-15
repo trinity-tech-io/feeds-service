@@ -326,7 +326,7 @@ int db_init(sqlite3 *handle)
         ")";
     sprintf(users_op.retrive_sql,
             "INSERT INTO users SELECT"
-            " user_id, did, name, email, 'NA', %lu, 'NA', 'NA'"
+            " user_id, did, name, email, 'NA', %lu, 'NA', X'A0'"
             " FROM users_backup", time(NULL));
     users_op.p_check = check_table_valid;
     users_op.p_del_idx = NULL;
