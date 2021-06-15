@@ -828,10 +828,10 @@ int unmarshal_pub_post_req_2(const msgpack_object *req, Req **req_unmarshal)
             tk      = map_val_str("access_token");
             chan_id = map_val_u64("channel_id");
             content = map_val_bin("content");
+            thumbnails = map_val_bin("thumbnails");  //v2.0
             hash_id = map_val_str("hash_id");  //v2.0
             proof   = map_val_str("proof");  //v2.0
             origin_post_url = map_val_str("origin_post_url");  //v2.0
-            thumbnails = map_val_bin("thumbnails");  //v2.0
         });
     });
 
