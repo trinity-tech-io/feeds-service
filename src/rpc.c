@@ -1138,10 +1138,10 @@ int unmarshal_edit_post_req_2(const msgpack_object *req, Req **req_unmarshal)
             chan_id = map_val_u64("channel_id");
             post_id = map_val_u64("id");
             content = map_val_bin("content");
+            thumbnails = map_val_bin("thumbnails");  //v2.0
             hash_id = map_val_str("hash_id");  //v2.0
             proof   = map_val_str("proof");  //v2.0
             origin_post_url = map_val_str("origin_post_url");  //v2.0
-            thumbnails = map_val_bin("thumbnails");  //v2.0
         });
     });
 
@@ -1321,9 +1321,9 @@ int unmarshal_post_cmt_req_2(const msgpack_object *req, Req **req_unmarshal)
             post_id = map_val_u64("post_id");
             cmt_id  = map_val_u64("comment_id");
             content = map_val_bin("content");
+            thumbnails = map_val_bin("thumbnails");  //v2.0
             hash_id = map_val_str("hash_id");  //v2.0
             proof   = map_val_str("proof");  //v2.0
-            thumbnails = map_val_bin("thumbnails");  //v2.0
         });
     });
 
@@ -1331,7 +1331,7 @@ int unmarshal_post_cmt_req_2(const msgpack_object *req, Req **req_unmarshal)
         !post_id || !post_id_is_valid(post_id->u64_val) || !cmt_id ||
         !content || !content->bin_sz || !hash_id || !hash_id->str_sz ||
         !proof || !proof->str_sz || !thumbnails || !thumbnails->bin_sz) {
-        vlogE(TAG_RPC "Invalid post_comment request.");
+        vlogE(TAG_RPC "Invalid post_comment 2.0 request.");
         return -1;
     }
 
@@ -1459,9 +1459,9 @@ int unmarshal_edit_cmt_req_2(const msgpack_object *req, Req **req_unmarshal)
             id      = map_val_u64("id");
             cmt_id  = map_val_u64("comment_id");
             content = map_val_bin("content");
+            thumbnails = map_val_bin("thumbnails");  //v2.0
             hash_id = map_val_str("hash_id");  //v2.0
             proof   = map_val_str("proof");  //v2.0
-            thumbnails = map_val_bin("thumbnails");  //v2.0
         });
     });
 
@@ -3603,8 +3603,8 @@ Marshalled *rpc_marshal_new_cmt_notif(const NewCmtNotif *notif)
             pack_kv_u64(pk, "id", notif->params.cinfo->cmt_id);
             pack_kv_u64(pk, "status", notif->params.cinfo->stat);
             pack_kv_u64(pk, "comment_id", notif->params.cinfo->reply_to_cmt);
-            pack_kv_str(pk, "user_name", notif->params.cinfo->user.name);
             pack_kv_str(pk, "user_did", notif->params.cinfo->user.did);
+            pack_kv_str(pk, "user_name", notif->params.cinfo->user.name);
             pack_kv_bin(pk, "content", notif->params.cinfo->content, notif->params.cinfo->con_len);
             pack_kv_u64(pk, "likes", notif->params.cinfo->likes);
             pack_kv_u64(pk, "created_at", notif->params.cinfo->created_at);
@@ -3639,8 +3639,8 @@ Marshalled *rpc_marshal_cmt_upd_notif(const CmtUpdNotif *notif)
             pack_kv_u64(pk, "id", notif->params.cinfo->cmt_id);
             pack_kv_u64(pk, "status", notif->params.cinfo->stat);
             pack_kv_u64(pk, "comment_id", notif->params.cinfo->reply_to_cmt);
-            pack_kv_str(pk, "user_name", notif->params.cinfo->user.name);
             pack_kv_str(pk, "user_did", notif->params.cinfo->user.did);
+            pack_kv_str(pk, "user_name", notif->params.cinfo->user.name);
             notif->params.cinfo->stat == CMT_AVAILABLE ? pack_kv_bin(pk, "content", notif->params.cinfo->content,
                                                                      notif->params.cinfo->con_len) :
                                                          pack_kv_nil(pk, "content");
@@ -3679,8 +3679,8 @@ Marshalled *rpc_marshal_new_like_notif(const NewLikeNotif *notif)
             pack_kv_u64(pk, "comment_id", notif->params.li->cmt_id);
             pack_kv_str(pk, "user_name", notif->params.li->user.name);
             pack_kv_str(pk, "user_did", notif->params.li->user.did);
-            pack_kv_u64(pk, "total_count", notif->params.li->total_cnt);
             pack_kv_str(pk, "proof", notif->params.li->proof);  //2.0
+            pack_kv_u64(pk, "total_count", notif->params.li->total_cnt);
         });
     });
 
@@ -4350,7 +4350,7 @@ Marshalled *rpc_marshal_get_chans_resp(const GetChansResp *resp)
             pack_kv_bool(pk, "is_last", resp->result.is_last);
             pack_kv_arr(pk, "channels", cvector_size(resp->result.cinfos), {
                 cvector_foreach(resp->result.cinfos, cinfo) {
-                    pack_map(pk, 8, {
+                    pack_map(pk, 11, {
                         pack_kv_u64(pk, "id", (*cinfo)->chan_id);
                         pack_kv_str(pk, "name", (*cinfo)->name);
                         pack_kv_str(pk, "introduction", (*cinfo)->intro);
@@ -4421,7 +4421,7 @@ Marshalled *rpc_marshal_get_sub_chans_resp(const GetSubChansResp *resp)
             pack_kv_bool(pk, "is_last", resp->result.is_last);
             pack_kv_arr(pk, "channels", cvector_size(resp->result.cinfos), {
                 cvector_foreach(resp->result.cinfos, cinfo) {
-                    pack_map(pk, 8, {
+                    pack_map(pk, 10, {
                         pack_kv_u64(pk, "id", (*cinfo)->chan_id);
                         pack_kv_str(pk, "name", (*cinfo)->name);
                         pack_kv_str(pk, "introduction", (*cinfo)->intro);
@@ -4430,6 +4430,8 @@ Marshalled *rpc_marshal_get_sub_chans_resp(const GetSubChansResp *resp)
                         pack_kv_u64(pk, "subscribers", (*cinfo)->subs);
                         pack_kv_u64(pk, "last_update", (*cinfo)->upd_at);
                         pack_kv_bin(pk, "avatar", (*cinfo)->avatar, (*cinfo)->len);
+                        pack_kv_u64(pk, "proof", (*cinfo)->proof);
+                        pack_kv_u64(pk, "created_at", (*cinfo)->created_at);
                     });
                 }
             });
@@ -4576,8 +4578,8 @@ Marshalled *rpc_marshal_get_liked_data_resp(const GetLikedDataResp *resp)  //2.0
                         pack_kv_u64(pk, "channel_id", (*linfo)->chan_id);
                         pack_kv_u64(pk, "post_id", (*linfo)->post_id);
                         pack_kv_u64(pk, "comment_id", (*linfo)->cmt_id);
-                        pack_kv_str(pk, "user_name", (*linfo)->user.name);
                         pack_kv_str(pk, "user_did", (*linfo)->user.did);
+                        pack_kv_str(pk, "user_name", (*linfo)->user.name);
                         pack_kv_u64(pk, "created_at", (*linfo)->created_at);
                         pack_kv_str(pk, "proof", (*linfo)->proof);
                     });
@@ -4615,8 +4617,8 @@ Marshalled *rpc_marshal_get_cmts_resp(const GetCmtsResp *resp)
                         pack_kv_u64(pk, "id", (*cinfo)->cmt_id);
                         pack_kv_u64(pk, "status", (*cinfo)->stat);
                         pack_kv_u64(pk, "comment_id", (*cinfo)->reply_to_cmt);
-                        pack_kv_str(pk, "user_name", (*cinfo)->user.name);
                         pack_kv_str(pk, "user_did", (*cinfo)->user.did);
+                        pack_kv_str(pk, "user_name", (*cinfo)->user.name);
                         (*cinfo)->stat == CMT_AVAILABLE ? pack_kv_bin(pk, "content", (*cinfo)->content, (*cinfo)->con_len) :
                                                           pack_kv_nil(pk, "content");
                         pack_kv_u64(pk, "likes", (*cinfo)->likes);
