@@ -321,8 +321,8 @@ int db_init(sqlite3 *handle)
         "  email        TEXT NOT NULL DEFAULT 'NA',"
         "  display_name TEXT NOT NULL DEFAULT 'NA',"
         "  update_at    REAL NOT NULL,"
-        "  memo         TEXT NOT NULL,"
-        "  avatar       BLOB NOT NULL"
+        "  memo         TEXT NOT NULL DEFAULT 'NA',"
+        "  avatar       BLOB NOT NULL DEFAULT X'A0'"
         ")";
     sprintf(users_op.retrive_sql,
             "INSERT INTO users SELECT"
@@ -2502,9 +2502,10 @@ int db_upsert_user(const UserInfo *ui, uint64_t *uid)
                 sqlite3_bind_parameter_index(stmt, ":avatar"),
                 ui->avatar, ui->len, NULL);
     } else {
+        const char n = 0xA0;
         rc |= sqlite3_bind_blob(stmt,  //2.0
                 sqlite3_bind_parameter_index(stmt, ":avatar"),
-                "NA", 3, NULL);
+                &n, 1, NULL);
     }
     if (SQLITE_OK != rc) {
         vlogE(TAG_DB "Binding parameter failed");
