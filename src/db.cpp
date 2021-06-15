@@ -2621,19 +2621,19 @@ void *row2chan(sqlite3_stmt *stmt)
 
     ci->chan_id      = sqlite3_column_int64(stmt, 0);
     ci->name         = strcpy((char *)buf, name);
-    buf += strlen(name) + 1;
+    buf = (char *)buf + strlen(name) + 1;
     ci->intro        = strcpy((char *)buf, intro);
-    buf += strlen(intro) + 1;
+    buf = (char *)buf + strlen(intro) + 1;
     ci->subs         = sqlite3_column_int64(stmt, 3);
     ci->next_post_id = sqlite3_column_int64(stmt, 4);
     ci->upd_at       = sqlite3_column_int64(stmt, 5);
     ci->created_at   = sqlite3_column_int64(stmt, 6);
     ci->owner        = &feeds_owner_info;
     ci->avatar       = memcpy(buf, sqlite3_column_blob(stmt, 7), avatar_sz);
-    buf += avatar_sz;
+    buf = (char *)buf + avatar_sz;
     ci->len          = avatar_sz;
     ci->tip_methods  = strcpy((char *)buf, tipm);
-    buf += strlen(tipm) + 1;
+    buf = (char *)buf + strlen(tipm) + 1;
     ci->proof        = strcpy((char *)buf, proof);
     ci->status       = sqlite3_column_int64(stmt, 11);
 
@@ -2733,11 +2733,11 @@ void *row2subchan(sqlite3_stmt *stmt)
     buf = ci + 1;
     ci->chan_id = sqlite3_column_int64(stmt, 0);
     ci->name    = strcpy((char *)buf, name);
-    buf += strlen(name) + 1;
+    buf = (char *)buf + strlen(name) + 1;
     ci->intro   = strcpy((char *)buf, intro);
-    buf += strlen(intro) + 1;
+    buf = (char *)buf + strlen(intro) + 1;
     ci->proof   = strcpy((char *)buf, proof);
-    buf += strlen(proof) + 1;
+    buf = (char *)buf + strlen(proof) + 1;
     ci->subs    = sqlite3_column_int64(stmt, 3);
     ci->created_at  = sqlite3_column_int64(stmt, 4);
     ci->upd_at  = sqlite3_column_int64(stmt, 5);
@@ -2840,15 +2840,15 @@ void *row2post(sqlite3_stmt *stmt)
     pi->upd_at      = sqlite3_column_int64(stmt, 8);
     buf = pi + 1;  //2.0
     pi->hash_id     = strcpy((char *)buf, hash_id);  //2.0
-    buf += strlen(hash_id) + 1;  //2.0
+    buf = (char *)buf + strlen(hash_id) + 1;  //2.0
     pi->proof       = strcpy((char *)buf, proof);  //2.0
-    buf += strlen(proof) + 1;  //2.0
+    buf = (char *)buf + strlen(proof) + 1;  //2.0
     pi->origin_post_url = strcpy((char *)buf, origin_post_url);  //2.0
     if (stat == POST_AVAILABLE) {
-        buf += strlen(origin_post_url) + 1;
+        buf = (char *)buf + strlen(origin_post_url) + 1;
         pi->content = memcpy(buf, sqlite3_column_blob(stmt, 3), con_len);
         pi->con_len = con_len;
-        buf += con_len + 1;   //2.0
+        buf = (char *)buf + con_len + 1;   //2.0
         pi->thumbnails = memcpy(buf, sqlite3_column_blob(stmt, 12), thu_len);  //2.0
         pi->thu_len = thu_len;  //2.0
     }
@@ -3103,9 +3103,9 @@ void *row2likeddata(sqlite3_stmt *stmt)
     li->created_at = sqlite3_column_int64(stmt, 3);
     buf = li + 1;
     li->user.name    = strcpy((char *)buf, name);
-    buf += strlen(name) + 1;
+    buf = (char *)buf + strlen(name) + 1;
     li->user.did     = strcpy((char *)buf, did);
-    buf += strlen(did) + 1;
+    buf = (char *)buf + strlen(did) + 1;
     li->proof      = strcpy((char *)buf, proof);
 
     return li;
@@ -3200,17 +3200,17 @@ void *row2cmt(sqlite3_stmt *stmt)
     ci->reply_to_cmt = sqlite3_column_int64(stmt, 4);
     buf = ci + 1;
     ci->user.name    = strcpy((char *)buf, name);
-    buf += strlen(name) + 1;
+    buf = (char *)buf + strlen(name) + 1;
     ci->user.did     = strcpy((char *)buf, did);
-    buf += strlen(did) + 1;
+    buf = (char *)buf + strlen(did) + 1;
     ci->hash_id      = strcpy((char *)buf, hash_id);  //2.0
-    buf += strlen(hash_id) + 1;  //2.0
+    buf = (char *)buf + strlen(hash_id) + 1;  //2.0
     ci->proof        = strcpy((char *)buf, proof);  //2.0
     if (stat == CMT_AVAILABLE) {
-        buf += strlen(proof) + 1;  //2.0
+        buf = (char *)buf + strlen(proof) + 1;  //2.0
         ci->content  = memcpy(buf, sqlite3_column_blob(stmt, 7), content_len);
         ci->con_len  = content_len;
-        buf += content_len + 1;   //2.0
+        buf = (char *)buf + content_len + 1;   //2.0
         ci->thumbnails = memcpy(buf, sqlite3_column_blob(stmt, 14), thu_len);  //2.0
         ci->thu_len = thu_len;  //2.0
     }
@@ -3242,9 +3242,9 @@ void *row2reportedcmt(sqlite3_stmt *stmt)
     rci->post_id      = sqlite3_column_int64(stmt, 1);
     rci->cmt_id       = sqlite3_column_int64(stmt, 2);
     rci->reporter.name    = strcpy((char *)buf, name);
-    buf += strlen(name) + 1;
+    buf = (char *)buf + strlen(name) + 1;
     rci->reporter.did     = strcpy((char *)buf, did);
-    buf += strlen(did) + 1;
+    buf = (char *)buf + strlen(did) + 1;
     rci->reasons     = strcpy((char *)buf, reasons);
     rci->created_at   = sqlite3_column_int64(stmt, 6);
 
