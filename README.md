@@ -1,5 +1,9 @@
 Feeds Service
 =====================
+|Linux && Mac|Windows|
+|:-:|:-:|
+|[![Build Status](https://github.com/elastod-trinity/feeds-service/workflows/CI/badge.svg)](https://github.com/elastod-trinity/feeds-service/actions)| |
+
 ## 1. Introduction
 
 Feeds dApp is an update-to-date social application solution with characteristics of access with DIDs, decentralized servers,  you-own-your-data etc, where feeds service/node is running background as backend service interacting with front feeds dApp.

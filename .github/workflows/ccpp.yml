@@ -1,0 +1,77 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+
+  build-linux:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        #os: [ubuntu-20.04, ubuntu-18.04]
+        os: [ubuntu-20.04]
+    steps:
+      - uses: actions/checkout@v2
+      - name: build and test
+        run: |
+          mkdir -p build/linux
+          cd build/linux
+          cmake -DCMAKE_INSTALL_PREFIX=dist ../..
+          make
+          make install
+
+  build-macos:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-10.15]
+    steps:
+      - uses: actions/checkout@v2
+      - name: build and test
+        run: |
+          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+          if [[ $(brew list | grep 'autoconf') != *autoconf* ]]; then
+            brew install autoconf
+          fi
+          if [[ $(brew list | grep 'automake') != *automake* ]]; then
+            brew install automake
+          fi
+          if [[ $(brew list | grep 'libtool') != *libtool* ]]; then
+            brew install libtool
+          fi
+          if [[ $(brew list | grep 'pkg-config') != *pkg-config* ]]; then
+            brew install pkg-config
+          fi
+
+          mkdir -p build/macos
+          cd build/macos
+          cmake -DCMAKE_INSTALL_PREFIX=dist ../..
+          make
+          make install
+
+
+  build-windows:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2016]
+        arch: [amd64]
+    steps:
+      - uses: actions/checkout@v2
+      - name: build and test
+        shell: cmd
+        run: |
+          if exist "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat" (
+            call   "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{matrix.arch}}
+          )
+          if exist "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\Tools\VsDevCmd.bat" (
+            call   "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=${{matrix.arch}}
+          )
+          mkdir build\windows
+          cd build\windows
+          cmake -G "NMake Makefiles" -DCMAKE_INSTALL_PREFIX=dist -DCMAKE_VS_PLATFORM_TOOLSET=v141 -DCMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION=10.0.17763.0 ..\..
+          nmake > temp.log
+          nmake install
