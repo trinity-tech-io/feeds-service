@@ -19,6 +19,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+#if defined(_WIN32) || defined(_WIN64)
+#include <windows.h>
+#endif
 
 #ifdef HAVE_TIME_H
 #include <time.h>
