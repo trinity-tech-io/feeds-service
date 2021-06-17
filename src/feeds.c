@@ -139,7 +139,7 @@ static
 Chan *chan_create(const ChanInfo *ci)
 {
     Chan *chan;
-    void *buf;
+    char *buf;
 
     chan = rc_zalloc(sizeof(Chan) + strlen(ci->name) +
                      strlen(ci->intro) + strlen(ci->tip_methods) +  //2.0
@@ -153,12 +153,12 @@ Chan *chan_create(const ChanInfo *ci)
         return NULL;
     }
 
-    buf = chan + 1;
+    buf = (char *)(chan + 1);
     chan->info        = *ci;
     chan->info.name   = strcpy(buf, ci->name);
-    buf = (char*)buf + strlen(ci->name) + 1;
+    buf = buf + strlen(ci->name) + 1;
     chan->info.intro  = strcpy(buf, ci->intro);
-    buf = (char*)buf + strlen(ci->intro) + 1;
+    buf = buf + strlen(ci->intro) + 1;
     buf += strlen(ci->intro) + 1;
     chan->info.tip_methods = strcpy(buf, ci->tip_methods);  //v2.0
     buf += strlen(ci->tip_methods) + 1;
@@ -181,7 +181,7 @@ static
 Chan *chan_create_upd(const Chan *from, const ChanInfo *ci)
 {
     Chan *chan;
-    void *buf;
+    char *buf;
 
     chan = rc_zalloc(sizeof(Chan) + strlen(ci->name) +
                      strlen(ci->intro) + strlen(ci->tip_methods) +  //2.0
@@ -191,10 +191,10 @@ Chan *chan_create_upd(const Chan *from, const ChanInfo *ci)
 
     chan->aspcs = ref(from->aspcs);
 
-    buf = chan + 1;
+    buf = (char *)(chan + 1);
     chan->info        = *ci;
     chan->info.name   = strcpy(buf, ci->name);
-    buf = (char*)buf + strlen(ci->name) + 1;
+    buf = buf + strlen(ci->name) + 1;
     chan->info.intro  = strcpy(buf, ci->intro);
     buf += strlen(ci->intro) + 1;
     chan->info.tip_methods = strcpy(buf, ci->tip_methods);  //v2.0

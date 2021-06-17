@@ -23,6 +23,10 @@
 #ifndef __DID_H__
 #define __DID_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "cfg.h"
 #include "obj.h"
 #include "rpc.h"
@@ -45,5 +49,10 @@ void hdl_iss_vc_req(Carrier *c, const char *from, Req *base);
 void hdl_update_vc_req(Carrier *c, const char *from, Req *base);
 
 DIDDocument *local_resolver(DID *did);
+
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif //__DID_H__

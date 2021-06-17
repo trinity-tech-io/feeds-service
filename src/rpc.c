@@ -179,7 +179,7 @@ int unmarshal_decl_owner_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *nonce;
     const msgpack_object *owner_did;
     DeclOwnerReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -224,7 +224,7 @@ int unmarshal_imp_did_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *passphrase;
     const msgpack_object *idx;
     ImpDIDReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -271,7 +271,7 @@ int unmarshal_iss_vc_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *tsx_id;
     const msgpack_object *vc;
     IssVCReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -312,7 +312,7 @@ int unmarshal_update_vc_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *vc;
     const msgpack_object *tk;
     UpdateVCReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -356,7 +356,7 @@ int unmarshal_signin_req_chal_req(const msgpack_object *req, Req **req_unmarshal
     const msgpack_object *iss;
     const msgpack_object *vc_req;
     SigninReqChalReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -399,7 +399,7 @@ int unmarshal_signin_conf_chal_req(const msgpack_object *req, Req **req_unmarsha
     const msgpack_object *jws;
     const msgpack_object *vc;
     SigninConfChalReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -446,7 +446,7 @@ int unmarshal_create_chan_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *intro;
     const msgpack_object *avatar;
     CreateChanReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -506,7 +506,7 @@ int unmarshal_create_chan_req_2(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *tipm;  //v2.0
     const msgpack_object *proof;  //v2.0
     CreateChanReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -570,7 +570,7 @@ int unmarshal_upd_user_info_req(const msgpack_object *req, Req **req_unmarshal) 
     const msgpack_object *avatar;
     //TODO subscriptions needs
     UpdUserInfoReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -627,7 +627,7 @@ int unmarshal_upd_chan_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *intro;
     const msgpack_object *avatar;
     UpdChanReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -690,7 +690,7 @@ int unmarshal_upd_chan_req_2(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *tipm;  //v2.0
     const msgpack_object *proof;  //v2.0
     UpdChanReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -754,7 +754,7 @@ int unmarshal_pub_post_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *chan_id;
     const msgpack_object *content;
     PubPostReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -816,7 +816,7 @@ int unmarshal_pub_post_req_2(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *origin_post_url;  //2.0
     const msgpack_object *thumbnails;  //2.0
     PubPostReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -881,7 +881,7 @@ int unmarshal_declare_post_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *content;
     const msgpack_object *with_notify;
     DeclarePostReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -946,7 +946,7 @@ int unmarshal_declare_post_req_2(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *origin_post_url;  //2.0
     const msgpack_object *thumbnails;  //2.0
     DeclarePostReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -1012,7 +1012,7 @@ int unmarshal_notify_post_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *chan_id;
     const msgpack_object *post_id;
     NotifyPostReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -1060,7 +1060,7 @@ int unmarshal_edit_post_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *post_id;
     const msgpack_object *content;
     EditPostReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -1125,7 +1125,7 @@ int unmarshal_edit_post_req_2(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *origin_post_url;  //2.0
     const msgpack_object *thumbnails;  //2.0
     EditPostReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -1193,7 +1193,7 @@ int unmarshal_del_post_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *chan_id;
     const msgpack_object *post_id;
     DelPostReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -1241,7 +1241,7 @@ int unmarshal_post_cmt_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *cmt_id;
     const msgpack_object *content;
     PostCmtReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -1307,7 +1307,7 @@ int unmarshal_post_cmt_req_2(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *proof;  //2.0
     const msgpack_object *thumbnails;  //2.0
     PostCmtReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -1374,7 +1374,7 @@ int unmarshal_edit_cmt_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *cmt_id;
     const msgpack_object *content;
     EditCmtReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -1444,7 +1444,7 @@ int unmarshal_edit_cmt_req_2(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *proof;  //2.0
     const msgpack_object *thumbnails;  //2.0
     EditCmtReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -1512,7 +1512,7 @@ int unmarshal_del_cmt_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *post_id;
     const msgpack_object *id;
     DelCmtReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -1561,7 +1561,7 @@ int unmarshal_block_cmt_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *post_id;
     const msgpack_object *cmt_id;
     BlockCmtReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -1610,7 +1610,7 @@ int unmarshal_unblock_cmt_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *post_id;
     const msgpack_object *cmt_id;
     UnblockCmtReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -1659,7 +1659,7 @@ int unmarshal_post_like_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *post_id;
     const msgpack_object *cmt_id;
     PostLikeReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -1712,7 +1712,7 @@ int unmarshal_post_like_req_2(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *cmt_id;
     const msgpack_object *proof;  //v2.0
     PostLikeReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -1766,7 +1766,7 @@ int unmarshal_post_unlike_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *post_id;
     const msgpack_object *cmt_id;
     PostLikeReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -1816,7 +1816,7 @@ int unmarshal_get_my_chans_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *lower;
     const msgpack_object *maxcnt;
     GetMyChansReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -1867,7 +1867,7 @@ int unmarshal_get_my_chans_meta_req(const msgpack_object *req, Req **req_unmarsh
     const msgpack_object *lower;
     const msgpack_object *maxcnt;
     GetMyChansMetaReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -1918,7 +1918,7 @@ int unmarshal_get_chans_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *lower;
     const msgpack_object *maxcnt;
     GetChansReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -1966,7 +1966,7 @@ int unmarshal_get_chan_dtl_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *tk;
     const msgpack_object *id;
     GetChanDtlReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -2011,7 +2011,7 @@ int unmarshal_get_sub_chans_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *lower;
     const msgpack_object *maxcnt;
     GetSubChansReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -2063,7 +2063,7 @@ int unmarshal_get_posts_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *lower;
     const msgpack_object *maxcnt;
     GetPostsReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -2118,7 +2118,7 @@ int unmarshal_get_posts_lac_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *lower;
     const msgpack_object *maxcnt;
     GetPostsLACReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -2172,7 +2172,7 @@ int unmarshal_get_liked_posts_req(const msgpack_object *req, Req **req_unmarshal
     const msgpack_object *lower;
     const msgpack_object *maxcnt;
     GetLikedPostsReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -2224,7 +2224,7 @@ int unmarshal_get_liked_data_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *lower;
     const msgpack_object *maxcnt;
     GetLikedDataReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -2278,7 +2278,7 @@ int unmarshal_get_cmts_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *lower;
     const msgpack_object *maxcnt;
     GetCmtsReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -2337,7 +2337,7 @@ int unmarshal_get_cmts_likes_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *lower;
     const msgpack_object *maxcnt;
     GetCmtsLikesReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -2390,7 +2390,7 @@ int unmarshal_get_stats_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *tsx_id;
     const msgpack_object *tk;
     GetStatsReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -2430,7 +2430,7 @@ int unmarshal_sub_chan_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *tk;
     const msgpack_object *id;
     SubChanReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -2476,7 +2476,7 @@ int unmarshal_sub_chan_req_2(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *id;
     const msgpack_object *proof;  //v2.0
     SubChanReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -2523,7 +2523,7 @@ int unmarshal_unsub_chan_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *tk;
     const msgpack_object *id;
     UnsubChanReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -2564,7 +2564,7 @@ int unmarshal_enbl_notif_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *tsx_id;
     const msgpack_object *tk;
     EnblNotifReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -2607,7 +2607,7 @@ int unmarshal_set_binary_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *checksum;
     const msgpack_object *content;
     SetBinaryReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -2665,7 +2665,7 @@ int unmarshal_get_binary_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *tk;
     const msgpack_object *key;
     GetBinaryReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -2709,7 +2709,7 @@ int unmarshal_get_srv_ver_req(const msgpack_object *req, Req **req_unmarshal)
     const msgpack_object *method;
     const msgpack_object *tsx_id;
     GetSrvVerReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -2801,7 +2801,7 @@ int unmarshal_get_reported_cmts_req(const msgpack_object *req, Req **req_unmarsh
     const msgpack_object *lower;
     const msgpack_object *maxcnt;
     GetReportedCmtsReq *tmp;
-    void *buf;
+    char *buf;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
 
@@ -2847,7 +2847,7 @@ int unmarshal_unknown_req(const msgpack_object *req, Req **req_unmarshal)
 {
     const msgpack_object *method;
     const msgpack_object *tsx_id;
-    void *buf;
+    char *buf;
     Req *tmp;
 
     assert(req->type == MSGPACK_OBJECT_MAP);
