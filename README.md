@@ -2,7 +2,7 @@ Feeds Service
 =====================
 |Linux && Mac|Windows|
 |:-:|:-:|
-|[![Build Status](https://github.com/elastod-trinity/feeds-service/workflows/CI/badge.svg)](https://github.com/elastod-trinity/feeds-service/actions)| |
+|[![Build Status](https://github.com/elastos-trinity/feeds-service/workflows/CI/badge.svg)](https://github.com/elastos-trinity/feeds-service/actions)| |
 
 ## 1. Introduction
 
