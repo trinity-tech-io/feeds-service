@@ -9,8 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        #os: [ubuntu-20.04, ubuntu-18.04]
-        os: [ubuntu-20.04]
+        os: [ubuntu-20.04, ubuntu-18.04]
     steps:
       - uses: actions/checkout@v2
       - name: build and test
