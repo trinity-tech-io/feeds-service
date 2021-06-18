@@ -1,8 +1,8 @@
 Feeds Service
 =====================
-|Linux && Mac|Windows|
-|:-:|:-:|
-|[![Build Status](https://github.com/elastos-trinity/feeds-service/workflows/CI/badge.svg)](https://github.com/elastos-trinity/feeds-service/actions)| |
+|Linux && Mac && Windows|
+|:-:|
+|[![Build Status](https://github.com/elastos-trinity/feeds-service/workflows/CI/badge.svg)](https://github.com/elastos-trinity/feeds-service/actions)|
 
 ## 1. Introduction
 
