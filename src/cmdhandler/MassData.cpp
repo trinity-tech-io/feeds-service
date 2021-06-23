@@ -45,7 +45,7 @@ int MassData::saveBinData(const std::filesystem::path &massDataDir,
                           std::shared_ptr<Resp> &resp,
                           const std::filesystem::path &contentFilePath)
 {
-    auto setBinReq = std::reinterpret_pointer_cast<SetBinaryReq>(req);
+    auto setBinReq = std::_reinterpret_pointer_cast<SetBinaryReq>(req);
     Log::D(Log::Tag::Cmd, "Request params:");
     Log::D(Log::Tag::Cmd, "    access_token: %s", setBinReq->params.tk);
     Log::D(Log::Tag::Cmd, "    key: %s", setBinReq->params.key);
@@ -72,7 +72,7 @@ int MassData::saveBinData(const std::filesystem::path &massDataDir,
     Log::D(Log::Tag::Cmd, "Response result:");
     Log::D(Log::Tag::Cmd, "    key: %s", setBinResp->result.key);
 
-    resp = std::reinterpret_pointer_cast<Resp>(setBinResp);
+    resp = std::_reinterpret_pointer_cast<Resp>(setBinResp);
 
     return 0;
 }
@@ -82,7 +82,7 @@ int MassData::loadBinData(const std::filesystem::path &massDataDir,
                           std::shared_ptr<Resp> &resp,
                           std::filesystem::path &contentFilePath)
 {
-    auto getBinReq = std::reinterpret_pointer_cast<GetBinaryReq>(req);
+    auto getBinReq = std::_reinterpret_pointer_cast<GetBinaryReq>(req);
     Log::D(Log::Tag::Cmd, "    access_token: %s", getBinReq->params.tk);
     Log::D(Log::Tag::Cmd, "    key: %s", getBinReq->params.key);
 
@@ -108,7 +108,7 @@ int MassData::loadBinData(const std::filesystem::path &massDataDir,
     Log::D(Log::Tag::Cmd, "    checksum: %s", getBinResp->result.checksum);
     Log::D(Log::Tag::Cmd, "    content_path: %s", contentFilePath.c_str());
 
-    resp = std::reinterpret_pointer_cast<Resp>(getBinResp);
+    resp = std::_reinterpret_pointer_cast<Resp>(getBinResp);
 
     return 0;
 }
@@ -119,7 +119,7 @@ int MassData::loadBinData(const std::filesystem::path &massDataDir,
 int MassData::onSetBinary(std::shared_ptr<Req> req,
                           std::shared_ptr<Resp> &resp)
 {
-    auto setBinReq = std::reinterpret_pointer_cast<SetBinaryReq>(req);
+    auto setBinReq = std::_reinterpret_pointer_cast<SetBinaryReq>(req);
 
     auto massDataCacheDir = massDataDir/ MassDataCacheDirName;
     if(std::filesystem::exists(massDataCacheDir) == false) {
@@ -151,7 +151,7 @@ int MassData::onGetBinary(std::shared_ptr<Req> req,
     int ret = loadBinData(massDataDir, req, resp, massDataFilePath);
     CHECK_ERROR(ret);
 
-    auto getBinResp = std::reinterpret_pointer_cast<GetBinaryResp>(resp);
+    auto getBinResp = std::_reinterpret_pointer_cast<GetBinaryResp>(resp);
     getBinResp->result.content_sz = std::filesystem::file_size(massDataFilePath);
     CHECK_ASSERT(getBinResp->result.content_sz <= MAX_CONTENT_SIZE, ErrCode::SizeOverflowError);
 
