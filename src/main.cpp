@@ -74,7 +74,7 @@ Carrier *carrier;
 
 #define TAG_MAIN "[Feedsd.Main]: "
 
-static const char *resolver = "http://api.elastos.io:20606";
+static const char *resolver = "https://api.elastos.io/did";
 std::shared_ptr<Carrier> carrier_instance;
 
 static std::atomic<bool> stop;
