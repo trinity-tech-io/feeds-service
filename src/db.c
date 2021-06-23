@@ -3042,7 +3042,7 @@ void *row2subchan(sqlite3_stmt *stmt)
     const char *intro = (const char *)sqlite3_column_text(stmt, 2);
     size_t avatar_sz = sqlite3_column_int64(stmt, 6);
     ChanInfo *ci = rc_zalloc(sizeof(ChanInfo) + strlen(name) + strlen(intro) + 2 + avatar_sz, NULL);
-    void *buf;
+    char *buf;
 
     if (!ci) {
         vlogE(TAG_DB "OOM");
@@ -3052,7 +3052,7 @@ void *row2subchan(sqlite3_stmt *stmt)
     buf = ci + 1;
     ci->chan_id = sqlite3_column_int64(stmt, 0);
     ci->name    = strcpy(buf, name);
-    buf = (char*)buf + strlen(name) + 1;
+    buf += strlen(name) + 1;
     ci->intro   = strcpy(buf, intro);
     buf = (char*)buf + strlen(intro) + 1;
     ci->subs    = sqlite3_column_int64(stmt, 3);
@@ -3477,7 +3477,7 @@ void *row2cmt(sqlite3_stmt *stmt)
     const char *did = (const char *)sqlite3_column_text(stmt, 6);
     CmtInfo *ci = rc_zalloc(sizeof(CmtInfo) + content_len +
                             strlen(name) + strlen(did) + 2, NULL);
-    void *buf;
+    char *buf;
 
     if (!ci) {
         vlogE(TAG_DB "OOM");
@@ -3492,10 +3492,10 @@ void *row2cmt(sqlite3_stmt *stmt)
     ci->stat         = stat;
     ci->reply_to_cmt = sqlite3_column_int64(stmt, 4);
     ci->user.name    = strcpy(buf, name);
-    buf = (char*)buf + strlen(name) + 1;
+    buf += strlen(name) + 1;
     ci->user.did     = strcpy(buf, did);
     if (stat == CMT_AVAILABLE) {
-        buf = (char*)buf + strlen(did) + 1;
+        buf += strlen(did) + 1;
         ci->content  = memcpy(buf, sqlite3_column_blob(stmt, 7), content_len);
         ci->len      = content_len;
     }
@@ -3514,7 +3514,7 @@ void *row2reportedcmt(sqlite3_stmt *stmt)
     const char *reasons = (const char *)sqlite3_column_text(stmt, 5);
     ReportedCmtInfo *rci = rc_zalloc(sizeof(CmtInfo) +
                             strlen(name) + strlen(did) + strlen(reasons) + 3, NULL);
-    void *buf;
+    char *buf;
 
     if (!rci) {
         vlogE(TAG_DB "OOM");
@@ -3527,9 +3527,9 @@ void *row2reportedcmt(sqlite3_stmt *stmt)
     rci->post_id      = sqlite3_column_int64(stmt, 1);
     rci->cmt_id       = sqlite3_column_int64(stmt, 2);
     rci->reporter.name    = strcpy(buf, name);
-    buf = (char*)buf + strlen(name) + 1;
+    buf += strlen(name) + 1;
     rci->reporter.did     = strcpy(buf, did);
-    buf = (char*)buf + strlen(did) + 1;
+    buf += strlen(did) + 1;
     rci->reasons     = strcpy(buf, reasons);
     rci->created_at   = sqlite3_column_int64(stmt, 6);
 
