@@ -33,6 +33,9 @@
     }
 
 #if defined(__APPLE__)
+#include <AvailabilityMacros.h>
+
+#if MAC_OS_X_VERSION_MAX_ALLOWED <= __MAC_11_1
 namespace std {
 template <class T, class U>
 static std::shared_ptr<T> reinterpret_pointer_cast(const std::shared_ptr<U> &r) noexcept
@@ -41,6 +44,7 @@ static std::shared_ptr<T> reinterpret_pointer_cast(const std::shared_ptr<U> &r) 
     return std::shared_ptr<T>(r, p);
 }
 } // namespace std
+#endif
 #endif // defined(__APPLE__)
 
 #endif /* _FEEDS_SAFE_PTR_HPP_ */
