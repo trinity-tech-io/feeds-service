@@ -43,12 +43,12 @@ typedef struct {
 } DBUserInfo;
 
 typedef void *(*Row2Raw)(sqlite3_stmt *);
-struct DBObjIt {
+typedef struct DBObjIt {
     sqlite3_stmt *stmt;
     Row2Raw cb;
-};
+} DBObjIt;
 
-typedef struct {
+typedef struct DBInitOperator {
     int item_num = 0;
     const char *table_name = NULL;
     const char *idx_param = NULL;
