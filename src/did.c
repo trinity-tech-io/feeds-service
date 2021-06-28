@@ -286,6 +286,26 @@ int hdl_http_req(sb_Event *ev)
     vlogI(TAG_AUTH "Received HTTP request to path[%s]", ev->path);
     vlogI(TAG_AUTH "Return HTTP response: %s", feeds_url);
 
+    if (strcmp(ev->path, "/qrcode") == 0) {
+        rc = sb_send_header(ev->stream, "Content-Type", "text/json");
+        if (rc < 0) {
+            vlogE(TAG_AUTH "Sending HTTP header failed.");
+            goto finally;
+        }
+
+        char buf[2496];
+        memset(buf, 0, sizeof(buf));
+        sprintf(buf, "{\"feedsURL\":\"%s\"}", feeds_url);
+        vlogD(TAG_AUTH "feedsURL: %s, len:%d\n", buf, strlen(buf));
+
+        rc = sb_write(ev->stream, buf, strlen(buf));
+        if (rc < 0) {
+            vlogE(TAG_AUTH "Sending QRcode failed");
+            goto finally;
+        }
+        return SB_RES_OK;
+    }
+
     rc = qrencode(feeds_url, qrcode_path);
     if (rc < 0)
         goto finally;
