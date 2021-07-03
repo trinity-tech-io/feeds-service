@@ -28,7 +28,7 @@ namespace trinity {
     if(!(expr)) { \
         Log::E(Log::Tag::Cmd, errDesp); \
         Log::D(Log::Tag::Cmd, "Did sdk errCode:0x%x, errDesc:%s", \
-               DIDError_GetCode(), DIDError_GetMessage()); \
+               DIDError_GetLastErrorCode(), DIDError_GetLastErrorMessage()); \
         CHECK_ERROR(errCode); \
     }
 
