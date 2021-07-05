@@ -35,7 +35,7 @@
 #if defined(__APPLE__)
 #include <AvailabilityMacros.h>
 
-#if MAC_OS_X_VERSION_MAX_ALLOWED <= __MAC_11_1
+#if MAC_OS_X_VERSION_MAX_ALLOWED <= __MAC_11_1 || MAC_OS_X_VERSION_MAX_ALLOWED <= __MAC_11_0
 namespace std {
 template <class T, class U>
 static std::shared_ptr<T> reinterpret_pointer_cast(const std::shared_ptr<U> &r) noexcept
