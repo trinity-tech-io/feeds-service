@@ -101,7 +101,7 @@ static void qualified_path(const char *path, const char *ref, char *qualified)
 
 #define DEFAULT_LOG_LEVEL CarrierLogLevel_Info
 #define DEFAULT_DATA_DIR  "/var/lib/feedsd"
-FeedsConfig *load_cfg(const char *cfg_file, FeedsConfig *fc)
+FeedsConfig *load_cfg(const char *cfg_file, FeedsConfig *fc, const char *data_path)
 {
     config_setting_t *nodes_setting;
     config_setting_t *node_setting;
@@ -197,16 +197,25 @@ FeedsConfig *load_cfg(const char *cfg_file, FeedsConfig *fc)
     if (rc)
         fc->carrier_opts.log_level = intopt;
 
-    rc = config_lookup_string(&cfg, "log-file", &stropt);
-    if (rc && *stropt) {
-        qualified_path(stropt, cfg_file, path);
+    if (!data_path) {
+        rc = config_lookup_string(&cfg, "log-file", &stropt);
+        if (rc && *stropt) {
+            qualified_path(stropt, cfg_file, path);
+            fc->carrier_opts.log_file = strdup(path);
+        }
+    } else {
+        sprintf(path, "%s/feedsd.log", data_path);
         fc->carrier_opts.log_file = strdup(path);
     }
 
-    rc = config_lookup_string(&cfg, "data-dir", &stropt);
-    if (!rc || !*stropt)
-        stropt = DEFAULT_DATA_DIR;
-    qualified_path(stropt, cfg_file, path);
+    if (!data_path) {
+        rc = config_lookup_string(&cfg, "data-dir", &stropt);
+        if (!rc || !*stropt)
+            stropt = DEFAULT_DATA_DIR;
+        qualified_path(stropt, cfg_file, path);
+    } else {
+        strcpy(path, data_path);
+    }
     fc->data_dir = strdup(path);
 
     sprintf(path, "%s/carrier", fc->data_dir);
