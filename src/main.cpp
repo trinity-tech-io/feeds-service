@@ -177,9 +177,6 @@ void usage(void)
     printf("First run options:\n");
     printf("  -d, --daemon              Run as daemon.\n");
     printf("  -c, --config=CONFIG_FILE  Set config file path.\n");
-    printf("      --udp-enabled=0|1     Enable UDP, override the option in config.\n");
-    printf("      --log-level=LEVEL     Log level(0-7), override the option in config.\n");
-    printf("      --log-file=FILE       Log file name, override the option in config.\n");
     printf("      --data-dir=PATH       Data location, override the option in config.\n");
     printf("\n");
     printf("Debugging options:\n");
@@ -337,6 +334,7 @@ int main(int argc, char *argv[])
 {
     char buf[CARRIER_MAX_ADDRESS_LEN + 1];
     const char *cfg_file = NULL;
+    const char *data_dir = NULL;
     int wait_for_attach = 0;
     FeedsConfig cfg;
     int daemon = 0;
@@ -347,7 +345,8 @@ int main(int argc, char *argv[])
     struct option options[] = {
         { "daemon",      no_argument,        NULL, 'd' },
         { "config",      required_argument,  NULL, 'c' },
-        { "debug",       no_argument,        NULL, 5 },
+        { "data-dir",    required_argument,  NULL,  6  },
+        { "debug",       no_argument,        NULL,  5  },
         { "help",        no_argument,        NULL, 'h' },
         { "version",     no_argument,        NULL, 'v' },
         { NULL,          0,                  NULL, 0 }
@@ -367,6 +366,8 @@ int main(int argc, char *argv[])
             cfg_file = optarg;
             break;
 
+
+
         case 1:
         case 2:
         case 3:
@@ -375,6 +376,10 @@ int main(int argc, char *argv[])
 
         case 5:
             wait_for_attach = 1;
+            break;
+
+        case 6:
+            data_dir = optarg;
             break;
 
         case 'v':
@@ -408,7 +413,7 @@ int main(int argc, char *argv[])
     }
 
     memset(&cfg, 0, sizeof(cfg));
-    if (!load_cfg(cfg_file, &cfg)) {
+    if (!load_cfg(cfg_file, &cfg, data_dir)) {
         vlogE(TAG_MAIN "Loading configure failed!");
         return -1;
     }

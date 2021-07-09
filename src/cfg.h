@@ -39,7 +39,7 @@ typedef struct {
 
 const char *get_cfg_file(const char *config_file, const char *default_config_files[]);
 
-FeedsConfig *load_cfg(const char *config_file, FeedsConfig *config);
+FeedsConfig *load_cfg(const char *config_file, FeedsConfig *config, const char *);
 
 void free_cfg(FeedsConfig *fc);
 
