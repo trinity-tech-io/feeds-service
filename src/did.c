@@ -493,7 +493,7 @@ int load_feeds_doc(DID *did, void *context)
 
 DIDDocument *local_resolver(DID *did)
 {
-    return DID_Equals(did, feeds_did) ? DIDStore_LoadDID(feeds_didstore, feeds_did) : NULL;
+    return DID_Equals(did, feeds_did) == 1 ? DIDStore_LoadDID(feeds_didstore, feeds_did) : NULL;
 }
 
 int did_init(FeedsConfig *cfg)
@@ -871,7 +871,7 @@ Marshalled *process_vc_req(const char *from, IssVCReq *req)
         goto finally;
     }
 
-    if (!Credential_IsValid(vc)) {
+    if (Credential_IsValid(vc) != 1) {
         vlogE(TAG_AUTH "Credential is invalid: %s", DIDError_GetLastErrorMessage());
         ErrResp resp = {
             .tsx_id = req->tsx_id,
@@ -897,7 +897,7 @@ Marshalled *process_vc_req(const char *from, IssVCReq *req)
         goto finally;
     }
 
-    if (!DID_Equals(Credential_GetOwner(vc), feeds_did)) {
+    if (DID_Equals(Credential_GetOwner(vc), feeds_did) != 1) {
         char vc_owner_did[ELA_MAX_DID_LEN];
 
         vlogE(TAG_AUTH "Credential owner mismatch. Expected: [%s], actual: [%s]",

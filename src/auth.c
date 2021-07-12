@@ -256,7 +256,7 @@ bool chal_resp_is_valid(JWT *chan_resp, Login **l)
         return false;
     }
 
-    if (!Presentation_IsValid(vp)) {
+    if (Presentation_IsValid(vp) != 1) {
         vlogE(TAG_AUTH "Invalid challenge response presentation: %s", DIDError_GetLastErrorMessage());
         Presentation_Destroy(vp);
         free(vp_str);
@@ -469,7 +469,7 @@ void hdl_signin_conf_chal_req(Carrier *c, const char *from, Req *base)
             goto finally;
         }
 
-        if (!Credential_IsValid(vc)) {
+        if (Credential_IsValid(vc) != 1) {
             vlogE(TAG_AUTH "Invalid credential in signin_confirm_challenge: %s", DIDError_GetLastErrorMessage());
             ErrResp resp = {
                 .tsx_id = req->tsx_id,
