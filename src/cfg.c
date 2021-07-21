@@ -256,6 +256,14 @@ FeedsConfig *load_cfg(const char *cfg_file, FeedsConfig *fc, const char *data_pa
         return NULL;
     }
 
+    rc = config_lookup_string(&cfg, "did.resolver", &stropt);
+    if (!rc || !*stropt || !(fc->did_resolver = strdup(stropt))) {
+        fprintf(stderr, "Missing did.resolver entry.\n");
+        config_destroy(&cfg);
+        free_cfg(fc);
+        return NULL;
+    }
+
     rc = config_lookup_string(&cfg, "did.store-password", &stropt);
     if (!rc || !*stropt || !(fc->didstore_passwd = strdup(stropt))) {
         fprintf(stderr, "Missing did.store-password entry.\n");

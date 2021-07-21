@@ -31,6 +31,7 @@ typedef struct {
     char *data_dir;
     char *didcache_dir;
     char *didstore_dir;
+    char *did_resolver;
     char *db_fpath;
     char *didstore_passwd;
     char *http_ip;
