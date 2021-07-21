@@ -32,6 +32,7 @@ carrier = {
 }
 
 did = {
+  resolver = "https://api.elastos.io/did"
   store-password = "default"
 
   binding-server = {
