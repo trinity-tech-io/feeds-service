@@ -382,7 +382,7 @@ int main(int argc, char *argv[])
             break;
 
         case 'v':
-            printf("%s", FEEDSD_VER);
+            printf("%s\n", FEEDSD_VER);
             exit(0);
 
         case 'h':
