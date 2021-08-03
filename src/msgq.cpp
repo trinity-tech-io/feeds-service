@@ -147,9 +147,13 @@ void on_msg_receipt(uint32_t msgid, CarrierReceiptState state, void *context)
     (void)msgid;
     (void)state;
 
-    vlogD(TAG_MSG "Message [%" PRIi64 "] to [%s] receipt status: %s", msgid, q->peer,
+    vlogD(TAG_MSG "Message %lu to %s receipt status: %s", msgid, q->peer,
           state == CarrierReceipt_ByFriend ? "received" :
                    state == CarrierReceipt_Offline ? "friend offline" : "error");
+  
+//vlogD(TAG_MSG "Message [%" PRIi64 "] to [%s] receipt status: %s", msgid, q->peer,
+//          state == CarrierReceipt_ByFriend ? "received" :
+//                   state == CarrierReceipt_Offline ? "friend offline" : "error");
 
     if (q->depr) {
         vlogD(TAG_MSG "Message queue is deprecated.");
