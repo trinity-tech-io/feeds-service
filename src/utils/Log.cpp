@@ -126,17 +126,21 @@ void Log::Print(int level, const char* tag, const char* format, va_list ap)
 {
   std::stringstream prettyFormat;
 
+#if !defined(_WIN32) && !defined(_WIN64)
 #ifndef NDEBUG
   auto prefix = ConvColor(level);
   prettyFormat << prefix;
+#endif
 #endif
 
   prettyFormat << "[" << std::left << std::setw(11) << tag << "]: ";
   prettyFormat << format;
 
+#if !defined(_WIN32) && !defined(_WIN64)
 #ifndef NDEBUG
   auto suffix = ConvColor(-1);
   prettyFormat << suffix;
+#endif
 #endif
 
   vlogv(level, prettyFormat.str().c_str(), ap);

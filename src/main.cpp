@@ -177,6 +177,9 @@ void usage(void)
     printf("  -d, --daemon              Run as daemon.\n");
     printf("  -c, --config=CONFIG_FILE  Set config file path.\n");
     printf("      --data-dir=PATH       Data location, override the option in config.\n");
+#if defined(_WIN32) || defined(_WIN64)
+    printf("      --cacert_dir=PATH    The location to mozilla CA certificate (only for windows)\n");
+#endif
     printf("\n");
     printf("Debugging options:\n");
     printf("      --debug               Wait for debugger attach after start.\n");
@@ -334,6 +337,9 @@ int main(int argc, char *argv[])
     char buf[CARRIER_MAX_ADDRESS_LEN + 1];
     const char *cfg_file = NULL;
     const char *data_dir = NULL;
+#if defined(_WIN32) || defined(_WIN64)
+    const char *cert_dir = NULL;
+#endif
     int wait_for_attach = 0;
     FeedsConfig cfg;
     int daemon = 0;
@@ -345,6 +351,9 @@ int main(int argc, char *argv[])
         { "daemon",      no_argument,        NULL, 'd' },
         { "config",      required_argument,  NULL, 'c' },
         { "data-dir",    required_argument,  NULL,  6  },
+#if defined(_WIN32) || defined(_WIN64)
+        { "cacert-dir",  required_argument,  NULL,  7  },
+#endif
         { "debug",       no_argument,        NULL,  5  },
         { "help",        no_argument,        NULL, 'h' },
         { "version",     no_argument,        NULL, 'v' },
@@ -381,6 +390,12 @@ int main(int argc, char *argv[])
             data_dir = optarg;
             break;
 
+#if defined(_WIN32) || defined(_WIN64)
+        case 7:
+            cert_dir = optarg;
+            break;
+#endif
+
         case 'v':
             printf("%s\n", FEEDSD_VER);
             exit(0);
@@ -393,7 +408,25 @@ int main(int argc, char *argv[])
         }
     }
 
-#if !defined(_WIN32) && !defined(_WIN64)
+#if defined(_WIN32) || defined(_WIN64)
+    if (!cert_dir) {
+        printf("Error: No environment for CURLOPT_CAINFO");
+        return -1;
+    }
+
+    char _env[1024] = {0};
+    rc = sprintf(_env, "CURLOPT_CAINFO=%s", cert_dir);
+    if (rc < 0) {
+        printf("Error: The environ too long, exiting.");
+        return -1;
+    }
+
+    rc = putenv(_env);
+    if (rc != 0) {
+        printf("Failed to set the environment for CURLOPT_CAINFO");
+        return -1;
+    }
+#else
     setvbuf(stdout, NULL, _IOLBF, 0);
     setvbuf(stderr, NULL, _IOLBF, 0);
 #endif
