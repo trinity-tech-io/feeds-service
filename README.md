@@ -22,7 +22,8 @@ Just clone source code onto a local device and start the build process with the 
 $ git clone git@github.com:elastos-trinity/feeds-service.git
 $ cd feeds-service
 $ mkdir build
-$ cmake -DCMAKE_INSTALL_PREFIX=YOUR-PATH ../..
+$ cd build
+$ cmake -DCMAKE_INSTALL_PREFIX=YOUR-PATH ..
 $ make -j4
 $ make install
 ```
