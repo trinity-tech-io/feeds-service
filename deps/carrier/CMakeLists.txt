@@ -6,9 +6,9 @@ ExternalProject_Add(
     carrier
 
     PREFIX ${FEEDS_DEPS_BUILD_PREFIX}
-    URL https://github.com/elastos/Elastos.NET.Carrier.Native.SDK/archive/release-v6.0.3.tar.gz
-    URL_HASH SHA256=daa79d1bae6d52ce4efb3753eb4b7892441a2d51ebd5baa36a38416550346e65
-    DOWNLOAD_NAME carrier-v6.0.3.tar.gz
+    URL https://github.com/elastos/Elastos.NET.Carrier.Native.SDK/archive/79c8d02077f25eebf6ce42ba03d0744395c20a29.zip
+    URL_HASH SHA256=eebd6ada72b0687250898388ddd7e0e517098a0635b0a77cc12d8600fcc8426e
+    DOWNLOAD_NAME carrier-79c8d02.zip
     DOWNLOAD_DIR ${FEEDS_DEPS_TARBALL_DIR}
     DOWNLOAD_NO_PROGRESS 1
     LOG_DOWNLOAD FALSE
