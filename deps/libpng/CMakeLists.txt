@@ -18,5 +18,6 @@ ExternalProject_Add(
         -DPNG_STATIC=ON
         -DPNG_TESTS=OFF
         -DCMAKE_PREFIX_PATH=${FEEDS_INT_DIST_DIR}
+        -DPNG_ARM_NEON=off
         ${EXTERNAL_CMAKE_PROJECT_ADDITIONAL_ARGS}
 )
