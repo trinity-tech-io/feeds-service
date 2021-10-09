@@ -40,7 +40,7 @@ By default, all running data will be cached in your $HOME/.feeds unless you upda
 
 ### Paring/Binding service
 
-As Feeds service started, open browser with address **http://localhost:10080**,  begin to conduct the binding/pairing procedure with Feeds dApp on a mobile device.
+As Feeds service started, open browser with address **http://localhost:10018**,  begin to conduct the binding/pairing procedure with Feeds dApp on a mobile device.
 
 ## 3. Run from Docker
 - Build docker image[Optional]
@@ -49,7 +49,7 @@ docker build -t elastos/feeds-node PROJECT_ROOT
 ```
 - Run docker container
 ```
-docker run --name feeds-node -p 10080:10080 elastos/feeds-node:latest
+docker run --name feeds-node -p 10018:10018 elastos/feeds-node:latest
 ```
 
 ## 4. Installation from packages
