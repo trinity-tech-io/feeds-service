@@ -191,6 +191,7 @@ void usage(void)
 #define CONFIG_NAME "feedsd.conf"
 static const char *default_cfg_files[] = {
     "./" CONFIG_NAME,
+    "../etc/" CONFIG_NAME,
     "../etc/feedsd/" CONFIG_NAME,
     "/usr/local/etc/feedsd/" CONFIG_NAME,
     "/etc/feedsd/" CONFIG_NAME,
