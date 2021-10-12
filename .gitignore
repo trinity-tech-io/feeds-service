@@ -4,7 +4,6 @@
 tags
 /build
 speedbox
-deps
 Makefile
 CMakeFiles
 *cmake*
