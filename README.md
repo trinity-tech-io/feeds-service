@@ -49,7 +49,7 @@ docker build -t elastos/feeds-node PROJECT_ROOT
 ```
 - Run docker container
 ```
-docker run --name feeds-node -p 10018:10018 elastos/feeds-node:latest
+docker run --name feeds-node -p 10018:10018 -v $(pwd)/data:/feedsd/var/lib elastos/feeds-node:latest
 ```
 
 ## 4. Installation from packages
