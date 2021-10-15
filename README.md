@@ -24,7 +24,7 @@ $ cd feeds-service
 $ mkdir build
 $ cd build
 $ cmake -DCMAKE_INSTALL_PREFIX=YOUR-PATH ..
-$ make -j4
+$ make
 $ make install
 ```
 
