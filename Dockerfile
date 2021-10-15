@@ -24,5 +24,5 @@ RUN chown -Rv 1000:1000 /feedsd
 USER 1000:1000
 WORKDIR /feedsd/bin
 EXPOSE 10018
-VOLUME /feedsd/var/lib
+VOLUME /feedsd/var
 ENTRYPOINT ["./feedsd"]
