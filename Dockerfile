@@ -11,7 +11,10 @@ WORKDIR /feedsd/build
 RUN cmake -DCMAKE_INSTALL_PREFIX=dist -DCMAKE_BUILD_TYPE=Release .. && make -j1 && make install
 
 FROM ubuntu:18.04 AS production
-RUN apt-get update -y && apt-get install -y ca-certificates
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends ca-certificates && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 WORKDIR /feedsd/bin
 COPY --from=builder /feedsd/build/dist/bin/feedsd .
 WORKDIR /feedsd/etc
