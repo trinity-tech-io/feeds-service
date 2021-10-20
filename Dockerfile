@@ -19,9 +19,11 @@ WORKDIR /feedsd/bin
 COPY --from=builder /feedsd/build/dist/bin/feedsd .
 WORKDIR /feedsd/etc
 COPY --from=builder /feedsd/build/dist/etc/feedsd/feedsd.conf .
-RUN sed -i 's/localhost/0.0.0.0/' feedsd.conf
-RUN sed -i '/^log-file/ s/=.*/= "\/feedsd\/var\/log\/feedsd.log"/' feedsd.conf
-RUN sed -i '/^data-dir/ s/=.*/= "\/feedsd\/var\/lib"/' feedsd.conf
+RUN sed -i \
+        -e '/^log-level/ s/=.*/= 5/' \
+        -e '/^log-file/  s/=.*/= "\/feedsd\/var\/log\/feedsd.log"/' \
+        -e '/^data-dir/  s/=.*/= "\/feedsd\/var\/lib"/' \
+        feedsd.conf
 WORKDIR /feedsd/var/lib
 WORKDIR /feedsd/var/log
 RUN chown -Rv 1000:1000 /feedsd
