@@ -16,10 +16,16 @@ We assumed that you already installed Feeds dApp on your mobile device and want 
 
 ### Build from source
 
+Install build prerequisites:
+
+```
+$ sudo apt-get install -y automake build-essential cmake git libtool pkg-config
+```
+
 Just clone source code onto a local device and start the build process with the following commands:
 
 ```
-$ git clone git@github.com:elastos-trinity/feeds-service.git
+$ git clone https://github.com/elastos-trinity/feeds-service.git
 $ cd feeds-service
 $ mkdir build
 $ cd build
