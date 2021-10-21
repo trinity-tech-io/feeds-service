@@ -1,5 +1,6 @@
 FROM ubuntu:18.04 AS builder
-RUN apt-get update -y && apt-get install cmake git build-essential automake libtool pkg-config -y
+RUN apt-get update -y && \
+    apt-get install -y automake build-essential cmake git libtool pkg-config
 WORKDIR /feedsd
 COPY cmake cmake/
 COPY debian debian/
@@ -8,9 +9,11 @@ COPY scripts scripts/
 COPY src src/
 COPY CMakeLists.txt ./
 WORKDIR /feedsd/build
-RUN cmake -DCMAKE_INSTALL_PREFIX=dist -DCMAKE_BUILD_TYPE=Release .. && make -j1 && make install
+RUN cmake -DCMAKE_INSTALL_PREFIX=dist -DCMAKE_BUILD_TYPE=Release .. && \
+    make && \
+    make install
 
-FROM ubuntu:18.04 AS production
+FROM ubuntu:18.04
 RUN apt-get update -y && \
     apt-get install -y --no-install-recommends ca-certificates && \
     apt-get clean && \
