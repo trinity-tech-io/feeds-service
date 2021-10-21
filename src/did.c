@@ -557,7 +557,7 @@ int did_init(FeedsConfig *cfg)
 
     vlogI(TAG_AUTH "DID imported: [%s]", feeds_did_str);
 
-    vc_url = DIDURL_NewByDid(feeds_did, VC_FRAG);
+    vc_url = DIDURL_NewFromDid(feeds_did, VC_FRAG);
     if (!vc_url) {
         vlogE(TAG_AUTH "Getting VC URL failed: %s", DIDError_GetLastErrorMessage());
         goto failure;
@@ -778,7 +778,7 @@ void hdl_imp_did_req(Carrier *c, const char *from, Req *base)
         goto finally;
     }
 
-    feeds_doc = RootIdentity_NewDIDByIndex(identity, req->params.idx, feeds_storepass, NULL);
+    feeds_doc = RootIdentity_NewDIDByIndex(identity, req->params.idx, feeds_storepass, NULL, false);
     RootIdentity_Destroy(identity);
     if (!feeds_doc) {
         vlogE(TAG_AUTH "Newing DID in DID store failed: %s", DIDError_GetLastErrorMessage());
@@ -849,7 +849,7 @@ Marshalled *process_vc_req(const char *from, IssVCReq *req)
         goto finally;
     }
 
-    vc_url = DIDURL_NewByDid(feeds_did, VC_FRAG);
+    vc_url = DIDURL_NewFromDid(feeds_did, VC_FRAG);
     if (!vc_url) {
         vlogE(TAG_AUTH "Getting VC URL failed: %s", DIDError_GetLastErrorMessage());
         ErrResp resp = {
@@ -886,8 +886,8 @@ Marshalled *process_vc_req(const char *from, IssVCReq *req)
         char vc_id[ELA_MAX_DIDURL_LEN];
 
         vlogE(TAG_AUTH "Credential ID mismatch. Expected: [%s], actual: [%s]",
-              DIDURL_ToString(vc_url, vc_url_str, sizeof(vc_url_str), true),
-              DIDURL_ToString(Credential_GetId(vc), vc_id, sizeof(vc_id), true));
+              DIDURL_ToString(vc_url, vc_url_str, sizeof(vc_url_str)),
+              DIDURL_ToString(Credential_GetId(vc), vc_id, sizeof(vc_id)));
 
         ErrResp resp = {
             .tsx_id = req->tsx_id,

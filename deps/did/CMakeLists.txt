@@ -6,9 +6,9 @@ ExternalProject_Add(
     did
 
     PREFIX ${FEEDS_DEPS_BUILD_PREFIX}
-    URL https://github.com/elastos/Elastos.DID.Native.SDK/archive/refs/tags/release-v2.1.2.tar.gz
-    URL_HASH SHA256=b1b6fcebe950abf52485365623e45b93b12fe7851320f3ad061a3f87dc0fdc1e
-    DOWNLOAD_NAME did-v2.1.2.zip
+    URL https://github.com/elastos/Elastos.DID.Native.SDK/archive/refs/tags/release-v2.1.3.tar.gz
+    URL_HASH SHA256=7ad7d06b833b5afb2ac4b3b31fe89c97805233e4c1d28fef94e77b59a2d29c80
+    DOWNLOAD_NAME did-v2.1.3.tar.gz
     DOWNLOAD_DIR ${FEEDS_DEPS_TARBALL_DIR}
     DOWNLOAD_NO_PROGRESS 1
     LOG_DOWNLOAD FALSE
