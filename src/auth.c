@@ -606,7 +606,7 @@ bool access_token_is_valid(JWT *token)
 
     if (!DIDURL_Equals(keyurl, feeeds_auth_key_url)) {
         vlogE(TAG_AUTH "Getting access token signing key URL mismatch: expected: [%s], actual: [%s].",
-              DIDURL_ToString(feeeds_auth_key_url, auth_key, sizeof(auth_key), true), JWT_GetKeyId(token));
+              DIDURL_ToString(feeeds_auth_key_url, auth_key, sizeof(auth_key)), JWT_GetKeyId(token));
         goto finally;
     }
 

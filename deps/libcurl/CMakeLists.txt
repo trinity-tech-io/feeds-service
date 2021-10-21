@@ -10,13 +10,15 @@ if(WIN32)
 
     set(BUILD_CMD cd winbuild && nmake)
     set(BUILD_ARGS
-        -f Makefile.vc
-        MODE=static
+        "/f" "Makefile.vc"
+        "MODE=static"
         "WITH_DEVEL=${FEEDS_INT_DIST_DIR}"
-        WITH_SSL=static
-        WITH_ZLIB=static
-        ENABLE_WINSSL=no
-        ENABLE_IDN=no)
+        "WITH_SSL=static"
+        "WITH_ZLIB=static"
+        "ENABLE_SSPI=yes"
+        "ENABLE_WINSSL=yes"
+        "ENABLE_OPENSSL_AUTO_LOAD_CONFIG=no"
+        "ENABLE_IDN=no")
 
     set(OUTPUT_PATH builds\\libcurl)
     set(INSTALL_CMD
@@ -24,6 +26,17 @@ if(WIN32)
         copy "${OUTPUT_PATH}\\lib\\libcurl_a.lib" "${FEEDS_INT_DIST_DIR}\\lib\\curl.lib" /y)
 else()
     include(ExternalConfigureArgs)
+
+    if(DARWIN)
+        set(SSL_OPTIONS
+            "--with-darwinssl"
+            "--with-secure-transport"
+            "--enable-proxy")
+    else()
+        set(SSL_OPTIONS
+            "--without-darwinssl"
+            "--disable-proxy")
+    endif()
 
     set(PATCH_EXE "echo")
     set(PATCH_ARGS "Done")
@@ -40,7 +53,6 @@ else()
         "--without-lber-lib"
         "--without-winssl"
         "--without-schannel"
-        "--without-darwinssl"
         "--without-gnutls"
         "--without-polarssl"
         "--without-mbedtls"
@@ -60,7 +72,6 @@ else()
         "--disable-ldap"
         "--disable-ldaps"
         "--disable-rtsp"
-        "--disable-proxy"
         "--disable-dict"
         "--disable-telnet"
         "--disable-tftp"
@@ -70,6 +81,7 @@ else()
         "--disable-smtp"
         "--disable-gopher"
         "--disable-manual"
+        ${SSL_OPTIONS}
         ${CONFIGURE_ARGS_INIT})
 
     set(INSTALL_CMD
@@ -102,7 +114,7 @@ set(CURL_DEPS
     z)
 
 if(WIN32)
-    set(CURL_DEPS ${CURL_DEPS} Ws2_32 Iphlpapi)
+    set(CURL_DEPS ${CURL_DEPS} Crypt32 Ws2_32 Iphlpapi)
 endif()
 
 if(NOT ANDROID)

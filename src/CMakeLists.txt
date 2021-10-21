@@ -86,7 +86,7 @@ add_dependencies(feedsd
 
 if(WIN32)
     set(CONFIG_LIBS libconfig.lib)
-    set(SYSTEM_LIBS Winmm Ws2_32 Iphlpapi Shlwapi)
+    set(SYSTEM_LIBS Winmm Crypt32 Ws2_32 Iphlpapi Shlwapi)
 else()
     set(CONFIG_LIBS config)
     set(SYSTEM_LIBS dl m)
