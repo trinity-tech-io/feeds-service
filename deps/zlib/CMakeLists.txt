@@ -18,3 +18,13 @@ ExternalProject_Add(
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${FEEDS_INT_DIST_DIR}
         ${EXTERNAL_CMAKE_PROJECT_ADDITIONAL_ARGS}
 )
+
+if(WIN32)
+    ExternalProject_Add_Step(
+        zlib post-install
+        DEPENDEES install
+        WORKING_DIRECTORY "${FEEDS_INT_DIST_DIR}/lib"
+        COMMAND copy zlib1.lib z.lib /y
+        COMMAND copy zlib1.lib zlib_a.lib /y
+    )
+endif()

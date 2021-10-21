@@ -1,17 +1,17 @@
-diff -ruN curl-7.64.0/lib/config-win32.h curl-7.64.0-mod/lib/config-win32.h
---- curl-7.64.0/lib/config-win32.h	2018-12-17 15:03:06.000000000 +0800
-+++ curl-7.64.0-mod/lib/config-win32.h	2019-03-06 17:20:53.000000000 +0800
-@@ -740,4 +740,6 @@
+diff -ruN curl-curl-7_71_0/lib/config-win32.h curl-7_71_0/lib/config-win32.h
+--- curl-curl-7_71_0/lib/config-win32.h	2020-06-24 05:41:50.000000000 +0800
++++ curl-7_71_0/lib/config-win32.h	2021-10-15 14:43:52.000000000 +0800
+@@ -761,4 +761,6 @@
  #  define ENABLE_IPV6 1
  #endif
  
 +#define HTTP_ONLY
 +
  #endif /* HEADER_CURL_CONFIG_WIN32_H */
-diff -ruN curl-7.64.0/winbuild/Makefile.vc curl-7.64.0-mod/winbuild/Makefile.vc
---- curl-7.64.0/winbuild/Makefile.vc	2018-10-27 18:00:54.000000000 +0800
-+++ curl-7.64.0-mod/winbuild/Makefile.vc	2019-03-06 17:59:39.000000000 +0800
-@@ -198,55 +198,55 @@
+diff -ruN curl-curl-7_71_0/winbuild/Makefile.vc curl-7_71_0/winbuild/Makefile.vc
+--- curl-curl-7_71_0/winbuild/Makefile.vc	2020-06-24 05:41:50.000000000 +0800
++++ curl-7_71_0/winbuild/Makefile.vc	2021-10-15 14:52:20.000000000 +0800
+@@ -211,55 +211,55 @@
  SSH2     = static
  !ENDIF
  
@@ -115,15 +115,3 @@ diff -ruN curl-7.64.0/winbuild/Makefile.vc curl-7.64.0-mod/winbuild/Makefile.vc
  
  !MESSAGE configuration name: $(CONFIG_NAME_LIB)
  
-diff -ruN curl-7.64.0/winbuild/MakefileBuild.vc curl-7.64.0-mod/winbuild/MakefileBuild.vc
---- curl-7.64.0/winbuild/MakefileBuild.vc	2019-02-05 22:00:12.000000000 +0800
-+++ curl-7.64.0-mod/winbuild/MakefileBuild.vc	2019-03-06 17:19:34.000000000 +0800
-@@ -502,7 +502,7 @@
- 
- EXE_OBJS = $(CURL_OBJS) $(CURL_DIROBJ)\curl.res
- 
--all : $(TARGET) $(PROGRAM_NAME)
-+all : $(TARGET)
- 
- package: $(TARGET)
- 	@cd $(DIRDIST)
