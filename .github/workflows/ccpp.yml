@@ -10,13 +10,15 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-20.04, ubuntu-18.04]
+        build_type: [Debug, Release]
     steps:
       - uses: actions/checkout@v2
       - name: build and test
         run: |
           mkdir -p build/linux
           cd build/linux
-          cmake -DCMAKE_INSTALL_PREFIX=dist ../..
+          cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
+                -DCMAKE_INSTALL_PREFIX=dist ../..
           make
           make install
 
@@ -26,6 +28,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-11, macos-10.15]
+        build_type: [Debug, Release]
     steps:
       - uses: actions/checkout@v2
       - name: build and test
@@ -46,10 +49,10 @@ jobs:
 
           mkdir -p build/macos
           cd build/macos
-          cmake -DCMAKE_INSTALL_PREFIX=dist ../..
+          cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
+                -DCMAKE_INSTALL_PREFIX=dist ../..
           make
           make install
-
 
   build-windows:
     runs-on: ${{ matrix.os }}
