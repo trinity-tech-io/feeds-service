@@ -16,14 +16,14 @@ carrier = {
       public-key = "H8sqhRrQuJZ6iLtP2wanxt4LzdNrN2NNFnpPdq1uJ9n2"
     },
     {
-      ipv4 = "52.83.171.135"
+      ipv4 = "54.193.141.205"
       port = 33445
-      public-key = "5tuHgK1Q4CYf4K5PutsEPK5E3Z7cbtEBdx7LwmdzqXHL"
+      public-key = "7TfZWZNV8vnBxxWzJXuvKgX2QyKkLpg2oXx3LQ5tg8LW"
     },
     {
-      ipv4 = "52.83.191.228"
+      ipv4 = "52.74.215.181"
       port = 33445
-      public-key = "3khtxZo89SBScAMaHhTvD68pPHiKxgZT6hTCSZZVgNEm"
+      public-key = "Xv6d34WaUw9bPn7YihzVAFw7D2igbQJZ3jwmzzfYVFV"
     }
   )
 
